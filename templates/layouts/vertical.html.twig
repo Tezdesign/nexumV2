@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    {{ include('partials/title-meta.html.twig') }}
+    {% block css %}{% endblock %}
+    {{ include('partials/head-css.html.twig') }}
+</head>
+
+<body>
+
+<div class="wrapper">
+
+    {{ include('partials/topbar.html.twig') }}
+    {{ include('partials/sidenav.html.twig') }}
+
+    <div class="page-content">
+
+        <div class="page-container">
+            
+               {% block content %}{% endblock %}
+            
+        </div>
+
+        {{ include('partials/footer.html.twig') }}
+
+    </div>
+</div>
+
+{{ include('partials/customizer.html.twig') }}
+{{ include('partials/footer-scripts.html.twig') }}
+
+{% block script %}{% endblock %}
+
+</body>
+
+</html>
