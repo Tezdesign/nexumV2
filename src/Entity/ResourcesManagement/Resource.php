@@ -71,15 +71,15 @@ class Resource
         return $this;
     }
 
-    #[ORM\Column(type: 'decimal', nullable: false)]
-    private ?float $unit_cost = null;
+    #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2, nullable: false)]
+    private ?string $unit_cost = null;
 
-    public function getUnit_cost(): ?float
+    public function getUnit_cost(): ?string
     {
         return $this->unit_cost;
     }
 
-    public function setUnit_cost(float $unit_cost): self
+    public function setUnit_cost(string $unit_cost): self
     {
         $this->unit_cost = $unit_cost;
         return $this;

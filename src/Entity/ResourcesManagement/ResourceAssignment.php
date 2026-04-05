@@ -114,15 +114,15 @@ class ResourceAssignment
         return $this;
     }
 
-    #[ORM\Column(type: 'decimal', nullable: true)]
-    private ?float $total_cost = null;
+    #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2, nullable: true)]
+    private ?string $total_cost = null;
 
-    public function getTotal_cost(): ?float
+    public function getTotal_cost(): ?string
     {
         return $this->total_cost;
     }
 
-    public function setTotal_cost(?float $total_cost): self
+    public function setTotal_cost(?string $total_cost): self
     {
         $this->total_cost = $total_cost;
         return $this;

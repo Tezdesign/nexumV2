@@ -85,15 +85,15 @@ class Project
         return $this;
     }
 
-    #[ORM\Column(type: 'decimal', nullable: true)]
-    private ?float $budget = null;
+    #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2, nullable: true)]
+    private ?string $budget = null;
 
-    public function getBudget(): ?float
+    public function getBudget(): ?string
     {
         return $this->budget;
     }
 
-    public function setBudget(?float $budget): self
+    public function setBudget(?string $budget): self
     {
         $this->budget = $budget;
         return $this;

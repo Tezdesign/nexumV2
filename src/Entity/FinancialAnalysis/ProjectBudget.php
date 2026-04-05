@@ -44,29 +44,29 @@ class ProjectBudget
         return $this;
     }
 
-    #[ORM\Column(type: 'decimal', nullable: false)]
-    private ?float $total_budget = null;
+    #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2, nullable: false)]
+    private ?string $total_budget = null;
 
-    public function getTotal_budget(): ?float
+    public function getTotal_budget(): ?string
     {
         return $this->total_budget;
     }
 
-    public function setTotal_budget(float $total_budget): self
+    public function setTotal_budget(string $total_budget): self
     {
         $this->total_budget = $total_budget;
         return $this;
     }
 
-    #[ORM\Column(type: 'decimal', nullable: false)]
-    private ?float $actualSpend = null;
+    #[ORM\Column(name: 'actualSpend', type: Types::DECIMAL, precision: 10, scale: 2, nullable: false)]
+    private ?string $actualSpend = null;
 
-    public function getActualSpend(): ?float
+    public function getActualSpend(): ?string
     {
         return $this->actualSpend;
     }
 
-    public function setActualSpend(float $actualSpend): self
+    public function setActualSpend(string $actualSpend): self
     {
         $this->actualSpend = $actualSpend;
         return $this;
@@ -86,7 +86,7 @@ class ProjectBudget
         return $this;
     }
 
-    #[ORM\Column(type: 'date', nullable: false)]
+    #[ORM\Column(name: 'dueDate', type: 'date', nullable: false)]
     private ?\DateTimeInterface $dueDate = null;
 
     public function getDueDate(): ?\DateTimeInterface
@@ -100,7 +100,7 @@ class ProjectBudget
         return $this;
     }
 
-    #[ORM\Column(type: 'integer', nullable: false)]
+    #[ORM\Column(name: 'projectId', type: 'integer', nullable: false)]
     private ?int $projectId = null;
 
     public function getProjectId(): ?int
@@ -160,3 +160,4 @@ class ProjectBudget
     }
 
 }
+

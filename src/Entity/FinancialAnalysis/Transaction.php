@@ -44,15 +44,15 @@ class Transaction
         return $this;
     }
 
-    #[ORM\Column(type: 'decimal', nullable: false)]
-    private ?float $cost = null;
+    #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2, nullable: false)]
+    private ?string $cost = null;
 
-    public function getCost(): ?float
+    public function getCost(): ?string
     {
         return $this->cost;
     }
 
-    public function setCost(float $cost): self
+    public function setCost(string $cost): self
     {
         $this->cost = $cost;
         return $this;

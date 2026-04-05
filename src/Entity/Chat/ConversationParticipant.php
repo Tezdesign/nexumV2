@@ -13,7 +13,6 @@ use App\Repository\Chat\ConversationParticipantRepository;
 class ConversationParticipant
 {
     #[ORM\Id]
-    #[ORM\GeneratedValue]
     #[ORM\Column(type: 'integer')]
     private ?int $conversation_id = null;
 
@@ -28,6 +27,7 @@ class ConversationParticipant
         return $this;
     }
 
+    #[ORM\Id]
     #[ORM\Column(type: 'integer', nullable: false)]
     private ?int $user_id = null;
 

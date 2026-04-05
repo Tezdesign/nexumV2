@@ -13,7 +13,6 @@ use App\Repository\Projects\ProjectAssignmentRepository;
 class ProjectAssignment
 {
     #[ORM\Id]
-    #[ORM\GeneratedValue]
     #[ORM\Column(type: 'integer')]
     private ?int $project_id = null;
 
@@ -28,6 +27,7 @@ class ProjectAssignment
         return $this;
     }
 
+    #[ORM\Id]
     #[ORM\Column(type: 'integer', nullable: false)]
     private ?int $user_id = null;
 

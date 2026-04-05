@@ -43,29 +43,29 @@ class BudgetProfile
         return $this;
     }
 
-    #[ORM\Column(type: 'decimal', nullable: false)]
-    private ?float $budget_disposable = null;
+    #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2, nullable: false)]
+    private ?string $budget_disposable = null;
 
-    public function getBudget_disposable(): ?float
+    public function getBudget_disposable(): ?string
     {
         return $this->budget_disposable;
     }
 
-    public function setBudget_disposable(float $budget_disposable): self
+    public function setBudget_disposable(string $budget_disposable): self
     {
         $this->budget_disposable = $budget_disposable;
         return $this;
     }
 
-    #[ORM\Column(type: 'decimal', nullable: true)]
-    private ?float $total_expense = null;
+    #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2, nullable: true)]
+    private ?string $total_expense = null;
 
-    public function getTotal_expense(): ?float
+    public function getTotal_expense(): ?string
     {
         return $this->total_expense;
     }
 
-    public function setTotal_expense(?float $total_expense): self
+    public function setTotal_expense(?string $total_expense): self
     {
         $this->total_expense = $total_expense;
         return $this;
@@ -134,3 +134,4 @@ class BudgetProfile
     }
 
 }
+
