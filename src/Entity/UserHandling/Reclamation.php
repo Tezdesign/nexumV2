@@ -7,6 +7,7 @@ use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: ReclamationRepository::class)]
 #[ORM\Table(name: 'reclamation')]
+#[ORM\Index(name: "fk_reclamation_user", columns: ["id_user"])]
 class Reclamation
 {
     #[ORM\Id]

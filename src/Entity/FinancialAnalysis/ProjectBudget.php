@@ -12,6 +12,7 @@ use App\Repository\FinancialAnalysis\ProjectBudgetRepository;
 
 #[ORM\Entity(repositoryClass: ProjectBudgetRepository::class)]
 #[ORM\Table(name: 'project_budget')]
+#[ORM\Index(name: "fk_pro_id", columns: ["projectId"])]
 class ProjectBudget
 {
     #[ORM\Id]

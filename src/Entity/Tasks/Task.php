@@ -11,6 +11,12 @@ use App\Repository\Tasks\TaskRepository;
 
 #[ORM\Entity(repositoryClass: TaskRepository::class)]
 #[ORM\Table(name: 'tasks')]
+#[ORM\Index(name: "fk_tasks_created_by", columns: ["created_by"])]
+#[ORM\Index(name: "idx_tasks_assigned_to", columns: ["assigned_to"])]
+#[ORM\Index(name: "idx_tasks_due_date", columns: ["due_date"])]
+#[ORM\Index(name: "idx_tasks_priority", columns: ["priority"])]
+#[ORM\Index(name: "idx_tasks_project", columns: ["project_id"])]
+#[ORM\Index(name: "idx_tasks_status", columns: ["status"])]
 class Task
 {
     #[ORM\Id]

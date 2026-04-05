@@ -10,6 +10,10 @@ use App\Repository\Chat\ConversationParticipantRepository;
 
 #[ORM\Entity(repositoryClass: ConversationParticipantRepository::class)]
 #[ORM\Table(name: 'conversation_participants')]
+#[ORM\Index(name: "idx_cp_conversation", columns: ["conversation_id"])]
+#[ORM\Index(name: "idx_cp_last_read", columns: ["last_read_message_id"])]
+#[ORM\Index(name: "idx_cp_nickname", columns: ["nickname"])]
+#[ORM\Index(name: "idx_cp_user_active", columns: ["user_id"])]
 class ConversationParticipant
 {
     #[ORM\Id]

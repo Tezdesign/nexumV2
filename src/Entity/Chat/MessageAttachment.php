@@ -11,6 +11,7 @@ use App\Repository\Chat\MessageAttachmentRepository;
 
 #[ORM\Entity(repositoryClass: MessageAttachmentRepository::class)]
 #[ORM\Table(name: 'message_attachments')]
+#[ORM\Index(name: "index_attachment_message", columns: ["message_id"])]
 class MessageAttachment
 {
     #[ORM\Id]

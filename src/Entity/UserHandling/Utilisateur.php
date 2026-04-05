@@ -12,6 +12,7 @@ use App\Repository\UserHandling\UtilisateurRepository;
 
 #[ORM\Entity(repositoryClass: UtilisateurRepository::class)]
 #[ORM\Table(name: 'utilisateurs')]
+#[ORM\UniqueConstraint(name: "email", columns: ["email"])]
 class Utilisateur
 {
     #[ORM\Id]

@@ -10,6 +10,7 @@ use App\Repository\Training\ResultatRepository;
 
 #[ORM\Entity(repositoryClass: ResultatRepository::class)]
 #[ORM\Table(name: 'resultat')]
+#[ORM\Index(name: "formation_id", columns: ["formation_id"])]
 class Resultat
 {
     #[ORM\Id]

@@ -11,6 +11,7 @@ use App\Repository\ResourcesManagement\ResourceRepository;
 
 #[ORM\Entity(repositoryClass: ResourceRepository::class)]
 #[ORM\Table(name: 'resources')]
+#[ORM\UniqueConstraint(name: "resource_code", columns: ["resource_code"])]
 class Resource
 {
     #[ORM\Id]

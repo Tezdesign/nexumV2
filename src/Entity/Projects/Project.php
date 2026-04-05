@@ -11,6 +11,10 @@ use App\Repository\Projects\ProjectRepository;
 
 #[ORM\Entity(repositoryClass: ProjectRepository::class)]
 #[ORM\Table(name: 'projects')]
+#[ORM\Index(name: "idx_projects_assigned_to", columns: ["assigned_to"])]
+#[ORM\Index(name: "idx_projects_created_by", columns: ["created_by"])]
+#[ORM\Index(name: "idx_projects_end_date", columns: ["end_date"])]
+#[ORM\Index(name: "idx_projects_start_date", columns: ["start_date"])]
 class Project
 {
     #[ORM\Id]

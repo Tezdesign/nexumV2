@@ -11,6 +11,9 @@ use App\Repository\Chat\ConversationRepository;
 
 #[ORM\Entity(repositoryClass: ConversationRepository::class)]
 #[ORM\Table(name: 'conversations')]
+#[ORM\Index(name: "idx_conversations_created_by", columns: ["created_by"])]
+#[ORM\Index(name: "idx_conversations_last", columns: ["last_message_id"])]
+#[ORM\UniqueConstraint(name: "uq_conversations_dm_key", columns: ["dm_key"])]
 class Conversation
 {
     #[ORM\Id]

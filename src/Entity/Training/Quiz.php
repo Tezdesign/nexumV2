@@ -11,6 +11,7 @@ use App\Repository\Training\QuizRepository;
 
 #[ORM\Entity(repositoryClass: QuizRepository::class)]
 #[ORM\Table(name: 'quiz')]
+#[ORM\Index(name: "formation_id", columns: ["formation_id"])]
 class Quiz
 {
     #[ORM\Id]

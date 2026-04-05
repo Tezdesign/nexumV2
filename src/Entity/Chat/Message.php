@@ -11,6 +11,9 @@ use App\Repository\Chat\MessageRepository;
 
 #[ORM\Entity(repositoryClass: MessageRepository::class)]
 #[ORM\Table(name: 'messages')]
+#[ORM\Index(name: "idx_messages_conv_id", columns: ["conversation_id"])]
+#[ORM\Index(name: "idx_messages_conv_time", columns: ["conversation_id", "created_at"])]
+#[ORM\Index(name: "idx_messages_sender_time", columns: ["sender_id", "created_at"])]
 class Message
 {
     #[ORM\Id]

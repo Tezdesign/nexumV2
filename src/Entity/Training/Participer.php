@@ -10,6 +10,7 @@ use App\Repository\Training\ParticiperRepository;
 
 #[ORM\Entity(repositoryClass: ParticiperRepository::class)]
 #[ORM\Table(name: 'participer')]
+#[ORM\Index(name: "user_id", columns: ["user_id"])]
 class Participer
 {
     #[ORM\Id]

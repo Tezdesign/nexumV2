@@ -12,6 +12,7 @@ use App\Repository\ResourcesManagement\ResourceAssignmentRepository;
 
 #[ORM\Entity(repositoryClass: ResourceAssignmentRepository::class)]
 #[ORM\Table(name: 'resource_assignment')]
+#[ORM\Index(name: "fk_ra_resource", columns: ["resource_id"])]
 class ResourceAssignment
 {
     #[ORM\Id]

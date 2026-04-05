@@ -11,6 +11,7 @@ use App\Repository\FinancialAnalysis\BudgetProfileRepository;
 
 #[ORM\Entity(repositoryClass: BudgetProfileRepository::class)]
 #[ORM\Table(name: 'budget_profile')]
+#[ORM\Index(name: "fiscal_year", columns: ["fiscal_year"])]
 class BudgetProfile
 {
     #[ORM\Id]

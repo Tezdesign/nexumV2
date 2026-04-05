@@ -12,6 +12,7 @@ use App\Repository\FinancialAnalysis\TransactionRepository;
 
 #[ORM\Entity(repositoryClass: TransactionRepository::class)]
 #[ORM\Table(name: 'transaction')]
+#[ORM\Index(name: "reference", columns: ["reference"])]
 class Transaction
 {
     #[ORM\Id]
