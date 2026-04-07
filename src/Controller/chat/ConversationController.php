@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Controller;
+namespace App\Controller\chat;
 
 use App\Service\Chat\ConversationSidebarProvider;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;

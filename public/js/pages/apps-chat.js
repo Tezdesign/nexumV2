@@ -1,15 +1,41 @@
 class ChatApp {
 
     constructor() {
+        this.messagesScrollWrapper = null
+        this.messagesList = null
+        this.conversationItems = []
+        this.filterButtons = []
+        this.filterEmptyState = null
+        this.filterLabel = null
+        this.activeFilter = 'all'
+        this.messagesSimplebar = null
+        this.chatForm = null
+        this.chatInput = null
+    }
+
+    cacheElements = () => {
         this.messagesScrollWrapper = document.querySelector(
             '[data-apps-chat="messages-scroll-wrapper"]'
         )
         this.messagesList = document.querySelector('[data-apps-chat="messages-list"]')
-        this.messagesSimplebar = null
+        this.conversationItems = Array.from(
+            document.querySelectorAll('[data-apps-chat="conversation-item"]')
+        )
+        this.filterButtons = Array.from(
+            document.querySelectorAll('[data-chat-filter]')
+        )
+        const activeFilterButton = this.filterButtons.find(
+            (button) => button.getAttribute('aria-pressed') === 'true'
+        )
+        if (activeFilterButton) {
+            this.activeFilter = activeFilterButton.dataset.chatFilter || 'all'
+        }
+        this.filterEmptyState = document.querySelector('[data-apps-chat="filter-empty"]')
+        this.filterLabel = document.querySelector('[data-apps-chat="filter-label"]')
         this.chatForm = document.querySelector('#chat-form')
         if (this.chatForm)
             this.chatInput = this.chatForm.querySelector('input')
-        if (this.messagesScrollWrapper)
+        if (this.messagesScrollWrapper && window.SimpleBar)
             this.messagesSimplebar = new SimpleBar(this.messagesScrollWrapper)
     }
 
@@ -51,6 +77,54 @@ class ChatApp {
         }
     }
 
+    applyConversationFilter = (filter) => {
+        this.activeFilter = filter
+
+        const selectedType = filter === 'dm' ? 'DM' : filter === 'group' ? 'GROUP' : null
+        let hasMatches = false
+
+        this.conversationItems.forEach((item) => {
+            const rowType = (item.dataset.conversationType || '').toUpperCase()
+            const isVisible = selectedType === null || rowType === selectedType
+
+            item.classList.toggle('d-none', !isVisible)
+            if (isVisible) {
+                hasMatches = true
+            }
+        })
+
+        this.filterButtons.forEach((button) => {
+            const isActive = button.dataset.chatFilter === filter
+            button.classList.toggle('active', isActive)
+            button.setAttribute('aria-pressed', String(isActive))
+
+            const checkIcon = button.querySelector('[data-chat-filter-check]')
+            if (checkIcon)
+                checkIcon.classList.toggle('d-none', !isActive)
+
+            if (isActive && this.filterLabel) {
+                this.filterLabel.textContent = button.dataset.chatFilterLabel || 'All'
+            }
+        })
+
+        if (this.filterEmptyState) {
+            this.filterEmptyState.classList.toggle('d-none', hasMatches)
+        }
+    }
+
+    initFilters = () => {
+        this.filterButtons.forEach((button) => {
+            button.addEventListener('click', (event) => {
+                event.preventDefault()
+                this.applyConversationFilter(button.dataset.chatFilter || 'all')
+            })
+        })
+
+        if (this.conversationItems.length > 0) {
+            this.applyConversationFilter(this.activeFilter)
+        }
+    }
+
     initForm = () => {
         this.chatForm?.addEventListener('submit', (e) => {
             e.preventDefault();
@@ -77,9 +151,19 @@ class ChatApp {
     }
 
     init = () => {
+        this.cacheElements();
         this.scrollToBottom();
+        this.initFilters();
         this.initForm();
     }
 }
 
-new ChatApp().init()
+const bootstrapChatApp = () => {
+    new ChatApp().init()
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootstrapChatApp, { once: true })
+} else {
+    bootstrapChatApp()
+}

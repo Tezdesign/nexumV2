@@ -52,20 +52,34 @@
                                                 New Group
                                             </span>
                                         </a>
-                                        <!-- item-->
-                                        <a href="javascript:void(0);" class="dropdown-item">
+                                        <div class="dropdown-divider"></div>
+                                        <button type="button" class="dropdown-item d-flex align-items-center justify-content-between active" data-chat-filter="all" data-chat-filter-label="All" aria-pressed="true">
+                                            <span>
+                                            <i class="ti ti-filter me-1 fs-17 align-middle"></i>
+                                            <span class="align-middle">
+                                                All
+                                            </span>
+                                            </span>
+                                            <i class="ti ti-check fs-16" data-chat-filter-check></i>
+                                        </button>
+                                        <button type="button" class="dropdown-item d-flex align-items-center justify-content-between" data-chat-filter="dm" data-chat-filter-label="DM" aria-pressed="false">
+                                            <span>
                                             <i class="ti ti-star me-1 fs-17 align-middle"></i>
                                             <span class="align-middle">
-                                                Favorites
+                                                DM
                                             </span>
-                                        </a>
-                                        <!-- item-->
-                                        <a href="javascript:void(0);" class="dropdown-item">
+                                            </span>
+                                            <i class="ti ti-check fs-16 d-none" data-chat-filter-check></i>
+                                        </button>
+                                        <button type="button" class="dropdown-item d-flex align-items-center justify-content-between" data-chat-filter="group" data-chat-filter-label="Groups" aria-pressed="false">
+                                            <span>
                                             <i class="ti ti-archive me-1 fs-17 align-middle"></i>
                                             <span class="align-middle">
-                                                Archive Contacts
+                                                Groups
                                             </span>
-                                        </a>
+                                            </span>
+                                            <i class="ti ti-check fs-16 d-none" data-chat-filter-check></i>
+                                        </button>
                                     </div>
                                 </div>
                                 <button type="button" class="flex-grow-0 btn btn-sm btn-icon btn-soft-danger d-xl-none" data-bs-dismiss="offcanvas" data-bs-target="#chatUserList" aria-label="Close">
@@ -89,10 +103,11 @@
                                         <h5 class="mb-0 ms-1 fw-semibold fs-14">
                                             Conversations
                                         </h5>
+                                        <span class="badge text-bg-light ms-auto" data-apps-chat="filter-label">All</span>
                                     </div>
 
                                     {% for conversation in conversations %}
-                                        <a href="javascript:void(0);" class="text-body d-block">
+                                        <a href="javascript:void(0);" class="text-body d-block" data-apps-chat="conversation-item" data-conversation-type="{{ conversation.isDm ? 'DM' : 'GROUP' }}">
                                             <div class="chat-users">
                                                 <div class="avatar-md {{ conversation.isDm ? 'chat-avatar-online' : 'chat-avatar-offline' }}">
                                                     {% if conversation.avatarSrc %}
@@ -128,6 +143,10 @@
                                             No conversations found for this user.
                                         </div>
                                     {% endfor %}
+
+                                    <div class="px-3 py-3 text-muted fs-13 d-none" data-apps-chat="filter-empty">
+                                        No conversations match this filter.
+                                    </div>
                                 </div>
                             </div>
                         <!-- End Contact list -->
@@ -582,5 +601,42 @@
 {% endblock %}
 
 {% block script %}
-    <script src="/js/pages/apps-chat.js"></script>
+    <script src="/js/pages/apps-chat.js?v=20260407a"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const buttons = Array.from(document.querySelectorAll('[data-chat-filter]'));
+            const label = document.querySelector('[data-apps-chat="filter-label"]');
+
+            if (!buttons.length) {
+                return;
+            }
+
+            const applySelection = function (filter) {
+                buttons.forEach(function (button) {
+                    const isActive = button.dataset.chatFilter === filter;
+                    button.classList.toggle('active', isActive);
+                    button.setAttribute('aria-pressed', String(isActive));
+
+                    const check = button.querySelector('[data-chat-filter-check]');
+                    if (check) {
+                        check.classList.toggle('d-none', !isActive);
+                    }
+
+                    if (isActive && label) {
+                        label.textContent = button.dataset.chatFilterLabel || 'All';
+                    }
+                });
+            };
+
+            buttons.forEach(function (button) {
+                button.addEventListener('click', function (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    applySelection(button.dataset.chatFilter || 'all');
+                });
+            });
+
+            applySelection('all');
+        });
+    </script>
 {% endblock %}
