@@ -5,7 +5,6 @@ namespace App\Controller;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
-use App\Service\FinancialAnalysis\BudgetDashboardService;
 
 class HomeController extends AbstractController
 {
@@ -43,14 +42,6 @@ class HomeController extends AbstractController
     public function training(): Response
     {
         return $this->render('training/apps-training.html.twig');
-    }
-
-    #[Route('/apps-financial-analysis', name: 'apps-financial-analysis')]
-    public function financialAnalysis(BudgetDashboardService $dashboardService): Response
-    {
-        return $this->render('financial-analysis/overview.html.twig', [
-            'projects' => $dashboardService->getFormattedBudgets()
-        ]);
     }
 
     #[Route('/apps-resources-management', name: 'apps-resources-management')]

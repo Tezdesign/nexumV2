@@ -15,28 +15,23 @@
 
 {% block content %}
     <div class="container-fluid pt-4">
-        <!-- Title & Fiscal Year Selector -->
+        <!-- Breadcrumb & Action -->
         <div class="row align-items-center mb-3">
             <div class="col-12 d-flex align-items-center justify-content-between">
-                <div class="page-title-box mb-0">
-                    <h4 class="page-title m-0">{{ 'Financial Overview'|trans }}</h4>
-                </div>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb bg-light bg-opacity-50 p-2 mb-0 rounded">
+                        <li class="breadcrumb-item">
+                            <a href="{{ path('apps-financial-analysis-landing') }}">
+                                <i class="ti ti-smart-home fs-16 me-1"></i>{{ 'Financial Analysis'|trans }}
+                            </a>
+                        </li>
+                        <li class="breadcrumb-item active" aria-current="page">{{ 'FY'|trans }} {{ budgetProfile.fiscalYear }} {{ 'Dashboard'|trans }}</li>
+                    </ol>
+                </nav>
                 <div class="d-inline-flex align-items-center">
-                    <label for="fiscalYearSelect" class="me-2 fw-semibold text-muted mb-0">{{ 'Fiscal Year:'|trans }}</label>
-                    <div style="min-width: 150px; text-align: left;">
-                        <select id="fiscalYearSelect" class="form-control select2" data-toggle="select2">
-                            <option value="">{{ 'Select Year'|trans }}</option>
-                            <optgroup label="{{ '2020s'|trans }}">
-                                <option value="2026" selected>2026</option>
-                                <option value="2025">2025</option>
-                                <option value="2024">2024</option>
-                            </optgroup>
-                            <optgroup label="{{ '2010s'|trans }}">
-                                <option value="2019">2019</option>
-                                <option value="2018">2018</option>
-                            </optgroup>
-                        </select>
-                    </div>
+                    <a href="{{ path('apps-financial-analysis-landing') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="ti ti-arrow-left me-1"></i> {{ 'Back to Profiles'|trans }}
+                    </a>
                 </div>
             </div>
         </div>
