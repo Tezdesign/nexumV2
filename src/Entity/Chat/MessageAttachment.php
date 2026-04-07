@@ -87,14 +87,14 @@ class MessageAttachment
     }
 
     #[ORM\Column(type: 'blob', nullable: false)]
-    private ?string $data = null;
+    private $data = null;
 
-    public function getData(): ?string
+    public function getData(): mixed
     {
         return $this->data;
     }
 
-    public function setData(string $data): self
+    public function setData(mixed $data): self
     {
         $this->data = $data;
         return $this;

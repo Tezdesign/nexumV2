@@ -45,10 +45,12 @@ class MessageController extends AbstractController
 			$senderId = $message->getSenderId();
 			$sender = $senderId !== null ? ($usersById[$senderId] ?? null) : null;
 			$createdAt = $message->getCreatedAt();
+			$messageId = $message->getId();
 
 			return [
-				'id' => $message->getId(),
+				'id' => $messageId,
 				'body' => $message->getBody() ?? '',
+				'kind' => strtoupper((string) $message->getKind()),
 				'senderId' => $senderId,
 				'senderName' => $this->buildUserName($sender),
 				'senderAvatarSrc' => $sender !== null ? $this->toDataUri($sender->getImagelink(), 'image/jpeg') : null,

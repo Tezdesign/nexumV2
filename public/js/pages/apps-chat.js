@@ -25,6 +25,7 @@ class ChatApp {
         this.chatInput = null
         this.chatSendButton = null
         this.activeFetchController = null
+        this.activeAttachmentControllers = new Map()
     }
 
     cacheElements = () => {
@@ -259,6 +260,144 @@ class ChatApp {
         return fallback
     }
 
+    getAttachmentKind = (attachment) => {
+        const mimeType = String(attachment?.mimeType || '').toLowerCase()
+        if (mimeType.startsWith('image/')) {
+            return 'image'
+        }
+
+        if (mimeType.startsWith('video/')) {
+            return 'video'
+        }
+
+        if (mimeType.startsWith('audio/')) {
+            return 'audio'
+        }
+
+        return 'file'
+    }
+
+    createAttachmentNode = (attachment, index) => {
+        const kind = this.getAttachmentKind(attachment)
+        const url = attachment?.url || '#'
+        const fileName = attachment?.fileName || `attachment-${index + 1}`
+
+        const wrapper = document.createElement('div')
+        wrapper.className = 'mt-2'
+
+        if (kind === 'image') {
+            const link = document.createElement('a')
+            link.href = url
+            link.target = '_blank'
+            link.rel = 'noopener'
+
+            const image = document.createElement('img')
+            image.src = url
+            image.alt = fileName
+            image.className = 'img-fluid rounded-3 border'
+
+            link.appendChild(image)
+            wrapper.appendChild(link)
+            return wrapper
+        }
+
+        if (kind === 'video') {
+            const video = document.createElement('video')
+            video.controls = true
+            video.preload = 'metadata'
+            video.src = url
+            video.className = 'w-100 rounded-3 border bg-black'
+            video.setAttribute('playsinline', 'playsinline')
+
+            wrapper.appendChild(video)
+            return wrapper
+        }
+
+        if (kind === 'audio') {
+            const audio = document.createElement('audio')
+            audio.controls = true
+            audio.preload = 'metadata'
+            audio.src = url
+            audio.className = 'w-100'
+
+            wrapper.appendChild(audio)
+            return wrapper
+        }
+
+        const link = document.createElement('a')
+        link.href = url
+        link.target = '_blank'
+        link.rel = 'noopener'
+        link.className = 'd-inline-flex align-items-center gap-1 text-decoration-none'
+        link.textContent = fileName
+
+        wrapper.appendChild(link)
+        return wrapper
+    }
+
+    buildAttachmentListEndpoint = (messageId) => {
+        return `/apps-chat/messages/${encodeURIComponent(String(messageId))}/attachments`
+    }
+
+    loadMessageAttachments = async (messageId, attachmentContainer, bodyElement) => {
+        if (!messageId || !attachmentContainer) {
+            return
+        }
+
+        const existingController = this.activeAttachmentControllers.get(messageId)
+        if (existingController) {
+            existingController.abort()
+        }
+
+        const controller = new AbortController()
+        this.activeAttachmentControllers.set(messageId, controller)
+
+        try {
+            const response = await fetch(this.buildAttachmentListEndpoint(messageId), {
+                method: 'GET',
+                headers: { 'Accept': 'application/json' },
+                signal: controller.signal,
+            })
+
+            if (!response.ok) {
+                throw new Error(`Failed to load attachments (${response.status})`)
+            }
+
+            const payload = await response.json()
+            if (!payload.success) {
+                throw new Error(payload.error || 'Failed to load attachments')
+            }
+
+            const attachments = Array.isArray(payload.attachments) ? payload.attachments : []
+            if (!attachments.length) {
+                return
+            }
+
+            if (bodyElement) {
+                bodyElement.classList.add('d-none')
+            }
+
+            attachmentContainer.innerHTML = ''
+            attachments.forEach((attachment, index) => {
+                attachmentContainer.appendChild(this.createAttachmentNode(attachment, index))
+            })
+            attachmentContainer.classList.remove('d-none')
+        } catch (error) {
+            if (error?.name === 'AbortError') {
+                return
+            }
+
+            console.error('Attachment load failed:', error)
+            if (bodyElement) {
+                bodyElement.classList.remove('d-none')
+            }
+        } finally {
+            if (this.activeAttachmentControllers.get(messageId) === controller) {
+                this.activeAttachmentControllers.delete(messageId)
+            }
+        }
+    }
+
     createMessageNode = (message, index) => {
         const isOwn = !!message.isOwn
         const senderName = message.senderName || 'Unknown User'
@@ -269,6 +408,10 @@ class ChatApp {
             : (message.senderAvatarSrc || '')
         const timeLabel = message.timeLabel || '--'
         const body = message.body || ''
+        const attachments = Array.isArray(message.attachments) ? message.attachments : []
+        const isAttachmentMessage = String(message.kind || '').toUpperCase() === 'ATTACHMENT'
+        const fallbackText = body.trim().length > 0 ? body : 'Attachment'
+        const hasTextBody = body.trim().length > 0 || isAttachmentMessage
 
         const listItem = document.createElement('li')
         listItem.className = `chat-group${isOwn ? ' odd' : ''}`
@@ -292,9 +435,28 @@ class ChatApp {
 
         const chatMessage = document.createElement('div')
         chatMessage.className = 'chat-message'
-        const paragraph = document.createElement('p')
-        paragraph.textContent = body
-        chatMessage.appendChild(paragraph)
+        const bodyElement = document.createElement('p')
+        bodyElement.textContent = fallbackText
+
+        if (hasTextBody) {
+            chatMessage.appendChild(bodyElement)
+        }
+
+        const attachmentContainer = document.createElement('div')
+        attachmentContainer.className = 'd-grid gap-2 d-none'
+
+        if (isAttachmentMessage) {
+            chatMessage.appendChild(attachmentContainer)
+            queueMicrotask(() => {
+                this.loadMessageAttachments(message.id, attachmentContainer, bodyElement)
+            })
+        } else if (attachments.length > 0) {
+            attachmentContainer.classList.remove('d-none')
+            attachments.forEach((attachment, attachmentIndex) => {
+                attachmentContainer.appendChild(this.createAttachmentNode(attachment, attachmentIndex))
+            })
+            chatMessage.appendChild(attachmentContainer)
+        }
 
         chatBody.appendChild(titleWrapper)
         chatBody.appendChild(chatMessage)
