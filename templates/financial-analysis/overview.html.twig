@@ -15,23 +15,22 @@
 
 {% block content %}
     <div class="container-fluid pt-4">
-        <!-- Breadcrumb & Action -->
+        <!-- Breadcrumb -->
         <div class="row align-items-center mb-3">
-            <div class="col-12 d-flex align-items-center justify-content-between">
-                <nav aria-label="breadcrumb">
-                    <ol class="breadcrumb bg-light bg-opacity-50 p-2 mb-0 rounded">
-                        <li class="breadcrumb-item">
-                            <a href="{{ path('apps-financial-analysis-landing') }}">
-                                <i class="ti ti-smart-home fs-16 me-1"></i>{{ 'Financial Analysis'|trans }}
-                            </a>
-                        </li>
-                        <li class="breadcrumb-item active" aria-current="page">{{ 'FY'|trans }} {{ budgetProfile.fiscalYear }} {{ 'Dashboard'|trans }}</li>
-                    </ol>
-                </nav>
-                <div class="d-inline-flex align-items-center">
-                    <a href="{{ path('apps-financial-analysis-landing') }}" class="btn btn-outline-secondary btn-sm">
-                        <i class="ti ti-arrow-left me-1"></i> {{ 'Back to Profiles'|trans }}
-                    </a>
+            <div class="col-12">
+                <div class="page-title-box mb-0">
+                    <h4 class="page-title m-0">
+                        <nav aria-label="breadcrumb" class="d-inline-block">
+                            <ol class="breadcrumb m-0 p-0 bg-transparent align-items-center">
+                                <li class="breadcrumb-item">
+                                    <a href="{{ path('apps-financial-analysis-landing') }}" class="text-dark text-decoration-none">
+                                        <i class="ti ti-smart-home fs-20 me-1 mb-1 align-middle"></i>{{ 'Fiscal Budget Profiles'|trans }}
+                                    </a>
+                                </li>
+                                <li class="breadcrumb-item active text-muted" aria-current="page">{{ 'FY'|trans }} {{ budgetProfile.fiscalYear }} {{ 'Dashboard'|trans }}</li>
+                            </ol>
+                        </nav>
+                    </h4>
                 </div>
             </div>
         </div>
