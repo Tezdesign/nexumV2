@@ -31,6 +31,39 @@ class MessageRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /**
+     * @param int[] $conversationIds
+     *
+     * @return array<int, Message>
+     */
+    public function findLatestMessagesByConversationIds(array $conversationIds): array
+    {
+        if ($conversationIds === []) {
+            return [];
+        }
+
+        $messages = $this->createQueryBuilder('m')
+            ->andWhere('m.conversation_id IN (:conversationIds)')
+            ->setParameter('conversationIds', $conversationIds)
+            ->orderBy('m.conversation_id', 'ASC')
+            ->addOrderBy('m.created_at', 'DESC')
+            ->addOrderBy('m.id', 'DESC')
+            ->getQuery()
+            ->getResult();
+
+        $latestByConversation = [];
+        foreach ($messages as $message) {
+            $conversationId = $message->getConversationId();
+            if ($conversationId === null || isset($latestByConversation[$conversationId])) {
+                continue;
+            }
+
+            $latestByConversation[$conversationId] = $message;
+        }
+
+        return $latestByConversation;
+    }
+
     //    /**
     //     * @return Message[] Returns an array of Message objects
     //     */

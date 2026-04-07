@@ -122,17 +122,13 @@
                                                 <div class="flex-grow-1 overflow-hidden">
                                                     <h5 class="m-0">
                                                         <span class="float-end text-muted fs-12">
-                                                            {% if conversation.lastMessageAt %}
-                                                                {{ conversation.lastMessageAt|date('g:ia') }}
-                                                            {% else %}
-                                                                --
-                                                            {% endif %}
+                                                            {{ conversation.lastMessageTimeLabel ?? '--' }}
                                                         </span>
                                                         {{ conversation.name }}
                                                     </h5>
                                                     <p class="mt-1 mb-0 text-muted lh-1">
                                                         <span class="w-75 d-inline-block text-truncate overflow-hidden fs-13">
-                                                            {{ conversation.isDm ? 'Direct message' : 'Group conversation' }}
+                                                            {{ conversation.lastMessagePreview ?? 'No messages yet' }}
                                                         </span>
                                                     </p>
                                                 </div>

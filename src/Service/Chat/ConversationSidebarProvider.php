@@ -4,16 +4,21 @@ namespace App\Service\Chat;
 
 use App\Entity\Chat\Conversation;
 use App\Entity\Chat\ConversationParticipant;
+use App\Entity\Chat\Message;
 use App\Entity\UserHandling\Utilisateur;
 use App\Repository\Chat\ConversationParticipantRepository;
 use App\Repository\Chat\ConversationRepository;
+use App\Repository\Chat\MessageRepository;
 use App\Repository\UserHandling\UtilisateurRepository;
+use DateTimeImmutable;
+use DateTimeInterface;
 
 class ConversationSidebarProvider
 {
     public function __construct(
         private readonly ConversationParticipantRepository $participantRepository,
         private readonly ConversationRepository $conversationRepository,
+        private readonly MessageRepository $messageRepository,
         private readonly UtilisateurRepository $utilisateurRepository,
     ) {
     }
@@ -59,6 +64,7 @@ class ConversationSidebarProvider
     private function formatConversations(array $conversationIds, int $userId): array
     {
         $conversations = $this->conversationRepository->findByIds($conversationIds);
+        $latestMessages = $this->messageRepository->findLatestMessagesByConversationIds($conversationIds);
         $conversationsById = [];
 
         foreach ($conversations as $conversation) {
@@ -75,17 +81,19 @@ class ConversationSidebarProvider
                 continue;
             }
 
-            $items[] = $this->formatConversation($conversation, $userId);
+            $items[] = $this->formatConversation($conversation, $userId, $latestMessages[$conversationId] ?? null);
         }
 
         return $items;
     }
 
-    private function formatConversation(Conversation $conversation, int $userId): array
+    private function formatConversation(Conversation $conversation, int $userId, ?Message $latestMessage): array
     {
         if ($this->isDirectConversation($conversation)) {
-            return $this->formatDirectConversation($conversation, $userId);
+            return $this->formatDirectConversation($conversation, $userId, $latestMessage);
         }
+
+        $lastActivityAt = $latestMessage?->getCreatedAt() ?? $conversation->getLastMessageAt();
 
         return [
             'id' => $conversation->getId(),
@@ -93,6 +101,8 @@ class ConversationSidebarProvider
             'avatarSrc' => $this->toDataUri($conversation->getAvatar(), $conversation->getAvatarMime() ?? 'image/jpeg'),
             'isDm' => false,
             'lastMessageAt' => $conversation->getLastMessageAt(),
+            'lastMessagePreview' => $this->buildMessagePreview($latestMessage),
+            'lastMessageTimeLabel' => $this->formatRelativeTimeLabel($lastActivityAt),
         ];
     }
 
@@ -106,11 +116,12 @@ class ConversationSidebarProvider
         return $conversation->getDmKey() !== null;
     }
 
-    private function formatDirectConversation(Conversation $conversation, int $userId): array
+    private function formatDirectConversation(Conversation $conversation, int $userId, ?Message $latestMessage): array
     {
         $other = $this->participantRepository->findOtherParticipant((int) $conversation->getId(), $userId);
         $otherUser = $this->findParticipantUser($other);
         $name = $this->buildDmName($otherUser, $other);
+        $lastActivityAt = $latestMessage?->getCreatedAt() ?? $conversation->getLastMessageAt();
 
         return [
             'id' => $conversation->getId(),
@@ -118,7 +129,63 @@ class ConversationSidebarProvider
             'avatarSrc' => $otherUser !== null ? $this->toDataUri($otherUser->getImagelink(), 'image/jpeg') : null,
             'isDm' => true,
             'lastMessageAt' => $conversation->getLastMessageAt(),
+            'lastMessagePreview' => $this->buildMessagePreview($latestMessage),
+            'lastMessageTimeLabel' => $this->formatRelativeTimeLabel($lastActivityAt),
         ];
+    }
+
+    private function buildMessagePreview(?Message $message): string
+    {
+        if ($message === null) {
+            return 'No messages yet';
+        }
+
+        $body = trim((string) $message->getBody());
+        if ($body === '') {
+            return 'No text content';
+        }
+
+        $body = preg_replace('/\s+/', ' ', $body) ?? $body;
+        if (mb_strlen($body) > 70) {
+            return mb_substr($body, 0, 67) . '...';
+        }
+
+        return $body;
+    }
+
+    private function formatRelativeTimeLabel(?DateTimeInterface $at): string
+    {
+        if ($at === null) {
+            return '--';
+        }
+
+        $now = new DateTimeImmutable('now', $at->getTimezone());
+        $seconds = max(0, $now->getTimestamp() - $at->getTimestamp());
+
+        if ($seconds < 60) {
+            return 'now';
+        }
+
+        if ($seconds < 3600) {
+            $minutes = (int) floor($seconds / 60);
+            return $minutes . ' min';
+        }
+
+        if ($seconds < 86400) {
+            $hours = (int) floor($seconds / 3600);
+            return $hours . ' h';
+        }
+
+        if ($seconds < 604800) {
+            $days = (int) floor($seconds / 86400);
+            return $days . ' day' . ($days === 1 ? '' : 's');
+        }
+
+        if ($seconds < 1209600) {
+            return '1 week ago';
+        }
+
+        return $at->format('M j');
     }
 
     private function findParticipantUser(?ConversationParticipant $participant): ?Utilisateur
