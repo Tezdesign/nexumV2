@@ -1,25 +1,38 @@
 class ChatApp {
 
     constructor() {
+        this.root = null
         this.messagesScrollWrapper = null
         this.messagesList = null
+        this.messagesState = null
         this.conversationItems = []
+        this.activeConversationItem = null
+        this.activeConversationId = null
         this.filterButtons = []
         this.filterEmptyState = null
         this.filterLabel = null
         this.activeFilter = 'all'
         this.searchInput = null
         this.searchQuery = ''
+        this.activeConversationAvatar = null
+        this.activeConversationAvatarFallback = null
+        this.activeConversationName = null
+        this.activeConversationMeta = null
         this.messagesSimplebar = null
         this.chatForm = null
         this.chatInput = null
+        this.chatSendButton = null
+        this.activeFetchController = null
     }
 
     cacheElements = () => {
+        this.root = document.querySelector('[data-apps-chat="chat-root"]')
+
         this.messagesScrollWrapper = document.querySelector(
             '[data-apps-chat="messages-scroll-wrapper"]'
         )
         this.messagesList = document.querySelector('[data-apps-chat="messages-list"]')
+        this.messagesState = document.querySelector('[data-apps-chat="messages-state"]')
         this.conversationItems = Array.from(
             document.querySelectorAll('[data-apps-chat="conversation-item"]')
         )
@@ -35,48 +48,41 @@ class ChatApp {
         this.filterEmptyState = document.querySelector('[data-apps-chat="filter-empty"]')
         this.filterLabel = document.querySelector('[data-apps-chat="filter-label"]')
         this.searchInput = document.querySelector('[data-apps-chat="search-input"]')
+        this.activeConversationAvatar = document.querySelector('[data-apps-chat="active-conversation-avatar"]')
+        this.activeConversationAvatarFallback = document.querySelector('[data-apps-chat="active-conversation-avatar-fallback"]')
+        this.activeConversationName = document.querySelector('[data-apps-chat="active-conversation-name"]')
+        this.activeConversationMeta = document.querySelector('[data-apps-chat="active-conversation-meta"]')
         this.chatForm = document.querySelector('#chat-form')
-        if (this.chatForm)
-            this.chatInput = this.chatForm.querySelector('input')
+        if (this.chatForm) {
+            this.chatInput = this.chatForm.querySelector('[data-apps-chat="chat-input"]')
+            this.chatSendButton = this.chatForm.querySelector('[data-apps-chat="chat-send"]')
+        }
         if (this.messagesScrollWrapper && window.SimpleBar)
             this.messagesSimplebar = new SimpleBar(this.messagesScrollWrapper)
     }
 
-    getMessageHTML = (message) => {
-        return `<li class="chat-group odd" id="odd-1">
-                    <img src="assets/images/users/avatar-1.jpg" class="avatar-sm rounded-circle" alt="avatar-1" />
-
-                    <div class="chat-body">
-                        <div>
-                            <h6 class="d-inline-flex">You.</h6>
-                            <h6 class="d-inline-flex text-muted">10:05pm</h6>
-                        </div>
-
-                        <div class="chat-message">
-                            <p>${message}</p>
-
-                            <div class="chat-actions dropdown">
-                                <button class="btn btn-sm btn-link" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="ti ti-dots-vertical"></i>
-                                </button>
-
-                                <div class="dropdown-menu">
-                                    <a class="dropdown-item" href="#"><i class="ti ti-copy fs-14 align-text-top me-1"></i>
-                                        Copy Message</a>
-                                    <a class="dropdown-item" href="#"><i class="ti ti-edit-circle fs-14 align-text-top me-1"></i>
-                                        Edit</a>
-                                    <a class="dropdown-item" href="#" data-dismissible="#odd-1"><i class="ti ti-trash fs-14 align-text-top me-1"></i>Delete</a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </li>`
+    clearMessages = () => {
+        if (this.messagesList) {
+            this.messagesList.innerHTML = ''
+        }
     }
 
-    addNewMessage = (message) => {
-        if (this.messagesList) {
-            this.messagesList.innerHTML += (this.getMessageHTML(message))
-            this.scrollToBottom(true);
+    setMessagesState = (text, visible = true) => {
+        if (!this.messagesState) {
+            return
+        }
+
+        this.messagesState.textContent = text
+        this.messagesState.classList.toggle('d-none', !visible)
+    }
+
+    setComposerEnabled = (enabled) => {
+        if (this.chatInput) {
+            this.chatInput.disabled = !enabled
+        }
+
+        if (this.chatSendButton) {
+            this.chatSendButton.disabled = !enabled
         }
     }
 
@@ -102,6 +108,50 @@ class ChatApp {
 
     normalizeText = (value) => {
         return String(value || '').toLowerCase().trim()
+    }
+
+    getConversationDisplayName = (item) => {
+        return item?.dataset.conversationName || 'Unknown conversation'
+    }
+
+    getConversationDisplayType = (item) => {
+        const type = (item?.dataset.conversationType || '').toUpperCase()
+        if (type === 'DM') {
+            return 'Direct message'
+        }
+
+        if (type === 'GROUP') {
+            return 'Group conversation'
+        }
+
+        return 'Conversation'
+    }
+
+    updateConversationHeader = (item) => {
+        const conversationName = this.getConversationDisplayName(item)
+        const conversationType = this.getConversationDisplayType(item)
+        const avatarSrc = item?.dataset.conversationAvatar || ''
+
+        if (this.activeConversationName) {
+            this.activeConversationName.textContent = conversationName
+        }
+
+        if (this.activeConversationMeta) {
+            this.activeConversationMeta.textContent = conversationType
+        }
+
+        if (this.activeConversationAvatar && this.activeConversationAvatarFallback) {
+            if (avatarSrc) {
+                this.activeConversationAvatar.src = avatarSrc
+                this.activeConversationAvatar.classList.remove('d-none')
+                this.activeConversationAvatarFallback.classList.add('d-none')
+            } else {
+                this.activeConversationAvatar.removeAttribute('src')
+                this.activeConversationAvatar.classList.add('d-none')
+                this.activeConversationAvatarFallback.classList.remove('d-none')
+                this.activeConversationAvatarFallback.textContent = conversationName.slice(0, 1).toUpperCase() || '-'
+            }
+        }
     }
 
     getSearchValueByType = (item, rowType) => {
@@ -139,6 +189,13 @@ class ChatApp {
             }
         })
 
+        if (this.activeConversationItem && this.activeConversationItem.classList.contains('d-none')) {
+            const firstVisibleConversation = this.getFirstVisibleConversation()
+            if (firstVisibleConversation) {
+                this.selectConversation(firstVisibleConversation)
+            }
+        }
+
         if (this.filterEmptyState) {
             this.filterEmptyState.classList.toggle('d-none', hasMatches)
         }
@@ -168,17 +225,212 @@ class ChatApp {
         })
     }
 
+    getFirstVisibleConversation = () => {
+        return this.conversationItems.find((item) => !item.classList.contains('d-none')) || null
+    }
+
+    buildMessagesEndpoint = (item, conversationId) => {
+        const itemEndpoint = item?.dataset.messagesEndpoint || ''
+        if (itemEndpoint) {
+            return itemEndpoint
+        }
+
+        return `/apps-chat/conversations/${encodeURIComponent(String(conversationId))}/messages`
+    }
+
+    createAvatarElement = (avatarSrc, fallbackText) => {
+        if (avatarSrc) {
+            const image = document.createElement('img')
+            image.src = avatarSrc
+            image.className = 'avatar-sm rounded-circle'
+            image.alt = fallbackText
+            return image
+        }
+
+        const fallback = document.createElement('div')
+        fallback.className = 'avatar-sm rounded-circle bg-secondary-subtle text-secondary d-flex align-items-center justify-content-center fw-semibold'
+        fallback.textContent = String(fallbackText || '-').slice(0, 1).toUpperCase()
+        return fallback
+    }
+
+    createMessageNode = (message, index) => {
+        const isOwn = !!message.isOwn
+        const senderName = isOwn ? 'You.' : (message.senderName || 'Unknown User')
+        const timeLabel = message.timeLabel || '--'
+        const body = message.body || ''
+
+        const listItem = document.createElement('li')
+        listItem.className = `chat-group${isOwn ? ' odd' : ''}`
+        listItem.id = `message-${message.id || index}`
+
+        const avatar = this.createAvatarElement(message.senderAvatarSrc || '', senderName)
+        listItem.appendChild(avatar)
+
+        const chatBody = document.createElement('div')
+        chatBody.className = 'chat-body'
+
+        const titleWrapper = document.createElement('div')
+        const sender = document.createElement('h6')
+        sender.className = 'd-inline-flex'
+        sender.textContent = senderName
+        const time = document.createElement('h6')
+        time.className = 'd-inline-flex text-muted'
+        time.textContent = timeLabel
+        titleWrapper.appendChild(sender)
+        titleWrapper.appendChild(time)
+
+        const chatMessage = document.createElement('div')
+        chatMessage.className = 'chat-message'
+        const paragraph = document.createElement('p')
+        paragraph.textContent = body
+        chatMessage.appendChild(paragraph)
+
+        chatBody.appendChild(titleWrapper)
+        chatBody.appendChild(chatMessage)
+        listItem.appendChild(chatBody)
+
+        return listItem
+    }
+
+    renderMessages = (messages) => {
+        this.clearMessages()
+
+        if (!messages.length) {
+            this.setMessagesState('No messages in this conversation yet.', true)
+            return
+        }
+
+        this.setMessagesState('', false)
+
+        messages.forEach((message, index) => {
+            const node = this.createMessageNode(message, index)
+            this.messagesList?.appendChild(node)
+        })
+
+        this.scrollToBottom()
+    }
+
+    loadConversationMessages = async (conversationId, endpoint) => {
+        if (!endpoint) {
+            return
+        }
+
+        if (this.activeFetchController) {
+            this.activeFetchController.abort()
+        }
+
+        const controller = new AbortController()
+        this.activeFetchController = controller
+
+        this.clearMessages()
+        this.setMessagesState('Loading messages...', true)
+
+        try {
+            const response = await fetch(endpoint, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                },
+                signal: controller.signal,
+            })
+
+            if (!response.ok) {
+                throw new Error(`Failed to load messages (${response.status})`)
+            }
+
+            const payload = await response.json()
+            if (!payload.success) {
+                throw new Error(payload.error || 'Failed to load messages')
+            }
+
+            this.renderMessages(Array.isArray(payload.messages) ? payload.messages : [])
+        } catch (error) {
+            if (error?.name === 'AbortError') {
+                return
+            }
+
+            this.clearMessages()
+            console.error('Conversation messages load failed:', error)
+            this.setMessagesState('Could not load messages. Please try again.', true)
+        } finally {
+            if (this.activeFetchController === controller) {
+                this.activeFetchController = null
+            }
+        }
+    }
+
+    selectConversation = (item) => {
+        if (!item) {
+            return
+        }
+
+        const rawConversationId = item.dataset.conversationId || ''
+        const nextConversationId = rawConversationId !== '' ? rawConversationId : null
+        const endpoint = this.buildMessagesEndpoint(item, rawConversationId)
+
+        if (!endpoint) {
+            return
+        }
+
+        if (this.activeConversationItem === item && this.activeConversationId === nextConversationId) {
+            return
+        }
+
+        this.conversationItems.forEach((conversationItem) => {
+            const isActive = conversationItem === item
+            conversationItem.classList.toggle('active', isActive)
+        })
+
+        this.activeConversationItem = item
+        this.activeConversationId = nextConversationId
+        this.updateConversationHeader(item)
+        this.setComposerEnabled(true)
+        this.loadConversationMessages(nextConversationId, endpoint)
+    }
+
+    initConversationSelection = () => {
+        this.conversationItems.forEach((item) => {
+            item.addEventListener('click', (event) => {
+                event.preventDefault()
+                this.selectConversation(item)
+            })
+        })
+
+        const firstVisibleConversation = this.getFirstVisibleConversation()
+        if (firstVisibleConversation) {
+            this.selectConversation(firstVisibleConversation)
+        }
+    }
+
     initForm = () => {
         this.chatForm?.addEventListener('submit', (e) => {
             e.preventDefault();
+
+            if (!this.activeConversationId || !this.chatInput) {
+                return
+            }
+
             const data = Object.fromEntries(new FormData(e.target).entries());
             if (data.message) {
                 if (data.message.trim().length === 0) {
                     this.chatForm.reset();
                 } else {
-                    this.chatInput.value = " ";
-                    this.addNewMessage(data['message']);
-                    // this.chatForm.reset();
+                    const localMessage = {
+                        id: `local-${Date.now()}`,
+                        body: data['message'],
+                        senderName: 'You',
+                        senderAvatarSrc: '',
+                        isOwn: true,
+                        timeLabel: new Date().toLocaleTimeString([], {
+                            hour: 'numeric',
+                            minute: '2-digit',
+                        }).toLowerCase(),
+                    }
+
+                    this.setMessagesState('', false)
+                    this.messagesList?.appendChild(this.createMessageNode(localMessage, Date.now()))
+                    this.chatInput.value = ''
+                    this.scrollToBottom(true)
                 }
             }
         })
@@ -195,9 +447,11 @@ class ChatApp {
 
     init = () => {
         this.cacheElements();
+        this.setComposerEnabled(false);
         this.scrollToBottom();
         this.initFilters();
         this.initSearch();
+        this.initConversationSelection();
         this.initForm();
     }
 }

@@ -16,6 +16,21 @@ class MessageRepository extends ServiceEntityRepository
         parent::__construct($registry, Message::class);
     }
 
+    /**
+     * @return Message[]
+     */
+    public function findByConversationOrdered(int $conversationId, int $limit = 200): array
+    {
+        return $this->createQueryBuilder('m')
+            ->andWhere('m.conversation_id = :conversationId')
+            ->setParameter('conversationId', $conversationId)
+            ->orderBy('m.created_at', 'ASC')
+            ->addOrderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
     //    /**
     //     * @return Message[] Returns an array of Message objects
     //     */

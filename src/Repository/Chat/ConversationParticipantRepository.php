@@ -62,6 +62,21 @@ class ConversationParticipantRepository extends ServiceEntityRepository
         return (int) $row['userId'];
     }
 
+    public function isActiveParticipant(int $conversationId, int $userId): bool
+    {
+        $count = $this->createQueryBuilder('cp')
+            ->select('COUNT(cp.user_id)')
+            ->andWhere('cp.conversation_id = :conversationId')
+            ->andWhere('cp.user_id = :userId')
+            ->andWhere('cp.left_at IS NULL')
+            ->setParameter('conversationId', $conversationId)
+            ->setParameter('userId', $userId)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        return (int) $count > 0;
+    }
+
     //    /**
     //     * @return ConversationParticipant[] Returns an array of ConversationParticipant objects
     //     */
