@@ -17,7 +17,7 @@ final class TransactionController extends AbstractController
     #[Route(name: 'app_financial_analysis_transaction_index', methods: ['GET'])]
     public function index(TransactionRepository $transactionRepository): Response
     {
-        return $this->render('financial_analysis/transaction/index.html.twig', [
+        return $this->render('financial-analysis/transaction/index.html.twig', [
             'transactions' => $transactionRepository->findAll(),
         ]);
     }
@@ -36,7 +36,7 @@ final class TransactionController extends AbstractController
             return $this->redirectToRoute('app_financial_analysis_transaction_index', [], Response::HTTP_SEE_OTHER);
         }
 
-        return $this->render('financial_analysis/transaction/new.html.twig', [
+        return $this->render('financial-analysis/transaction/new.html.twig', [
             'transaction' => $transaction,
             'form' => $form,
         ]);
@@ -45,7 +45,7 @@ final class TransactionController extends AbstractController
     #[Route('/{id}', name: 'app_financial_analysis_transaction_show', methods: ['GET'])]
     public function show(Transaction $transaction): Response
     {
-        return $this->render('financial_analysis/transaction/show.html.twig', [
+        return $this->render('financial-analysis/transaction/show.html.twig', [
             'transaction' => $transaction,
         ]);
     }
@@ -62,7 +62,7 @@ final class TransactionController extends AbstractController
             return $this->redirectToRoute('app_financial_analysis_transaction_index', [], Response::HTTP_SEE_OTHER);
         }
 
-        return $this->render('financial_analysis/transaction/edit.html.twig', [
+        return $this->render('financial-analysis/transaction/edit.html.twig', [
             'transaction' => $transaction,
             'form' => $form,
         ]);

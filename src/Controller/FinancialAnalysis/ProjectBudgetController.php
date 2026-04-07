@@ -17,7 +17,7 @@ final class ProjectBudgetController extends AbstractController
     #[Route(name: 'app_financial_analysis_project_budget_index', methods: ['GET'])]
     public function index(ProjectBudgetRepository $projectBudgetRepository): Response
     {
-        return $this->render('financial_analysis/project_budget/index.html.twig', [
+        return $this->render('financial-analysis/project_budget/index.html.twig', [
             'project_budgets' => $projectBudgetRepository->findAll(),
         ]);
     }
@@ -36,7 +36,7 @@ final class ProjectBudgetController extends AbstractController
             return $this->redirectToRoute('app_financial_analysis_project_budget_index', [], Response::HTTP_SEE_OTHER);
         }
 
-        return $this->render('financial_analysis/project_budget/new.html.twig', [
+        return $this->render('financial-analysis/project_budget/new.html.twig', [
             'project_budget' => $projectBudget,
             'form' => $form,
         ]);
@@ -45,7 +45,7 @@ final class ProjectBudgetController extends AbstractController
     #[Route('/{id}', name: 'app_financial_analysis_project_budget_show', methods: ['GET'])]
     public function show(ProjectBudget $projectBudget): Response
     {
-        return $this->render('financial_analysis/project_budget/show.html.twig', [
+        return $this->render('financial-analysis/project_budget/show.html.twig', [
             'project_budget' => $projectBudget,
         ]);
     }
@@ -62,7 +62,7 @@ final class ProjectBudgetController extends AbstractController
             return $this->redirectToRoute('app_financial_analysis_project_budget_index', [], Response::HTTP_SEE_OTHER);
         }
 
-        return $this->render('financial_analysis/project_budget/edit.html.twig', [
+        return $this->render('financial-analysis/project_budget/edit.html.twig', [
             'project_budget' => $projectBudget,
             'form' => $form,
         ]);

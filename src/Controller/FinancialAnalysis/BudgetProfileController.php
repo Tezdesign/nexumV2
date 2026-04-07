@@ -17,7 +17,7 @@ final class BudgetProfileController extends AbstractController
     #[Route(name: 'app_financial_analysis_budget_profile_index', methods: ['GET'])]
     public function index(BudgetProfileRepository $budgetProfileRepository): Response
     {
-        return $this->render('financial_analysis/budget_profile/index.html.twig', [
+        return $this->render('financial-analysis/budget_profile/index.html.twig', [
             'budget_profiles' => $budgetProfileRepository->findAll(),
         ]);
     }
@@ -36,7 +36,7 @@ final class BudgetProfileController extends AbstractController
             return $this->redirectToRoute('app_financial_analysis_budget_profile_index', [], Response::HTTP_SEE_OTHER);
         }
 
-        return $this->render('financial_analysis/budget_profile/new.html.twig', [
+        return $this->render('financial-analysis/budget_profile/new.html.twig', [
             'budget_profile' => $budgetProfile,
             'form' => $form,
         ]);
@@ -45,7 +45,7 @@ final class BudgetProfileController extends AbstractController
     #[Route('/{id}', name: 'app_financial_analysis_budget_profile_show', methods: ['GET'])]
     public function show(BudgetProfile $budgetProfile): Response
     {
-        return $this->render('financial_analysis/budget_profile/show.html.twig', [
+        return $this->render('financial-analysis/budget_profile/show.html.twig', [
             'budget_profile' => $budgetProfile,
         ]);
     }
@@ -62,7 +62,7 @@ final class BudgetProfileController extends AbstractController
             return $this->redirectToRoute('app_financial_analysis_budget_profile_index', [], Response::HTTP_SEE_OTHER);
         }
 
-        return $this->render('financial_analysis/budget_profile/edit.html.twig', [
+        return $this->render('financial-analysis/budget_profile/edit.html.twig', [
             'budget_profile' => $budgetProfile,
             'form' => $form,
         ]);
