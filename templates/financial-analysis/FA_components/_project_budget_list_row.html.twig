@@ -11,7 +11,7 @@
             
             <!-- Status Badge -->
             <div class="col-md-2 col-lg-1 text-center mt-2 mt-md-0">
-                <span class="badge {% if project.status == 'ON TRACK' %}bg-success{% elseif project.status == 'AT RISK' %}bg-warning{% else %}bg-danger{% endif %} rounded-pill fs-11">{{ project.status|trans }}</span>
+                <span class="badge {% if project.status == 'ON TRACK' %}badge-soft-success{% elseif project.status == 'AT RISK' %}badge-soft-warning{% else %}badge-soft-danger{% endif %} rounded-pill fs-11">{{ project.status|trans }}</span>
             </div>
             
             <!-- Financials -->

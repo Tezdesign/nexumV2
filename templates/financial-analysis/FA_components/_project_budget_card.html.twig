@@ -4,7 +4,7 @@
             <h4 class="m-0 text-truncate pe-2">
                 <a href="#" class="text-dark">{{ project.name|trans }}</a>
             </h4>
-            <span class="badge {% if project.status == 'ON TRACK' %}bg-success{% elseif project.status == 'AT RISK' %}bg-warning{% else %}bg-danger{% endif %} rounded-pill fs-11 flex-shrink-0">{{ project.status|trans }}</span>
+            <span class="badge {% if project.status == 'ON TRACK' %}badge-soft-success{% elseif project.status == 'AT RISK' %}badge-soft-warning{% else %}badge-soft-danger{% endif %} rounded-pill fs-11 flex-shrink-0">{{ project.status|trans }}</span>
         </div>
         <p class="text-muted fs-13 mb-3">{{ project.subtitle|trans }}</p>
         

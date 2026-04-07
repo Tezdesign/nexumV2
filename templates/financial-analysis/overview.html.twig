@@ -3,6 +3,9 @@
 {% set title = 'Financial Analysis'|trans %}
 
 {% block css %}
+    <!-- Tabler Icons Webfont (CDN) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+    
     <!-- Select2 css -->
     <link href="/vendor/select2/css/select2.min.css" rel="stylesheet" type="text/css" />
     
@@ -63,7 +66,7 @@
 
                     <div class="card-body pt-0">
                         <div class="d-flex align-items-center gap-2 justify-content-between">
-                            <span class="badge bg-success rounded-pill fs-13">{{ kpi_budget_badge|default('32%') }}
+                            <span class="badge badge-soft-success rounded-pill fs-13">{{ kpi_budget_badge|default('32%') }}
                                 <i class="ti ti-trending-up"></i>
                             </span>
                             <div class="text-end">
@@ -101,7 +104,7 @@
 
                     <div class="card-body pt-0">
                         <div class="d-flex align-items-center gap-2 justify-content-between">
-                            <span class="badge bg-danger rounded-pill fs-13">{{ kpi_spending_badge|default('12%') }}
+                            <span class="badge badge-soft-danger rounded-pill fs-13">{{ kpi_spending_badge|default('12%') }}
                                 <i class="ti ti-trending-up"></i>
                             </span>
                             <div class="text-end">
@@ -139,7 +142,7 @@
 
                     <div class="card-body pt-0">
                         <div class="d-flex align-items-center gap-2 justify-content-between">
-                            <span class="badge bg-info rounded-pill fs-13">{{ kpi_remaining_badge|default('5.7%') }}
+                            <span class="badge badge-soft-info rounded-pill fs-13">{{ kpi_remaining_badge|default('5.7%') }}
                                 <i class="ti ti-trending-down"></i>
                             </span>
                             <div class="text-end">
@@ -177,7 +180,7 @@
 
                     <div class="card-body pt-0">
                         <div class="d-flex align-items-center gap-2 justify-content-between">
-                            <span class="badge bg-primary rounded-pill fs-13">{{ kpi_utilization_badge|default('2.1%') }}
+                            <span class="badge badge-soft-primary rounded-pill fs-13">{{ kpi_utilization_badge|default('2.1%') }}
                                 <i class="ti ti-trending-up"></i>
                             </span>
                             <div class="text-end">
@@ -280,10 +283,7 @@
                     {% endfor %}
                 </div>
                 
-                <!-- Show All Button -->
-                <div class="text-center mt-4">
-                    <button class="btn btn-outline-primary">{{ 'Show All Projects'|trans }}</button>
-                </div>
+                <!-- End Project Budgets Section -->
             </div>
         </div>
 
@@ -327,5 +327,6 @@
         });
     </script>
 {% endblock %}
+
 
 {% block footer %}{% endblock %}
