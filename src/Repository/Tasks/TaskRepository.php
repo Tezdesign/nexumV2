@@ -4,6 +4,7 @@ namespace App\Repository\Tasks;
 
 use App\Entity\Tasks\Task;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
@@ -12,6 +13,42 @@ use Doctrine\Persistence\ManagerRegistry;
 class TaskRepository extends ServiceEntityRepository
 {
     private const COMPLETED_STATUSES = ['done', 'completed', 'complete', 'finished'];
+    private const IN_PROGRESS_STATUSES = ['in_progress', 'in progress', 'progress', 'doing', 'started'];
+
+    private function applyFilters(QueryBuilder $qb, ?string $q, ?string $status, ?string $priority): void
+    {
+        $q = $q !== null ? trim($q) : '';
+        if ($q !== '') {
+            $q = strtolower($q);
+            $qb
+                ->andWhere('(LOWER(t.title) LIKE :q OR LOWER(COALESCE(t.description, \'\')) LIKE :q)')
+                ->setParameter('q', '%' . $q . '%');
+        }
+
+        $priority = $priority !== null ? strtolower(trim($priority)) : '';
+        if (in_array($priority, ['high', 'medium', 'low'], true)) {
+            $qb
+                ->andWhere('t.priority IS NOT NULL AND LOWER(t.priority) = :priority')
+                ->setParameter('priority', $priority);
+        }
+
+        $status = $status !== null ? strtolower(trim($status)) : '';
+        if ($status === 'done') {
+            $qb
+                ->andWhere('(t.status IS NOT NULL AND LOWER(t.status) IN (:done))')
+                ->setParameter('done', self::COMPLETED_STATUSES);
+        } elseif ($status === 'in_progress') {
+            $qb
+                ->andWhere('(t.status IS NOT NULL AND LOWER(t.status) IN (:inprog))')
+                ->setParameter('inprog', self::IN_PROGRESS_STATUSES);
+        } elseif ($status === 'todo') {
+            // Treat null/unknown statuses as "To Do" if not in the other buckets.
+            $qb
+                ->andWhere('(t.status IS NULL OR (LOWER(t.status) NOT IN (:done) AND LOWER(t.status) NOT IN (:inprog)))')
+                ->setParameter('done', self::COMPLETED_STATUSES)
+                ->setParameter('inprog', self::IN_PROGRESS_STATUSES);
+        }
+    }
 
     public function __construct(ManagerRegistry $registry)
     {
@@ -23,7 +60,7 @@ class TaskRepository extends ServiceEntityRepository
      *
      * @return Task[]
      */
-    public function findForUser(int $userId, ?string $q = null): array
+    public function findForUser(int $userId, ?string $q = null, ?string $status = null, ?string $priority = null): array
     {
         $qb = $this->createQueryBuilder('t')
             ->andWhere('t.assigned_to = :uid')
@@ -32,13 +69,24 @@ class TaskRepository extends ServiceEntityRepository
             ->addOrderBy('t.due_date', 'ASC')
             ->addOrderBy('t.id', 'DESC');
 
-        $q = $q !== null ? trim($q) : '';
-        if ($q !== '') {
-            $q = strtolower($q);
-            $qb
-                ->andWhere('(LOWER(t.title) LIKE :q OR LOWER(COALESCE(t.description, \'\')) LIKE :q)')
-                ->setParameter('q', '%' . $q . '%');
-        }
+        $this->applyFilters($qb, $q, $status, $priority);
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * "All Tasks" list for managers, optionally filtered by query.
+     *
+     * @return Task[]
+     */
+    public function findForManager(?string $q = null, ?string $status = null, ?string $priority = null): array
+    {
+        $qb = $this->createQueryBuilder('t')
+            ->orderBy('t.project_id', 'ASC')
+            ->addOrderBy('t.due_date', 'ASC')
+            ->addOrderBy('t.id', 'DESC');
+
+        $this->applyFilters($qb, $q, $status, $priority);
 
         return $qb->getQuery()->getResult();
     }

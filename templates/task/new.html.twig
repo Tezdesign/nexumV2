@@ -5,6 +5,7 @@
 {% block body %}
     <h1>Create new Task</h1>
 
+    {# Legacy route: the UI uses the modal on /task #}
     {{ include('task/_form.html.twig') }}
 
     <a href="{{ path('app_task_index') }}">back to list</a>

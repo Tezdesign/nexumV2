@@ -1,7 +1,7 @@
 {% extends 'layouts/vertical.html.twig' %}
 
-{% set title = 'My Tasks' %}
-{% set subtitle = 'Manage your work across all projects' %}
+{% set title = (isManager|default(false)) ? 'All Tasks' : 'My Tasks' %}
+{% set subtitle = (isManager|default(false)) ? 'Manage tasks across all projects' : 'Manage your work across all projects' %}
 
 {% block css %}
     <style>
@@ -22,6 +22,18 @@
             --nexum-stone-500: #78716c;
             --nexum-stone-600: #57534e;
             --nexum-stone-900: #1c1917;
+
+            --nexum-slate-50: #f8fafc;
+        }
+
+        /* Gray workspace background like the screenshot */
+        .page-content {
+            background: var(--nexum-slate-50);
+        }
+
+        .page-container {
+            padding-top: 18px;
+            padding-bottom: 24px;
         }
 
         .nexum-page-head {
@@ -50,25 +62,56 @@
             max-width: 60vw;
         }
 
+        .nexum-toolbar .btn {
+            border-radius: 12px;
+            padding: 10px 16px;
+            font-weight: 800;
+        }
+
+        .nexum-toolbar .btn.btn-outline-secondary {
+            border-color: #e2e8f0;
+            background: #fff;
+            color: #334155;
+        }
+
+        .nexum-toolbar .btn.btn-outline-secondary:hover {
+            border-color: #cbd5e1;
+            background: #fff;
+            color: #0f172a;
+        }
+
         .nexum-btn-primary {
-            background: var(--nexum-violet-600);
-            border-color: var(--nexum-violet-600);
+            background: var(--nexum-violet-600) !important;
+            border-color: var(--nexum-violet-600) !important;
+            box-shadow: 0 10px 18px rgba(124, 58, 237, 0.18);
         }
 
         .nexum-btn-primary:hover {
-            background: var(--nexum-violet-700);
-            border-color: var(--nexum-violet-700);
+            background: var(--nexum-violet-700) !important;
+            border-color: var(--nexum-violet-700) !important;
+        }
+
+        /* In case any Bootstrap primary button is used on this page, force the design color. */
+        .btn.btn-primary {
+            background: var(--nexum-violet-600) !important;
+            border-color: var(--nexum-violet-600) !important;
+        }
+
+        .btn.btn-primary:hover {
+            background: var(--nexum-violet-700) !important;
+            border-color: var(--nexum-violet-700) !important;
         }
 
         .nexum-group {
             border: 1px solid var(--nexum-stone-200);
-            border-radius: 14px;
+            border-radius: 16px;
             background: #fff;
             overflow: hidden;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
         }
 
         .nexum-group + .nexum-group {
-            margin-top: 14px;
+            margin-top: 18px; /* target 16-24px spacing like the screenshot */
         }
 
         .nexum-group-head {
@@ -95,7 +138,7 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            color: var(--nexum-stone-500);
+            color: #64748b;
         }
 
         .nexum-dot {
@@ -139,12 +182,12 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            color: var(--nexum-stone-500);
+            color: #64748b;
         }
 
         .nexum-icon-btn:hover {
-            color: var(--nexum-stone-900);
-            border-color: var(--nexum-stone-300);
+            color: #0f172a;
+            border-color: #cbd5e1;
         }
 
         .nexum-row {
@@ -153,13 +196,13 @@
             justify-content: space-between;
             gap: 12px;
             padding: 12px 16px;
-            border-top: 1px solid var(--nexum-stone-200);
+            border-top: 1px solid #eef2f7;
             position: relative;
             background: #fff;
         }
 
         .nexum-row:hover {
-            background: var(--nexum-stone-50);
+            background: #fafafa;
         }
 
         .nexum-row-left {
@@ -169,38 +212,57 @@
             min-width: 0;
         }
 
-        .nexum-check {
-            width: 18px;
-            height: 18px;
+        .nexum-task-actions {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            flex: 0 0 auto;
+        }
+
+        .nexum-task-actions form {
+            margin: 0;
+        }
+
+        .nexum-task-action {
+            width: 28px;
+            height: 28px;
             border-radius: 999px;
-            border: 2px solid var(--nexum-stone-300);
+            border: 1px solid var(--nexum-stone-200);
+            background: #fff;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            flex: 0 0 auto;
-            background: #fff;
-        }
-
-        .nexum-check.done {
-            border-color: #10b981;
-            background: #10b981;
-        }
-
-        .nexum-check.done::after {
-            content: "✓";
-            font-size: 12px;
-            font-weight: 900;
-            color: #fff;
+            color: #94a3b8;
+            padding: 0;
             line-height: 1;
+        }
+
+        .nexum-task-action:hover {
+            color: #0f172a;
+            border-color: #cbd5e1;
+        }
+
+        .nexum-task-action.is-done {
+            background: #10b981;
+            border-color: #10b981;
+            color: #fff;
+        }
+
+        .nexum-task-action.is-progress {
+            background: #ffedd5;
+            border-color: #fed7aa;
+            color: #c2410c;
         }
 
         .nexum-task-title {
             font-weight: 700;
             color: var(--nexum-stone-900);
+            text-decoration: none;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
             max-width: 520px;
+            display: inline-block;
         }
 
         .nexum-task-title.done {
@@ -208,13 +270,32 @@
             text-decoration: line-through;
         }
 
+        .nexum-task-title:hover {
+            text-decoration: underline;
+        }
+
         .nexum-meta {
             display: inline-flex;
             align-items: center;
             gap: 14px;
-            color: var(--nexum-stone-500);
+            color: #64748b;
             font-size: 12px;
             white-space: nowrap;
+        }
+
+        .nexum-meta .nexum-icon-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: 9px;
+            border-color: transparent;
+            background: transparent;
+            color: #94a3b8;
+        }
+
+        .nexum-meta .nexum-icon-btn:hover {
+            border-color: #e2e8f0;
+            background: #fff;
+            color: #0f172a;
         }
 
         .nexum-priority {
@@ -230,21 +311,84 @@
         }
 
         .nexum-priority.high {
-            background: #fff1f2;
+            background: #ffe4e6;
             color: #be123c;
             border-color: #fecdd3;
         }
 
         .nexum-priority.medium {
-            background: #fff7ed;
-            color: #9a3412;
-            border-color: #fed7aa;
+            background: #fef3c7;
+            color: #b45309;
+            border-color: #fde68a;
         }
 
         .nexum-priority.low {
-            background: #eff6ff;
+            background: #dbeafe;
             color: #1d4ed8;
             border-color: #bfdbfe;
+        }
+
+        .nexum-status {
+            font-size: 11px;
+            font-weight: 900;
+            border-radius: 999px;
+            padding: 4px 10px;
+            border: 1px solid transparent;
+            display: inline-flex;
+            align-items: center;
+            letter-spacing: .01em;
+        }
+
+        .nexum-status.todo {
+            background: #f1f5f9;
+            color: #64748b;
+            border-color: #e2e8f0;
+        }
+
+        .nexum-status.in_progress {
+            background: #ffedd5;
+            color: #c2410c;
+            border-color: #fed7aa;
+        }
+
+        .nexum-status.done {
+            background: #dcfce7;
+            color: #15803d;
+            border-color: #bbf7d0;
+        }
+
+        .nexum-assignee {
+            border: 1px solid #e2e8f0;
+            background: #f8fafc;
+            color: #334155;
+            border-radius: 999px;
+            padding: 4px 10px;
+            font-weight: 700;
+            font-size: 11px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            max-width: 180px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .nexum-assignee.is-empty {
+            color: #64748b;
+        }
+
+        .nexum-assignee-dot {
+            width: 16px;
+            height: 16px;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 900;
+            line-height: 1;
+            flex: 0 0 auto;
         }
 
         .nexum-avatar {
@@ -279,6 +423,139 @@
         .nexum-modal .modal-footer {
             border-color: var(--nexum-stone-200);
         }
+
+        .nexum-modal .modal-dialog {
+            max-width: 720px;
+        }
+
+        .nexum-modal .modal-title {
+            font-weight: 900;
+        }
+
+        .nexum-modal label {
+            font-size: 12px;
+            font-weight: 800;
+            color: #475569;
+        }
+
+        .nexum-modal .form-control,
+        .nexum-modal .form-select {
+            border-radius: 12px;
+            border-color: #e2e8f0;
+            padding-top: 10px;
+            padding-bottom: 10px;
+        }
+
+        .nexum-modal textarea.form-control {
+            min-height: 92px;
+            resize: none;
+        }
+
+        .nexum-modal .modal-footer .btn {
+            border-radius: 12px;
+            padding: 10px 18px;
+            font-weight: 800;
+        }
+
+        .nexum-modal .modal-footer .btn.btn-outline-secondary {
+            border-color: #e2e8f0;
+            color: #334155;
+            background: #fff;
+        }
+
+        .nexum-filter .modal-dialog {
+            max-width: 540px;
+        }
+
+        .nexum-filter .modal-title {
+            font-size: 22px;
+            font-weight: 900;
+            margin: 0;
+        }
+
+        .nexum-filter .nexum-modal-sub {
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 600;
+            margin-top: 4px;
+        }
+
+        .nexum-filter .modal-body {
+            padding-top: 6px;
+        }
+
+        .nexum-filter .modal-footer {
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .nexum-filter .modal-footer .btn {
+            min-width: 110px;
+        }
+
+        .nexum-danger .modal-dialog {
+            max-width: 720px;
+        }
+
+        .nexum-danger .nexum-danger-head {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .nexum-danger .nexum-danger-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #fee2e2;
+            color: #dc2626;
+            flex: 0 0 auto;
+        }
+
+        .nexum-danger .nexum-danger-title {
+            font-weight: 900;
+            font-size: 22px;
+            margin: 0;
+            color: #0f172a;
+        }
+
+        .nexum-danger .nexum-danger-sub {
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 600;
+            margin-top: 4px;
+        }
+
+        .nexum-danger .nexum-danger-box {
+            border: 1px solid #e2e8f0;
+            background: #f8fafc;
+            border-radius: 14px;
+            padding: 14px 16px;
+            color: #334155;
+        }
+
+        .nexum-danger .nexum-danger-task {
+            font-weight: 900;
+            font-size: 16px;
+            margin-top: 6px;
+            color: #0f172a;
+        }
+
+        .nexum-danger .btn-danger {
+            background: #ef4444;
+            border-color: #ef4444;
+            border-radius: 12px;
+            padding: 10px 18px;
+            font-weight: 900;
+        }
+
+        .nexum-danger .btn-danger:hover {
+            background: #dc2626;
+            border-color: #dc2626;
+        }
     </style>
 {% endblock %}
 
@@ -290,32 +567,45 @@
             <div class="nexum-subtitle">{{ subtitle }}</div>
         </div>
 
-        <div class="nexum-toolbar">
-            <form method="get" action="{{ path('app_task_index') }}">
-                <input class="form-control nexum-search" type="search" name="q" value="{{ q|default('')|plain_text }}"
-                       placeholder="Search tasks...">
-            </form>
-            <button class="btn btn-outline-secondary" type="button">Filter</button>
-            <button class="btn nexum-btn-primary text-white" type="button" data-bs-toggle="modal" data-bs-target="#createTaskModal">
-                + New Task
-            </button>
-        </div>
-    </div>
+	        <div class="nexum-toolbar">
+	            <form method="get" action="{{ path('app_task_index') }}">
+	                <input class="form-control nexum-search" type="search" name="q" value="{{ q|default('')|plain_text }}"
+	                       placeholder="Search tasks...">
+	                {% if prefillProjectId|default(0) %}
+	                    <input type="hidden" name="project" value="{{ prefillProjectId }}">
+	                {% endif %}
+	                {% if statusFilter|default('') %}
+	                    <input type="hidden" name="status" value="{{ statusFilter }}">
+	                {% endif %}
+	                {% if priorityFilter|default('') %}
+	                    <input type="hidden" name="priority" value="{{ priorityFilter }}">
+	                {% endif %}
+	            </form>
+	            <button class="btn btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#filterTasksModal">
+	                <i class="ri-filter-2-line me-1"></i> Filter
+	            </button>
+	            <button class="btn nexum-btn-primary text-white" type="button" data-bs-toggle="modal" data-bs-target="#createTaskModal">
+	                + New Task
+	            </button>
+	        </div>
+	    </div>
 
     {% set completedStatuses = ['done','completed','complete','finished'] %}
+    {% set inProgressStatuses = ['in_progress','in progress','progress','doing','started'] %}
 
     {% for pid, tasks in tasksByProjectId|default([]) %}
         {% set project = projectsById[pid] ?? null %}
         {% set projectName = project ? project.name|plain_text : ('Project #' ~ pid) %}
+        {% set dot = avatar_placeholder(projectName) %}
         {% set groupId = 'proj_' ~ pid %}
 
         <div class="nexum-group">
             <div class="nexum-group-head">
                 <div class="nexum-group-left">
-                    <button class="nexum-chevron" type="button" data-bs-toggle="collapse" data-bs-target="#{{ groupId }}" aria-expanded="true">
+                    <button class="nexum-chevron" type="button" data-bs-toggle="collapse" data-bs-target="#{{ groupId }}" aria-expanded="true" aria-controls="{{ groupId }}">
                         <i class="ri-arrow-down-s-line"></i>
                     </button>
-                    <span class="nexum-dot"></span>
+                    <span class="nexum-dot" style="background: {{ dot.bg }};"></span>
                     <div class="nexum-group-name">{{ projectName }}</div>
                     <span class="nexum-count">{{ tasks|length }}</span>
                 </div>
@@ -324,7 +614,8 @@
                             data-bs-toggle="modal"
                             data-bs-target="#createTaskModal"
                             data-prefill-project="{{ pid }}"
-                            title="Add task">
+                            title="Add task"
+                            aria-label="Add task">
                         <i class="ri-add-line"></i>
                     </button>
                 </div>
@@ -334,19 +625,47 @@
                 {% for task in tasks %}
                     {% set st = (task.status ?? '')|plain_text|lower %}
                     {% set isDone = st and (st in completedStatuses) %}
+                    {% set isInProgress = (not isDone) and st and (st in inProgressStatuses) %}
+                    {% set statusKey = isDone ? 'done' : (isInProgress ? 'in_progress' : 'todo') %}
                     {% set pr = (task.priority ?? '')|plain_text|lower %}
                     {% set prClass = pr in ['high','medium','low'] ? pr : '' %}
                     {% set au = task.assignedTo ?? null %}
                     {% set u = au is not null ? (usersById[au] ?? null) : null %}
                     {% set fullName = u ? ((u.prenom ~ ' ' ~ u.nom)|trim|plain_text) : '' %}
-                    {% set avatarUrl = (u and avatarUrlById[u.id] is defined) ? avatarUrlById[u.id] : null %}
 
                     <div class="nexum-row">
                         <div class="nexum-row-left">
-                            <span class="nexum-check {{ isDone ? 'done' : '' }}"></span>
-                            <div class="nexum-task-title {{ isDone ? 'done' : '' }}">{{ task.title|plain_text }}</div>
+                            <div class="nexum-task-actions">
+                                <form method="post" action="{{ path('app_task_status', {id: task.id}) }}">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('task_status' ~ task.id) }}">
+                                    <input type="hidden" name="status" value="{{ isDone ? 'todo' : 'done' }}">
+                                    <input type="hidden" name="back" value="{{ app.request.requestUri }}">
+                                    <button type="submit"
+                                            class="nexum-task-action {{ isDone ? 'is-done' : '' }}"
+                                            title="{{ isDone ? 'Mark as To Do' : 'Mark as Done' }}"
+                                            aria-label="{{ isDone ? 'Mark as To Do' : 'Mark as Done' }}">
+                                        <i class="ri-check-line"></i>
+                                    </button>
+                                </form>
 
-                            <a class="stretched-link" href="{{ path('app_task_show', {id: task.id}) }}" aria-label="Open task"></a>
+                                <form method="post" action="{{ path('app_task_status', {id: task.id}) }}">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('task_status' ~ task.id) }}">
+                                    <input type="hidden" name="status" value="in_progress">
+                                    <input type="hidden" name="back" value="{{ app.request.requestUri }}">
+                                    <button type="submit"
+                                            class="nexum-task-action {{ statusKey == 'in_progress' ? 'is-progress' : '' }}"
+                                            title="Mark as In Progress"
+                                            aria-label="Mark as In Progress">
+                                        <i class="ri-time-line"></i>
+                                    </button>
+                                </form>
+                            </div>
+
+                            <a class="nexum-task-title {{ isDone ? 'done' : '' }}"
+                               href="{{ path('app_task_show', {id: task.id}) }}"
+                               title="{{ task.title|plain_text }}">
+                                {{ task.title|plain_text }}
+                            </a>
                         </div>
 
                         <div class="nexum-meta">
@@ -354,25 +673,45 @@
                                 <span class="nexum-priority {{ prClass }}">{{ prClass|upper }}</span>
                             {% endif %}
 
+                            <span class="nexum-status {{ statusKey }}">
+                                {{ statusKey == 'in_progress' ? 'In Progress' : (statusKey == 'done' ? 'Done' : 'To Do') }}
+                            </span>
+
                             <span class="d-inline-flex align-items-center gap-2">
                                 <i class="ri-calendar-line"></i>
-                                <span>{{ task.dueDate ? task.dueDate|date('Y-m-d') : '—' }}</span>
+                                <span>{{ task.dueDate ? task.dueDate|date('d M') : '—' }}</span>
                             </span>
 
                             {% if u %}
-                                {% if avatarUrl %}
-                                    <span class="nexum-avatar" title="{{ fullName }}">
-                                        <img src="{{ avatarUrl }}" alt="{{ fullName }}">
-                                    </span>
-                                {% else %}
-                                    {% set ap = avatar_placeholder(fullName) %}
-                                    <span class="nexum-avatar" title="{{ fullName }}" style="background: {{ ap.bg }}; color: {{ ap.fg }};">
+                                {% set ap = avatar_placeholder(fullName) %}
+                                <span class="nexum-assignee" title="{{ fullName }}">
+                                    <span class="nexum-assignee-dot" style="background: {{ ap.bg }}; color: {{ ap.fg }};">
                                         {{ ap.initial }}
                                     </span>
-                                {% endif %}
+                                    {{ fullName }}
+                                </span>
                             {% else %}
-                                <span class="nexum-avatar" title="Unassigned">?</span>
+                                <span class="nexum-assignee is-empty">Unassigned</span>
                             {% endif %}
+
+                            <a class="nexum-icon-btn"
+                               href="{{ path('app_task_edit', {id: task.id, back: app.request.requestUri}) }}"
+                               title="Edit"
+                               aria-label="Edit">
+                                <i class="ri-pencil-line"></i>
+                            </a>
+
+                            <button type="button"
+                                    class="nexum-icon-btn"
+                                    title="Delete"
+                                    aria-label="Delete"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#deleteTaskModal"
+                                    data-delete-action="{{ path('app_task_delete', {id: task.id}) }}"
+                                    data-delete-token="{{ csrf_token('delete' ~ task.id) }}"
+                                    data-task-title="{{ task.title|plain_text }}">
+                                <i class="ri-delete-bin-line"></i>
+                            </button>
                         </div>
                     </div>
                 {% endfor %}
@@ -384,90 +723,235 @@
         </div>
     {% endfor %}
 
-    {% if createForm is defined %}
-        <div class="modal fade nexum-modal" id="createTaskModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content">
-                    {{ form_start(createForm, { attr: { id: 'createTaskForm' } }) }}
+	    {% if createForm is defined %}
+	        <div class="modal fade nexum-modal" id="createTaskModal" tabindex="-1" aria-hidden="true">
+	            <div class="modal-dialog modal-dialog-centered">
+	                <div class="modal-content">
+	                    {{ form_start(createForm, { attr: { id: 'createTaskForm' } }) }}
 
-                    <div class="modal-header">
-                        <div>
-                            <h5 class="modal-title mb-1">Create New Task</h5>
-                            <div class="text-muted small">Add a new task to your project</div>
-                        </div>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
+	                    <div class="modal-header">
+	                        <div>
+	                            <h5 class="modal-title mb-1">Create New Task</h5>
+	                            <div class="text-muted small">Assign a new objective to this project</div>
+	                        </div>
+	                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+	                    </div>
+	
+	                    <div class="modal-body">
+	                        <div class="mb-3">
+	                            {{ form_label(createForm.title) }} <span class="text-danger">*</span>
+	                            {{ form_widget(createForm.title, { attr: { class: 'form-control', placeholder: 'e.g. Design System Audit' } }) }}
+	                            {{ form_errors(createForm.title) }}
+	                        </div>
 
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            {{ form_label(createForm.title) }} <span class="text-danger">*</span>
-                            {{ form_widget(createForm.title, { attr: { class: 'form-control', placeholder: 'e.g. Update Hero Section' } }) }}
-                            {{ form_errors(createForm.title) }}
-                        </div>
+	                        <div class="mb-3">
+	                            {{ form_label(createForm.description) }}
+	                            {{ form_widget(createForm.description, { attr: { class: 'form-control', placeholder: 'Describe the task goals...' } }) }}
+	                            {{ form_errors(createForm.description) }}
+	                        </div>
 
-                        <div class="row g-3">
-                            <div class="col-12 col-md-6">
-                                {{ form_label(createForm.project) }}
-                                {{ form_widget(createForm.project, { attr: { class: 'form-select', 'data-task-project': '1' } }) }}
-                                {{ form_errors(createForm.project) }}
-                            </div>
-                            <div class="col-12 col-md-6">
-                                {{ form_label(createForm.status) }}
-                                {{ form_widget(createForm.status, { attr: { class: 'form-select' } }) }}
-                                {{ form_errors(createForm.status) }}
-                            </div>
-                        </div>
-
-                        <div class="row g-3 mt-0">
-                            <div class="col-12 col-md-6">
-                                {{ form_label(createForm.due_date) }}
-                                {{ form_widget(createForm.due_date, { attr: { class: 'form-control' } }) }}
-                                {{ form_errors(createForm.due_date) }}
-                            </div>
-                            <div class="col-12 col-md-6">
-                                {{ form_label(createForm.priority) }}
-                                {{ form_widget(createForm.priority, { attr: { class: 'form-select' } }) }}
-                                {{ form_errors(createForm.priority) }}
-                            </div>
-                        </div>
-                    </div>
+	                        <div class="mb-3">
+	                            {{ form_label(createForm.project) }} <span class="text-danger">*</span>
+	                            {{ form_widget(createForm.project, { attr: { class: 'form-select', 'data-task-project': '1' } }) }}
+	                            {{ form_errors(createForm.project) }}
+	                        </div>
+	
+	                        <div class="row g-3">
+	                            <div class="col-12 col-md-3">
+	                                {{ form_label(createForm.due_date) }}
+	                                {{ form_widget(createForm.due_date, { attr: { class: 'form-control' } }) }}
+	                                {{ form_errors(createForm.due_date) }}
+	                            </div>
+	                            <div class="col-12 col-md-3">
+	                                {{ form_label(createForm.status) }}
+	                                {{ form_widget(createForm.status, { attr: { class: 'form-select' } }) }}
+	                                {{ form_errors(createForm.status) }}
+	                            </div>
+	                            <div class="col-12 col-md-3">
+	                                {{ form_label(createForm.assignedUser) }}
+	                                {{ form_widget(createForm.assignedUser, { attr: { class: 'form-select' } }) }}
+	                                {{ form_errors(createForm.assignedUser) }}
+	                            </div>
+	                            <div class="col-12 col-md-3">
+	                                {{ form_label(createForm.priority) }}
+	                                {{ form_widget(createForm.priority, { attr: { class: 'form-select' } }) }}
+	                                {{ form_errors(createForm.priority) }}
+	                            </div>
+	                        </div>
+	                    </div>
 
                     <div class="modal-footer">
                         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
                         <button type="submit" class="btn nexum-btn-primary text-white">Create Task</button>
                     </div>
 
-                    {{ form_end(createForm) }}
-                </div>
-            </div>
-        </div>
-    {% endif %}
+	                    {{ form_end(createForm) }}
+	                </div>
+	            </div>
+	        </div>
+	    {% endif %}
 
+	    {# Filter modal (status + priority) #}
+	    <div class="modal fade nexum-modal nexum-filter" id="filterTasksModal" tabindex="-1" aria-hidden="true">
+	        <div class="modal-dialog modal-dialog-centered">
+	            <div class="modal-content">
+	                <div class="modal-header">
+	                    <div>
+	                        <h5 class="modal-title">Filter Tasks</h5>
+	                        <div class="nexum-modal-sub">Filter by status and priority</div>
+	                    </div>
+	                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+	                </div>
+
+	                <form method="get" action="{{ path('app_task_index') }}" id="filterTasksForm">
+	                    <div class="modal-body">
+	                        {% if q|default('') %}
+	                            <input type="hidden" name="q" value="{{ q|plain_text }}">
+	                        {% endif %}
+	                        {% if prefillProjectId|default(0) %}
+	                            <input type="hidden" name="project" value="{{ prefillProjectId }}">
+	                        {% endif %}
+
+	                        <div class="mb-3">
+	                            <label for="filterStatus" class="form-label">Status</label>
+	                            <select id="filterStatus" name="status" class="form-select">
+	                                <option value="" {{ (statusFilter|default('')) == '' ? 'selected' : '' }}>All</option>
+	                                <option value="todo" {{ (statusFilter|default('')) == 'todo' ? 'selected' : '' }}>To Do</option>
+	                                <option value="in_progress" {{ (statusFilter|default('')) == 'in_progress' ? 'selected' : '' }}>In Progress</option>
+	                                <option value="done" {{ (statusFilter|default('')) == 'done' ? 'selected' : '' }}>Done</option>
+	                            </select>
+	                        </div>
+
+	                        <div class="mb-0">
+	                            <label for="filterPriority" class="form-label">Priority</label>
+	                            <select id="filterPriority" name="priority" class="form-select">
+	                                <option value="" {{ (priorityFilter|default('')) == '' ? 'selected' : '' }}>All</option>
+	                                <option value="high" {{ (priorityFilter|default('')) == 'high' ? 'selected' : '' }}>High</option>
+	                                <option value="medium" {{ (priorityFilter|default('')) == 'medium' ? 'selected' : '' }}>Medium</option>
+	                                <option value="low" {{ (priorityFilter|default('')) == 'low' ? 'selected' : '' }}>Low</option>
+	                            </select>
+	                        </div>
+	                    </div>
+
+	                    <div class="modal-footer">
+	                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+	                        <button type="button" class="btn btn-outline-secondary" id="clearTaskFiltersBtn">Clear</button>
+	                        <button type="submit" class="btn btn-primary">Apply</button>
+	                    </div>
+	                </form>
+	            </div>
+	        </div>
+	    </div>
+
+	    {# Delete confirmation modal (single, populated via data- attributes) #}
+	    <div class="modal fade nexum-modal nexum-danger" id="deleteTaskModal" tabindex="-1" aria-hidden="true">
+	        <div class="modal-dialog modal-dialog-centered">
+	            <div class="modal-content">
+	                <div class="modal-header border-0">
+	                    <div class="nexum-danger-head">
+	                        <div class="nexum-danger-icon" aria-hidden="true">
+	                            <i class="ri-error-warning-line"></i>
+	                        </div>
+	                        <div>
+	                            <h5 class="nexum-danger-title">Delete Task?</h5>
+	                            <div class="nexum-danger-sub">This action cannot be undone.</div>
+	                        </div>
+	                    </div>
+	                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+	                </div>
+
+	                <div class="modal-body pt-0">
+	                    <div class="nexum-danger-box">
+	                        <div>You are about to permanently delete:</div>
+	                        <div class="nexum-danger-task" id="deleteTaskTitle">—</div>
+	                        <div class="mt-1 text-muted">This task will be removed from your project.</div>
+	                    </div>
+	                </div>
+
+	                <div class="modal-footer border-0">
+	                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+	                    <form method="post" action="" id="deleteTaskForm" class="m-0">
+	                        <input type="hidden" name="_token" id="deleteTaskToken" value="">
+	                        <button type="submit" class="btn btn-danger">Delete Task</button>
+	                    </form>
+	                </div>
+	            </div>
+	        </div>
+	    </div>
+	
 {% endblock %}
 
 {% block script %}
     <script>
-        (function () {
-            const modalEl = document.getElementById('createTaskModal');
-            if (!modalEl) return;
+	        (function () {
+	            const modalEl = document.getElementById('createTaskModal');
+	            if (!modalEl) return;
 
-            const projectSelect = modalEl.querySelector('select[data-task-project="1"]');
+	            const projectSelect = modalEl.querySelector('select[data-task-project="1"]');
 
-            document.addEventListener('click', function (e) {
-                const btn = e.target.closest('[data-prefill-project]');
-                if (!btn) return;
-                const pid = btn.getAttribute('data-prefill-project');
-                if (projectSelect && pid) {
-                    projectSelect.value = String(pid);
-                }
-            });
+	            // Support deep-linking from other pages:
+	            // /task?create=1&project=123 opens the modal with the project pre-selected.
+	            try {
+	                const url = new URL(window.location.href);
+	                const pid = url.searchParams.get('project');
+	                const open = url.searchParams.get('create') === '1';
+	                if (pid && projectSelect) {
+	                    projectSelect.value = String(pid);
+	                }
+	                if (open && window.bootstrap && bootstrap.Modal) {
+	                    new bootstrap.Modal(modalEl).show();
+	                }
+	            } catch (e) {
+	                // ignore
+	            }
+
+	            document.addEventListener('click', function (e) {
+	                const btn = e.target.closest('[data-prefill-project]');
+	                if (!btn) return;
+	                const pid = btn.getAttribute('data-prefill-project');
+	                if (projectSelect && pid) {
+	                    projectSelect.value = String(pid);
+	                }
+	            });
 
             {% if createForm is defined and createForm.vars.submitted and not createForm.vars.valid %}
             if (window.bootstrap && bootstrap.Modal) {
                 new bootstrap.Modal(modalEl).show();
             }
-            {% endif %}
-        })();
-    </script>
-{% endblock %}
+	            {% endif %}
+	        })();
 
+	        (function () {
+	            const filterModal = document.getElementById('filterTasksModal');
+	            const clearBtn = document.getElementById('clearTaskFiltersBtn');
+	            const filterForm = document.getElementById('filterTasksForm');
+	            if (clearBtn && filterForm) {
+	                clearBtn.addEventListener('click', function () {
+	                    const st = filterForm.querySelector('select[name="status"]');
+	                    const pr = filterForm.querySelector('select[name="priority"]');
+	                    if (st) st.value = '';
+	                    if (pr) pr.value = '';
+	                    filterForm.submit();
+	                });
+	            }
+
+	            const delModal = document.getElementById('deleteTaskModal');
+	            if (delModal) {
+	                delModal.addEventListener('show.bs.modal', function (ev) {
+	                    const btn = ev.relatedTarget;
+	                    if (!btn) return;
+	                    const action = btn.getAttribute('data-delete-action') || '';
+	                    const token = btn.getAttribute('data-delete-token') || '';
+	                    const title = btn.getAttribute('data-task-title') || '—';
+
+	                    const form = document.getElementById('deleteTaskForm');
+	                    const tokenEl = document.getElementById('deleteTaskToken');
+	                    const titleEl = document.getElementById('deleteTaskTitle');
+	                    if (form) form.setAttribute('action', action);
+	                    if (tokenEl) tokenEl.value = token;
+	                    if (titleEl) titleEl.textContent = title;
+	                });
+	            }
+	        })();
+	    </script>
+	{% endblock %}
