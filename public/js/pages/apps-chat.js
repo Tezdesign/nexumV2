@@ -8,6 +8,8 @@ class ChatApp {
         this.filterEmptyState = null
         this.filterLabel = null
         this.activeFilter = 'all'
+        this.searchInput = null
+        this.searchQuery = ''
         this.messagesSimplebar = null
         this.chatForm = null
         this.chatInput = null
@@ -32,6 +34,7 @@ class ChatApp {
         }
         this.filterEmptyState = document.querySelector('[data-apps-chat="filter-empty"]')
         this.filterLabel = document.querySelector('[data-apps-chat="filter-label"]')
+        this.searchInput = document.querySelector('[data-apps-chat="search-input"]')
         this.chatForm = document.querySelector('#chat-form')
         if (this.chatForm)
             this.chatInput = this.chatForm.querySelector('input')
@@ -80,19 +83,6 @@ class ChatApp {
     applyConversationFilter = (filter) => {
         this.activeFilter = filter
 
-        const selectedType = filter === 'dm' ? 'DM' : filter === 'group' ? 'GROUP' : null
-        let hasMatches = false
-
-        this.conversationItems.forEach((item) => {
-            const rowType = (item.dataset.conversationType || '').toUpperCase()
-            const isVisible = selectedType === null || rowType === selectedType
-
-            item.classList.toggle('d-none', !isVisible)
-            if (isVisible) {
-                hasMatches = true
-            }
-        })
-
         this.filterButtons.forEach((button) => {
             const isActive = button.dataset.chatFilter === filter
             button.classList.toggle('active', isActive)
@@ -104,6 +94,48 @@ class ChatApp {
 
             if (isActive && this.filterLabel) {
                 this.filterLabel.textContent = button.dataset.chatFilterLabel || 'All'
+            }
+        })
+
+        this.applyConversationVisibility()
+    }
+
+    normalizeText = (value) => {
+        return String(value || '').toLowerCase().trim()
+    }
+
+    getSearchValueByType = (item, rowType) => {
+        if (rowType === 'DM') {
+            return this.normalizeText(item.dataset.dmName)
+        }
+
+        if (rowType === 'GROUP') {
+            return this.normalizeText(item.dataset.groupTitle)
+        }
+
+        return ''
+    }
+
+    applyConversationVisibility = () => {
+        const selectedType = this.activeFilter === 'dm'
+            ? 'DM'
+            : this.activeFilter === 'group'
+                ? 'GROUP'
+                : null
+
+        const query = this.normalizeText(this.searchQuery)
+        let hasMatches = false
+
+        this.conversationItems.forEach((item) => {
+            const rowType = (item.dataset.conversationType || '').toUpperCase()
+            const matchesFilter = selectedType === null || rowType === selectedType
+            const searchTarget = this.getSearchValueByType(item, rowType)
+            const matchesSearch = query.length === 0 || searchTarget.includes(query)
+            const isVisible = matchesFilter && matchesSearch
+
+            item.classList.toggle('d-none', !isVisible)
+            if (isVisible) {
+                hasMatches = true
             }
         })
 
@@ -123,6 +155,17 @@ class ChatApp {
         if (this.conversationItems.length > 0) {
             this.applyConversationFilter(this.activeFilter)
         }
+    }
+
+    initSearch = () => {
+        if (!this.searchInput) {
+            return
+        }
+
+        this.searchInput.addEventListener('input', (event) => {
+            this.searchQuery = event.target.value || ''
+            this.applyConversationVisibility()
+        })
     }
 
     initForm = () => {
@@ -154,6 +197,7 @@ class ChatApp {
         this.cacheElements();
         this.scrollToBottom();
         this.initFilters();
+        this.initSearch();
         this.initForm();
     }
 }

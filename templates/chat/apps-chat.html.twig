@@ -92,7 +92,7 @@
                         <div class="d-flex flex-column">
                             <div class="px-3 py-2">
                                 <div class="app-search py-1">
-                                    <input type="text" class="form-control border-light bg-light bg-opacity-50 rounded-2" placeholder="Search something here...">
+                                    <input type="text" class="form-control border-light bg-light bg-opacity-50 rounded-2" placeholder="Search conversations..." data-apps-chat="search-input">
                                         <i class="app-search-icon ti ti-search text-muted fs-16"></i>
                                     </div>
                                 </div>
@@ -107,7 +107,7 @@
                                     </div>
 
                                     {% for conversation in conversations %}
-                                        <a href="javascript:void(0);" class="text-body d-block" data-apps-chat="conversation-item" data-conversation-type="{{ conversation.isDm ? 'DM' : 'GROUP' }}">
+                                        <a href="javascript:void(0);" class="text-body d-block" data-apps-chat="conversation-item" data-conversation-type="{{ conversation.isDm ? 'DM' : 'GROUP' }}" data-dm-name="{{ conversation.isDm ? conversation.name : '' }}" data-group-title="{{ conversation.isDm ? '' : conversation.name }}">
                                             <div class="chat-users">
                                                 <div class="avatar-md {{ conversation.isDm ? 'chat-avatar-online' : 'chat-avatar-offline' }}">
                                                     {% if conversation.avatarSrc %}
@@ -601,7 +601,7 @@
 {% endblock %}
 
 {% block script %}
-    <script src="/js/pages/apps-chat.js?v=20260407a"></script>
+    <script src="/js/pages/apps-chat.js?v=20260407b"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const buttons = Array.from(document.querySelectorAll('[data-chat-filter]'));
