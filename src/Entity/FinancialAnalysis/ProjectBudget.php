@@ -101,17 +101,18 @@ class ProjectBudget
         return $this;
     }
 
-    #[ORM\Column(name: 'projectId', type: 'integer', nullable: false)]
-    private ?int $projectId = null;
+    #[ORM\ManyToOne(targetEntity: \App\Entity\Projects\Project::class)]
+    #[ORM\JoinColumn(name: 'projectId', referencedColumnName: 'id', nullable: false)]
+    private ?\App\Entity\Projects\Project $project = null;
 
-    public function getProjectId(): ?int
+    public function getProject(): ?\App\Entity\Projects\Project
     {
-        return $this->projectId;
+        return $this->project;
     }
 
-    public function setProjectId(int $projectId): self
+    public function setProject(?\App\Entity\Projects\Project $project): self
     {
-        $this->projectId = $projectId;
+        $this->project = $project;
         return $this;
     }
 
