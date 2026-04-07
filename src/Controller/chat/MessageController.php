@@ -6,6 +6,8 @@ use App\Entity\UserHandling\Utilisateur;
 use App\Repository\Chat\ConversationParticipantRepository;
 use App\Repository\Chat\MessageRepository;
 use App\Repository\UserHandling\UtilisateurRepository;
+use DateTimeImmutable;
+use DateTimeInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -42,6 +44,7 @@ class MessageController extends AbstractController
 		$payload = array_map(function ($message) use ($usersById): array {
 			$senderId = $message->getSenderId();
 			$sender = $senderId !== null ? ($usersById[$senderId] ?? null) : null;
+			$createdAt = $message->getCreatedAt();
 
 			return [
 				'id' => $message->getId(),
@@ -50,8 +53,8 @@ class MessageController extends AbstractController
 				'senderName' => $this->buildUserName($sender),
 				'senderAvatarSrc' => $sender !== null ? $this->toDataUri($sender->getImagelink(), 'image/jpeg') : null,
 				'isOwn' => $senderId === self::SESSION_CURRENT_USER_ID,
-				'createdAt' => $message->getCreatedAt()?->format(DATE_ATOM),
-				'timeLabel' => $message->getCreatedAt()?->format('g:ia') ?? '--',
+				'createdAt' => $createdAt?->format(DATE_ATOM),
+				'timeLabel' => $this->formatMessageTimeLabel($createdAt),
 			];
 		}, $messages);
 
@@ -118,5 +121,21 @@ class MessageController extends AbstractController
 		}
 
 		return sprintf('data:%s;base64,%s', $mime, base64_encode($blobValue));
+	}
+
+	private function formatMessageTimeLabel(?DateTimeInterface $createdAt): string
+	{
+		if ($createdAt === null) {
+			return '--';
+		}
+
+		$now = new DateTimeImmutable('now', $createdAt->getTimezone());
+		$secondsDiff = $now->getTimestamp() - $createdAt->getTimestamp();
+
+		if ($secondsDiff < 24 * 60 * 60) {
+			return $createdAt->format('g:ia');
+		}
+
+		return $createdAt->format('m/d g:ia');
 	}
 }
