@@ -224,6 +224,11 @@
             color: #c2410c;
         }
 
+        .nexum-task-action.is-disabled {
+            opacity: 0.55;
+            pointer-events: none;
+        }
+
         .nexum-task-title {
             font-weight: 700;
             font-size: 13px;
@@ -469,12 +474,17 @@
                     <div class="card-body d-flex align-items-center justify-content-between">
                         <h5 class="mb-0">Tasks</h5>
                         <div class="d-flex align-items-center gap-2">
-                            <a class="nexum-icon-btn"
-                               href="{{ path('app_task_index', {create: 1, project: project.id}) }}"
-                               title="Add task"
-                               aria-label="Add task">
-                                <i class="ri-add-line"></i>
-                            </a>
+                            {% set cu = current_user|default(null) %}
+                            {% set isManagerUser = cu and (('manager' in ((cu.role|default(''))|plain_text|lower))) %}
+
+                            {% if isManagerUser %}
+                                <a class="nexum-icon-btn"
+                                   href="{{ path('app_task_index', {create: 1, project: project.id}) }}"
+                                   title="Add task"
+                                   aria-label="Add task">
+                                    <i class="ri-add-line"></i>
+                                </a>
+                            {% endif %}
                             <a href="{{ path('app_task_index', {project: project.id}) }}"
                                style="color: var(--nexum-accent); text-decoration: none; font-weight: 600;">
                                 View All
@@ -484,6 +494,7 @@
                     <div class="card-body pt-0">
                         {% set completedStatuses = ['done','completed','complete','finished'] %}
                         {% set inProgressStatuses = ['in_progress','in progress','progress','doing','started'] %}
+                        {% set curId = cu ? (cu.id ?? 0) : 0 %}
                         {% for task in (tasks|default([]))|slice(0, 50) %}
                             {% set st = (task.status ?? '')|plain_text|lower %}
                             {% set isDone = st and (st in completedStatuses) %}
@@ -491,33 +502,44 @@
                             {% set statusKey = isDone ? 'done' : (isInProgress ? 'in_progress' : 'todo') %}
                             {% set pr = (task.priority ?? '')|plain_text|lower %}
                             {% set prClass = pr in ['high','medium','low'] ? pr : '' %}
+                            {% set au = task.assignedTo ?? null %}
+                            {% set canUpdateProgress = (not isManagerUser) and (au is not null) and (au == curId) %}
 
                             <div class="nexum-task-row">
                                 <div class="nexum-task-left">
                                     <div class="nexum-task-actions">
-                                        <form method="post" action="{{ path('app_task_status', {id: task.id}) }}">
-                                            <input type="hidden" name="_token" value="{{ csrf_token('task_status' ~ task.id) }}">
-                                            <input type="hidden" name="status" value="{{ isDone ? 'todo' : 'done' }}">
-                                            <input type="hidden" name="back" value="{{ app.request.requestUri }}">
-                                            <button type="submit"
-                                                    class="nexum-task-action {{ isDone ? 'is-done' : '' }}"
-                                                    title="{{ isDone ? 'Mark as To Do' : 'Mark as Done' }}"
-                                                    aria-label="{{ isDone ? 'Mark as To Do' : 'Mark as Done' }}">
-                                                <i class="ri-check-line"></i>
-                                            </button>
-                                        </form>
+                                        {% if canUpdateProgress %}
+                                            <form method="post" action="{{ path('app_task_status', {id: task.id}) }}">
+                                                <input type="hidden" name="_token" value="{{ csrf_token('task_status' ~ task.id) }}">
+                                                <input type="hidden" name="status" value="{{ isDone ? 'todo' : 'done' }}">
+                                                <input type="hidden" name="back" value="{{ app.request.requestUri }}">
+                                                <button type="submit"
+                                                        class="nexum-task-action {{ isDone ? 'is-done' : '' }}"
+                                                        title="{{ isDone ? 'Mark as To Do' : 'Mark as Done' }}"
+                                                        aria-label="{{ isDone ? 'Mark as To Do' : 'Mark as Done' }}">
+                                                    <i class="ri-check-line"></i>
+                                                </button>
+                                            </form>
 
-                                        <form method="post" action="{{ path('app_task_status', {id: task.id}) }}">
-                                            <input type="hidden" name="_token" value="{{ csrf_token('task_status' ~ task.id) }}">
-                                            <input type="hidden" name="status" value="in_progress">
-                                            <input type="hidden" name="back" value="{{ app.request.requestUri }}">
-                                            <button type="submit"
-                                                    class="nexum-task-action {{ statusKey == 'in_progress' ? 'is-progress' : '' }}"
-                                                    title="Mark as In Progress"
-                                                    aria-label="Mark as In Progress">
+                                            <form method="post" action="{{ path('app_task_status', {id: task.id}) }}">
+                                                <input type="hidden" name="_token" value="{{ csrf_token('task_status' ~ task.id) }}">
+                                                <input type="hidden" name="status" value="in_progress">
+                                                <input type="hidden" name="back" value="{{ app.request.requestUri }}">
+                                                <button type="submit"
+                                                        class="nexum-task-action {{ statusKey == 'in_progress' ? 'is-progress' : '' }}"
+                                                        title="Mark as In Progress"
+                                                        aria-label="Mark as In Progress">
+                                                    <i class="ri-time-line"></i>
+                                                </button>
+                                            </form>
+                                        {% else %}
+                                            <span class="nexum-task-action {{ isDone ? 'is-done' : '' }} is-disabled" aria-hidden="true">
+                                                <i class="ri-check-line"></i>
+                                            </span>
+                                            <span class="nexum-task-action {{ statusKey == 'in_progress' ? 'is-progress' : '' }} is-disabled" aria-hidden="true">
                                                 <i class="ri-time-line"></i>
-                                            </button>
-                                        </form>
+                                            </span>
+                                        {% endif %}
                                     </div>
                                     <div class="min-w-0">
                                         <a class="nexum-task-title {{ isDone ? 'done' : '' }}"

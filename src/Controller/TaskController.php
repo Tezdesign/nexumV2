@@ -3,14 +3,18 @@
 namespace App\Controller;
 
 use App\Entity\Tasks\Task;
+use App\Form\Tasks\TaskManagerUpdateType;
 use App\Form\Tasks\TaskQuickCreateType;
 use App\Form\Tasks\TaskType;
 use App\Form\Tasks\TaskUpdateType;
+use App\Repository\Projects\ProjectAssignmentRepository;
 use App\Repository\Projects\ProjectRepository;
 use App\Repository\Tasks\TaskRepository;
 use App\Repository\UserHandling\UtilisateurRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\Form\FormError;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -23,6 +27,7 @@ final class TaskController extends AbstractController
         Request $request,
         TaskRepository $taskRepository,
         ProjectRepository $projectRepository,
+        ProjectAssignmentRepository $projectAssignmentRepository,
         UtilisateurRepository $utilisateurRepository,
         EntityManagerInterface $entityManager
     ): Response
@@ -61,6 +66,10 @@ final class TaskController extends AbstractController
         $createForm->handleRequest($request);
 
         if ($createForm->isSubmitted() && $createForm->isValid()) {
+            if (!$isManager) {
+                throw $this->createAccessDeniedException();
+            }
+
             /** @var \App\Entity\Projects\Project|null $project */
             $project = $createForm->get('project')->getData();
             if ($project === null || $project->getId() === null) {
@@ -72,6 +81,28 @@ final class TaskController extends AbstractController
             $assignedUser = $createForm->get('assignedUser')->getData();
             $assignedUserId = $assignedUser?->getId() ?? null;
 
+            // Only allow assigning to project team members.
+            $pid = (int) $project->getId();
+            $memberIds = [];
+            $createdBy = $project->getCreatedBy();
+            if ($createdBy !== null) {
+                $memberIds[(int) $createdBy] = true;
+            }
+            $assignedTo = $project->getAssignedTo();
+            if ($assignedTo !== null) {
+                $memberIds[(int) $assignedTo] = true;
+            }
+            foreach ($projectAssignmentRepository->getUserIdsByProjectId($pid) as $uid) {
+                $memberIds[(int) $uid] = true;
+            }
+
+            if ($assignedUserId !== null && !isset($memberIds[(int) $assignedUserId])) {
+                $createForm->get('assignedUser')->addError(new FormError('You can only assign tasks to this project team members.'));
+            }
+
+            if (!$createForm->isValid()) {
+                // Fall through to render the page with form errors.
+            } else {
             $createTask->setProjectId((int) $project->getId());
             $createTask->setAssignedTo($assignedUserId !== null ? (int) $assignedUserId : (int) $currentUserId);
             $createTask->setCreatedBy((int) $currentUserId);
@@ -81,6 +112,7 @@ final class TaskController extends AbstractController
             $entityManager->flush();
 
             return $this->redirectToRoute('app_task_index', [], Response::HTTP_SEE_OTHER);
+            }
         }
 
         $tasks = $isManager
@@ -111,6 +143,12 @@ final class TaskController extends AbstractController
 
         $projectsById = $projectRepository->findIndexedByIds(array_keys($projectIds));
         $usersById = $utilisateurRepository->findIndexedByIds(array_keys($userIds));
+ 
+        // Hide orphan tasks (tasks whose project was deleted without cascading).
+        $tasks = array_values(array_filter(
+            $tasks,
+            static fn (Task $t): bool => isset($projectsById[(int) ($t->getProjectId() ?? 0)])
+        ));
 
         $avatarUrlById = [];
         foreach ($usersById as $uid => $u) {
@@ -136,6 +174,7 @@ final class TaskController extends AbstractController
             'statusFilter' => $statusFilter,
             'priorityFilter' => $priorityFilter,
             'isManager' => $isManager,
+            'currentUserId' => (int) $currentUserId,
             'openCreate' => $openCreate,
             'prefillProjectId' => $prefillProjectId,
             'tasksByProjectId' => $tasksByProjectId,
@@ -144,6 +183,56 @@ final class TaskController extends AbstractController
             'avatarUrlById' => $avatarUrlById,
             'createForm' => $createForm->createView(),
         ]);
+    }
+
+    #[Route('/assignees', name: 'app_task_assignees', methods: ['GET'])]
+    public function assignees(
+        Request $request,
+        ProjectRepository $projectRepository,
+        ProjectAssignmentRepository $projectAssignmentRepository,
+        UtilisateurRepository $utilisateurRepository
+    ): JsonResponse
+    {
+        $pid = (int) $request->query->get('project', 0);
+        if ($pid <= 0) {
+            return $this->json(['users' => []]);
+        }
+
+        $project = $projectRepository->find($pid);
+        if ($project === null) {
+            return $this->json(['users' => []]);
+        }
+
+        $memberIds = [];
+        $createdBy = $project->getCreatedBy();
+        if ($createdBy !== null) {
+            $memberIds[(int) $createdBy] = true;
+        }
+        $assignedTo = $project->getAssignedTo();
+        if ($assignedTo !== null) {
+            $memberIds[(int) $assignedTo] = true;
+        }
+        foreach ($projectAssignmentRepository->getUserIdsByProjectId($pid) as $uid) {
+            $memberIds[(int) $uid] = true;
+        }
+
+        $usersById = $utilisateurRepository->findIndexedByIds(array_keys($memberIds));
+        $users = [];
+        foreach ($usersById as $u) {
+            $id = $u->getId();
+            if ($id === null) {
+                continue;
+            }
+            $name = trim(((string) $u->getPrenom()) . ' ' . ((string) $u->getNom()));
+            $users[] = [
+                'id' => (int) $id,
+                'name' => $name !== '' ? $name : ('User #' . $id),
+            ];
+        }
+
+        usort($users, static fn (array $a, array $b): int => strcmp((string) $a['name'], (string) $b['name']));
+
+        return $this->json(['users' => $users]);
     }
 
     #[Route('/new', name: 'app_task_new', methods: ['GET', 'POST'])]
@@ -176,8 +265,20 @@ final class TaskController extends AbstractController
     }
 
     #[Route('/{id}/status', name: 'app_task_status', methods: ['POST'])]
-    public function status(Request $request, Task $task, EntityManagerInterface $entityManager): Response
+    public function status(Request $request, Task $task, UtilisateurRepository $utilisateurRepository, EntityManagerInterface $entityManager): Response
     {
+        $currentUser = $utilisateurRepository->findFirstManagerOrFirst();
+        $currentUserId = (int) ($currentUser?->getId() ?? 0);
+        $role = strtolower((string) ($currentUser?->getRole() ?? ''));
+        $isManager = $role !== '' && str_contains($role, 'manager');
+        if ($isManager) {
+            throw $this->createAccessDeniedException();
+        }
+
+        if ($task->getAssignedTo() === null || (int) $task->getAssignedTo() !== $currentUserId) {
+            throw $this->createAccessDeniedException();
+        }
+
         $token = (string) $request->request->get('_token', '');
         if (!$this->isCsrfTokenValid('task_status'.$task->getId(), $token)) {
             throw $this->createAccessDeniedException();
@@ -208,12 +309,47 @@ final class TaskController extends AbstractController
     }
 
     #[Route('/{id}/edit', name: 'app_task_edit', methods: ['GET', 'POST'])]
-    public function edit(Request $request, Task $task, UtilisateurRepository $utilisateurRepository, EntityManagerInterface $entityManager): Response
+    public function edit(
+        Request $request,
+        Task $task,
+        ProjectRepository $projectRepository,
+        ProjectAssignmentRepository $projectAssignmentRepository,
+        UtilisateurRepository $utilisateurRepository,
+        EntityManagerInterface $entityManager
+    ): Response
     {
+        $currentUser = $utilisateurRepository->findFirstManagerOrFirst();
+        $role = strtolower((string) ($currentUser?->getRole() ?? ''));
+        $isManager = $role !== '' && str_contains($role, 'manager');
+        if (!$isManager) {
+            throw $this->createAccessDeniedException();
+        }
+
         $back = (string) $request->query->get('back', '');
         $back = ($back !== '' && str_starts_with($back, '/')) ? $back : '';
 
-        $form = $this->createForm(TaskUpdateType::class, $task);
+        $memberIds = [];
+        $pid = (int) ($task->getProjectId() ?? 0);
+        if ($pid > 0) {
+            $project = $projectRepository->find($pid);
+            if ($project !== null) {
+                $createdBy = $project->getCreatedBy();
+                if ($createdBy !== null) {
+                    $memberIds[(int) $createdBy] = true;
+                }
+                $assignedTo = $project->getAssignedTo();
+                if ($assignedTo !== null) {
+                    $memberIds[(int) $assignedTo] = true;
+                }
+            }
+            foreach ($projectAssignmentRepository->getUserIdsByProjectId($pid) as $uid) {
+                $memberIds[(int) $uid] = true;
+            }
+        }
+
+        $form = $this->createForm(TaskManagerUpdateType::class, $task, [
+            'member_ids' => array_keys($memberIds),
+        ]);
 
         $assignedId = $task->getAssignedTo();
         if ($assignedId !== null) {
@@ -246,9 +382,44 @@ final class TaskController extends AbstractController
     }
 
     #[Route('/{id}/edit-modal', name: 'app_task_edit_modal', methods: ['GET', 'POST'])]
-    public function editModal(Request $request, Task $task, UtilisateurRepository $utilisateurRepository, EntityManagerInterface $entityManager): Response
+    public function editModal(
+        Request $request,
+        Task $task,
+        ProjectRepository $projectRepository,
+        ProjectAssignmentRepository $projectAssignmentRepository,
+        UtilisateurRepository $utilisateurRepository,
+        EntityManagerInterface $entityManager
+    ): Response
     {
-        $form = $this->createForm(TaskUpdateType::class, $task);
+        $currentUser = $utilisateurRepository->findFirstManagerOrFirst();
+        $role = strtolower((string) ($currentUser?->getRole() ?? ''));
+        $isManager = $role !== '' && str_contains($role, 'manager');
+        if (!$isManager) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $memberIds = [];
+        $pid = (int) ($task->getProjectId() ?? 0);
+        if ($pid > 0) {
+            $project = $projectRepository->find($pid);
+            if ($project !== null) {
+                $createdBy = $project->getCreatedBy();
+                if ($createdBy !== null) {
+                    $memberIds[(int) $createdBy] = true;
+                }
+                $assignedTo = $project->getAssignedTo();
+                if ($assignedTo !== null) {
+                    $memberIds[(int) $assignedTo] = true;
+                }
+            }
+            foreach ($projectAssignmentRepository->getUserIdsByProjectId($pid) as $uid) {
+                $memberIds[(int) $uid] = true;
+            }
+        }
+
+        $form = $this->createForm(TaskManagerUpdateType::class, $task, [
+            'member_ids' => array_keys($memberIds),
+        ]);
 
         $assignedId = $task->getAssignedTo();
         if ($assignedId !== null) {
@@ -289,8 +460,15 @@ final class TaskController extends AbstractController
     }
 
     #[Route('/{id}', name: 'app_task_delete', methods: ['POST'])]
-    public function delete(Request $request, Task $task, EntityManagerInterface $entityManager): Response
+    public function delete(Request $request, Task $task, UtilisateurRepository $utilisateurRepository, EntityManagerInterface $entityManager): Response
     {
+        $currentUser = $utilisateurRepository->findFirstManagerOrFirst();
+        $role = strtolower((string) ($currentUser?->getRole() ?? ''));
+        $isManager = $role !== '' && str_contains($role, 'manager');
+        if (!$isManager) {
+            throw $this->createAccessDeniedException();
+        }
+
         if ($this->isCsrfTokenValid('delete'.$task->getId(), (string) $request->request->get('_token', ''))) {
             $entityManager->remove($task);
             $entityManager->flush();

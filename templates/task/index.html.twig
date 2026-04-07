@@ -62,6 +62,16 @@
             max-width: 60vw;
         }
 
+        /* Typography baseline for button-like elements (requested). */
+        .button,
+        .btn {
+            font-family: "Inter", "Segoe UI", sans-serif;
+            font-size: 14px;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 8px;
+        }
+
         .nexum-toolbar .btn {
             border-radius: 8px;
             padding: 10px 20px;
@@ -255,6 +265,11 @@
             background: #ffedd5;
             border-color: #fed7aa;
             color: #c2410c;
+        }
+
+        .nexum-task-action.is-disabled {
+            opacity: 0.55;
+            pointer-events: none;
         }
 
         .nexum-task-title {
@@ -591,14 +606,16 @@
 	                    <input type="hidden" name="priority" value="{{ priorityFilter }}">
 	                {% endif %}
 	            </form>
-	            <button class="btn btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#filterTasksModal">
-	                <i class="ri-filter-2-line me-1"></i> Filter
-	            </button>
-	            <button class="btn nexum-btn-primary text-white" type="button" data-bs-toggle="modal" data-bs-target="#createTaskModal">
-	                + New Task
-	            </button>
-	        </div>
-	    </div>
+		            <button class="btn btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#filterTasksModal">
+		                <i class="ri-filter-2-line me-1"></i> Filter
+		            </button>
+		            {% if isManager|default(false) %}
+		                <button class="btn nexum-btn-primary text-white" type="button" data-bs-toggle="modal" data-bs-target="#createTaskModal">
+		                    + New Task
+		                </button>
+		            {% endif %}
+		        </div>
+		    </div>
 
     {% set completedStatuses = ['done','completed','complete','finished'] %}
     {% set inProgressStatuses = ['in_progress','in progress','progress','doing','started'] %}
@@ -619,61 +636,77 @@
                     <div class="nexum-group-name">{{ projectName }}</div>
                     <span class="nexum-count">{{ tasks|length }}</span>
                 </div>
-                <div class="nexum-group-actions">
-                    <button class="nexum-icon-btn" type="button"
-                            data-bs-toggle="modal"
-                            data-bs-target="#createTaskModal"
-                            data-prefill-project="{{ pid }}"
-                            title="Add task"
-                            aria-label="Add task">
-                        <i class="ri-add-line"></i>
-                    </button>
-                </div>
-            </div>
+	                <div class="nexum-group-actions">
+	                    {% if isManager|default(false) %}
+	                        <button class="nexum-icon-btn" type="button"
+	                                data-bs-toggle="modal"
+	                                data-bs-target="#createTaskModal"
+	                                data-prefill-project="{{ pid }}"
+	                                title="Add task"
+	                                aria-label="Add task">
+	                            <i class="ri-add-line"></i>
+	                        </button>
+	                    {% endif %}
+	                </div>
+	            </div>
 
             <div class="collapse show" id="{{ groupId }}">
-                {% for task in tasks %}
-                    {% set st = (task.status ?? '')|plain_text|lower %}
-                    {% set isDone = st and (st in completedStatuses) %}
-                    {% set isInProgress = (not isDone) and st and (st in inProgressStatuses) %}
-                    {% set statusKey = isDone ? 'done' : (isInProgress ? 'in_progress' : 'todo') %}
-                    {% set pr = (task.priority ?? '')|plain_text|lower %}
-                    {% set prClass = pr in ['high','medium','low'] ? pr : '' %}
-                    {% set au = task.assignedTo ?? null %}
-                    {% set u = au is not null ? (usersById[au] ?? null) : null %}
-                    {% set fullName = u ? ((u.prenom ~ ' ' ~ u.nom)|trim|plain_text) : '' %}
+	                {% for task in tasks %}
+	                    {% set st = (task.status ?? '')|plain_text|lower %}
+	                    {% set isDone = st and (st in completedStatuses) %}
+	                    {% set isInProgress = (not isDone) and st and (st in inProgressStatuses) %}
+	                    {% set statusKey = isDone ? 'done' : (isInProgress ? 'in_progress' : 'todo') %}
+	                    {% set pr = (task.priority ?? '')|plain_text|lower %}
+	                    {% set prClass = pr in ['high','medium','low'] ? pr : '' %}
+	                    {% set au = task.assignedTo ?? null %}
+	                    {% set u = au is not null ? (usersById[au] ?? null) : null %}
+	                    {% set fullName = u ? ((u.prenom ~ ' ' ~ u.nom)|trim|plain_text) : '' %}
+	                    {% set canUpdateProgress = (not (isManager|default(false))) and (au is not null) and ((au == (currentUserId|default(0)))) %}
 
-                    <div class="nexum-row">
-                        <div class="nexum-row-left">
-                            <div class="nexum-task-actions">
-                                <form method="post" action="{{ path('app_task_status', {id: task.id}) }}">
-                                    <input type="hidden" name="_token" value="{{ csrf_token('task_status' ~ task.id) }}">
-                                    <input type="hidden" name="status" value="{{ isDone ? 'todo' : 'done' }}">
-                                    <input type="hidden" name="back" value="{{ app.request.requestUri }}">
-                                    <button type="submit"
-                                            class="nexum-task-action {{ isDone ? 'is-done' : '' }}"
-                                            title="{{ isDone ? 'Mark as To Do' : 'Mark as Done' }}"
-                                            aria-label="{{ isDone ? 'Mark as To Do' : 'Mark as Done' }}">
-                                        <i class="ri-check-line"></i>
-                                    </button>
-                                </form>
+	                    <div class="nexum-row">
+	                        <div class="nexum-row-left">
+	                            <div class="nexum-task-actions">
+	                                {% if canUpdateProgress %}
+	                                    <form method="post" action="{{ path('app_task_status', {id: task.id}) }}">
+	                                        <input type="hidden" name="_token" value="{{ csrf_token('task_status' ~ task.id) }}">
+	                                        <input type="hidden" name="status" value="{{ isDone ? 'todo' : 'done' }}">
+	                                        <input type="hidden" name="back" value="{{ app.request.requestUri }}">
+	                                        <button type="submit"
+	                                                class="nexum-task-action {{ isDone ? 'is-done' : '' }}"
+	                                                title="{{ isDone ? 'Mark as To Do' : 'Mark as Done' }}"
+	                                                aria-label="{{ isDone ? 'Mark as To Do' : 'Mark as Done' }}">
+	                                            <i class="ri-check-line"></i>
+	                                        </button>
+	                                    </form>
 
-                                <form method="post" action="{{ path('app_task_status', {id: task.id}) }}">
-                                    <input type="hidden" name="_token" value="{{ csrf_token('task_status' ~ task.id) }}">
-                                    <input type="hidden" name="status" value="in_progress">
-                                    <input type="hidden" name="back" value="{{ app.request.requestUri }}">
-                                    <button type="submit"
-                                            class="nexum-task-action {{ statusKey == 'in_progress' ? 'is-progress' : '' }}"
-                                            title="Mark as In Progress"
-                                            aria-label="Mark as In Progress">
-                                        <i class="ri-time-line"></i>
-                                    </button>
-                                </form>
-                            </div>
+	                                    <form method="post" action="{{ path('app_task_status', {id: task.id}) }}">
+	                                        <input type="hidden" name="_token" value="{{ csrf_token('task_status' ~ task.id) }}">
+	                                        <input type="hidden" name="status" value="in_progress">
+	                                        <input type="hidden" name="back" value="{{ app.request.requestUri }}">
+	                                        <button type="submit"
+	                                                class="nexum-task-action {{ statusKey == 'in_progress' ? 'is-progress' : '' }}"
+	                                                title="Mark as In Progress"
+	                                                aria-label="Mark as In Progress">
+	                                            <i class="ri-time-line"></i>
+	                                        </button>
+	                                    </form>
+	                                {% else %}
+	                                    <span class="nexum-task-action {{ isDone ? 'is-done' : '' }} is-disabled"
+	                                          title="Progress can be updated only by the assignee"
+	                                          aria-hidden="true">
+	                                        <i class="ri-check-line"></i>
+	                                    </span>
+	                                    <span class="nexum-task-action {{ statusKey == 'in_progress' ? 'is-progress' : '' }} is-disabled"
+	                                          title="Progress can be updated only by the assignee"
+	                                          aria-hidden="true">
+	                                        <i class="ri-time-line"></i>
+	                                    </span>
+	                                {% endif %}
+	                            </div>
 
-                            <a class="nexum-task-title {{ isDone ? 'done' : '' }}"
-                               href="{{ path('app_task_show', {id: task.id}) }}"
-                               title="{{ task.title|plain_text }}">
+	                            <a class="nexum-task-title {{ isDone ? 'done' : '' }}"
+	                               href="{{ path('app_task_show', {id: task.id}) }}"
+	                               title="{{ task.title|plain_text }}">
                                 {{ task.title|plain_text }}
                             </a>
                         </div>
@@ -700,34 +733,36 @@
                                     </span>
                                     {{ fullName }}
                                 </span>
-                            {% else %}
-                                <span class="nexum-assignee is-empty">Unassigned</span>
-                            {% endif %}
+	                            {% else %}
+	                                <span class="nexum-assignee is-empty">Unassigned</span>
+	                            {% endif %}
 
-                            <button type="button"
-                                    class="nexum-icon-btn"
-                                    title="Edit"
-                                    aria-label="Edit"
-                                    data-bs-toggle="modal"
-                                    data-bs-target="#editTaskModal"
-                                    data-edit-url="{{ path('app_task_edit_modal', {id: task.id}) }}">
-                                <i class="ri-pencil-line"></i>
-                            </button>
+	                            {% if isManager|default(false) %}
+	                                <button type="button"
+	                                        class="nexum-icon-btn"
+	                                        title="Edit"
+	                                        aria-label="Edit"
+	                                        data-bs-toggle="modal"
+	                                        data-bs-target="#editTaskModal"
+	                                        data-edit-url="{{ path('app_task_edit_modal', {id: task.id}) }}">
+	                                    <i class="ri-pencil-line"></i>
+	                                </button>
 
-                            <button type="button"
-                                    class="nexum-icon-btn"
-                                    title="Delete"
-                                    aria-label="Delete"
-                                    data-bs-toggle="modal"
-                                    data-bs-target="#deleteTaskModal"
-                                    data-delete-action="{{ path('app_task_delete', {id: task.id}) }}"
-                                    data-delete-token="{{ csrf_token('delete' ~ task.id) }}"
-                                    data-task-title="{{ task.title|plain_text }}">
-                                <i class="ri-delete-bin-line"></i>
-                            </button>
-                        </div>
-                    </div>
-                {% endfor %}
+	                                <button type="button"
+	                                        class="nexum-icon-btn"
+	                                        title="Delete"
+	                                        aria-label="Delete"
+	                                        data-bs-toggle="modal"
+	                                        data-bs-target="#deleteTaskModal"
+	                                        data-delete-action="{{ path('app_task_delete', {id: task.id}) }}"
+	                                        data-delete-token="{{ csrf_token('delete' ~ task.id) }}"
+	                                        data-task-title="{{ task.title|plain_text }}">
+	                                    <i class="ri-delete-bin-line"></i>
+	                                </button>
+	                            {% endif %}
+	                        </div>
+	                    </div>
+	                {% endfor %}
             </div>
         </div>
     {% else %}
@@ -780,11 +815,11 @@
 	                                {{ form_widget(createForm.status, { attr: { class: 'form-select' } }) }}
 	                                {{ form_errors(createForm.status) }}
 	                            </div>
-	                            <div class="col-12 col-md-3">
-	                                {{ form_label(createForm.assignedUser) }}
-	                                {{ form_widget(createForm.assignedUser, { attr: { class: 'form-select' } }) }}
-	                                {{ form_errors(createForm.assignedUser) }}
-	                            </div>
+		                            <div class="col-12 col-md-3">
+		                                {{ form_label(createForm.assignedUser) }}
+		                                {{ form_widget(createForm.assignedUser, { attr: { class: 'form-select', 'data-task-assignee': '1' } }) }}
+		                                {{ form_errors(createForm.assignedUser) }}
+		                            </div>
 	                            <div class="col-12 col-md-3">
 	                                {{ form_label(createForm.priority) }}
 	                                {{ form_widget(createForm.priority, { attr: { class: 'form-select' } }) }}
@@ -905,36 +940,80 @@
 
 {% block script %}
     <script>
-	        (function () {
-	            const modalEl = document.getElementById('createTaskModal');
-	            if (!modalEl) return;
+		        (function () {
+		            const modalEl = document.getElementById('createTaskModal');
+		            if (!modalEl) return;
 
-	            const projectSelect = modalEl.querySelector('select[data-task-project="1"]');
+		            const projectSelect = modalEl.querySelector('select[data-task-project="1"]');
+		            const assigneeSelect = modalEl.querySelector('select[data-task-assignee="1"]');
+		            const assigneesEndpoint = {{ path('app_task_assignees')|json_encode|raw }};
 
-	            // Support deep-linking from other pages:
-	            // /task?create=1&project=123 opens the modal with the project pre-selected.
-	            try {
-	                const url = new URL(window.location.href);
-	                const pid = url.searchParams.get('project');
-	                const open = url.searchParams.get('create') === '1';
-	                if (pid && projectSelect) {
-	                    projectSelect.value = String(pid);
-	                }
-	                if (open && window.bootstrap && bootstrap.Modal) {
-	                    new bootstrap.Modal(modalEl).show();
-	                }
-	            } catch (e) {
-	                // ignore
-	            }
+		            async function refreshAssignees(projectId) {
+		                if (!assigneeSelect) return;
+		                const prev = assigneeSelect.value;
+		                assigneeSelect.innerHTML = '<option value="">Loading...</option>';
 
-	            document.addEventListener('click', function (e) {
-	                const btn = e.target.closest('[data-prefill-project]');
-	                if (!btn) return;
-	                const pid = btn.getAttribute('data-prefill-project');
-	                if (projectSelect && pid) {
-	                    projectSelect.value = String(pid);
-	                }
-	            });
+		                const pid = parseInt(String(projectId || '0'), 10);
+		                if (!pid) {
+		                    assigneeSelect.innerHTML = '<option value="">Select team ...</option>';
+		                    return;
+		                }
+
+		                try {
+		                    const res = await fetch(assigneesEndpoint + '?project=' + encodeURIComponent(String(pid)), {
+		                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+		                    });
+		                    const payload = await res.json();
+		                    const users = (payload && payload.users) ? payload.users : [];
+
+		                    let html = '<option value="">Select team ...</option>';
+		                    for (const u of users) {
+		                        const id = String(u.id);
+		                        const name = String(u.name || ('User #' + id));
+		                        html += '<option value="' + id.replace(/\"/g, '') + '">' + name.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</option>';
+		                    }
+		                    assigneeSelect.innerHTML = html;
+
+		                    if (prev) {
+		                        assigneeSelect.value = prev;
+		                    }
+		                } catch (e) {
+		                    assigneeSelect.innerHTML = '<option value="">Select team ...</option>';
+		                }
+		            }
+
+		            if (projectSelect) {
+		                projectSelect.addEventListener('change', function () {
+		                    refreshAssignees(projectSelect.value);
+		                });
+		            }
+
+		            // Support deep-linking from other pages:
+		            // /task?create=1&project=123 opens the modal with the project pre-selected.
+		            try {
+		                const url = new URL(window.location.href);
+		                const pid = url.searchParams.get('project');
+		                const open = url.searchParams.get('create') === '1';
+		                if (pid && projectSelect) {
+		                    projectSelect.value = String(pid);
+		                    refreshAssignees(pid);
+		                }
+		                if (open && window.bootstrap && bootstrap.Modal) {
+		                    new bootstrap.Modal(modalEl).show();
+		                }
+		            } catch (e) {
+		                // ignore
+		            }
+
+		            document.addEventListener('click', function (e) {
+		                const btn = e.target.closest('[data-prefill-project]');
+		                if (!btn) return;
+		                const pid = btn.getAttribute('data-prefill-project');
+		                if (projectSelect && pid) {
+		                    projectSelect.value = String(pid);
+		                    refreshAssignees(pid);
+		                }
+		            });
 
             {% if createForm is defined and createForm.vars.submitted and not createForm.vars.valid %}
             if (window.bootstrap && bootstrap.Modal) {
