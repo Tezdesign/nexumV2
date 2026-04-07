@@ -19,6 +19,7 @@ class ChatApp {
         this.activeConversationName = null
         this.activeConversationMeta = null
         this.detailsDrawer = null
+        this.detailsBackdrop = null
         this.detailsToggleButton = null
         this.detailsCloseButton = null
         this.detailsAvatar = null
@@ -70,6 +71,7 @@ class ChatApp {
         this.activeConversationName = document.querySelector('[data-apps-chat="active-conversation-name"]')
         this.activeConversationMeta = document.querySelector('[data-apps-chat="active-conversation-meta"]')
         this.detailsDrawer = document.querySelector('[data-apps-chat="details-drawer"]')
+        this.detailsBackdrop = document.querySelector('[data-apps-chat="details-backdrop"]')
         this.detailsToggleButton = document.querySelector('[data-apps-chat="details-toggle"]')
         this.detailsCloseButton = document.querySelector('[data-apps-chat="details-close"]')
         this.detailsAvatar = document.querySelector('[data-apps-chat="details-avatar"]')
@@ -229,6 +231,10 @@ class ChatApp {
 
         this.detailsDrawer.classList.toggle('d-none', !open)
         this.detailsDrawer.style.display = open ? 'block' : 'none'
+        if (this.detailsBackdrop) {
+            this.detailsBackdrop.classList.toggle('d-none', !open)
+            this.detailsBackdrop.style.display = open ? 'block' : 'none'
+        }
         if (this.detailsToggleButton) {
             this.detailsToggleButton.setAttribute('aria-expanded', String(open))
         }
@@ -249,6 +255,10 @@ class ChatApp {
 
         this.detailsCloseButton?.addEventListener('click', (event) => {
             event.preventDefault()
+            this.setDetailsDrawerOpen(false)
+        })
+
+        this.detailsBackdrop?.addEventListener('click', () => {
             this.setDetailsDrawerOpen(false)
         })
     }

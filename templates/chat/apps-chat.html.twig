@@ -6,7 +6,7 @@
 
 {% block content %}
 
-    <div class="chat d-flex gap-2" data-apps-chat="chat-root" data-current-user-name="{{ currentUser.name|e('html_attr') }}" data-current-user-avatar="{{ (currentUser.avatarSrc ?? '')|e('html_attr') }}">
+    <div class="chat d-flex gap-2 position-relative" data-apps-chat="chat-root" data-current-user-name="{{ currentUser.name|e('html_attr') }}" data-current-user-avatar="{{ (currentUser.avatarSrc ?? '')|e('html_attr') }}">
         <div class="offcanvas-xxl offcanvas-start" tabindex="-1" id="chatUserList" aria-labelledby="chatUserListLabel">
             <div id="chat-user-list" class="card collapse collapse-horizontal show">
                 <div class="chat-user-list">
@@ -231,7 +231,9 @@
                         </div>
                     </div>
 
-                <div class="card d-none" style="width: 320px; min-width: 320px;" data-apps-chat="details-drawer">
+                <div class="d-none" data-apps-chat="details-backdrop" style="position:absolute; inset:0; background:rgba(15,23,42,0.42); z-index:1040;"></div>
+
+                <div class="card d-none" style="position:absolute; top:0; right:0; width: 360px; min-width: 360px; height:100%; z-index:1050; box-shadow:-20px 0 40px rgba(0,0,0,0.18);" data-apps-chat="details-drawer">
                     <div class="card-body border-bottom d-flex align-items-center justify-content-between">
                         <h5 class="mb-0 fs-15">Conversation info</h5>
                         <button type="button" class="btn btn-sm btn-icon btn-ghost-light" data-apps-chat="details-close" aria-label="Close details">
@@ -273,5 +275,5 @@
 {% endblock %}
 
 {% block script %}
-    <script src="/js/pages/apps-chat.js?v=20260407g"></script>
+    <script src="/js/pages/apps-chat.js?v=20260407h"></script>
 {% endblock %}
