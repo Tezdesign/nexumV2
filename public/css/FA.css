@@ -83,3 +83,15 @@
 [data-bs-theme="dark"] .select2-container--default.select2-container--open .select2-selection--single .select2-selection__arrow b {
     color: #dee2e6 !important;
 }
+
+
+.btn-legacy-purple {
+    background-color: #7F22FE !important;
+    border-color: #7F22FE !important;
+    color: #ffffff !important;
+}
+.btn-legacy-purple:hover {
+    background-color: #6b1cdb !important;
+    border-color: #6b1cdb !important;
+    color: #ffffff !important;
+}
