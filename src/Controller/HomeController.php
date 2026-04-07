@@ -47,7 +47,7 @@ class HomeController extends AbstractController
     #[Route('/apps-financial-analysis', name: 'apps-financial-analysis')]
     public function financialAnalysis(): Response
     {
-        return $this->render('financial-analysis/apps-financial-analysis.html.twig');
+        return $this->render('financial-analysis/overview.html.twig');
     }
 
     #[Route('/apps-resources-management', name: 'apps-resources-management')]
