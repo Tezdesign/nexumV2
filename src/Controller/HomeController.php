@@ -36,7 +36,8 @@ class HomeController extends AbstractController
     #[Route('/apps-task-details', name: 'apps-task-details')]
     public function taskDetails(): Response
     {
-        return $this->render('project-management/apps-task-details.html.twig');
+        // Point the existing sidebar entry to the real Tasks board.
+        return $this->redirectToRoute('app_task_index');
     }
 
     #[Route('/apps-training', name: 'apps-training')]

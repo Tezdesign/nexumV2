@@ -19,6 +19,31 @@ class TaskRepository extends ServiceEntityRepository
     }
 
     /**
+     * "My Tasks" list for a given user, optionally filtered by query.
+     *
+     * @return Task[]
+     */
+    public function findForUser(int $userId, ?string $q = null): array
+    {
+        $qb = $this->createQueryBuilder('t')
+            ->andWhere('t.assigned_to = :uid')
+            ->setParameter('uid', $userId)
+            ->orderBy('t.project_id', 'ASC')
+            ->addOrderBy('t.due_date', 'ASC')
+            ->addOrderBy('t.id', 'DESC');
+
+        $q = $q !== null ? trim($q) : '';
+        if ($q !== '') {
+            $q = strtolower($q);
+            $qb
+                ->andWhere('(LOWER(t.title) LIKE :q OR LOWER(COALESCE(t.description, \'\')) LIKE :q)')
+                ->setParameter('q', '%' . $q . '%');
+        }
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
      * @return Task[]
      */
     public function findForProject(int $projectId, int $limit = 0): array

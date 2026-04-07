@@ -182,38 +182,67 @@
             min-width: 0;
         }
 
-        .nexum-task-dot {
-            width: 18px;
-            height: 18px;
-            border-radius: 999px;
-            border: 2px solid #cbd5e1;
+        .nexum-task-actions {
             display: inline-flex;
             align-items: center;
-            justify-content: center;
-            color: #fff;
+            gap: 8px;
             flex: 0 0 auto;
         }
 
-        .nexum-task-dot.done {
-            border-color: #10b981;
-            background: #10b981;
+        .nexum-task-actions form {
+            margin: 0;
         }
 
-        .nexum-task-dot.done::after {
-            content: "✓";
-            font-size: 12px;
-            font-weight: 900;
+        .nexum-task-action {
+            width: 28px;
+            height: 28px;
+            border-radius: 999px;
+            border: 1px solid #e2e8f0;
+            background: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+            padding: 0;
             line-height: 1;
+        }
+
+        .nexum-task-action:hover {
+            color: #0f172a;
+            border-color: #cbd5e1;
+        }
+
+        .nexum-task-action.is-done {
+            background: #10b981;
+            border-color: #10b981;
+            color: #fff;
+        }
+
+        .nexum-task-action.is-progress {
+            background: #ede9fe;
+            border-color: #ddd6fe;
+            color: var(--nexum-accent);
         }
 
         .nexum-task-title {
             font-weight: 700;
             font-size: 13px;
             color: #0f172a;
+            text-decoration: none;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
             max-width: 420px;
+            display: inline-block;
+        }
+
+        .nexum-task-title:hover {
+            text-decoration: underline;
+        }
+
+        .nexum-task-title.done {
+            color: #94a3b8;
+            text-decoration: line-through;
         }
 
         .nexum-priority {
@@ -243,6 +272,36 @@
             background: #eff6ff;
             color: #1d4ed8;
             border-color: #bfdbfe;
+        }
+
+        .nexum-status {
+            font-size: 11px;
+            font-weight: 800;
+            border-radius: 999px;
+            padding: 4px 10px;
+            border: 1px solid transparent;
+            display: inline-flex;
+            align-items: center;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+        }
+
+        .nexum-status.todo {
+            background: var(--nexum-stone-50);
+            color: var(--nexum-stone-600);
+            border-color: var(--nexum-stone-200);
+        }
+
+        .nexum-status.in_progress {
+            background: #f5f3ff;
+            color: var(--nexum-accent);
+            border-color: #ddd6fe;
+        }
+
+        .nexum-status.done {
+            background: #ecfdf3;
+            color: #047857;
+            border-color: #bbf7d0;
         }
 
         .nexum-task-meta {
@@ -414,17 +473,48 @@
                     </div>
                     <div class="card-body pt-0">
                         {% set completedStatuses = ['done','completed','complete','finished'] %}
+                        {% set inProgressStatuses = ['in_progress','in progress','progress','doing','started'] %}
                         {% for task in (tasks|default([]))|slice(0, 50) %}
                             {% set st = (task.status ?? '')|plain_text|lower %}
                             {% set isDone = st and (st in completedStatuses) %}
+                            {% set isInProgress = (not isDone) and st and (st in inProgressStatuses) %}
+                            {% set statusKey = isDone ? 'done' : (isInProgress ? 'in_progress' : 'todo') %}
                             {% set pr = (task.priority ?? '')|plain_text|lower %}
                             {% set prClass = pr in ['high','medium','low'] ? pr : '' %}
 
                             <div class="nexum-task-row">
                                 <div class="nexum-task-left">
-                                    <span class="nexum-task-dot {{ isDone ? 'done' : '' }}"></span>
+                                    <div class="nexum-task-actions">
+                                        <form method="post" action="{{ path('app_task_status', {id: task.id}) }}">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('task_status' ~ task.id) }}">
+                                            <input type="hidden" name="status" value="{{ isDone ? 'todo' : 'done' }}">
+                                            <input type="hidden" name="back" value="{{ app.request.requestUri }}">
+                                            <button type="submit"
+                                                    class="nexum-task-action {{ isDone ? 'is-done' : '' }}"
+                                                    title="{{ isDone ? 'Mark as To Do' : 'Mark as Done' }}"
+                                                    aria-label="{{ isDone ? 'Mark as To Do' : 'Mark as Done' }}">
+                                                <i class="ri-check-line"></i>
+                                            </button>
+                                        </form>
+
+                                        <form method="post" action="{{ path('app_task_status', {id: task.id}) }}">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('task_status' ~ task.id) }}">
+                                            <input type="hidden" name="status" value="in_progress">
+                                            <input type="hidden" name="back" value="{{ app.request.requestUri }}">
+                                            <button type="submit"
+                                                    class="nexum-task-action {{ statusKey == 'in_progress' ? 'is-progress' : '' }}"
+                                                    title="Mark as In Progress"
+                                                    aria-label="Mark as In Progress">
+                                                <i class="ri-time-line"></i>
+                                            </button>
+                                        </form>
+                                    </div>
                                     <div class="min-w-0">
-                                        <div class="nexum-task-title">{{ task.title|plain_text }}</div>
+                                        <a class="nexum-task-title {{ isDone ? 'done' : '' }}"
+                                           href="{{ path('app_task_show', {id: task.id}) }}"
+                                           title="{{ task.title|plain_text }}">
+                                            {{ task.title|plain_text }}
+                                        </a>
                                     </div>
                                 </div>
 
@@ -432,6 +522,10 @@
                                     {% if prClass %}
                                         <span class="nexum-priority {{ prClass }}">{{ prClass|upper }}</span>
                                     {% endif %}
+
+                                    <span class="nexum-status {{ statusKey }}">
+                                        {{ statusKey == 'in_progress' ? 'IN PROGRESS' : (statusKey == 'done' ? 'DONE' : 'TO DO') }}
+                                    </span>
 
                                     <span class="d-inline-flex align-items-center gap-2">
                                         <i class="ri-calendar-line"></i>

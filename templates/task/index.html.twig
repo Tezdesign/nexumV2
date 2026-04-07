@@ -1,59 +1,473 @@
-{% extends 'base.html.twig' %}
+{% extends 'layouts/vertical.html.twig' %}
 
-{% block title %}Task index{% endblock %}
+{% set title = 'My Tasks' %}
+{% set subtitle = 'Manage your work across all projects' %}
 
-{% block body %}
-    <h1>Task index</h1>
+{% block css %}
+    <style>
+        :root {
+            --nexum-violet-50: #f5f3ff;
+            --nexum-violet-100: #ede9fe;
+            --nexum-violet-200: #ddd6fe;
+            --nexum-violet-500: #8b5cf6;
+            --nexum-violet-600: #7c3aed;
+            --nexum-violet-700: #6d28d9;
+            --nexum-violet-900: #4c1d95;
 
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Id</th>
-                <th>Title</th>
-                <th>Description</th>
-                <th>Status</th>
-                <th>Priority</th>
-                <th>Start_date</th>
-                <th>Due_date</th>
-                <th>Estimated_time</th>
-                <th>Actual_time</th>
-                <th>Created_at</th>
-                <th>Updated_at</th>
-                <th>Project_id</th>
-                <th>Assigned_to</th>
-                <th>Created_by</th>
-                <th>actions</th>
-            </tr>
-        </thead>
-        <tbody>
-        {% for task in tasks %}
-            <tr>
-                <td>{{ task.id }}</td>
-                <td>{{ task.title }}</td>
-                <td>{{ task.description }}</td>
-                <td>{{ task.status }}</td>
-                <td>{{ task.priority }}</td>
-                <td>{{ task.startDate ? task.startDate|date('Y-m-d') : '' }}</td>
-                <td>{{ task.dueDate ? task.dueDate|date('Y-m-d') : '' }}</td>
-                <td>{{ task.estimatedTime }}</td>
-                <td>{{ task.actualTime }}</td>
-                <td>{{ task.createdAt ? task.createdAt|date('Y-m-d H:i:s') : '' }}</td>
-                <td>{{ task.updatedAt ? task.updatedAt|date('Y-m-d H:i:s') : '' }}</td>
-                <td>{{ task.projectId }}</td>
-                <td>{{ task.assignedTo }}</td>
-                <td>{{ task.createdBy }}</td>
-                <td>
-                    <a href="{{ path('app_task_show', {'id': task.id}) }}">show</a>
-                    <a href="{{ path('app_task_edit', {'id': task.id}) }}">edit</a>
-                </td>
-            </tr>
-        {% else %}
-            <tr>
-                <td colspan="15">no records found</td>
-            </tr>
-        {% endfor %}
-        </tbody>
-    </table>
+            --nexum-stone-50: #fafaf9;
+            --nexum-stone-100: #f5f5f4;
+            --nexum-stone-200: #e7e5e4;
+            --nexum-stone-300: #d6d3d1;
+            --nexum-stone-400: #a8a29e;
+            --nexum-stone-500: #78716c;
+            --nexum-stone-600: #57534e;
+            --nexum-stone-900: #1c1917;
+        }
 
-    <a href="{{ path('app_task_new') }}">Create new</a>
+        .nexum-page-head {
+            margin-bottom: 18px;
+        }
+
+        .nexum-title {
+            font-size: 26px;
+            font-weight: 800;
+            margin: 0;
+        }
+
+        .nexum-subtitle {
+            color: var(--nexum-stone-500);
+            margin-top: 4px;
+        }
+
+        .nexum-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nexum-search {
+            width: 320px;
+            max-width: 60vw;
+        }
+
+        .nexum-btn-primary {
+            background: var(--nexum-violet-600);
+            border-color: var(--nexum-violet-600);
+        }
+
+        .nexum-btn-primary:hover {
+            background: var(--nexum-violet-700);
+            border-color: var(--nexum-violet-700);
+        }
+
+        .nexum-group {
+            border: 1px solid var(--nexum-stone-200);
+            border-radius: 14px;
+            background: #fff;
+            overflow: hidden;
+        }
+
+        .nexum-group + .nexum-group {
+            margin-top: 14px;
+        }
+
+        .nexum-group-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            background: #fff;
+        }
+
+        .nexum-group-left {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .nexum-chevron {
+            width: 28px;
+            height: 28px;
+            border-radius: 10px;
+            border: 1px solid var(--nexum-stone-200);
+            background: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--nexum-stone-500);
+        }
+
+        .nexum-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+            background: var(--nexum-violet-600);
+        }
+
+        .nexum-group-name {
+            font-weight: 800;
+            color: var(--nexum-stone-900);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .nexum-count {
+            margin-left: 8px;
+            font-size: 12px;
+            font-weight: 800;
+            color: var(--nexum-stone-500);
+            border: 1px solid var(--nexum-stone-200);
+            border-radius: 999px;
+            padding: 2px 8px;
+            background: var(--nexum-stone-50);
+        }
+
+        .nexum-group-actions {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nexum-icon-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            border: 1px solid var(--nexum-stone-200);
+            background: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--nexum-stone-500);
+        }
+
+        .nexum-icon-btn:hover {
+            color: var(--nexum-stone-900);
+            border-color: var(--nexum-stone-300);
+        }
+
+        .nexum-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px 16px;
+            border-top: 1px solid var(--nexum-stone-200);
+            position: relative;
+            background: #fff;
+        }
+
+        .nexum-row:hover {
+            background: var(--nexum-stone-50);
+        }
+
+        .nexum-row-left {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .nexum-check {
+            width: 18px;
+            height: 18px;
+            border-radius: 999px;
+            border: 2px solid var(--nexum-stone-300);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 auto;
+            background: #fff;
+        }
+
+        .nexum-check.done {
+            border-color: #10b981;
+            background: #10b981;
+        }
+
+        .nexum-check.done::after {
+            content: "✓";
+            font-size: 12px;
+            font-weight: 900;
+            color: #fff;
+            line-height: 1;
+        }
+
+        .nexum-task-title {
+            font-weight: 700;
+            color: var(--nexum-stone-900);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 520px;
+        }
+
+        .nexum-task-title.done {
+            color: var(--nexum-stone-400);
+            text-decoration: line-through;
+        }
+
+        .nexum-meta {
+            display: inline-flex;
+            align-items: center;
+            gap: 14px;
+            color: var(--nexum-stone-500);
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .nexum-priority {
+            font-size: 11px;
+            font-weight: 900;
+            border-radius: 999px;
+            padding: 4px 10px;
+            border: 1px solid transparent;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            letter-spacing: .04em;
+        }
+
+        .nexum-priority.high {
+            background: #fff1f2;
+            color: #be123c;
+            border-color: #fecdd3;
+        }
+
+        .nexum-priority.medium {
+            background: #fff7ed;
+            color: #9a3412;
+            border-color: #fed7aa;
+        }
+
+        .nexum-priority.low {
+            background: #eff6ff;
+            color: #1d4ed8;
+            border-color: #bfdbfe;
+        }
+
+        .nexum-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 999px;
+            border: 2px solid #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background: var(--nexum-stone-100);
+            color: var(--nexum-stone-900);
+            font-size: 12px;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .nexum-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .nexum-modal .modal-content {
+            border-radius: 16px;
+            border: 1px solid var(--nexum-stone-200);
+        }
+
+        .nexum-modal .modal-header,
+        .nexum-modal .modal-footer {
+            border-color: var(--nexum-stone-200);
+        }
+    </style>
 {% endblock %}
+
+{% block content %}
+
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 nexum-page-head">
+        <div>
+            <h2 class="nexum-title">{{ title }}</h2>
+            <div class="nexum-subtitle">{{ subtitle }}</div>
+        </div>
+
+        <div class="nexum-toolbar">
+            <form method="get" action="{{ path('app_task_index') }}">
+                <input class="form-control nexum-search" type="search" name="q" value="{{ q|default('')|plain_text }}"
+                       placeholder="Search tasks...">
+            </form>
+            <button class="btn btn-outline-secondary" type="button">Filter</button>
+            <button class="btn nexum-btn-primary text-white" type="button" data-bs-toggle="modal" data-bs-target="#createTaskModal">
+                + New Task
+            </button>
+        </div>
+    </div>
+
+    {% set completedStatuses = ['done','completed','complete','finished'] %}
+
+    {% for pid, tasks in tasksByProjectId|default([]) %}
+        {% set project = projectsById[pid] ?? null %}
+        {% set projectName = project ? project.name|plain_text : ('Project #' ~ pid) %}
+        {% set groupId = 'proj_' ~ pid %}
+
+        <div class="nexum-group">
+            <div class="nexum-group-head">
+                <div class="nexum-group-left">
+                    <button class="nexum-chevron" type="button" data-bs-toggle="collapse" data-bs-target="#{{ groupId }}" aria-expanded="true">
+                        <i class="ri-arrow-down-s-line"></i>
+                    </button>
+                    <span class="nexum-dot"></span>
+                    <div class="nexum-group-name">{{ projectName }}</div>
+                    <span class="nexum-count">{{ tasks|length }}</span>
+                </div>
+                <div class="nexum-group-actions">
+                    <button class="nexum-icon-btn" type="button"
+                            data-bs-toggle="modal"
+                            data-bs-target="#createTaskModal"
+                            data-prefill-project="{{ pid }}"
+                            title="Add task">
+                        <i class="ri-add-line"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="collapse show" id="{{ groupId }}">
+                {% for task in tasks %}
+                    {% set st = (task.status ?? '')|plain_text|lower %}
+                    {% set isDone = st and (st in completedStatuses) %}
+                    {% set pr = (task.priority ?? '')|plain_text|lower %}
+                    {% set prClass = pr in ['high','medium','low'] ? pr : '' %}
+                    {% set au = task.assignedTo ?? null %}
+                    {% set u = au is not null ? (usersById[au] ?? null) : null %}
+                    {% set fullName = u ? ((u.prenom ~ ' ' ~ u.nom)|trim|plain_text) : '' %}
+                    {% set avatarUrl = (u and avatarUrlById[u.id] is defined) ? avatarUrlById[u.id] : null %}
+
+                    <div class="nexum-row">
+                        <div class="nexum-row-left">
+                            <span class="nexum-check {{ isDone ? 'done' : '' }}"></span>
+                            <div class="nexum-task-title {{ isDone ? 'done' : '' }}">{{ task.title|plain_text }}</div>
+
+                            <a class="stretched-link" href="{{ path('app_task_show', {id: task.id}) }}" aria-label="Open task"></a>
+                        </div>
+
+                        <div class="nexum-meta">
+                            {% if prClass %}
+                                <span class="nexum-priority {{ prClass }}">{{ prClass|upper }}</span>
+                            {% endif %}
+
+                            <span class="d-inline-flex align-items-center gap-2">
+                                <i class="ri-calendar-line"></i>
+                                <span>{{ task.dueDate ? task.dueDate|date('Y-m-d') : '—' }}</span>
+                            </span>
+
+                            {% if u %}
+                                {% if avatarUrl %}
+                                    <span class="nexum-avatar" title="{{ fullName }}">
+                                        <img src="{{ avatarUrl }}" alt="{{ fullName }}">
+                                    </span>
+                                {% else %}
+                                    {% set ap = avatar_placeholder(fullName) %}
+                                    <span class="nexum-avatar" title="{{ fullName }}" style="background: {{ ap.bg }}; color: {{ ap.fg }};">
+                                        {{ ap.initial }}
+                                    </span>
+                                {% endif %}
+                            {% else %}
+                                <span class="nexum-avatar" title="Unassigned">?</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% else %}
+        <div class="card">
+            <div class="card-body text-muted">No tasks found.</div>
+        </div>
+    {% endfor %}
+
+    {% if createForm is defined %}
+        <div class="modal fade nexum-modal" id="createTaskModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    {{ form_start(createForm, { attr: { id: 'createTaskForm' } }) }}
+
+                    <div class="modal-header">
+                        <div>
+                            <h5 class="modal-title mb-1">Create New Task</h5>
+                            <div class="text-muted small">Add a new task to your project</div>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            {{ form_label(createForm.title) }} <span class="text-danger">*</span>
+                            {{ form_widget(createForm.title, { attr: { class: 'form-control', placeholder: 'e.g. Update Hero Section' } }) }}
+                            {{ form_errors(createForm.title) }}
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-12 col-md-6">
+                                {{ form_label(createForm.project) }}
+                                {{ form_widget(createForm.project, { attr: { class: 'form-select', 'data-task-project': '1' } }) }}
+                                {{ form_errors(createForm.project) }}
+                            </div>
+                            <div class="col-12 col-md-6">
+                                {{ form_label(createForm.status) }}
+                                {{ form_widget(createForm.status, { attr: { class: 'form-select' } }) }}
+                                {{ form_errors(createForm.status) }}
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mt-0">
+                            <div class="col-12 col-md-6">
+                                {{ form_label(createForm.due_date) }}
+                                {{ form_widget(createForm.due_date, { attr: { class: 'form-control' } }) }}
+                                {{ form_errors(createForm.due_date) }}
+                            </div>
+                            <div class="col-12 col-md-6">
+                                {{ form_label(createForm.priority) }}
+                                {{ form_widget(createForm.priority, { attr: { class: 'form-select' } }) }}
+                                {{ form_errors(createForm.priority) }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn nexum-btn-primary text-white">Create Task</button>
+                    </div>
+
+                    {{ form_end(createForm) }}
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+{% endblock %}
+
+{% block script %}
+    <script>
+        (function () {
+            const modalEl = document.getElementById('createTaskModal');
+            if (!modalEl) return;
+
+            const projectSelect = modalEl.querySelector('select[data-task-project="1"]');
+
+            document.addEventListener('click', function (e) {
+                const btn = e.target.closest('[data-prefill-project]');
+                if (!btn) return;
+                const pid = btn.getAttribute('data-prefill-project');
+                if (projectSelect && pid) {
+                    projectSelect.value = String(pid);
+                }
+            });
+
+            {% if createForm is defined and createForm.vars.submitted and not createForm.vars.valid %}
+            if (window.bootstrap && bootstrap.Modal) {
+                new bootstrap.Modal(modalEl).show();
+            }
+            {% endif %}
+        })();
+    </script>
+{% endblock %}
+

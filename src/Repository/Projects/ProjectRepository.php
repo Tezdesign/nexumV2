@@ -35,6 +35,33 @@ class ProjectRepository extends ServiceEntityRepository
         return $qb->getQuery()->getResult();
     }
 
+    /**
+     * @param int[] $ids
+     * @return array<int, Project> keyed by project id
+     */
+    public function findIndexedByIds(array $ids): array
+    {
+        $ids = array_values(array_unique(array_map('intval', array_filter($ids, static fn ($v) => $v !== null))));
+        if ($ids === []) {
+            return [];
+        }
+
+        $projects = $this->createQueryBuilder('p')
+            ->andWhere('p.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->getResult();
+
+        $out = [];
+        foreach ($projects as $p) {
+            if ($p->getId() !== null) {
+                $out[$p->getId()] = $p;
+            }
+        }
+
+        return $out;
+    }
+
     //    /**
     //     * @return Project[] Returns an array of Project objects
     //     */
