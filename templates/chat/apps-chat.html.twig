@@ -6,7 +6,7 @@
 
 {% block content %}
 
-    <div class="chat d-flex gap-2" data-apps-chat="chat-root">
+    <div class="chat d-flex gap-2" data-apps-chat="chat-root" data-current-user-name="{{ currentUser.name|e('html_attr') }}" data-current-user-avatar="{{ (currentUser.avatarSrc ?? '')|e('html_attr') }}">
         <div class="offcanvas-xxl offcanvas-start" tabindex="-1" id="chatUserList" aria-labelledby="chatUserListLabel">
             <div id="chat-user-list" class="card collapse collapse-horizontal show">
                 <div class="chat-user-list">

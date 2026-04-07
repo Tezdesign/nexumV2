@@ -18,6 +18,8 @@ class ChatApp {
         this.activeConversationAvatarFallback = null
         this.activeConversationName = null
         this.activeConversationMeta = null
+        this.currentUserName = 'You'
+        this.currentUserAvatar = ''
         this.messagesSimplebar = null
         this.chatForm = null
         this.chatInput = null
@@ -27,6 +29,10 @@ class ChatApp {
 
     cacheElements = () => {
         this.root = document.querySelector('[data-apps-chat="chat-root"]')
+        if (this.root) {
+            this.currentUserName = this.root.dataset.currentUserName || this.currentUserName
+            this.currentUserAvatar = this.root.dataset.currentUserAvatar || ''
+        }
 
         this.messagesScrollWrapper = document.querySelector(
             '[data-apps-chat="messages-scroll-wrapper"]'
@@ -255,7 +261,12 @@ class ChatApp {
 
     createMessageNode = (message, index) => {
         const isOwn = !!message.isOwn
-        const senderName = isOwn ? 'You.' : (message.senderName || 'Unknown User')
+        const senderName = message.senderName || 'Unknown User'
+        const displayName = isOwn ? 'You.' : senderName
+        const avatarLabel = isOwn ? this.currentUserName : senderName
+        const avatarSrc = isOwn
+            ? (message.senderAvatarSrc || this.currentUserAvatar || '')
+            : (message.senderAvatarSrc || '')
         const timeLabel = message.timeLabel || '--'
         const body = message.body || ''
 
@@ -263,7 +274,7 @@ class ChatApp {
         listItem.className = `chat-group${isOwn ? ' odd' : ''}`
         listItem.id = `message-${message.id || index}`
 
-        const avatar = this.createAvatarElement(message.senderAvatarSrc || '', senderName)
+        const avatar = this.createAvatarElement(avatarSrc, avatarLabel)
         listItem.appendChild(avatar)
 
         const chatBody = document.createElement('div')
@@ -272,7 +283,7 @@ class ChatApp {
         const titleWrapper = document.createElement('div')
         const sender = document.createElement('h6')
         sender.className = 'd-inline-flex'
-        sender.textContent = senderName
+        sender.textContent = displayName
         const time = document.createElement('h6')
         time.className = 'd-inline-flex text-muted'
         time.textContent = timeLabel

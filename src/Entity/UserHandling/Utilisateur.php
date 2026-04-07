@@ -167,7 +167,11 @@ class Utilisateur
         }
 
         if (is_resource($this->imagelink)) {
-            $value = stream_get_contents($this->imagelink);
+            if (@rewind($this->imagelink)) {
+                $value = stream_get_contents($this->imagelink);
+            } else {
+                $value = stream_get_contents($this->imagelink);
+            }
             return $value === false ? null : $value;
         }
 
