@@ -101,6 +101,7 @@ class ConversationSidebarProvider
             'avatarSrc' => $this->toDataUri($conversation->getAvatar(), $conversation->getAvatarMime() ?? 'image/jpeg'),
             'isDm' => false,
             'isAdmin' => $conversation->getCreatedBy() === $userId,
+            'createdAtLabel' => $this->formatConversationCreatedAt($conversation->getCreatedAt()),
             'lastMessageAt' => $conversation->getLastMessageAt(),
             'lastMessagePreview' => $this->buildMessagePreview($latestMessage),
             'lastMessageTimeLabel' => $this->formatRelativeTimeLabel($lastActivityAt),
@@ -130,6 +131,7 @@ class ConversationSidebarProvider
             'avatarSrc' => $otherUser !== null ? $this->toDataUri($otherUser->getImagelink(), 'image/jpeg') : null,
             'isDm' => true,
             'isAdmin' => false,
+            'createdAtLabel' => $this->formatConversationCreatedAt($conversation->getCreatedAt()),
             'lastMessageAt' => $conversation->getLastMessageAt(),
             'lastMessagePreview' => $this->buildMessagePreview($latestMessage),
             'lastMessageTimeLabel' => $this->formatRelativeTimeLabel($lastActivityAt),
@@ -188,6 +190,15 @@ class ConversationSidebarProvider
         }
 
         return $at->format('M j');
+    }
+
+    private function formatConversationCreatedAt(?DateTimeInterface $at): string
+    {
+        if ($at === null) {
+            return '--';
+        }
+
+        return $at->format('M j, Y g:ia');
     }
 
     private function findParticipantUser(?ConversationParticipant $participant): ?Utilisateur

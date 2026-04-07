@@ -28,6 +28,12 @@ class ChatApp {
         this.detailsType = null
         this.detailsDangerAction = null
         this.detailsDangerIcon = null
+        this.detailsChatInfoToggle = null
+        this.detailsChatInfoBody = null
+        this.detailsChatInfoChevron = null
+        this.detailsInfoName = null
+        this.detailsInfoType = null
+        this.detailsInfoCreated = null
         this.currentUserName = 'You'
         this.currentUserAvatar = ''
         this.messagesSimplebar = null
@@ -81,6 +87,12 @@ class ChatApp {
         this.detailsType = document.querySelector('[data-apps-chat="details-type"]')
         this.detailsDangerAction = document.querySelector('[data-apps-chat="details-danger-action"]')
         this.detailsDangerIcon = document.querySelector('[data-apps-chat="details-danger-icon"]')
+        this.detailsChatInfoToggle = document.querySelector('[data-apps-chat="details-chat-info-toggle"]')
+        this.detailsChatInfoBody = document.querySelector('[data-apps-chat="details-chat-info-body"]')
+        this.detailsChatInfoChevron = document.querySelector('[data-apps-chat="details-chat-info-chevron"]')
+        this.detailsInfoName = document.querySelector('[data-apps-chat="details-info-name"]')
+        this.detailsInfoType = document.querySelector('[data-apps-chat="details-info-type"]')
+        this.detailsInfoCreated = document.querySelector('[data-apps-chat="details-info-created"]')
         this.chatForm = document.querySelector('#chat-form')
         if (this.chatForm) {
             this.chatInput = this.chatForm.querySelector('[data-apps-chat="chat-input"]')
@@ -194,6 +206,7 @@ class ChatApp {
         const conversationTypeRaw = (item?.dataset.conversationType || '').toUpperCase()
         const conversationType = conversationTypeRaw === 'DM' ? 'Direct message' : 'Group conversation'
         const avatarSrc = item?.dataset.conversationAvatar || ''
+        const conversationCreatedAt = item?.dataset.conversationCreatedAt || '--'
         const isAdmin = (item?.dataset.conversationIsAdmin || '0') === '1'
 
         if (this.detailsName) {
@@ -202,6 +215,18 @@ class ChatApp {
 
         if (this.detailsType) {
             this.detailsType.textContent = conversationType
+        }
+
+        if (this.detailsInfoName) {
+            this.detailsInfoName.textContent = conversationName
+        }
+
+        if (this.detailsInfoType) {
+            this.detailsInfoType.textContent = conversationType
+        }
+
+        if (this.detailsInfoCreated) {
+            this.detailsInfoCreated.textContent = conversationCreatedAt
         }
 
         if (this.detailsDangerAction) {
@@ -249,6 +274,24 @@ class ChatApp {
         if (this.detailsToggleButton) {
             this.detailsToggleButton.setAttribute('aria-expanded', String(open))
         }
+
+        if (!open) {
+            this.setChatInfoOpen(false)
+        }
+    }
+
+    setChatInfoOpen = (open) => {
+        if (!this.detailsChatInfoBody || !this.detailsChatInfoToggle) {
+            return
+        }
+
+        this.detailsChatInfoBody.classList.toggle('d-none', !open)
+        this.detailsChatInfoToggle.setAttribute('aria-expanded', String(open))
+
+        if (this.detailsChatInfoChevron) {
+            this.detailsChatInfoChevron.style.transform = open ? 'rotate(180deg)' : 'rotate(0deg)'
+            this.detailsChatInfoChevron.style.transition = 'transform 0.16s ease'
+        }
     }
 
     initDetailsDrawer = () => {
@@ -271,6 +314,22 @@ class ChatApp {
 
         this.detailsBackdrop?.addEventListener('click', () => {
             this.setDetailsDrawerOpen(false)
+        })
+
+        this.detailsChatInfoToggle?.addEventListener('click', (event) => {
+            event.preventDefault()
+            const isOpen = !this.detailsChatInfoBody?.classList.contains('d-none')
+            this.setChatInfoOpen(!isOpen)
+        })
+
+        this.detailsChatInfoToggle?.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') {
+                return
+            }
+
+            event.preventDefault()
+            const isOpen = !this.detailsChatInfoBody?.classList.contains('d-none')
+            this.setChatInfoOpen(!isOpen)
         })
     }
 
