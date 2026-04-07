@@ -75,6 +75,18 @@ class BudgetProfile
     #[ORM\Column(type: 'float', nullable: true)]
     private ?float $margin_profit = null;
 
+    #[ORM\Column(type: 'string', length: 3, nullable: true)]
+    private ?string $base_currency = null;
+
+    #[ORM\Column(type: 'date', nullable: true)]
+    private ?\DateTimeInterface $start_date = null;
+
+    #[ORM\Column(type: 'date', nullable: true)]
+    private ?\DateTimeInterface $end_date = null;
+
+    #[ORM\Column(type: 'string', length: 50, nullable: false, options: ['default' => 'DRAFT'])]
+    private ?string $status = 'DRAFT';
+
     public function getMargin_profit(): ?float
     {
         return $this->margin_profit;
@@ -134,5 +146,52 @@ class BudgetProfile
         return $this;
     }
 
+    public function getBaseCurrency(): ?string
+    {
+        return $this->base_currency;
+    }
+
+    public function setBaseCurrency(?string $base_currency): static
+    {
+        $this->base_currency = $base_currency;
+
+        return $this;
+    }
+
+    public function getStartDate(): ?\DateTimeInterface
+    {
+        return $this->start_date;
+    }
+
+    public function setStartDate(?\DateTimeInterface $start_date): static
+    {
+        $this->start_date = $start_date;
+
+        return $this;
+    }
+
+    public function getEndDate(): ?\DateTimeInterface
+    {
+        return $this->end_date;
+    }
+
+    public function setEndDate(?\DateTimeInterface $end_date): static
+    {
+        $this->end_date = $end_date;
+
+        return $this;
+    }
+
+    public function getStatus(): ?string
+    {
+        return $this->status;
+    }
+
+    public function setStatus(string $status): static
+    {
+        $this->status = $status;
+
+        return $this;
+    }
 }
 
