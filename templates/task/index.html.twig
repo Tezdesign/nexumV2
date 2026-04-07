@@ -63,9 +63,12 @@
         }
 
         .nexum-toolbar .btn {
-            border-radius: 12px;
-            padding: 10px 16px;
+            border-radius: 8px;
+            padding: 10px 20px;
             font-weight: 800;
+            font-family: "Inter", "Segoe UI", sans-serif;
+            font-size: 14px;
+            cursor: pointer;
         }
 
         .nexum-toolbar .btn.btn-outline-secondary {
@@ -452,9 +455,12 @@
         }
 
         .nexum-modal .modal-footer .btn {
-            border-radius: 12px;
-            padding: 10px 18px;
+            border-radius: 8px;
+            padding: 10px 20px;
             font-weight: 800;
+            font-family: "Inter", "Segoe UI", sans-serif;
+            font-size: 14px;
+            cursor: pointer;
         }
 
         .nexum-modal .modal-footer .btn.btn-outline-secondary {
@@ -491,6 +497,10 @@
 
         .nexum-filter .modal-footer .btn {
             min-width: 110px;
+        }
+
+        .nexum-edit .modal-dialog {
+            max-width: 920px;
         }
 
         .nexum-danger .modal-dialog {
@@ -694,12 +704,15 @@
                                 <span class="nexum-assignee is-empty">Unassigned</span>
                             {% endif %}
 
-                            <a class="nexum-icon-btn"
-                               href="{{ path('app_task_edit', {id: task.id, back: app.request.requestUri}) }}"
-                               title="Edit"
-                               aria-label="Edit">
+                            <button type="button"
+                                    class="nexum-icon-btn"
+                                    title="Edit"
+                                    aria-label="Edit"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#editTaskModal"
+                                    data-edit-url="{{ path('app_task_edit_modal', {id: task.id}) }}">
                                 <i class="ri-pencil-line"></i>
-                            </a>
+                            </button>
 
                             <button type="button"
                                     class="nexum-icon-btn"
@@ -878,6 +891,15 @@
 	            </div>
 	        </div>
 	    </div>
+
+	    {# Edit modal (content is fetched per task) #}
+	    <div class="modal fade nexum-modal nexum-edit" id="editTaskModal" tabindex="-1" aria-hidden="true">
+	        <div class="modal-dialog modal-dialog-centered">
+	            <div class="modal-content" id="editTaskModalContent">
+	                <div class="modal-body text-muted small p-4">Loading...</div>
+	            </div>
+	        </div>
+	    </div>
 	
 {% endblock %}
 
@@ -950,6 +972,56 @@
 	                    if (form) form.setAttribute('action', action);
 	                    if (tokenEl) tokenEl.value = token;
 	                    if (titleEl) titleEl.textContent = title;
+	                });
+	            }
+
+	            const editModal = document.getElementById('editTaskModal');
+	            const editContent = document.getElementById('editTaskModalContent');
+	            if (editModal && editContent) {
+	                const wireEditForm = function () {
+	                    const form = editContent.querySelector('form');
+	                    if (!form) return;
+
+	                    form.addEventListener('submit', async function (e) {
+	                        e.preventDefault();
+	                        try {
+	                            const res = await fetch(form.action, {
+	                                method: form.method || 'POST',
+	                                body: new FormData(form),
+	                                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+	                            });
+
+	                            if (res.status === 204) {
+	                                if (window.bootstrap && bootstrap.Modal) {
+	                                    bootstrap.Modal.getInstance(editModal)?.hide();
+	                                }
+	                                window.location.reload();
+	                                return;
+	                            }
+
+	                            const html = await res.text();
+	                            editContent.innerHTML = html;
+	                            wireEditForm();
+	                        } catch (err) {
+	                            editContent.innerHTML = '<div class="modal-body p-4 text-danger small">Failed to load the edit form.</div>';
+	                        }
+	                    }, { once: true });
+	                };
+
+	                editModal.addEventListener('show.bs.modal', async function (ev) {
+	                    const btn = ev.relatedTarget;
+	                    const url = btn ? (btn.getAttribute('data-edit-url') || '') : '';
+	                    editContent.innerHTML = '<div class="modal-body text-muted small p-4">Loading...</div>';
+	                    if (!url) return;
+
+	                    try {
+	                        const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+	                        const html = await res.text();
+	                        editContent.innerHTML = html;
+	                        wireEditForm();
+	                    } catch (err) {
+	                        editContent.innerHTML = '<div class="modal-body p-4 text-danger small">Failed to load the edit form.</div>';
+	                    }
 	                });
 	            }
 	        })();

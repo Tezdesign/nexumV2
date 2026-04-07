@@ -307,9 +307,23 @@ final class ProjectController extends AbstractController
     }
 
     #[Route('/{id}', name: 'app_project_delete', methods: ['POST'])]
-    public function delete(Request $request, Project $project, EntityManagerInterface $entityManager): Response
+    public function delete(Request $request, Project $project, TaskRepository $taskRepository, EntityManagerInterface $entityManager): Response
     {
-        if ($this->isCsrfTokenValid('delete'.$project->getId(), $request->getPayload()->getString('_token'))) {
+        if ($this->isCsrfTokenValid('delete'.$project->getId(), (string) $request->request->get('_token', ''))) {
+            $pid = $project->getId();
+            if ($pid !== null) {
+                // Ensure tasks are removed when their project is deleted.
+                $taskRepository->deleteByProjectId((int) $pid);
+
+                // Also clean assignment rows to avoid leaving orphan records.
+                $entityManager->createQueryBuilder()
+                    ->delete(ProjectAssignment::class, 'pa')
+                    ->andWhere('pa.project_id = :pid')
+                    ->setParameter('pid', (int) $pid)
+                    ->getQuery()
+                    ->execute();
+            }
+
             $entityManager->remove($project);
             $entityManager->flush();
         }

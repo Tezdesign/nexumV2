@@ -245,6 +245,49 @@ final class TaskController extends AbstractController
         ]);
     }
 
+    #[Route('/{id}/edit-modal', name: 'app_task_edit_modal', methods: ['GET', 'POST'])]
+    public function editModal(Request $request, Task $task, UtilisateurRepository $utilisateurRepository, EntityManagerInterface $entityManager): Response
+    {
+        $form = $this->createForm(TaskUpdateType::class, $task);
+
+        $assignedId = $task->getAssignedTo();
+        if ($assignedId !== null) {
+            $assignedUser = $utilisateurRepository->find((int) $assignedId);
+            if ($assignedUser !== null) {
+                $form->get('assignedUser')->setData($assignedUser);
+            }
+        }
+
+        $form->handleRequest($request);
+
+        if ($form->isSubmitted()) {
+            if ($form->isValid()) {
+                /** @var \App\Entity\UserHandling\Utilisateur|null $assignedUser */
+                $assignedUser = $form->get('assignedUser')->getData();
+                $task->setAssignedTo($assignedUser?->getId());
+                $task->setUpdatedAt(new \DateTime());
+                $entityManager->flush();
+
+                if ($request->isXmlHttpRequest()) {
+                    return new Response('', Response::HTTP_NO_CONTENT);
+                }
+
+                return $this->redirectToRoute('app_task_index', [], Response::HTTP_SEE_OTHER);
+            }
+
+            // Validation errors: return the modal content so the JS can re-render it.
+            return $this->render('task/_edit_modal_content.html.twig', [
+                'task' => $task,
+                'form' => $form->createView(),
+            ], new Response('', Response::HTTP_UNPROCESSABLE_ENTITY));
+        }
+
+        return $this->render('task/_edit_modal_content.html.twig', [
+            'task' => $task,
+            'form' => $form->createView(),
+        ]);
+    }
+
     #[Route('/{id}', name: 'app_task_delete', methods: ['POST'])]
     public function delete(Request $request, Task $task, EntityManagerInterface $entityManager): Response
     {

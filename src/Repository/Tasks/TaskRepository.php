@@ -109,6 +109,16 @@ class TaskRepository extends ServiceEntityRepository
         return $qb->getQuery()->getResult();
     }
 
+    public function deleteByProjectId(int $projectId): int
+    {
+        return (int) $this->createQueryBuilder('t')
+            ->delete()
+            ->andWhere('t.project_id = :pid')
+            ->setParameter('pid', $projectId)
+            ->getQuery()
+            ->execute();
+    }
+
     /**
      * @return array{total:int, completed:int, overdue:int}
      */
