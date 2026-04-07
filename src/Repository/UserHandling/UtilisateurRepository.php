@@ -16,6 +16,52 @@ class UtilisateurRepository extends ServiceEntityRepository
         parent::__construct($registry, Utilisateur::class);
     }
 
+    public function findFirstManagerOrFirst(): ?Utilisateur
+    {
+        $manager = $this->createQueryBuilder('u')
+            ->andWhere('LOWER(u.role) LIKE :role')
+            ->setParameter('role', '%manager%')
+            ->orderBy('u.id', 'ASC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        if ($manager !== null) {
+            return $manager;
+        }
+
+        return $this->createQueryBuilder('u')
+            ->orderBy('u.id', 'ASC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    /**
+     * @param int[] $ids
+     * @return array<int, Utilisateur> keyed by user id
+     */
+    public function findIndexedByIds(array $ids): array
+    {
+        $ids = array_values(array_unique(array_map('intval', array_filter($ids, static fn ($v) => $v !== null))));
+        if ($ids === []) {
+            return [];
+        }
+
+        $users = $this->createQueryBuilder('u')
+            ->andWhere('u.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->getResult();
+
+        $out = [];
+        foreach ($users as $u) {
+            $out[$u->getId()] = $u;
+        }
+
+        return $out;
+    }
+
     //    /**
     //     * @return Utilisateur[] Returns an array of Utilisateur objects
     //     */

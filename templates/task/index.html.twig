@@ -1,0 +1,59 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Task index{% endblock %}
+
+{% block body %}
+    <h1>Task index</h1>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Title</th>
+                <th>Description</th>
+                <th>Status</th>
+                <th>Priority</th>
+                <th>Start_date</th>
+                <th>Due_date</th>
+                <th>Estimated_time</th>
+                <th>Actual_time</th>
+                <th>Created_at</th>
+                <th>Updated_at</th>
+                <th>Project_id</th>
+                <th>Assigned_to</th>
+                <th>Created_by</th>
+                <th>actions</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for task in tasks %}
+            <tr>
+                <td>{{ task.id }}</td>
+                <td>{{ task.title }}</td>
+                <td>{{ task.description }}</td>
+                <td>{{ task.status }}</td>
+                <td>{{ task.priority }}</td>
+                <td>{{ task.startDate ? task.startDate|date('Y-m-d') : '' }}</td>
+                <td>{{ task.dueDate ? task.dueDate|date('Y-m-d') : '' }}</td>
+                <td>{{ task.estimatedTime }}</td>
+                <td>{{ task.actualTime }}</td>
+                <td>{{ task.createdAt ? task.createdAt|date('Y-m-d H:i:s') : '' }}</td>
+                <td>{{ task.updatedAt ? task.updatedAt|date('Y-m-d H:i:s') : '' }}</td>
+                <td>{{ task.projectId }}</td>
+                <td>{{ task.assignedTo }}</td>
+                <td>{{ task.createdBy }}</td>
+                <td>
+                    <a href="{{ path('app_task_show', {'id': task.id}) }}">show</a>
+                    <a href="{{ path('app_task_edit', {'id': task.id}) }}">edit</a>
+                </td>
+            </tr>
+        {% else %}
+            <tr>
+                <td colspan="15">no records found</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <a href="{{ path('app_task_new') }}">Create new</a>
+{% endblock %}

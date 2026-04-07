@@ -23,7 +23,8 @@ class HomeController extends AbstractController
     #[Route('/apps-projects', name: 'apps-projects')]
     public function projects(): Response
     {
-        return $this->render('project-management/apps-projects.html.twig');
+        // Point the existing sidebar entry to the real Projects CRUD list.
+        return $this->redirectToRoute('app_project_index');
     }
 
     #[Route('/apps-kanban', name: 'apps-kanban')]

@@ -1,0 +1,600 @@
+{% extends 'layouts/vertical.html.twig' %}
+
+{% set accent = '#7c3aed' %}
+{% set activeTab = activeTab|default('overview') %}
+
+{% block css %}
+    <style>
+        :root {
+            --nexum-accent: {{ accent }};
+            --nexum-card-radius: 14px;
+            --nexum-stone-50: #fafaf9;
+            --nexum-stone-100: #f5f5f4;
+            --nexum-stone-200: #e7e5e4;
+            --nexum-stone-300: #d6d3d1;
+            --nexum-stone-400: #a8a29e;
+            --nexum-stone-500: #78716c;
+            --nexum-stone-600: #57534e;
+            --nexum-stone-900: #1c1917;
+        }
+
+        .nexum-breadcrumb {
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        .nexum-breadcrumb a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .nexum-breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        .nexum-shell-card {
+            border-radius: var(--nexum-card-radius);
+        }
+
+        .nexum-progress .progress {
+            height: 6px;
+            border-radius: 999px;
+        }
+
+        .nexum-progress .progress-bar {
+            background: var(--nexum-accent);
+            border-radius: 999px;
+        }
+
+        .nexum-tabs {
+            gap: 18px;
+            border-top: 1px solid #f1f5f9;
+            padding-top: 12px;
+            margin-top: 14px;
+        }
+
+        .nexum-tab {
+            display: inline-flex;
+            gap: 8px;
+            align-items: center;
+            padding: 8px 2px;
+            color: #64748b;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 13px;
+            border-bottom: 2px solid transparent;
+        }
+
+        .nexum-tab.active {
+            color: var(--nexum-accent);
+            border-bottom-color: var(--nexum-accent);
+        }
+
+        .nexum-avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 999px;
+            border: 2px solid #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background: #f1f5f9;
+            color: #0f172a;
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1;
+            margin-left: -8px;
+        }
+
+        .nexum-avatar:first-child {
+            margin-left: 0;
+        }
+
+        .nexum-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .nexum-avatar--add {
+            background: #fff;
+            color: #64748b;
+            border: 1px solid #e2e8f0;
+            width: 32px;
+            height: 32px;
+        }
+
+        .nexum-stat {
+            border: 1px solid #eef2f7;
+            border-radius: 12px;
+            padding: 12px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .nexum-stat .label {
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .nexum-stat .value {
+            font-weight: 800;
+            font-size: 18px;
+            color: #0f172a;
+        }
+
+        .nexum-stat--ok {
+            background: #ecfdf3;
+            border-color: #bbf7d0;
+        }
+
+        .nexum-stat--ok .label,
+        .nexum-stat--ok .value {
+            color: #047857;
+        }
+
+        .nexum-stat--bad {
+            background: #fff1f2;
+            border-color: #fecdd3;
+        }
+
+        .nexum-stat--bad .label,
+        .nexum-stat--bad .value {
+            color: #be123c;
+        }
+
+        .nexum-icon-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+            background: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+            text-decoration: none;
+        }
+
+        .nexum-icon-btn:hover {
+            color: #0f172a;
+            border-color: #cbd5e1;
+        }
+
+        .nexum-task-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px 0;
+            border-top: 1px solid #f1f5f9;
+        }
+
+        .nexum-task-left {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .nexum-task-dot {
+            width: 18px;
+            height: 18px;
+            border-radius: 999px;
+            border: 2px solid #cbd5e1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            flex: 0 0 auto;
+        }
+
+        .nexum-task-dot.done {
+            border-color: #10b981;
+            background: #10b981;
+        }
+
+        .nexum-task-dot.done::after {
+            content: "✓";
+            font-size: 12px;
+            font-weight: 900;
+            line-height: 1;
+        }
+
+        .nexum-task-title {
+            font-weight: 700;
+            font-size: 13px;
+            color: #0f172a;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 420px;
+        }
+
+        .nexum-priority {
+            font-size: 11px;
+            font-weight: 800;
+            border-radius: 999px;
+            padding: 4px 10px;
+            border: 1px solid transparent;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .nexum-priority.high {
+            background: #fff1f2;
+            color: #be123c;
+            border-color: #fecdd3;
+        }
+
+        .nexum-priority.medium {
+            background: #fff7ed;
+            color: #9a3412;
+            border-color: #fed7aa;
+        }
+
+        .nexum-priority.low {
+            background: #eff6ff;
+            color: #1d4ed8;
+            border-color: #bfdbfe;
+        }
+
+        .nexum-task-meta {
+            display: inline-flex;
+            align-items: center;
+            gap: 14px;
+            color: #64748b;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .nexum-member-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 10px 0;
+            border-top: 1px solid #f1f5f9;
+        }
+
+        .nexum-member-left {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .nexum-member-name {
+            font-weight: 700;
+            font-size: 13px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 240px;
+        }
+
+        .nexum-member-role {
+            font-size: 12px;
+            color: #64748b;
+            text-transform: capitalize;
+        }
+
+        .nexum-confirm .modal-content {
+            border-radius: 16px;
+            border: 1px solid var(--nexum-stone-200);
+        }
+
+        .nexum-confirm .modal-header,
+        .nexum-confirm .modal-footer {
+            border-color: var(--nexum-stone-200);
+        }
+
+        .nexum-danger-title {
+            color: var(--nexum-stone-900);
+            font-weight: 800;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+
+    <div class="nexum-breadcrumb mb-3">
+        <a href="{{ path('app_project_index') }}">Projects</a>
+        <span class="px-2">›</span>
+        <span class="text-dark">{{ project.name|plain_text }}</span>
+    </div>
+
+    {% set pctRaw = project.progress is not null ? project.progress : 0 %}
+    {% set pct = pctRaw < 0 ? 0 : (pctRaw > 100 ? 100 : pctRaw) %}
+
+    <div class="card nexum-shell-card mb-4">
+        <div class="card-body">
+            <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
+                <div class="min-w-0">
+                    <div class="d-flex align-items-start justify-content-between gap-2">
+                        <h2 class="mb-2 text-truncate flex-grow-1">{{ project.name|plain_text }}</h2>
+
+                        <div class="d-flex gap-2 flex-shrink-0">
+                            <a class="nexum-icon-btn" href="{{ path('app_project_edit', {id: project.id}) }}" title="Edit" aria-label="Edit">
+                                <i class="ri-pencil-line"></i>
+                            </a>
+
+                            <button class="nexum-icon-btn"
+                                    type="button"
+                                    title="Delete"
+                                    aria-label="Delete"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#deleteProjectModal">
+                                <i class="ri-delete-bin-6-line"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="text-muted d-flex flex-wrap gap-3 small">
+                        <span class="d-inline-flex align-items-center gap-2">
+                            <span class="ti ti-calendar"></span>
+                            <span>
+                                Due
+                                {% if project.endDate %}{{ project.endDate|date('M d, Y') }}{% else %}—{% endif %}
+                            </span>
+                        </span>
+
+                        <span class="d-inline-flex align-items-center gap-2">
+                            <span class="ti ti-users"></span>
+                            <span>{{ memberIds|length }} members</span>
+                        </span>
+                    </div>
+                </div>
+
+                <div style="min-width: 220px;">
+                    <div class="d-flex justify-content-between text-muted small mb-2">
+                        <div>Progress</div>
+                        <div class="fw-semibold" style="color: var(--nexum-accent)">{{ pct }}%</div>
+                    </div>
+                    <div class="nexum-progress">
+                        <div class="progress" role="progressbar" aria-valuenow="{{ pct }}" aria-valuemin="0" aria-valuemax="100">
+                            <div class="progress-bar" style="width: {{ pct }}%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex flex-wrap nexum-tabs">
+                <a class="nexum-tab {{ activeTab == 'overview' ? 'active' : '' }}"
+                   href="{{ path('app_project_show', {id: project.id, tab: 'overview'}) }}">Overview</a>
+                <a class="nexum-tab {{ activeTab == 'tasks' ? 'active' : '' }}"
+                   href="{{ path('app_project_show', {id: project.id, tab: 'tasks'}) }}">Tasks</a>
+                <a class="nexum-tab {{ activeTab == 'kanban' ? 'active' : '' }}"
+                   href="{{ path('app_project_show', {id: project.id, tab: 'kanban'}) }}">Kanban</a>
+                <a class="nexum-tab {{ activeTab == 'discussion' ? 'active' : '' }}"
+                   href="{{ path('app_project_show', {id: project.id, tab: 'discussion'}) }}">Discussion</a>
+                <a class="nexum-tab {{ activeTab == 'files' ? 'active' : '' }}"
+                   href="{{ path('app_project_show', {id: project.id, tab: 'files'}) }}">Files</a>
+                <a class="nexum-tab {{ activeTab == 'activity' ? 'active' : '' }}"
+                   href="{{ path('app_project_show', {id: project.id, tab: 'activity'}) }}">Activity</a>
+                <a class="nexum-tab {{ activeTab == 'settings' ? 'active' : '' }}"
+                   href="{{ path('app_project_show', {id: project.id, tab: 'settings'}) }}">Settings</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-12 col-xl-8">
+            {% if activeTab == 'overview' %}
+                <div class="card nexum-shell-card mb-3">
+                    <div class="card-body">
+                        <h5 class="mb-2">Description</h5>
+                        <p class="text-muted mb-0">
+                            {{ project.description ? (project.description|plain_text) : 'No description provided.' }}
+                        </p>
+                    </div>
+                </div>
+
+                <div class="card nexum-shell-card">
+                    <div class="card-body d-flex align-items-center justify-content-between">
+                        <h5 class="mb-0">Recent Activity</h5>
+                        <a href="javascript:void(0)" style="color: var(--nexum-accent); text-decoration: none; font-weight: 600;">View All</a>
+                    </div>
+                    <div class="card-body pt-0">
+                        <div class="text-muted small">
+                            Recent activity is coming next (intentionally left blank for now).
+                        </div>
+                    </div>
+                </div>
+            {% elseif activeTab == 'tasks' %}
+                <div class="card nexum-shell-card">
+                    <div class="card-body d-flex align-items-center justify-content-between">
+                        <h5 class="mb-0">Tasks</h5>
+                        <a href="javascript:void(0)" style="color: var(--nexum-accent); text-decoration: none; font-weight: 600;">View All</a>
+                    </div>
+                    <div class="card-body pt-0">
+                        {% set completedStatuses = ['done','completed','complete','finished'] %}
+                        {% for task in (tasks|default([]))|slice(0, 50) %}
+                            {% set st = (task.status ?? '')|plain_text|lower %}
+                            {% set isDone = st and (st in completedStatuses) %}
+                            {% set pr = (task.priority ?? '')|plain_text|lower %}
+                            {% set prClass = pr in ['high','medium','low'] ? pr : '' %}
+
+                            <div class="nexum-task-row">
+                                <div class="nexum-task-left">
+                                    <span class="nexum-task-dot {{ isDone ? 'done' : '' }}"></span>
+                                    <div class="min-w-0">
+                                        <div class="nexum-task-title">{{ task.title|plain_text }}</div>
+                                    </div>
+                                </div>
+
+                                <div class="nexum-task-meta">
+                                    {% if prClass %}
+                                        <span class="nexum-priority {{ prClass }}">{{ prClass|upper }}</span>
+                                    {% endif %}
+
+                                    <span class="d-inline-flex align-items-center gap-2">
+                                        <i class="ri-calendar-line"></i>
+                                        <span>{{ task.dueDate ? task.dueDate|date('Y-m-d') : '—' }}</span>
+                                    </span>
+
+                                    {% set au = task.assignedTo ?? null %}
+                                    {% set u = au is not null ? (membersById[au] ?? null) : null %}
+                                    {% if u %}
+                                        {% set fullName = (u.prenom ~ ' ' ~ u.nom)|trim|plain_text %}
+                                        {% set avatarUrl = avatarUrlById[u.id] ?? null %}
+                                        {% if avatarUrl %}
+                                            <span class="nexum-avatar" title="{{ fullName }}">
+                                                <img src="{{ avatarUrl }}" alt="{{ fullName }}">
+                                            </span>
+                                        {% else %}
+                                            {% set ap = avatar_placeholder(fullName) %}
+                                            <span class="nexum-avatar" title="{{ fullName }}" style="background: {{ ap.bg }}; color: {{ ap.fg }};">
+                                                {{ ap.initial }}
+                                            </span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="nexum-avatar" title="Unassigned">?</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="text-muted small py-2">No tasks for this project yet.</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% else %}
+                <div class="card nexum-shell-card">
+                    <div class="card-body">
+                        <div class="text-muted small">This section is coming soon.</div>
+                    </div>
+                </div>
+            {% endif %}
+
+        </div>
+
+        <div class="col-12 col-xl-4">
+            <div class="card nexum-shell-card mb-3">
+                <div class="card-body">
+                    <h5 class="mb-3">Project Stats</h5>
+
+                    <div class="d-flex flex-column gap-2">
+                        <div class="nexum-stat">
+                            <div class="label">Total Tasks</div>
+                            <div class="value">{{ stats.total }}</div>
+                        </div>
+                        <div class="nexum-stat nexum-stat--ok">
+                            <div class="label">Completed</div>
+                            <div class="value">{{ stats.completed }}</div>
+                        </div>
+                        <div class="nexum-stat nexum-stat--bad">
+                            <div class="label">Overdue</div>
+                            <div class="value">{{ stats.overdue }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card nexum-shell-card">
+                <div class="card-body d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Team Members</h5>
+                    <div class="d-flex gap-2">
+                        <a href="javascript:void(0)" class="nexum-icon-btn" title="Add member" aria-label="Add member">
+                            <i class="ri-add-line"></i>
+                        </a>
+                        <a href="javascript:void(0)" class="nexum-icon-btn" title="Settings" aria-label="Settings">
+                            <i class="ri-settings-3-line"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body pt-2">
+                    <div class="d-flex align-items-center">
+                        {% set shownIds = memberIds|slice(0, 4) %}
+                        {% set extraCount = memberIds|length > 4 ? (memberIds|length - 4) : 0 %}
+
+                        {% for uid in shownIds %}
+                            {% set user = membersById[uid] ?? null %}
+                            {% if user %}
+                                {% set fullName = (user.prenom ~ ' ' ~ user.nom)|trim %}
+                                {% set avatarUrl = avatarUrlById[user.id] ?? null %}
+
+                                {% if avatarUrl %}
+                                    <span class="nexum-avatar" title="{{ fullName }}">
+                                        <img src="{{ avatarUrl }}" alt="{{ fullName }}">
+                                    </span>
+                                {% else %}
+                                    {% set ap = avatar_placeholder(fullName) %}
+                                    <span class="nexum-avatar" title="{{ fullName }}" style="background: {{ ap.bg }}; color: {{ ap.fg }};">
+                                        {{ ap.initial }}
+                                    </span>
+                                {% endif %}
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if extraCount > 0 %}
+                            <span class="nexum-avatar" title="+{{ extraCount }} more" style="background: #f1f5f9; color: #334155;">
+                                +{{ extraCount }}
+                            </span>
+                        {% endif %}
+
+                        <span class="nexum-avatar nexum-avatar--add ms-2" title="Add member">+</span>
+                    </div>
+
+                    <div class="mt-2">
+                        {% for uid in memberIds|slice(0, 6) %}
+                            {% set user = membersById[uid] ?? null %}
+                            {% if user %}
+                                {% set fullName = (user.prenom ~ ' ' ~ user.nom)|trim %}
+                                {% set avatarUrl = avatarUrlById[user.id] ?? null %}
+                                <div class="nexum-member-row">
+                                    <div class="nexum-member-left">
+                                        {% if avatarUrl %}
+                                            <span class="nexum-avatar" title="{{ fullName }}">
+                                                <img src="{{ avatarUrl }}" alt="{{ fullName }}">
+                                            </span>
+                                        {% else %}
+                                            {% set ap = avatar_placeholder(fullName) %}
+                                            <span class="nexum-avatar" title="{{ fullName }}" style="background: {{ ap.bg }}; color: {{ ap.fg }};">
+                                                {{ ap.initial }}
+                                            </span>
+                                        {% endif %}
+                                            <div class="min-w-0">
+                                            <div class="nexum-member-name">{{ fullName|plain_text }}</div>
+                                            <div class="nexum-member-role">{{ (user.role ?: 'User')|plain_text }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Clean delete popup (Bootstrap modal) #}
+    <div class="modal fade nexum-confirm" id="deleteProjectModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title nexum-danger-title">Delete project?</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-muted">
+                    This will permanently delete <strong>{{ project.name|plain_text }}</strong>.
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <form method="post" action="{{ path('app_project_delete', {'id': project.id}) }}" class="m-0">
+                        <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ project.id) }}">
+                        <button type="submit" class="btn btn-primary"
+                                style="background: var(--nexum-accent); border-color: var(--nexum-accent);">
+                            Delete Project
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}

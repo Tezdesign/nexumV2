@@ -1,0 +1,74 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Task{% endblock %}
+
+{% block body %}
+    <h1>Task</h1>
+
+    <table class="table">
+        <tbody>
+            <tr>
+                <th>Id</th>
+                <td>{{ task.id }}</td>
+            </tr>
+            <tr>
+                <th>Title</th>
+                <td>{{ task.title }}</td>
+            </tr>
+            <tr>
+                <th>Description</th>
+                <td>{{ task.description }}</td>
+            </tr>
+            <tr>
+                <th>Status</th>
+                <td>{{ task.status }}</td>
+            </tr>
+            <tr>
+                <th>Priority</th>
+                <td>{{ task.priority }}</td>
+            </tr>
+            <tr>
+                <th>Start_date</th>
+                <td>{{ task.startDate ? task.startDate|date('Y-m-d') : '' }}</td>
+            </tr>
+            <tr>
+                <th>Due_date</th>
+                <td>{{ task.dueDate ? task.dueDate|date('Y-m-d') : '' }}</td>
+            </tr>
+            <tr>
+                <th>Estimated_time</th>
+                <td>{{ task.estimatedTime }}</td>
+            </tr>
+            <tr>
+                <th>Actual_time</th>
+                <td>{{ task.actualTime }}</td>
+            </tr>
+            <tr>
+                <th>Created_at</th>
+                <td>{{ task.createdAt ? task.createdAt|date('Y-m-d H:i:s') : '' }}</td>
+            </tr>
+            <tr>
+                <th>Updated_at</th>
+                <td>{{ task.updatedAt ? task.updatedAt|date('Y-m-d H:i:s') : '' }}</td>
+            </tr>
+            <tr>
+                <th>Project_id</th>
+                <td>{{ task.projectId }}</td>
+            </tr>
+            <tr>
+                <th>Assigned_to</th>
+                <td>{{ task.assignedTo }}</td>
+            </tr>
+            <tr>
+                <th>Created_by</th>
+                <td>{{ task.createdBy }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <a href="{{ path('app_task_index') }}">back to list</a>
+
+    <a href="{{ path('app_task_edit', {'id': task.id}) }}">edit</a>
+
+    {{ include('task/_delete_form.html.twig') }}
+{% endblock %}
