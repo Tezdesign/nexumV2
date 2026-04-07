@@ -633,18 +633,72 @@ class ChatApp {
         return request
     }
 
+    hasRichMetadata = (preview) => {
+        if (!preview) {
+            return false
+        }
+
+        return Boolean(
+            (preview.title && String(preview.title).trim() !== '') ||
+            (preview.description && String(preview.description).trim() !== '') ||
+            (preview.image && String(preview.image).trim() !== '') ||
+            (preview.siteName && String(preview.siteName).trim() !== '')
+        )
+    }
+
+    createShortLinkFallbackNode = (targetUrl, displayUrl, isOwn) => {
+        const card = document.createElement('a')
+        card.href = targetUrl
+        card.target = '_blank'
+        card.rel = 'noopener noreferrer'
+        card.className = 'd-block text-decoration-none rounded-3 border px-2 py-2 mt-2'
+        card.style.backgroundColor = isOwn ? 'rgba(13,110,253,0.05)' : 'rgba(108,117,125,0.08)'
+        card.style.borderColor = isOwn ? 'rgba(13,110,253,0.24)' : 'rgba(108,117,125,0.22)'
+
+        const label = document.createElement('div')
+        label.style.fontSize = '12px'
+        label.style.fontWeight = '500'
+        label.style.color = 'var(--bs-secondary-color)'
+        label.style.whiteSpace = 'nowrap'
+        label.style.overflow = 'hidden'
+        label.style.textOverflow = 'ellipsis'
+        label.textContent = displayUrl
+
+        card.appendChild(label)
+        return card
+    }
+
     createLinkPreviewNode = (url, result, isOwn) => {
         const preview = result?.preview || {}
         const targetUrl = preview.url || url
         const displayUrl = preview.displayUrl || this.shortenLinkLabel(targetUrl)
+        const hasRich = this.hasRichMetadata(preview)
+
+        if (!hasRich) {
+            return this.createShortLinkFallbackNode(targetUrl, displayUrl, isOwn)
+        }
 
         const card = document.createElement('a')
         card.href = targetUrl
         card.target = '_blank'
         card.rel = 'noopener noreferrer'
-        card.className = 'd-block text-decoration-none rounded-3 border p-2 mt-2'
+        card.className = 'd-block text-decoration-none rounded-3 border overflow-hidden mt-2'
         card.style.backgroundColor = isOwn ? 'rgba(13,110,253,0.08)' : 'var(--bs-tertiary-bg)'
         card.style.borderColor = isOwn ? 'rgba(13,110,253,0.35)' : 'var(--bs-border-color)'
+
+        if (preview.image) {
+            const image = document.createElement('img')
+            image.src = preview.image
+            image.alt = preview.title || preview.siteName || displayUrl
+            image.className = 'w-100 d-block'
+            image.style.maxHeight = '170px'
+            image.style.objectFit = 'cover'
+            image.style.backgroundColor = 'rgba(0,0,0,0.04)'
+            card.appendChild(image)
+        }
+
+        const content = document.createElement('div')
+        content.className = 'p-2'
 
         const title = document.createElement('div')
         title.style.fontWeight = '600'
@@ -669,24 +723,13 @@ class ChatApp {
         footer.style.marginTop = '6px'
         footer.textContent = displayUrl
 
-        if (result?.success && (preview.title || preview.description || preview.siteName)) {
-            title.textContent = preview.title || preview.siteName || displayUrl
-            if (preview.description) {
-                description.textContent = preview.description
-            } else {
-                description.textContent = preview.siteName || displayUrl
-            }
-            card.appendChild(title)
-            card.appendChild(description)
-            card.appendChild(footer)
-            return card
-        }
+        title.textContent = preview.title || preview.siteName || displayUrl
+        description.textContent = preview.description || preview.siteName || displayUrl
 
-        title.textContent = displayUrl
-        title.style.fontWeight = '500'
-        title.style.color = 'var(--bs-secondary-color)'
-        card.style.backgroundColor = isOwn ? 'rgba(13,110,253,0.05)' : 'rgba(108,117,125,0.08)'
-        card.appendChild(title)
+        content.appendChild(title)
+        content.appendChild(description)
+        content.appendChild(footer)
+        card.appendChild(content)
         return card
     }
 
