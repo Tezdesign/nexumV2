@@ -18,8 +18,6 @@ use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 class MessageAttachmentController extends AbstractController
 {
-	private const SESSION_CURRENT_USER_ID = 44;
-
 	#[Route('/apps-chat/attachments', name: 'apps-chat-attachments', methods: ['POST'])]
 	public function upload(
 		Request $request,
@@ -37,7 +35,7 @@ class MessageAttachmentController extends AbstractController
 			], 404);
 		}
 
-		if (!$participantRepository->isActiveParticipant($message->getConversationId(), self::SESSION_CURRENT_USER_ID)) {
+		if (!$participantRepository->isActiveParticipant($message->getConversationId(), ConversationController::SESSION_CURRENT_USER_ID)) {
 			return $this->json([
 				'success' => false,
 				'error' => 'Access denied.',
@@ -106,7 +104,7 @@ class MessageAttachmentController extends AbstractController
 			], 404);
 		}
 
-		if (!$participantRepository->isActiveParticipant($message->getConversationId(), self::SESSION_CURRENT_USER_ID)) {
+		if (!$participantRepository->isActiveParticipant($message->getConversationId(), ConversationController::SESSION_CURRENT_USER_ID)) {
 			return $this->json([
 				'success' => false,
 				'error' => 'Access denied for this attachment list.',
@@ -151,7 +149,7 @@ class MessageAttachmentController extends AbstractController
 			throw $this->createNotFoundException('Message not found.');
 		}
 
-		if (!$participantRepository->isActiveParticipant($message->getConversationId(), self::SESSION_CURRENT_USER_ID)) {
+		if (!$participantRepository->isActiveParticipant($message->getConversationId(), ConversationController::SESSION_CURRENT_USER_ID)) {
 			throw $this->createAccessDeniedException('Access denied for this attachment.');
 		}
 

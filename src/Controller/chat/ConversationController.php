@@ -9,7 +9,7 @@ use Symfony\Component\Routing\Annotation\Route;
 
 class ConversationController extends AbstractController
 {
-    private const SESSION_CURRENT_USER_ID = 44;
+    public const SESSION_CURRENT_USER_ID = 44;
 
     #[Route('/apps-chat', name: 'apps-chat')]
     public function index(ConversationSidebarProvider $sidebarProvider): Response

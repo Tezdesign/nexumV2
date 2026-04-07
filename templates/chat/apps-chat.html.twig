@@ -107,7 +107,7 @@
                                     </div>
 
                                     {% for conversation in conversations %}
-                                        <a href="javascript:void(0);" class="text-body d-block" data-apps-chat="conversation-item" data-conversation-id="{{ conversation.id }}" data-messages-endpoint="{{ path('apps-chat-conversation-messages', {'conversationId': conversation.id}) }}" data-conversation-name="{{ conversation.name|e('html_attr') }}" data-conversation-avatar="{{ (conversation.avatarSrc ?? '')|e('html_attr') }}" data-conversation-type="{{ conversation.isDm ? 'DM' : 'GROUP' }}" data-dm-name="{{ conversation.isDm ? conversation.name|e('html_attr') : '' }}" data-group-title="{{ conversation.isDm ? '' : conversation.name|e('html_attr') }}">
+                                        <a href="javascript:void(0);" class="text-body d-block" data-apps-chat="conversation-item" data-conversation-id="{{ conversation.id }}" data-messages-endpoint="{{ path('apps-chat-conversation-messages', {'conversationId': conversation.id}) }}" data-conversation-name="{{ conversation.name|e('html_attr') }}" data-conversation-avatar="{{ (conversation.avatarSrc ?? '')|e('html_attr') }}" data-conversation-type="{{ conversation.isDm ? 'DM' : 'GROUP' }}" data-conversation-is-admin="{{ conversation.isAdmin ? '1' : '0' }}" data-dm-name="{{ conversation.isDm ? conversation.name|e('html_attr') : '' }}" data-group-title="{{ conversation.isDm ? '' : conversation.name|e('html_attr') }}">
                                             <div class="chat-users">
                                                 <div class="avatar-md {{ conversation.isDm ? 'chat-avatar-online' : 'chat-avatar-offline' }}">
                                                     {% if conversation.avatarSrc %}
@@ -188,7 +188,7 @@
                                         <i class="ti ti-video fs-20"></i>
                                     </a>
 
-                                    <a href="javascript: void(0);" class="btn btn-sm btn-icon btn-ghost-light d-xl-flex">
+                                    <a href="javascript: void(0);" class="btn btn-sm btn-icon btn-ghost-light d-xl-flex" data-apps-chat="details-toggle" aria-expanded="false">
                                         <i class="ti ti-info-circle fs-20"></i>
                                     </a>
                                 </div>
@@ -231,10 +231,47 @@
                         </div>
                     </div>
 
+                <div class="card d-none" style="width: 320px; min-width: 320px;" data-apps-chat="details-drawer">
+                    <div class="card-body border-bottom d-flex align-items-center justify-content-between">
+                        <h5 class="mb-0 fs-15">Conversation info</h5>
+                        <button type="button" class="btn btn-sm btn-icon btn-ghost-light" data-apps-chat="details-close" aria-label="Close details">
+                            <i class="ti ti-x fs-18"></i>
+                        </button>
+                    </div>
+                    <div class="card-body text-center border-bottom">
+                        <img src="" class="avatar-xl rounded-circle d-none mx-auto" alt="details avatar" data-apps-chat="details-avatar">
+                        <div class="avatar-xl rounded-circle bg-secondary-subtle text-secondary d-flex align-items-center justify-content-center fw-semibold mx-auto" data-apps-chat="details-avatar-fallback">-</div>
+                        <h5 class="mt-3 mb-1" data-apps-chat="details-name">Select a conversation</h5>
+                        <p class="text-muted mb-0" data-apps-chat="details-type">Conversation</p>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex align-items-center justify-content-between py-2 border-bottom">
+                            <span class="fw-medium">Chat info</span>
+                            <i class="ti ti-chevron-down text-muted"></i>
+                        </div>
+                        <div class="d-flex align-items-center justify-content-between py-2 border-bottom">
+                            <span class="fw-medium">Customize chat</span>
+                            <i class="ti ti-chevron-down text-muted"></i>
+                        </div>
+                        <div class="d-flex align-items-center justify-content-between py-2 border-bottom">
+                            <span class="fw-medium">Chat members</span>
+                            <i class="ti ti-chevron-down text-muted"></i>
+                        </div>
+                        <div class="d-flex align-items-center justify-content-between py-2 border-bottom">
+                            <span class="fw-medium">Media, files and links</span>
+                            <i class="ti ti-chevron-down text-muted"></i>
+                        </div>
+                        <div class="d-flex align-items-center justify-content-between py-2 text-danger" data-apps-chat="details-danger-action-wrap">
+                            <span class="fw-medium" data-apps-chat="details-danger-action">Delete conversation</span>
+                            <i class="ti ti-chevron-down"></i>
+                        </div>
+                    </div>
+                </div>
+
     </div>
 
 {% endblock %}
 
 {% block script %}
-    <script src="/js/pages/apps-chat.js?v=20260407e"></script>
+    <script src="/js/pages/apps-chat.js?v=20260407g"></script>
 {% endblock %}

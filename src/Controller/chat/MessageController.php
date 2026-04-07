@@ -16,7 +16,6 @@ use Symfony\Component\Routing\Annotation\Route;
 
 class MessageController extends AbstractController
 {
-	private const SESSION_CURRENT_USER_ID = 44;
 	private const LINK_PREVIEW_USER_AGENT = 'Mozilla/5.0 (compatible; NexumChatLinkPreview/1.0; +https://nexum.local)';
 
 	public function __construct(
@@ -38,7 +37,7 @@ class MessageController extends AbstractController
 			], 400);
 		}
 
-		if (!$participantRepository->isActiveParticipant($conversationId, self::SESSION_CURRENT_USER_ID)) {
+		if (!$participantRepository->isActiveParticipant($conversationId, ConversationController::SESSION_CURRENT_USER_ID)) {
 			return $this->json([
 				'success' => false,
 				'error' => 'Access denied for this conversation.',
@@ -61,7 +60,7 @@ class MessageController extends AbstractController
 				'senderId' => $senderId,
 				'senderName' => $this->buildUserName($sender),
 				'senderAvatarSrc' => $sender !== null ? $this->toDataUri($sender->getImagelink(), 'image/jpeg') : null,
-				'isOwn' => $senderId === self::SESSION_CURRENT_USER_ID,
+				'isOwn' => $senderId === ConversationController::SESSION_CURRENT_USER_ID,
 				'createdAt' => $createdAt?->format(DATE_ATOM),
 				'timeLabel' => $this->formatMessageTimeLabel($createdAt),
 			];

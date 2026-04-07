@@ -18,6 +18,14 @@ class ChatApp {
         this.activeConversationAvatarFallback = null
         this.activeConversationName = null
         this.activeConversationMeta = null
+        this.detailsDrawer = null
+        this.detailsToggleButton = null
+        this.detailsCloseButton = null
+        this.detailsAvatar = null
+        this.detailsAvatarFallback = null
+        this.detailsName = null
+        this.detailsType = null
+        this.detailsDangerAction = null
         this.currentUserName = 'You'
         this.currentUserAvatar = ''
         this.messagesSimplebar = null
@@ -61,6 +69,14 @@ class ChatApp {
         this.activeConversationAvatarFallback = document.querySelector('[data-apps-chat="active-conversation-avatar-fallback"]')
         this.activeConversationName = document.querySelector('[data-apps-chat="active-conversation-name"]')
         this.activeConversationMeta = document.querySelector('[data-apps-chat="active-conversation-meta"]')
+        this.detailsDrawer = document.querySelector('[data-apps-chat="details-drawer"]')
+        this.detailsToggleButton = document.querySelector('[data-apps-chat="details-toggle"]')
+        this.detailsCloseButton = document.querySelector('[data-apps-chat="details-close"]')
+        this.detailsAvatar = document.querySelector('[data-apps-chat="details-avatar"]')
+        this.detailsAvatarFallback = document.querySelector('[data-apps-chat="details-avatar-fallback"]')
+        this.detailsName = document.querySelector('[data-apps-chat="details-name"]')
+        this.detailsType = document.querySelector('[data-apps-chat="details-type"]')
+        this.detailsDangerAction = document.querySelector('[data-apps-chat="details-danger-action"]')
         this.chatForm = document.querySelector('#chat-form')
         if (this.chatForm) {
             this.chatInput = this.chatForm.querySelector('[data-apps-chat="chat-input"]')
@@ -161,6 +177,80 @@ class ChatApp {
                 this.activeConversationAvatarFallback.textContent = conversationName.slice(0, 1).toUpperCase() || '-'
             }
         }
+
+        this.updateDetailsDrawer(item)
+    }
+
+    updateDetailsDrawer = (item) => {
+        if (!this.detailsDrawer) {
+            return
+        }
+
+        const conversationName = this.getConversationDisplayName(item)
+        const conversationTypeRaw = (item?.dataset.conversationType || '').toUpperCase()
+        const conversationType = conversationTypeRaw === 'DM' ? 'Direct message' : 'Group conversation'
+        const avatarSrc = item?.dataset.conversationAvatar || ''
+        const isAdmin = (item?.dataset.conversationIsAdmin || '0') === '1'
+
+        if (this.detailsName) {
+            this.detailsName.textContent = conversationName
+        }
+
+        if (this.detailsType) {
+            this.detailsType.textContent = conversationType
+        }
+
+        if (this.detailsDangerAction) {
+            if (conversationTypeRaw === 'DM') {
+                this.detailsDangerAction.textContent = 'Delete conversation'
+            } else {
+                this.detailsDangerAction.textContent = isAdmin ? 'Delete conversation' : 'Leave conversation'
+            }
+        }
+
+        if (this.detailsAvatar && this.detailsAvatarFallback) {
+            if (avatarSrc) {
+                this.detailsAvatar.src = avatarSrc
+                this.detailsAvatar.classList.remove('d-none')
+                this.detailsAvatarFallback.classList.add('d-none')
+            } else {
+                this.detailsAvatar.removeAttribute('src')
+                this.detailsAvatar.classList.add('d-none')
+                this.detailsAvatarFallback.classList.remove('d-none')
+                this.detailsAvatarFallback.textContent = conversationName.slice(0, 1).toUpperCase() || '-'
+            }
+        }
+    }
+
+    setDetailsDrawerOpen = (open) => {
+        if (!this.detailsDrawer) {
+            return
+        }
+
+        this.detailsDrawer.classList.toggle('d-none', !open)
+        this.detailsDrawer.style.display = open ? 'block' : 'none'
+        if (this.detailsToggleButton) {
+            this.detailsToggleButton.setAttribute('aria-expanded', String(open))
+        }
+    }
+
+    initDetailsDrawer = () => {
+        if (!this.detailsDrawer) {
+            return
+        }
+
+        this.setDetailsDrawerOpen(false)
+
+        this.detailsToggleButton?.addEventListener('click', (event) => {
+            event.preventDefault()
+            const isCurrentlyOpen = !this.detailsDrawer.classList.contains('d-none') && this.detailsDrawer.style.display !== 'none'
+            this.setDetailsDrawerOpen(!isCurrentlyOpen)
+        })
+
+        this.detailsCloseButton?.addEventListener('click', (event) => {
+            event.preventDefault()
+            this.setDetailsDrawerOpen(false)
+        })
     }
 
     getSearchValueByType = (item, rowType) => {
@@ -1044,6 +1134,7 @@ class ChatApp {
     init = () => {
         this.cacheElements();
         this.setComposerEnabled(false);
+        this.initDetailsDrawer();
         this.scrollToBottom();
         this.initFilters();
         this.initSearch();
