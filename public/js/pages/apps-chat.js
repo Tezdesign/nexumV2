@@ -27,6 +27,7 @@ class ChatApp {
         this.detailsName = null
         this.detailsType = null
         this.detailsDangerAction = null
+        this.detailsDangerIcon = null
         this.currentUserName = 'You'
         this.currentUserAvatar = ''
         this.messagesSimplebar = null
@@ -79,6 +80,7 @@ class ChatApp {
         this.detailsName = document.querySelector('[data-apps-chat="details-name"]')
         this.detailsType = document.querySelector('[data-apps-chat="details-type"]')
         this.detailsDangerAction = document.querySelector('[data-apps-chat="details-danger-action"]')
+        this.detailsDangerIcon = document.querySelector('[data-apps-chat="details-danger-icon"]')
         this.chatForm = document.querySelector('#chat-form')
         if (this.chatForm) {
             this.chatInput = this.chatForm.querySelector('[data-apps-chat="chat-input"]')
@@ -207,6 +209,15 @@ class ChatApp {
                 this.detailsDangerAction.textContent = 'Delete conversation'
             } else {
                 this.detailsDangerAction.textContent = isAdmin ? 'Delete conversation' : 'Leave conversation'
+            }
+        }
+
+        if (this.detailsDangerIcon) {
+            this.detailsDangerIcon.className = 'fs-16'
+            if (conversationTypeRaw === 'DM' || isAdmin) {
+                this.detailsDangerIcon.classList.add('ti', 'ti-trash')
+            } else {
+                this.detailsDangerIcon.classList.add('ti', 'ti-logout-2')
             }
         }
 
