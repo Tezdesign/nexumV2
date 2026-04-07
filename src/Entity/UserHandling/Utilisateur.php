@@ -158,11 +158,20 @@ class Utilisateur
     }
 
     #[ORM\Column(type: 'blob', nullable: true)]
-    private ?string $imagelink = null;
+    private $imagelink = null;
 
     public function getImagelink(): ?string
     {
-        return $this->imagelink;
+        if ($this->imagelink === null) {
+            return null;
+        }
+
+        if (is_resource($this->imagelink)) {
+            $value = stream_get_contents($this->imagelink);
+            return $value === false ? null : $value;
+        }
+
+        return is_string($this->imagelink) ? $this->imagelink : null;
     }
 
     public function setImagelink(?string $imagelink): self

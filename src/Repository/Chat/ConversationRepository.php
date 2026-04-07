@@ -16,6 +16,24 @@ class ConversationRepository extends ServiceEntityRepository
         parent::__construct($registry, Conversation::class);
     }
 
+    /**
+     * @param int[] $ids
+     *
+     * @return Conversation[]
+     */
+    public function findByIds(array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('c')
+            ->andWhere('c.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->getResult();
+    }
+
     //    /**
     //     * @return Conversation[] Returns an array of Conversation objects
     //     */

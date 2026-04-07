@@ -61,11 +61,20 @@ class Conversation
     }
 
     #[ORM\Column(type: 'blob', nullable: true)]
-    private ?string $avatar = null;
+    private $avatar = null;
 
     public function getAvatar(): ?string
     {
-        return $this->avatar;
+        if ($this->avatar === null) {
+            return null;
+        }
+
+        if (is_resource($this->avatar)) {
+            $value = stream_get_contents($this->avatar);
+            return $value === false ? null : $value;
+        }
+
+        return is_string($this->avatar) ? $this->avatar : null;
     }
 
     public function setAvatar(?string $avatar): self
