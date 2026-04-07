@@ -658,7 +658,7 @@ class ChatApp {
         const label = document.createElement('div')
         label.style.fontSize = '12px'
         label.style.fontWeight = '500'
-        label.style.color = 'var(--bs-secondary-color)'
+        label.style.color = isOwn ? '#ffffff' : '#0b1220'
         label.style.whiteSpace = 'nowrap'
         label.style.overflow = 'hidden'
         label.style.textOverflow = 'ellipsis'
@@ -703,14 +703,14 @@ class ChatApp {
         const title = document.createElement('div')
         title.style.fontWeight = '600'
         title.style.fontSize = '13px'
-        title.style.color = 'var(--bs-body-color)'
+        title.style.color = isOwn ? '#ffffff' : '#0b1220'
         title.style.whiteSpace = 'nowrap'
         title.style.overflow = 'hidden'
         title.style.textOverflow = 'ellipsis'
 
         const description = document.createElement('div')
         description.style.fontSize = '12px'
-        description.style.color = 'var(--bs-secondary-color)'
+        description.style.color = isOwn ? 'rgba(255,255,255,0.9)' : '#111827'
         description.style.display = '-webkit-box'
         description.style.webkitLineClamp = '2'
         description.style.webkitBoxOrient = 'vertical'
@@ -719,7 +719,7 @@ class ChatApp {
 
         const footer = document.createElement('div')
         footer.style.fontSize = '11px'
-        footer.style.color = 'var(--bs-secondary-color)'
+        footer.style.color = isOwn ? 'rgba(255,255,255,0.85)' : '#334155'
         footer.style.marginTop = '6px'
         footer.textContent = displayUrl
 
