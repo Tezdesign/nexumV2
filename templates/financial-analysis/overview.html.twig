@@ -5,13 +5,16 @@
 {% block css %}
     <!-- Select2 css -->
     <link href="/vendor/select2/css/select2.min.css" rel="stylesheet" type="text/css" />
+    
+    <!-- Custom FA css -->
+    <link href="/css/FA.css" rel="stylesheet" type="text/css" />
 {% endblock %}
 
 {% block content %}
     <div class="container-fluid pt-4">
         <!-- Title & Fiscal Year Selector -->
         <div class="row align-items-center mb-3">
-            <div class="col-12 d-flex align-items-center justify-content-start gap-3">
+            <div class="col-12 d-flex align-items-center justify-content-between">
                 <div class="page-title-box mb-0">
                     <h4 class="page-title m-0">{{ 'Financial Overview'|trans }}</h4>
                 </div>

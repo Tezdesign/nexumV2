@@ -1,0 +1,45 @@
+/* Seamless Select2 UI for Financial Analysis */
+.select2-container--default .select2-selection--single {
+    background-color: transparent !important;
+    border: 1px solid transparent !important;
+    transition: all 0.2s ease-in-out;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    box-shadow: none !important;
+}
+
+/* Make text look like a normal label until clicked */
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    color: var(--bs-heading-color, #333) !important;
+    font-weight: 600;
+    font-size: 15px;
+    line-height: normal;
+    padding-left: 8px;
+}
+
+/* Subtle hover effect */
+.select2-container--default .select2-selection--single:hover {
+    background-color: rgba(var(--bs-secondary-bg-rgb, 200, 200, 200), 0.2) !important;
+    border-color: var(--bs-border-color-translucent, #e0e0e0) !important;
+    border-radius: var(--bs-border-radius, 4px);
+}
+
+/* Show clear border and background ONLY when clicked/open */
+.select2-container--default.select2-container--open .select2-selection--single {
+    background-color: var(--bs-body-bg, #fff) !important;
+    /*border-color: var(--bs-primary, #007bff) !important;*/
+    border-radius: var(--bs-border-radius, 1px);
+    box-shadow: 0 0 0 0.15rem rgba(var(--bs-primary-rgb, 0, 123, 255), 0.25) !important;
+}
+
+/* Center the dropdown arrow and match the color */
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 36px;
+}
+.select2-container--default .select2-selection--single .select2-selection__arrow b {
+    border-color: var(--bs-heading-color, #333) transparent transparent transparent !important;
+}
+.select2-container--default.select2-container--open .select2-selection--single .select2-selection__arrow b {
+    border-color: transparent transparent var(--bs-heading-color, #333) transparent !important;
+}
