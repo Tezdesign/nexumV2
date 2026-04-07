@@ -2,9 +2,11 @@
 
 namespace App\Controller\chat;
 
+use App\Entity\Chat\MessageAttachment;
 use App\Repository\Chat\ConversationParticipantRepository;
 use App\Repository\Chat\MessageAttachmentRepository;
 use App\Repository\Chat\MessageRepository;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -12,17 +14,80 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\HttpFoundation\HeaderUtils;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 class MessageAttachmentController extends AbstractController
 {
 	private const SESSION_CURRENT_USER_ID = 44;
 
 	#[Route('/apps-chat/attachments', name: 'apps-chat-attachments', methods: ['POST'])]
-	public function upload(Request $request): JsonResponse
-	{
+	public function upload(
+		Request $request,
+		MessageRepository $messageRepository,
+		ConversationParticipantRepository $participantRepository,
+		EntityManagerInterface $entityManager,
+	): JsonResponse {
+		$messageId = $request->request->get('messageId');
+		$message = $messageId ? $messageRepository->find((int)$messageId) : null;
+
+		if (!$message || !$message->getConversationId()) {
+			return $this->json([
+				'success' => false,
+				'error' => 'Message not found or invalid.',
+			], 404);
+		}
+
+		if (!$participantRepository->isActiveParticipant($message->getConversationId(), self::SESSION_CURRENT_USER_ID)) {
+			return $this->json([
+				'success' => false,
+				'error' => 'Access denied.',
+			], 403);
+		}
+
+		$files = $request->files->all();
+		if (empty($files)) {
+			return $this->json([
+				'success' => false,
+				'error' => 'No files uploaded.',
+			], 400);
+		}
+
+		$attachments = [];
+		foreach ($files as $file) {
+			if (!$file instanceof UploadedFile) {
+				continue;
+			}
+
+			$mimeType = $file->getMimeType() ?: 'application/octet-stream';
+			$fileContent = file_get_contents($file->getRealPath());
+
+			if ($fileContent === false) {
+				continue;
+			}
+
+			$attachment = new MessageAttachment();
+			$attachment->setMessageId($message->getId());
+			$attachment->setFileName($file->getClientOriginalName());
+			$attachment->setMimeType($mimeType);
+			$attachment->setSizeBytes(strlen($fileContent));
+			$attachment->setData($fileContent);
+			$attachment->setCreatedAt(new \DateTime());
+
+			$entityManager->persist($attachment);
+			$entityManager->flush();
+
+			$attachments[] = [
+				'id' => $attachment->getId(),
+				'fileName' => $attachment->getFileName(),
+				'mimeType' => $attachment->getMimeType(),
+				'sizeBytes' => $attachment->getSizeBytes(),
+				'url' => $this->generateUrl('apps-chat-attachment-show', ['attachmentId' => $attachment->getId()]),
+			];
+		}
+
 		return $this->json([
 			'success' => true,
-			'filename' => $request->files->all() ? array_key_first($request->files->all()) : null,
+			'attachments' => $attachments,
 		]);
 	}
 

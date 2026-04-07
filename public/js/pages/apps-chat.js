@@ -26,6 +26,8 @@ class ChatApp {
         this.chatSendButton = null
         this.activeFetchController = null
         this.activeAttachmentControllers = new Map()
+        this.activeAudioElement = null
+        this.linkPreviewCache = new Map()
     }
 
     cacheElements = () => {
@@ -262,6 +264,7 @@ class ChatApp {
 
     getAttachmentKind = (attachment) => {
         const mimeType = String(attachment?.mimeType || '').toLowerCase()
+        const fileName = String(attachment?.fileName || '').toLowerCase()
         if (mimeType.startsWith('image/')) {
             return 'image'
         }
@@ -274,6 +277,10 @@ class ChatApp {
             return 'audio'
         }
 
+        if (fileName.endsWith('.mp3') || fileName.endsWith('.wav') || fileName.endsWith('.ogg') || fileName.endsWith('.m4a') || fileName.endsWith('.aac') || fileName.endsWith('.flac') || fileName.endsWith('.webm')) {
+            return 'audio'
+        }
+
         return 'file'
     }
 
@@ -283,7 +290,7 @@ class ChatApp {
         const fileName = attachment?.fileName || `attachment-${index + 1}`
 
         const wrapper = document.createElement('div')
-        wrapper.className = 'mt-2'
+        wrapper.className = 'mt-2 d-block w-100'
 
         if (kind === 'image') {
             const link = document.createElement('a')
@@ -314,13 +321,230 @@ class ChatApp {
         }
 
         if (kind === 'audio') {
+            const primaryColor = 'var(--bs-primary)'
+            const waveIdleColor = primaryColor
+            const waveActiveColor = primaryColor
+            const waveStrokeColor = 'rgba(13, 110, 253, 0.65)'
+
+            const bubbleWrapper = document.createElement('div')
+            bubbleWrapper.className = 'audio-bubble-wrapper d-flex align-items-center gap-2 px-2 py-2 rounded-pill border'
+            bubbleWrapper.style.backgroundColor = 'var(--bs-tertiary-bg)'
+            bubbleWrapper.style.borderColor = 'var(--bs-border-color)'
+            bubbleWrapper.style.color = 'var(--bs-body-color)'
+            bubbleWrapper.style.maxWidth = '100%'
+            bubbleWrapper.style.minWidth = '240px'
+
+            const playButton = document.createElement('button')
+            playButton.type = 'button'
+            playButton.className = 'btn btn-primary rounded-circle d-inline-flex align-items-center justify-content-center flex-shrink-0 shadow-none'
+            playButton.style.width = '40px'
+            playButton.style.height = '40px'
+            playButton.style.padding = '0'
+            playButton.style.lineHeight = '1'
+            playButton.style.boxShadow = 'none'
+            playButton.setAttribute('aria-label', 'Play audio')
+            playButton.textContent = '▶'
+
             const audio = document.createElement('audio')
-            audio.controls = true
             audio.preload = 'metadata'
             audio.src = url
-            audio.className = 'w-100'
+            audio.style.display = 'none'
 
-            wrapper.appendChild(audio)
+            const contentArea = document.createElement('div')
+            contentArea.className = 'flex-grow-1 min-w-0'
+            contentArea.style.minWidth = '0'
+
+            const waveformRow = document.createElement('div')
+            waveformRow.style.position = 'relative'
+            waveformRow.style.display = 'flex'
+            waveformRow.style.alignItems = 'flex-end'
+            waveformRow.style.gap = '4px'
+            waveformRow.style.width = '100%'
+            waveformRow.style.height = '44px'
+            waveformRow.style.minHeight = '44px'
+            waveformRow.style.padding = '6px 0 4px'
+            waveformRow.style.cursor = 'pointer'
+            waveformRow.style.userSelect = 'none'
+            waveformRow.style.overflow = 'hidden'
+            waveformRow.style.backgroundColor = 'rgba(13, 110, 253, 0.08)'
+            waveformRow.style.borderRadius = '999px'
+
+            const waveformSeed = String(attachment?.id || fileName || url)
+            const waveformBars = []
+            const barCount = 36
+
+            for (let barIndex = 0; barIndex < barCount; barIndex += 1) {
+                const bar = document.createElement('span')
+                const seedChar = waveformSeed.charCodeAt(barIndex % waveformSeed.length) || (barIndex + 17)
+                const normalizedHeightPx = 16 + ((seedChar + barIndex * 17) % 26)
+
+                bar.style.width = '6px'
+                bar.style.height = `${normalizedHeightPx}px`
+                bar.style.flex = '1 1 0'
+                bar.style.minWidth = '6px'
+                bar.style.maxWidth = '8px'
+                bar.style.display = 'block'
+                bar.style.alignSelf = 'flex-end'
+                bar.style.borderRadius = '999px'
+                bar.style.backgroundColor = waveIdleColor
+                bar.style.border = `1px solid ${waveStrokeColor}`
+                bar.style.opacity = '0.90'
+                bar.style.boxShadow = '0 0 0 1px rgba(13, 110, 253, 0.08)'
+                bar.style.transformOrigin = 'center bottom'
+                bar.style.transition = 'background-color 0.12s ease, opacity 0.12s ease, transform 0.12s ease'
+                waveformRow.appendChild(bar)
+                waveformBars.push(bar)
+            }
+
+            const playhead = document.createElement('span')
+            playhead.style.position = 'absolute'
+            playhead.style.top = '0'
+            playhead.style.bottom = '0'
+            playhead.style.width = '2px'
+            playhead.style.left = '0%'
+            playhead.style.borderRadius = '999px'
+            playhead.style.backgroundColor = primaryColor
+            playhead.style.transform = 'translateX(-1px)'
+
+            waveformRow.appendChild(playhead)
+
+            const timerRow = document.createElement('div')
+            timerRow.className = 'd-flex align-items-center justify-content-between mt-1'
+
+            const currentTimeText = document.createElement('span')
+            currentTimeText.textContent = '0:00'
+            currentTimeText.style.fontSize = '11px'
+            currentTimeText.style.color = 'var(--bs-secondary-color)'
+
+            const durationText = document.createElement('span')
+            durationText.textContent = '0:00'
+            durationText.style.fontSize = '11px'
+            durationText.style.color = 'var(--bs-secondary-color)'
+
+            timerRow.appendChild(currentTimeText)
+            timerRow.appendChild(durationText)
+
+            const updatePlayState = () => {
+                playButton.textContent = audio.paused ? '▶' : '❚❚'
+                playButton.setAttribute('aria-label', audio.paused ? 'Play audio' : 'Pause audio')
+            }
+
+            const formatTime = (seconds) => {
+                if (!Number.isFinite(seconds) || seconds < 0) {
+                    return '0:00'
+                }
+
+                const minutes = Math.floor(seconds / 60)
+                const remainingSeconds = String(Math.floor(seconds % 60)).padStart(2, '0')
+                return `${minutes}:${remainingSeconds}`
+            }
+
+            const updateProgress = () => {
+                if (!audio.duration || Number.isNaN(audio.duration)) {
+                    playhead.style.left = '0%'
+                    currentTimeText.textContent = '0:00'
+                    return
+                }
+
+                const progress = Math.min(100, Math.max(0, (audio.currentTime / audio.duration) * 100))
+                const activeBarCount = Math.max(1, Math.round((progress / 100) * waveformBars.length))
+
+                waveformBars.forEach((bar, index) => {
+                    const isActive = index < activeBarCount
+                    const isCurrent = index === activeBarCount - 1
+
+                    bar.style.backgroundColor = isActive ? waveActiveColor : waveIdleColor
+                    bar.style.opacity = isActive ? '1' : '0.65'
+                    bar.style.transform = isCurrent && !audio.paused ? 'scaleY(1.24)' : 'scaleY(1)'
+                })
+
+                playhead.style.left = `${progress}%`
+                currentTimeText.textContent = formatTime(audio.currentTime)
+            }
+
+            const updateDuration = () => {
+                if (!audio.duration || Number.isNaN(audio.duration)) {
+                    return
+                }
+
+                durationText.textContent = formatTime(audio.duration)
+            }
+
+            const pauseOtherAudio = () => {
+                if (this.activeAudioElement && this.activeAudioElement !== audio) {
+                    this.activeAudioElement.pause()
+                }
+                this.activeAudioElement = audio
+            }
+
+            const seekToPointer = (event) => {
+                if (!audio.duration || Number.isNaN(audio.duration)) {
+                    return
+                }
+
+                const rect = waveformRow.getBoundingClientRect()
+                const offset = Math.min(Math.max(0, event.clientX - rect.left), rect.width)
+                const ratio = rect.width > 0 ? offset / rect.width : 0
+                audio.currentTime = ratio * audio.duration
+                updateProgress()
+            }
+
+            playButton.addEventListener('click', async () => {
+                if (audio.paused) {
+                    pauseOtherAudio()
+                    try {
+                        await audio.play()
+                    } catch (error) {
+                        console.error('Audio playback failed:', error)
+                    }
+                } else {
+                    audio.pause()
+                }
+
+                updatePlayState()
+            })
+
+            waveformRow.addEventListener('click', seekToPointer)
+
+            audio.addEventListener('play', updatePlayState)
+            audio.addEventListener('playing', pauseOtherAudio)
+            audio.addEventListener('pause', () => {
+                updatePlayState()
+                if (this.activeAudioElement === audio) {
+                    this.activeAudioElement = null
+                }
+            })
+            audio.addEventListener('ended', () => {
+                audio.currentTime = 0
+                updatePlayState()
+                playhead.style.left = '0%'
+                currentTimeText.textContent = '0:00'
+                if (this.activeAudioElement === audio) {
+                    this.activeAudioElement = null
+                }
+            })
+            audio.addEventListener('timeupdate', updateProgress)
+            audio.addEventListener('loadedmetadata', updateDuration)
+            audio.addEventListener('error', () => {
+                waveformBars.forEach((bar) => {
+                    bar.style.backgroundColor = waveIdleColor
+                    bar.style.opacity = '0.65'
+                    bar.style.transform = 'scaleY(1)'
+                })
+                playButton.disabled = true
+            })
+
+            contentArea.appendChild(waveformRow)
+            contentArea.appendChild(timerRow)
+
+            bubbleWrapper.appendChild(playButton)
+            bubbleWrapper.appendChild(audio)
+            bubbleWrapper.appendChild(contentArea)
+
+            wrapper.classList.add('mt-2')
+            wrapper.appendChild(bubbleWrapper)
+
+            updatePlayState()
             return wrapper
         }
 
@@ -337,6 +561,149 @@ class ChatApp {
 
     buildAttachmentListEndpoint = (messageId) => {
         return `/apps-chat/messages/${encodeURIComponent(String(messageId))}/attachments`
+    }
+
+    buildLinkPreviewEndpoint = (url) => {
+        return `/apps-chat/link-preview?url=${encodeURIComponent(String(url))}`
+    }
+
+    extractMessageUrls = (value) => {
+        const matches = String(value || '').match(/https?:\/\/[^\s<>"']+/gi) || []
+        const cleaned = matches
+            .map((url) => url.replace(/[),.;!?]+$/, ''))
+            .filter((url) => url.length > 0)
+
+        return Array.from(new Set(cleaned))
+    }
+
+    shortenLinkLabel = (url) => {
+        try {
+            const parsed = new URL(url)
+            const host = parsed.host
+            const path = parsed.pathname.replace(/^\/+/, '')
+            if (!path) {
+                return host
+            }
+
+            const shortPath = path.length > 28 ? `${path.slice(0, 25)}...` : path
+            return `${host}/${shortPath}`
+        } catch {
+            return String(url).length > 56 ? `${String(url).slice(0, 53)}...` : String(url)
+        }
+    }
+
+    loadLinkPreview = async (url) => {
+        if (this.linkPreviewCache.has(url)) {
+            return this.linkPreviewCache.get(url)
+        }
+
+        const request = fetch(this.buildLinkPreviewEndpoint(url), {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' },
+        })
+            .then(async (response) => {
+                if (!response.ok) {
+                    return {
+                        success: false,
+                        preview: {
+                            url,
+                            displayUrl: this.shortenLinkLabel(url),
+                        },
+                    }
+                }
+
+                const payload = await response.json()
+                return {
+                    success: !!payload?.success,
+                    preview: payload?.preview || {
+                        url,
+                        displayUrl: this.shortenLinkLabel(url),
+                    },
+                }
+            })
+            .catch(() => ({
+                success: false,
+                preview: {
+                    url,
+                    displayUrl: this.shortenLinkLabel(url),
+                },
+            }))
+
+        this.linkPreviewCache.set(url, request)
+        return request
+    }
+
+    createLinkPreviewNode = (url, result, isOwn) => {
+        const preview = result?.preview || {}
+        const targetUrl = preview.url || url
+        const displayUrl = preview.displayUrl || this.shortenLinkLabel(targetUrl)
+
+        const card = document.createElement('a')
+        card.href = targetUrl
+        card.target = '_blank'
+        card.rel = 'noopener noreferrer'
+        card.className = 'd-block text-decoration-none rounded-3 border p-2 mt-2'
+        card.style.backgroundColor = isOwn ? 'rgba(13,110,253,0.08)' : 'var(--bs-tertiary-bg)'
+        card.style.borderColor = isOwn ? 'rgba(13,110,253,0.35)' : 'var(--bs-border-color)'
+
+        const title = document.createElement('div')
+        title.style.fontWeight = '600'
+        title.style.fontSize = '13px'
+        title.style.color = 'var(--bs-body-color)'
+        title.style.whiteSpace = 'nowrap'
+        title.style.overflow = 'hidden'
+        title.style.textOverflow = 'ellipsis'
+
+        const description = document.createElement('div')
+        description.style.fontSize = '12px'
+        description.style.color = 'var(--bs-secondary-color)'
+        description.style.display = '-webkit-box'
+        description.style.webkitLineClamp = '2'
+        description.style.webkitBoxOrient = 'vertical'
+        description.style.overflow = 'hidden'
+        description.style.marginTop = '2px'
+
+        const footer = document.createElement('div')
+        footer.style.fontSize = '11px'
+        footer.style.color = 'var(--bs-secondary-color)'
+        footer.style.marginTop = '6px'
+        footer.textContent = displayUrl
+
+        if (result?.success && (preview.title || preview.description || preview.siteName)) {
+            title.textContent = preview.title || preview.siteName || displayUrl
+            if (preview.description) {
+                description.textContent = preview.description
+            } else {
+                description.textContent = preview.siteName || displayUrl
+            }
+            card.appendChild(title)
+            card.appendChild(description)
+            card.appendChild(footer)
+            return card
+        }
+
+        title.textContent = displayUrl
+        title.style.fontWeight = '500'
+        title.style.color = 'var(--bs-secondary-color)'
+        card.style.backgroundColor = isOwn ? 'rgba(13,110,253,0.05)' : 'rgba(108,117,125,0.08)'
+        card.appendChild(title)
+        return card
+    }
+
+    renderMessageLinkPreviews = async (urls, linkPreviewContainer, isOwn) => {
+        if (!urls.length || !linkPreviewContainer) {
+            return
+        }
+
+        const previews = await Promise.all(urls.map((url) => this.loadLinkPreview(url)))
+        linkPreviewContainer.innerHTML = ''
+
+        previews.forEach((previewResult, idx) => {
+            const url = urls[idx]
+            linkPreviewContainer.appendChild(this.createLinkPreviewNode(url, previewResult, isOwn))
+        })
+
+        linkPreviewContainer.classList.remove('d-none')
     }
 
     loadMessageAttachments = async (messageId, attachmentContainer, bodyElement) => {
@@ -408,10 +775,13 @@ class ChatApp {
             : (message.senderAvatarSrc || '')
         const timeLabel = message.timeLabel || '--'
         const body = message.body || ''
+        const urlsInBody = this.extractMessageUrls(body)
+        const bodyWithoutLinks = body.replace(/https?:\/\/[^\s<>"']+/gi, '').replace(/\s{2,}/g, ' ').trim()
         const attachments = Array.isArray(message.attachments) ? message.attachments : []
         const isAttachmentMessage = String(message.kind || '').toUpperCase() === 'ATTACHMENT'
         const fallbackText = body.trim().length > 0 ? body : 'Attachment'
-        const hasTextBody = body.trim().length > 0 || isAttachmentMessage
+        const bodyTextToRender = bodyWithoutLinks !== '' ? bodyWithoutLinks : (isAttachmentMessage ? fallbackText : '')
+        const hasTextBody = bodyTextToRender.trim().length > 0 || isAttachmentMessage
 
         const listItem = document.createElement('li')
         listItem.className = `chat-group${isOwn ? ' odd' : ''}`
@@ -436,7 +806,7 @@ class ChatApp {
         const chatMessage = document.createElement('div')
         chatMessage.className = 'chat-message'
         const bodyElement = document.createElement('p')
-        bodyElement.textContent = fallbackText
+        bodyElement.textContent = bodyTextToRender
 
         if (hasTextBody) {
             chatMessage.appendChild(bodyElement)
@@ -444,6 +814,9 @@ class ChatApp {
 
         const attachmentContainer = document.createElement('div')
         attachmentContainer.className = 'd-grid gap-2 d-none'
+
+        const linkPreviewContainer = document.createElement('div')
+        linkPreviewContainer.className = 'd-grid gap-2 d-none'
 
         if (isAttachmentMessage) {
             chatMessage.appendChild(attachmentContainer)
@@ -456,6 +829,13 @@ class ChatApp {
                 attachmentContainer.appendChild(this.createAttachmentNode(attachment, attachmentIndex))
             })
             chatMessage.appendChild(attachmentContainer)
+        }
+
+        if (!isAttachmentMessage && urlsInBody.length > 0) {
+            chatMessage.appendChild(linkPreviewContainer)
+            queueMicrotask(() => {
+                this.renderMessageLinkPreviews(urlsInBody, linkPreviewContainer, isOwn)
+            })
         }
 
         chatBody.appendChild(titleWrapper)

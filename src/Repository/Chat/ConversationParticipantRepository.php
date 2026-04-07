@@ -1,11 +1,9 @@
 <?php
-
 namespace App\Repository\Chat;
 
 use App\Entity\Chat\ConversationParticipant;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
-
 /**
  * @extends ServiceEntityRepository<ConversationParticipant>
  */
