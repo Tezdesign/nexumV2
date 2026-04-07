@@ -271,11 +271,11 @@ final class TaskController extends AbstractController
         $currentUserId = (int) ($currentUser?->getId() ?? 0);
         $role = strtolower((string) ($currentUser?->getRole() ?? ''));
         $isManager = $role !== '' && str_contains($role, 'manager');
-        if ($isManager) {
-            throw $this->createAccessDeniedException();
-        }
+        $isSelfTask = $task->getAssignedTo() !== null && (int) $task->getAssignedTo() === $currentUserId;
 
-        if ($task->getAssignedTo() === null || (int) $task->getAssignedTo() !== $currentUserId) {
+        // Employees can update progress only for tasks assigned to them.
+        // Managers can update progress only for tasks assigned to themselves.
+        if (!$isSelfTask) {
             throw $this->createAccessDeniedException();
         }
 
@@ -319,6 +319,7 @@ final class TaskController extends AbstractController
     ): Response
     {
         $currentUser = $utilisateurRepository->findFirstManagerOrFirst();
+        $currentUserId = (int) ($currentUser?->getId() ?? 0);
         $role = strtolower((string) ($currentUser?->getRole() ?? ''));
         $isManager = $role !== '' && str_contains($role, 'manager');
         if (!$isManager) {
@@ -349,6 +350,7 @@ final class TaskController extends AbstractController
 
         $form = $this->createForm(TaskManagerUpdateType::class, $task, [
             'member_ids' => array_keys($memberIds),
+            'allow_status' => ($task->getAssignedTo() !== null && (int) $task->getAssignedTo() === $currentUserId),
         ]);
 
         $assignedId = $task->getAssignedTo();
@@ -392,6 +394,7 @@ final class TaskController extends AbstractController
     ): Response
     {
         $currentUser = $utilisateurRepository->findFirstManagerOrFirst();
+        $currentUserId = (int) ($currentUser?->getId() ?? 0);
         $role = strtolower((string) ($currentUser?->getRole() ?? ''));
         $isManager = $role !== '' && str_contains($role, 'manager');
         if (!$isManager) {
@@ -419,6 +422,7 @@ final class TaskController extends AbstractController
 
         $form = $this->createForm(TaskManagerUpdateType::class, $task, [
             'member_ids' => array_keys($memberIds),
+            'allow_status' => ($task->getAssignedTo() !== null && (int) $task->getAssignedTo() === $currentUserId),
         ]);
 
         $assignedId = $task->getAssignedTo();

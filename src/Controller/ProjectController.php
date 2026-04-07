@@ -218,6 +218,11 @@ final class ProjectController extends AbstractController
     {
         $pid = $project->getId();
 
+        $currentUser = $utilisateurRepository->findFirstManagerOrFirst();
+        $currentUserId = $currentUser?->getId() ?? 1;
+        $role = strtolower((string) ($currentUser?->getRole() ?? ''));
+        $isManager = $role !== '' && str_contains($role, 'manager');
+
         $tab = strtolower(trim((string) $request->query->get('tab', 'overview')));
         $allowedTabs = ['overview', 'tasks', 'kanban', 'discussion', 'files', 'activity', 'settings'];
         if (!in_array($tab, $allowedTabs, true)) {
@@ -277,15 +282,131 @@ final class ProjectController extends AbstractController
             }
         }
 
+        // Data for the "add members" modal.
+        $allUsers = $utilisateurRepository->createQueryBuilder('u')
+            ->orderBy('u.role', 'ASC')
+            ->addOrderBy('u.prenom', 'ASC')
+            ->addOrderBy('u.nom', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        $pickableUsers = [];
+        foreach ($allUsers as $u) {
+            $id = $u->getId();
+            if ($id === null) {
+                continue;
+            }
+            $fullName = trim(((string) $u->getPrenom()) . ' ' . ((string) $u->getNom()));
+            $roleName = trim((string) $u->getRole());
+            $img = null;
+
+            $raw = $u->getImagelink();
+            if (is_string($raw)) {
+                $raw = trim($raw);
+                if ($raw !== '' && preg_match('~^(https?://|/|data:image/)~', $raw) === 1) {
+                    $img = $raw;
+                }
+            }
+
+            $pickableUsers[] = [
+                'id' => $id,
+                'name' => $fullName !== '' ? $fullName : ('User #' . $id),
+                'role' => $roleName,
+                'img' => $img,
+            ];
+        }
+
         return $this->render('project/show.html.twig', [
             'project' => $project,
+            'isManager' => $isManager,
+            'currentUserId' => (int) $currentUserId,
             'memberIds' => $memberIds,
             'membersById' => $membersById,
             'avatarUrlById' => $avatarUrlById,
+            'pickableUsers' => $pickableUsers,
             'stats' => $stats,
             'tasks' => $tasks,
             'activeTab' => $tab,
         ]);
+    }
+
+    #[Route('/{id}/members', name: 'app_project_add_members', methods: ['POST'])]
+    public function addMembers(
+        Request $request,
+        Project $project,
+        ProjectAssignmentRepository $projectAssignmentRepository,
+        UtilisateurRepository $utilisateurRepository,
+        EntityManagerInterface $entityManager
+    ): Response
+    {
+        $pid = $project->getId();
+        if ($pid === null) {
+            return $this->redirectToRoute('app_project_index', [], Response::HTTP_SEE_OTHER);
+        }
+
+        $currentUser = $utilisateurRepository->findFirstManagerOrFirst();
+        $role = strtolower((string) ($currentUser?->getRole() ?? ''));
+        $isManager = $role !== '' && str_contains($role, 'manager');
+        if (!$isManager) {
+            throw $this->createAccessDeniedException();
+        }
+
+        if (!$this->isCsrfTokenValid('project_members'.$pid, (string) $request->request->get('_token', ''))) {
+            return $this->redirectToRoute('app_project_show', ['id' => $pid], Response::HTTP_SEE_OTHER);
+        }
+
+        $tab = strtolower(trim((string) $request->request->get('tab', 'overview')));
+        $allowedTabs = ['overview', 'tasks', 'kanban', 'discussion', 'files', 'activity', 'settings'];
+        if (!in_array($tab, $allowedTabs, true)) {
+            $tab = 'overview';
+        }
+
+        $rawIds = $request->request->all('user_ids');
+        $userIds = [];
+        foreach ((array) $rawIds as $v) {
+            $id = (int) $v;
+            if ($id > 0) {
+                $userIds[$id] = true;
+            }
+        }
+        $userIds = array_keys($userIds);
+
+        if ($userIds !== []) {
+            // Existing members (including legacy columns).
+            $existing = [];
+            $createdBy = $project->getCreatedBy();
+            if ($createdBy !== null) {
+                $existing[(int) $createdBy] = true;
+            }
+            $assignedTo = $project->getAssignedTo();
+            if ($assignedTo !== null) {
+                $existing[(int) $assignedTo] = true;
+            }
+            foreach ($projectAssignmentRepository->getUserIdsByProjectId((int) $pid) as $uid) {
+                $existing[(int) $uid] = true;
+            }
+
+            // Ensure we only insert assignments for users that exist.
+            $usersById = $utilisateurRepository->findIndexedByIds($userIds);
+
+            foreach ($userIds as $uid) {
+                if (isset($existing[$uid])) {
+                    continue;
+                }
+                if (!isset($usersById[$uid])) {
+                    continue;
+                }
+
+                $pa = new ProjectAssignment();
+                $pa->setProject_id((int) $pid);
+                $pa->setUserId((int) $uid);
+                $entityManager->persist($pa);
+            }
+
+            $entityManager->flush();
+        }
+
+        return $this->redirectToRoute('app_project_show', ['id' => $pid, 'tab' => $tab], Response::HTTP_SEE_OTHER);
     }
 
     #[Route('/{id}/edit', name: 'app_project_edit', methods: ['GET', 'POST'])]

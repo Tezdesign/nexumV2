@@ -285,11 +285,6 @@
                             <p class="text-muted mt-2 mb-3">No description.</p>
                         {% endif %}
 
-                        <div class="d-flex flex-wrap gap-2 mb-3">
-                            <span class="badge bg-body-secondary text-dark nexum-tag">DESIGN</span>
-                            <span class="badge bg-body-secondary text-dark nexum-tag">DEV</span>
-                        </div>
-
                         {% set pctRaw = project.progress is not null ? project.progress : 0 %}
                         {% set pct = pctRaw < 0 ? 0 : (pctRaw > 100 ? 100 : pctRaw) %}
 
@@ -333,8 +328,6 @@
                                     +{{ extraCount }}
                                 </span>
                             {% endif %}
-
-                            <span class="nexum-avatar nexum-avatar--add" title="Add member">+</span>
                         </div>
 
                         <div class="text-muted small d-flex align-items-center gap-1">

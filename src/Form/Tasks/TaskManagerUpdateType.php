@@ -17,28 +17,27 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 /**
  * Manager edit rules:
  * - Status cannot be changed after creation.
- * - Only assignment, due date and priority can be edited.
- * - Title/description are shown read-only for context.
+ * - Name/description/assignment/due date/priority can be edited.
+ * - Status can be optionally enabled (only when the task is assigned to the manager).
  */
 final class TaskManagerUpdateType extends AbstractType
 {
     /**
-     * @param array{member_ids?: int[]} $options
+     * @param array{member_ids?: int[], allow_status?: bool} $options
      */
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         /** @var int[] $memberIds */
         $memberIds = array_values(array_unique(array_map('intval', $options['member_ids'] ?? [])));
+        $allowStatus = (bool) ($options['allow_status'] ?? false);
 
         $builder
             ->add('title', TextType::class, [
                 'label' => 'Task Name',
-                'disabled' => true,
             ])
             ->add('description', TextareaType::class, [
                 'required' => false,
                 'label' => 'Description',
-                'disabled' => true,
             ])
             ->add('due_date', DateType::class, [
                 'widget' => 'single_text',
@@ -54,7 +53,7 @@ final class TaskManagerUpdateType extends AbstractType
                 ],
                 'placeholder' => 'Select status...',
                 'label' => 'Status',
-                'disabled' => true,
+                'disabled' => !$allowStatus,
             ])
             ->add('assignedUser', EntityType::class, [
                 'mapped' => false,
@@ -97,8 +96,9 @@ final class TaskManagerUpdateType extends AbstractType
         $resolver->setDefaults([
             'data_class' => Task::class,
             'member_ids' => [],
+            'allow_status' => false,
         ]);
         $resolver->setAllowedTypes('member_ids', 'array');
+        $resolver->setAllowedTypes('allow_status', 'bool');
     }
 }
-

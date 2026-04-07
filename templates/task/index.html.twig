@@ -661,7 +661,7 @@
 	                    {% set au = task.assignedTo ?? null %}
 	                    {% set u = au is not null ? (usersById[au] ?? null) : null %}
 	                    {% set fullName = u ? ((u.prenom ~ ' ' ~ u.nom)|trim|plain_text) : '' %}
-	                    {% set canUpdateProgress = (not (isManager|default(false))) and (au is not null) and ((au == (currentUserId|default(0)))) %}
+	                    {% set canUpdateProgress = (au is not null) and (au == (currentUserId|default(0))) %}
 
 	                    <div class="nexum-row">
 	                        <div class="nexum-row-left">
