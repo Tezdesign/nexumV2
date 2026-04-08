@@ -53,6 +53,8 @@ final class TaskController extends AbstractController
         $prefillProjectId = (int) $request->query->get('project', 0);
         $openCreate = (string) $request->query->get('create', '') === '1';
         $prefillProject = $prefillProjectId > 0 ? $projectRepository->find($prefillProjectId) : null;
+        $backUrl = (string) $request->request->get('back', '');
+        $backUrl = ($backUrl !== '' && str_starts_with($backUrl, '/')) ? $backUrl : '';
 
         // Modal "quick create" form.
         $createTask = new Task();
@@ -128,6 +130,15 @@ final class TaskController extends AbstractController
 
                 $entityManager->persist($createTask);
                 $entityManager->flush();
+
+                $back = (string) $request->request->get('back', '');
+                if ($back !== '' && str_starts_with($back, '/')) {
+                    if ($request->isXmlHttpRequest()) {
+                        return $this->json(['location' => $back]);
+                    }
+
+                    return $this->redirect($back, Response::HTTP_SEE_OTHER);
+                }
 
                 if ($request->isXmlHttpRequest()) {
                     return $this->json(['location' => $this->generateUrl('app_task_index')]);
@@ -209,6 +220,7 @@ final class TaskController extends AbstractController
             'avatarUrlById' => $avatarUrlById,
             'createForm' => $createForm->createView(),
             'canCreateTask' => $canCreateTask,
+            'backUrl' => $backUrl,
         ], new Response('', $createFormResponseStatus));
     }
 

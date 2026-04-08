@@ -4,6 +4,8 @@ namespace App\Controller;
 
 use App\Entity\Projects\Project;
 use App\Entity\Projects\ProjectAssignment;
+use App\Entity\Tasks\Task;
+use App\Form\Tasks\TaskQuickCreateType;
 use App\Form\Projects\ProjectQuickCreateType;
 use App\Form\Projects\ProjectType;
 use App\Repository\Projects\ProjectAssignmentRepository;
@@ -265,6 +267,26 @@ final class ProjectController extends AbstractController
         $canDeleteProject = $isManager;
         $canCreateTask = $isManager || isset($teamMemberIds[(int) $currentUserId]);
 
+        $createTask = null;
+        $createTaskForm = null;
+        if ($canCreateTask) {
+            $createTask = new Task();
+            $createTaskForm = $this->createForm(TaskQuickCreateType::class, $createTask, [
+                'action' => $this->generateUrl('app_task_index'),
+                'method' => 'POST',
+                'is_manager' => $isManager,
+                'allowed_project_ids' => $isManager ? [] : [$pid !== null ? (int) $pid : 0],
+            ]);
+
+            if ($pid !== null && $createTaskForm->has('project')) {
+                $createTaskForm->get('project')->setData($project);
+            }
+
+            if ($isManager && $currentUser !== null && $createTaskForm->has('assignedUser')) {
+                $createTaskForm->get('assignedUser')->setData($currentUser);
+            }
+        }
+
         $projectTasks = $pid !== null ? $taskRepository->findForProject((int) $pid) : [];
         $progressTotal = count($projectTasks);
         $progressDoneOrInProgress = 0;
@@ -303,6 +325,10 @@ final class ProjectController extends AbstractController
         $allUserIds = array_map('intval', array_keys($teamMemberIds + $taskUserIds));
 
         $membersById = $utilisateurRepository->findIndexedByIds($allUserIds);
+        $visibleMemberIds = array_values(array_filter(
+            $memberIds,
+            static fn (int $uid): bool => isset($membersById[$uid])
+        ));
         $avatarUrlById = [];
         foreach ($membersById as $uid => $user) {
             $raw = $user->getImagelink();
@@ -353,6 +379,7 @@ final class ProjectController extends AbstractController
             'isManager' => $isManager,
             'currentUserId' => (int) $currentUserId,
             'memberIds' => $memberIds,
+            'visibleMemberIds' => $visibleMemberIds,
             'membersById' => $membersById,
             'avatarUrlById' => $avatarUrlById,
             'pickableUsers' => $pickableUsers,
@@ -362,6 +389,7 @@ final class ProjectController extends AbstractController
             'canEditProject' => $canEditProject,
             'canDeleteProject' => $canDeleteProject,
             'canCreateTask' => $canCreateTask,
+            'createTaskForm' => $createTaskForm ? $createTaskForm->createView() : null,
             'projectProgressPercent' => $projectProgressPercent,
         ]);
     }

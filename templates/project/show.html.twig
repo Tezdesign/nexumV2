@@ -398,6 +398,79 @@
             font-weight: 900;
         }
 
+        .nexum-modal .modal-content {
+            border-radius: 16px;
+            border: 1px solid var(--nexum-stone-200);
+        }
+
+        .nexum-modal .modal-header,
+        .nexum-modal .modal-footer {
+            border-color: var(--nexum-stone-200);
+        }
+
+        .nexum-modal .modal-dialog {
+            max-width: 720px;
+        }
+
+        .nexum-modal .modal-title {
+            font-weight: 900;
+        }
+
+        .nexum-modal label {
+            font-size: 12px;
+            font-weight: 800;
+            color: #475569;
+        }
+
+        .nexum-modal .form-control,
+        .nexum-modal .form-select {
+            border-radius: 12px;
+            border-color: #e2e8f0;
+            padding-top: 10px;
+            padding-bottom: 10px;
+        }
+
+        .nexum-modal textarea.form-control {
+            min-height: 92px;
+            resize: none;
+        }
+
+        .nexum-modal .modal-footer .btn {
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-weight: 800;
+            font-family: "Inter", "Segoe UI", sans-serif;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .nexum-modal .modal-footer .btn.btn-outline-secondary {
+            border-color: #e2e8f0;
+            color: #334155;
+            background: #fff;
+        }
+
+        .nexum-btn-primary {
+            background: var(--nexum-accent) !important;
+            border-color: var(--nexum-accent) !important;
+            box-shadow: 0 10px 18px rgba(124, 58, 237, 0.18);
+        }
+
+        .nexum-btn-primary:hover {
+            background: #6d28d9 !important;
+            border-color: #6d28d9 !important;
+        }
+
+        .btn.btn-primary {
+            background: var(--nexum-accent) !important;
+            border-color: var(--nexum-accent) !important;
+        }
+
+        .btn.btn-primary:hover {
+            background: #6d28d9 !important;
+            border-color: #6d28d9 !important;
+        }
+
         .nexum-member-search {
             border-radius: 12px;
             height: 44px;
@@ -503,6 +576,7 @@
         <span class="text-dark">{{ project.name|plain_text }}</span>
     </div>
 
+    {% set renderedMemberIds = visibleMemberIds is defined ? visibleMemberIds : memberIds %}
     {% set pct = projectProgressPercent|default(0) %}
 
     <div class="card nexum-shell-card mb-4">
@@ -548,7 +622,7 @@
 
                         <span class="d-inline-flex align-items-center gap-2">
                             <span class="ti ti-users"></span>
-                            <span>{{ memberIds|length }} members</span>
+                            <span>{{ renderedMemberIds|length }} members</span>
                         </span>
                     </div>
                 </div>
@@ -612,12 +686,14 @@
                     <div class="card-body d-flex align-items-center justify-content-between">
                         <h5 class="mb-0">Tasks</h5>
                         {% if canCreateTask|default(false) %}
-                            <a class="nexum-icon-btn"
-                               href="{{ path('app_task_index', {create: 1, project: project.id}) }}"
+                            <button class="nexum-icon-btn"
+                               type="button"
+                               data-bs-toggle="modal"
+                               data-bs-target="#createTaskModal"
                                title="Add task"
                                aria-label="Add task">
                                 <i class="ri-add-line"></i>
-                            </a>
+                            </button>
                         {% endif %}
                     </div>
                     <div class="card-body pt-0">
@@ -779,7 +855,7 @@
                 </div>
                 <div class="card-body pt-2">
                     <div class="d-flex align-items-center flex-wrap gap-1">
-                        {% for uid in memberIds %}
+                        {% for uid in renderedMemberIds %}
                             {% set user = membersById[uid] ?? null %}
                             {% if user %}
                                 {% set fullName = (user.prenom ~ ' ' ~ user.nom)|trim %}
@@ -809,7 +885,7 @@
                     </div>
 
                     <div class="mt-2">
-                        {% for uid in memberIds %}
+                        {% for uid in renderedMemberIds %}
                             {% set user = membersById[uid] ?? null %}
                             {% if user %}
                                 {% set fullName = (user.prenom ~ ' ' ~ user.nom)|trim %}
@@ -838,6 +914,15 @@
             </div>
         </div>
     </div>
+
+    {# Task create popup (Bootstrap modal) #}
+    {% if canCreateTask|default(false) and createTaskForm is not null %}
+        <div class="modal fade nexum-modal" id="createTaskModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                {% include 'task/_create_modal_content.html.twig' with { createForm: createTaskForm, backUrl: app.request.requestUri } %}
+            </div>
+        </div>
+    {% endif %}
 
     {# Add members popup (Bootstrap modal) #}
     {% if canEditProject|default(false) %}
@@ -970,6 +1055,105 @@
 {% block script %}
     {{ parent() }}
     <script>
+        (function () {
+            const modalEl = document.getElementById('createTaskModal');
+            if (!modalEl) return;
+
+            const assigneesEndpoint = {{ path('app_task_assignees')|json_encode|raw }};
+
+            async function refreshAssignees(projectId) {
+                const assigneeSelect = modalEl.querySelector('select[data-task-assignee="1"]');
+                if (!assigneeSelect) return;
+                const prev = assigneeSelect.value;
+                assigneeSelect.innerHTML = '<option value="">Loading...</option>';
+
+                const pid = parseInt(String(projectId || '0'), 10);
+                if (!pid) {
+                    assigneeSelect.innerHTML = '<option value="">Select team ...</option>';
+                    return;
+                }
+
+                try {
+                    const res = await fetch(assigneesEndpoint + '?project=' + encodeURIComponent(String(pid)), {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+                    const payload = await res.json();
+                    const users = (payload && payload.users) ? payload.users : [];
+
+                    let html = '<option value="">Select team ...</option>';
+                    for (const u of users) {
+                        const id = String(u.id);
+                        const name = String(u.name || ('User #' + id));
+                        html += '<option value="' + id.replace(/\"/g, '') + '">' + name.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</option>';
+                    }
+                    assigneeSelect.innerHTML = html;
+
+                    if (prev) {
+                        assigneeSelect.value = prev;
+                    }
+                } catch (e) {
+                    assigneeSelect.innerHTML = '<option value="">Select team ...</option>';
+                }
+            }
+
+            modalEl.addEventListener('change', function (e) {
+                const t = e.target;
+                if (t && t.matches && t.matches('select[data-task-project="1"]')) {
+                    refreshAssignees(t.value);
+                }
+            });
+
+            modalEl.addEventListener('submit', async function (e) {
+                const form = e.target;
+                if (!form || form.id !== 'createTaskForm') return;
+                e.preventDefault();
+                try {
+                    const res = await fetch(form.action, {
+                        method: 'POST',
+                        body: new FormData(form),
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json, text/html;q=0.9'
+                        }
+                    });
+                    const ct = (res.headers.get('Content-Type') || '');
+                    if (res.ok && ct.indexOf('application/json') !== -1) {
+                        const data = await res.json();
+                        if (data && data.location) {
+                            window.location.href = data.location;
+                        }
+                        return;
+                    }
+                    if (res.status === 422) {
+                        const html = await res.text();
+                        const wrap = document.getElementById('createTaskModalContent');
+                        if (wrap && html) {
+                            const doc = new DOMParser().parseFromString(html, 'text/html');
+                            const nextWrap = doc.getElementById('createTaskModalContent');
+                            if (nextWrap) {
+                                wrap.outerHTML = nextWrap.outerHTML;
+                            } else {
+                                window.location.reload();
+                            }
+                        }
+                        return;
+                    }
+                    if (res.status === 403) {
+                        window.location.reload();
+                        return;
+                    }
+                    window.location.reload();
+                } catch (err) {
+                    window.location.reload();
+                }
+            });
+
+            const projectSelect = modalEl.querySelector('select[data-task-project="1"]');
+            if (projectSelect && projectSelect.value) {
+                refreshAssignees(projectSelect.value);
+            }
+        })();
+
         (function () {
             const modalEl = document.getElementById('editProjectModal');
             const contentEl = document.getElementById('editProjectModalContent');
