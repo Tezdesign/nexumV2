@@ -98,6 +98,13 @@ class BudgetProfile
     #[ORM\Column(type: 'string', length: 50, nullable: false, options: ['default' => 'DRAFT'])]
     private ?string $status = 'DRAFT';
 
+    public function __construct()
+    {
+
+        $this->total_expense = '0.00';
+        $this->margin_profit = 100.00;
+    }
+
     public function getMargin_profit(): ?float
     {
         return $this->margin_profit;
@@ -208,7 +215,6 @@ class BudgetProfile
     #[ORM\PreUpdate]
     public function calculateStatus(): void
     {
-        // Automatically determine if the budget is DRAFT or ACTIVE based on the fiscal year
         if ($this->fiscal_year) {
             $currentYear = date('Y');
 
