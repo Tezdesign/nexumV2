@@ -35,6 +35,9 @@ class ChatApp {
         this.detailsInfoType = null
         this.detailsInfoCreated = null
         this.detailsCustomizeSection = null
+        this.detailsCustomizeToggle = null
+        this.detailsCustomizeBody = null
+        this.detailsCustomizeChevron = null
         this.customizeNameToggleButton = null
         this.customizeAvatarToggleButton = null
         this.customizeAvatarInput = null
@@ -104,6 +107,9 @@ class ChatApp {
         this.detailsInfoType = document.querySelector('[data-apps-chat="details-info-type"]')
         this.detailsInfoCreated = document.querySelector('[data-apps-chat="details-info-created"]')
         this.detailsCustomizeSection = document.querySelector('[data-apps-chat="details-customize-section"]')
+        this.detailsCustomizeToggle = document.querySelector('[data-apps-chat="details-customize-toggle"]')
+        this.detailsCustomizeBody = document.querySelector('[data-apps-chat="details-customize-body"]')
+        this.detailsCustomizeChevron = document.querySelector('[data-apps-chat="details-customize-chevron"]')
         this.customizeNameToggleButton = document.querySelector('[data-apps-chat="customize-name-toggle"]')
         this.customizeAvatarToggleButton = document.querySelector('[data-apps-chat="customize-avatar-toggle"]')
         this.customizeAvatarInput = document.querySelector('[data-apps-chat="customize-avatar-input"]')
@@ -258,6 +264,9 @@ class ChatApp {
 
         if (this.detailsCustomizeSection) {
             this.detailsCustomizeSection.classList.toggle('d-none', conversationTypeRaw !== 'GROUP')
+            if (conversationTypeRaw !== 'GROUP') {
+                this.setCustomizeOpen(false)
+            }
         }
 
         if (this.customizeNameToggleButton) {
@@ -392,6 +401,7 @@ class ChatApp {
 
         if (!open) {
             this.setChatInfoOpen(false)
+            this.setCustomizeOpen(false)
         }
     }
 
@@ -406,6 +416,20 @@ class ChatApp {
         if (this.detailsChatInfoChevron) {
             this.detailsChatInfoChevron.style.transform = open ? 'rotate(180deg)' : 'rotate(0deg)'
             this.detailsChatInfoChevron.style.transition = 'transform 0.16s ease'
+        }
+    }
+
+    setCustomizeOpen = (open) => {
+        if (!this.detailsCustomizeBody || !this.detailsCustomizeToggle) {
+            return
+        }
+
+        this.detailsCustomizeBody.classList.toggle('d-none', !open)
+        this.detailsCustomizeToggle.setAttribute('aria-expanded', String(open))
+
+        if (this.detailsCustomizeChevron) {
+            this.detailsCustomizeChevron.style.transform = open ? 'rotate(180deg)' : 'rotate(0deg)'
+            this.detailsCustomizeChevron.style.transition = 'transform 0.16s ease'
         }
     }
 
@@ -445,6 +469,22 @@ class ChatApp {
             event.preventDefault()
             const isOpen = !this.detailsChatInfoBody?.classList.contains('d-none')
             this.setChatInfoOpen(!isOpen)
+        })
+
+        this.detailsCustomizeToggle?.addEventListener('click', (event) => {
+            event.preventDefault()
+            const isOpen = !this.detailsCustomizeBody?.classList.contains('d-none')
+            this.setCustomizeOpen(!isOpen)
+        })
+
+        this.detailsCustomizeToggle?.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') {
+                return
+            }
+
+            event.preventDefault()
+            const isOpen = !this.detailsCustomizeBody?.classList.contains('d-none')
+            this.setCustomizeOpen(!isOpen)
         })
     }
 
