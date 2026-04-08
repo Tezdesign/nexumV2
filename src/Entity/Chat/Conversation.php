@@ -132,8 +132,6 @@ class Conversation
 
     public function assertCanRenameParticipant(int $actorUserId, int $targetUserId): void
     {
-        $this->assertGroupConversation();
-
         if ($actorUserId <= 0 || $targetUserId <= 0) {
             throw new InvalidArgumentException('Invalid participant id.');
         }

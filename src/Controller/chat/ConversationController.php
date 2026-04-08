@@ -157,7 +157,7 @@ class ConversationController extends AbstractController
                     'avatarSrc' => $user !== null ? $this->toDataUri($user->getImagelink(), 'image/jpeg') : null,
                     'isSelf' => $isSelf,
                     'canRenameNickname' => true,
-                    'canKick' => $actorIsAdmin && !$isSelf,
+                    'canKick' => $conversation->isGroupConversation() && $actorIsAdmin && !$isSelf,
                 ];
             }, $participants),
             'actorIsAdmin' => $actorIsAdmin,

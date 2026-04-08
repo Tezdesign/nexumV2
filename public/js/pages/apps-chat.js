@@ -713,6 +713,24 @@ class ChatApp {
         })
     }
 
+    updateDirectConversationTitleFromMembers = (members, renamedUserId) => {
+        if (!this.activeConversationItem || this.getConversationTypeRaw(this.activeConversationItem) !== 'DM') {
+            return
+        }
+
+        const targetId = String(renamedUserId || '')
+        const targetMember = members.find((member) => String(member.userId || '') === targetId)
+        const selfMember = members.find((member) => !!member.isSelf)
+        const nextName = targetMember && !targetMember.isSelf
+            ? String(targetMember.name || targetMember.fullName || 'Unknown conversation')
+            : String(selfMember?.name || selfMember?.fullName || this.getConversationDisplayName(this.activeConversationItem))
+
+        this.activeConversationItem.dataset.conversationName = nextName
+        this.activeConversationItem.dataset.dmName = nextName
+        this.activeConversationItem.dataset.groupTitle = ''
+        this.updateConversationHeader(this.activeConversationItem)
+    }
+
     renderMembers = (members) => {
         if (!this.membersList) {
             return
@@ -771,7 +789,7 @@ class ChatApp {
 
     loadConversationMembers = async (conversationId) => {
         if (!conversationId) {
-            return
+            return []
         }
 
         try {
@@ -791,8 +809,11 @@ class ChatApp {
                 this.membersAddButton.classList.toggle('d-none', !payload.canAddMembers)
                 this.membersAddButton.disabled = !payload.canAddMembers
             }
+
+            return members
         } catch (error) {
             this.showBottomNotice(error?.message || 'Failed to load members.')
+            return []
         }
     }
 
@@ -881,6 +902,7 @@ class ChatApp {
             return
         }
 
+        const targetUserId = this.editingMemberUserId
         this.setNicknameError('')
         this.nicknameSubmitButton?.setAttribute('disabled', 'disabled')
 
@@ -897,7 +919,8 @@ class ChatApp {
             }
 
             this.closeNicknameModal()
-            await this.loadConversationMembers(this.activeConversationId)
+            const members = await this.loadConversationMembers(this.activeConversationId)
+            this.updateDirectConversationTitleFromMembers(Array.isArray(members) ? members : [], targetUserId)
             await this.loadConversationMessages(this.activeConversationId, this.buildMessagesEndpoint(this.activeConversationItem, this.activeConversationId))
         } catch (error) {
             this.setNicknameError(error?.message || 'Failed to change nickname.')
