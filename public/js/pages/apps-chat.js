@@ -38,6 +38,12 @@ class ChatApp {
         this.detailsCustomizeToggle = null
         this.detailsCustomizeBody = null
         this.detailsCustomizeChevron = null
+        this.detailsMembersSection = null
+        this.detailsMembersToggle = null
+        this.detailsMembersBody = null
+        this.detailsMembersChevron = null
+        this.membersList = null
+        this.membersAddButton = null
         this.customizeNameToggleButton = null
         this.customizeAvatarToggleButton = null
         this.customizeAvatarInput = null
@@ -47,6 +53,19 @@ class ChatApp {
         this.renameInput = null
         this.renameError = null
         this.renameSubmitButton = null
+        this.nicknameModal = null
+        this.nicknameForm = null
+        this.nicknameInput = null
+        this.nicknameError = null
+        this.nicknameLabel = null
+        this.nicknameSubmitButton = null
+        this.addMembersModal = null
+        this.addMembersSearch = null
+        this.addMembersList = null
+        this.addMembersEmpty = null
+        this.editingMemberUserId = null
+        this.membersById = new Map()
+        this.participantNicknameMap = new Map()
         this.bottomNotice = null
         this.bottomNoticeTimer = null
         this.currentUserName = 'You'
@@ -112,6 +131,12 @@ class ChatApp {
         this.detailsCustomizeToggle = document.querySelector('[data-apps-chat="details-customize-toggle"]')
         this.detailsCustomizeBody = document.querySelector('[data-apps-chat="details-customize-body"]')
         this.detailsCustomizeChevron = document.querySelector('[data-apps-chat="details-customize-chevron"]')
+        this.detailsMembersSection = document.querySelector('[data-apps-chat="details-members-section"]')
+        this.detailsMembersToggle = document.querySelector('[data-apps-chat="details-members-toggle"]')
+        this.detailsMembersBody = document.querySelector('[data-apps-chat="details-members-body"]')
+        this.detailsMembersChevron = document.querySelector('[data-apps-chat="details-members-chevron"]')
+        this.membersList = document.querySelector('[data-apps-chat="members-list"]')
+        this.membersAddButton = document.querySelector('[data-apps-chat="members-add-button"]')
         this.customizeNameToggleButton = document.querySelector('[data-apps-chat="customize-name-toggle"]')
         this.customizeAvatarToggleButton = document.querySelector('[data-apps-chat="customize-avatar-toggle"]')
         this.customizeAvatarInput = document.querySelector('[data-apps-chat="customize-avatar-input"]')
@@ -120,6 +145,16 @@ class ChatApp {
         this.renameInput = document.querySelector('[data-apps-chat="rename-input"]')
         this.renameError = document.querySelector('[data-apps-chat="rename-error"]')
         this.renameSubmitButton = document.querySelector('[data-apps-chat="rename-submit"]')
+        this.nicknameModal = document.querySelector('[data-apps-chat="nickname-modal"]')
+        this.nicknameForm = document.querySelector('[data-apps-chat="nickname-form"]')
+        this.nicknameInput = document.querySelector('[data-apps-chat="nickname-input"]')
+        this.nicknameError = document.querySelector('[data-apps-chat="nickname-error"]')
+        this.nicknameLabel = document.querySelector('[data-apps-chat="nickname-label"]')
+        this.nicknameSubmitButton = document.querySelector('[data-apps-chat="nickname-submit"]')
+        this.addMembersModal = document.querySelector('[data-apps-chat="add-members-modal"]')
+        this.addMembersSearch = document.querySelector('[data-apps-chat="add-members-search"]')
+        this.addMembersList = document.querySelector('[data-apps-chat="add-members-list"]')
+        this.addMembersEmpty = document.querySelector('[data-apps-chat="add-members-empty"]')
         this.chatForm = document.querySelector('#chat-form')
         if (this.chatForm) {
             this.chatInput = this.chatForm.querySelector('[data-apps-chat="chat-input"]')
@@ -275,6 +310,13 @@ class ChatApp {
             }
         }
 
+        if (this.detailsMembersSection) {
+            this.detailsMembersSection.classList.toggle('d-none', conversationTypeRaw !== 'GROUP')
+            if (conversationTypeRaw !== 'GROUP') {
+                this.setMembersOpen(false)
+            }
+        }
+
         if (this.customizeNameToggleButton) {
             this.customizeNameToggleButton.disabled = conversationTypeRaw !== 'GROUP'
         }
@@ -408,6 +450,7 @@ class ChatApp {
         if (!open) {
             this.setChatInfoOpen(false)
             this.setCustomizeOpen(false)
+            this.setMembersOpen(false)
         }
     }
 
@@ -436,6 +479,20 @@ class ChatApp {
         if (this.detailsCustomizeChevron) {
             this.detailsCustomizeChevron.style.transform = open ? 'rotate(180deg)' : 'rotate(0deg)'
             this.detailsCustomizeChevron.style.transition = 'transform 0.16s ease'
+        }
+    }
+
+    setMembersOpen = (open) => {
+        if (!this.detailsMembersBody || !this.detailsMembersToggle) {
+            return
+        }
+
+        this.detailsMembersBody.classList.toggle('d-none', !open)
+        this.detailsMembersToggle.setAttribute('aria-expanded', String(open))
+
+        if (this.detailsMembersChevron) {
+            this.detailsMembersChevron.style.transform = open ? 'rotate(180deg)' : 'rotate(0deg)'
+            this.detailsMembersChevron.style.transition = 'transform 0.16s ease'
         }
     }
 
@@ -491,6 +548,22 @@ class ChatApp {
             event.preventDefault()
             const isOpen = !this.detailsCustomizeBody?.classList.contains('d-none')
             this.setCustomizeOpen(!isOpen)
+        })
+
+        this.detailsMembersToggle?.addEventListener('click', (event) => {
+            event.preventDefault()
+            const isOpen = !this.detailsMembersBody?.classList.contains('d-none')
+            this.setMembersOpen(!isOpen)
+        })
+
+        this.detailsMembersToggle?.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') {
+                return
+            }
+
+            event.preventDefault()
+            const isOpen = !this.detailsMembersBody?.classList.contains('d-none')
+            this.setMembersOpen(!isOpen)
         })
     }
 
@@ -581,6 +654,261 @@ class ChatApp {
 
     buildConversationAvatarEndpoint = (conversationId) => {
         return `/apps-chat/conversations/${encodeURIComponent(String(conversationId))}/avatar`
+    }
+
+    buildParticipantsEndpoint = (conversationId) => {
+        return `/apps-chat/conversations/${encodeURIComponent(String(conversationId))}/participants`
+    }
+
+    buildParticipantCandidatesEndpoint = (conversationId, query = '') => {
+        const q = String(query || '').trim()
+        if (!q) {
+            return `/apps-chat/conversations/${encodeURIComponent(String(conversationId))}/participants/candidates`
+        }
+
+        return `/apps-chat/conversations/${encodeURIComponent(String(conversationId))}/participants/candidates?q=${encodeURIComponent(q)}`
+    }
+
+    buildAddParticipantEndpoint = (conversationId) => {
+        return `/apps-chat/conversations/${encodeURIComponent(String(conversationId))}/participants/add`
+    }
+
+    buildParticipantNicknameEndpoint = (conversationId, userId) => {
+        return `/apps-chat/conversations/${encodeURIComponent(String(conversationId))}/participants/${encodeURIComponent(String(userId))}/nickname`
+    }
+
+    buildKickParticipantEndpoint = (conversationId, userId) => {
+        return `/apps-chat/conversations/${encodeURIComponent(String(conversationId))}/participants/${encodeURIComponent(String(userId))}/kick`
+    }
+
+    setNicknameError = (message = '') => {
+        if (!this.nicknameError) {
+            return
+        }
+
+        const hasError = String(message || '').trim().length > 0
+        this.nicknameError.textContent = message || ''
+        this.nicknameError.classList.toggle('d-none', !hasError)
+    }
+
+    closeNicknameModal = () => {
+        this.getBootstrapModal(this.nicknameModal)?.hide()
+        this.editingMemberUserId = null
+    }
+
+    openNicknameModal = (userId) => {
+        const member = this.membersById.get(String(userId))
+        if (!member || !this.nicknameModal || !this.nicknameInput) {
+            return
+        }
+
+        this.editingMemberUserId = String(userId)
+        this.nicknameInput.value = String(member.nickname || member.name || '').trim()
+        if (this.nicknameLabel) {
+            this.nicknameLabel.textContent = `Nickname for ${member.fullName || member.name || 'member'}`
+        }
+        this.setNicknameError('')
+        this.getBootstrapModal(this.nicknameModal)?.show()
+
+        queueMicrotask(() => {
+            this.nicknameInput?.focus()
+            this.nicknameInput?.select()
+        })
+    }
+
+    renderMembers = (members) => {
+        if (!this.membersList) {
+            return
+        }
+
+        this.membersById.clear()
+        this.participantNicknameMap.clear()
+        this.membersList.innerHTML = ''
+
+        members.forEach((member) => {
+            const userId = String(member.userId || '')
+            this.membersById.set(userId, member)
+            this.participantNicknameMap.set(userId, member.name || '')
+
+            const row = document.createElement('div')
+            row.className = 'd-flex align-items-start gap-2'
+
+            const avatar = this.createAvatarElement(member.avatarSrc || '', member.name || 'M')
+            row.appendChild(avatar)
+
+            const body = document.createElement('div')
+            body.className = 'flex-grow-1 min-w-0'
+            body.innerHTML = `<div class="fw-semibold text-truncate">${member.name || 'Unknown User'}</div><div class="text-muted small text-truncate">${member.subtitle || ''}</div>`
+            row.appendChild(body)
+
+            const actions = document.createElement('div')
+            actions.className = 'dropdown'
+            const actionButton = document.createElement('button')
+            actionButton.type = 'button'
+            actionButton.className = 'btn btn-sm btn-icon btn-ghost-light'
+            actionButton.setAttribute('data-bs-toggle', 'dropdown')
+            actionButton.setAttribute('aria-expanded', 'false')
+            actionButton.innerHTML = '<i class="ti ti-dots-vertical"></i>'
+            actions.appendChild(actionButton)
+
+            const menu = document.createElement('ul')
+            menu.className = 'dropdown-menu dropdown-menu-end'
+
+            if (member.canRenameNickname) {
+                const renameItem = document.createElement('li')
+                renameItem.innerHTML = `<button type="button" class="dropdown-item" data-member-action="rename" data-user-id="${userId}">Change nickname</button>`
+                menu.appendChild(renameItem)
+            }
+
+            if (member.canKick) {
+                const kickItem = document.createElement('li')
+                kickItem.innerHTML = `<button type="button" class="dropdown-item text-danger" data-member-action="kick" data-user-id="${userId}">Kick member</button>`
+                menu.appendChild(kickItem)
+            }
+
+            actions.appendChild(menu)
+            row.appendChild(actions)
+            this.membersList.appendChild(row)
+        })
+    }
+
+    loadConversationMembers = async (conversationId) => {
+        if (!conversationId) {
+            return
+        }
+
+        try {
+            const response = await fetch(this.buildParticipantsEndpoint(conversationId), {
+                method: 'GET',
+                headers: { 'Accept': 'application/json' },
+            })
+
+            const payload = await response.json().catch(() => ({}))
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.error || 'Failed to load members.')
+            }
+
+            const members = Array.isArray(payload.members) ? payload.members : []
+            this.renderMembers(members)
+            if (this.membersAddButton) {
+                this.membersAddButton.disabled = !payload.canAddMembers
+            }
+        } catch (error) {
+            this.showBottomNotice(error?.message || 'Failed to load members.')
+        }
+    }
+
+    loadAddableMembers = async (query = '') => {
+        if (!this.activeConversationId || !this.addMembersList) {
+            return
+        }
+
+        const response = await fetch(this.buildParticipantCandidatesEndpoint(this.activeConversationId, query), {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' },
+        })
+
+        const payload = await response.json().catch(() => ({}))
+        if (!response.ok || !payload.success) {
+            throw new Error(payload.error || 'Failed to load users.')
+        }
+
+        const candidates = Array.isArray(payload.candidates) ? payload.candidates : []
+        this.addMembersList.innerHTML = ''
+
+        candidates.forEach((candidate) => {
+            const row = document.createElement('div')
+            row.className = 'd-flex align-items-center gap-2 border rounded-3 px-2 py-2'
+            row.innerHTML = `<div class="flex-grow-1 min-w-0"><div class="fw-medium text-truncate">${candidate.name || 'Unknown User'}</div><div class="text-muted small">${candidate.role || 'Member'}</div></div><button type="button" class="btn btn-sm btn-primary" data-add-user-id="${candidate.userId}">Add</button>`
+            this.addMembersList.appendChild(row)
+        })
+
+        if (this.addMembersEmpty) {
+            this.addMembersEmpty.classList.toggle('d-none', candidates.length > 0)
+        }
+    }
+
+    openAddMembersModal = async () => {
+        if (!this.activeConversationId) {
+            return
+        }
+
+        this.getBootstrapModal(this.addMembersModal)?.show()
+        try {
+            await this.loadAddableMembers('')
+        } catch (error) {
+            this.showBottomNotice(error?.message || 'Failed to load users.')
+        }
+    }
+
+    addMemberToConversation = async (userId) => {
+        if (!this.activeConversationId) {
+            return
+        }
+
+        const response = await fetch(this.buildAddParticipantEndpoint(this.activeConversationId), {
+            method: 'POST',
+            headers: { 'Accept': 'application/json' },
+            body: new URLSearchParams({ userId: String(userId) }),
+        })
+
+        const payload = await response.json().catch(() => ({}))
+        if (!response.ok || !payload.success) {
+            throw new Error(payload.error || 'Failed to add member.')
+        }
+
+        await this.loadConversationMembers(this.activeConversationId)
+        await this.loadAddableMembers(this.addMembersSearch?.value || '')
+    }
+
+    submitNicknameUpdate = async (event) => {
+        event.preventDefault()
+
+        if (!this.activeConversationId || !this.editingMemberUserId || !this.nicknameInput) {
+            return
+        }
+
+        this.setNicknameError('')
+        this.nicknameSubmitButton?.setAttribute('disabled', 'disabled')
+
+        try {
+            const response = await fetch(this.buildParticipantNicknameEndpoint(this.activeConversationId, this.editingMemberUserId), {
+                method: 'POST',
+                headers: { 'Accept': 'application/json' },
+                body: new URLSearchParams({ nickname: this.nicknameInput.value || '' }),
+            })
+
+            const payload = await response.json().catch(() => ({}))
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.error || 'Failed to change nickname.')
+            }
+
+            this.closeNicknameModal()
+            await this.loadConversationMembers(this.activeConversationId)
+            await this.loadConversationMessages(this.activeConversationId, this.buildMessagesEndpoint(this.activeConversationItem, this.activeConversationId))
+        } catch (error) {
+            this.setNicknameError(error?.message || 'Failed to change nickname.')
+        } finally {
+            this.nicknameSubmitButton?.removeAttribute('disabled')
+        }
+    }
+
+    kickMember = async (userId) => {
+        if (!this.activeConversationId) {
+            return
+        }
+
+        const response = await fetch(this.buildKickParticipantEndpoint(this.activeConversationId, userId), {
+            method: 'POST',
+            headers: { 'Accept': 'application/json' },
+        })
+
+        const payload = await response.json().catch(() => ({}))
+        if (!response.ok || !payload.success) {
+            throw new Error(payload.error || 'Failed to kick member.')
+        }
+
+        await this.loadConversationMembers(this.activeConversationId)
     }
 
     submitConversationRename = async (event) => {
@@ -692,6 +1020,81 @@ class ChatApp {
 
         this.renameModal?.querySelector('[data-apps-chat="rename-modal-cancel"]')?.addEventListener('click', () => {
             this.closeRenameModal()
+        })
+
+        this.membersList?.addEventListener('click', async (event) => {
+            const actionButton = event.target.closest('[data-member-action]')
+            if (!actionButton) {
+                return
+            }
+
+            const action = actionButton.getAttribute('data-member-action')
+            const userId = actionButton.getAttribute('data-user-id')
+            if (!action || !userId) {
+                return
+            }
+
+            if (action === 'rename') {
+                this.openNicknameModal(userId)
+                return
+            }
+
+            if (action === 'kick') {
+                try {
+                    await this.kickMember(userId)
+                } catch (error) {
+                    this.showBottomNotice(error?.message || 'Failed to kick member.')
+                }
+            }
+        })
+
+        this.membersAddButton?.addEventListener('click', async () => {
+            await this.openAddMembersModal()
+        })
+
+        this.nicknameForm?.addEventListener('submit', this.submitNicknameUpdate)
+        this.nicknameModal?.addEventListener('hidden.bs.modal', () => {
+            this.setNicknameError('')
+            this.editingMemberUserId = null
+        })
+        this.nicknameModal?.querySelector('[data-apps-chat="nickname-modal-close"]')?.addEventListener('click', () => {
+            this.closeNicknameModal()
+        })
+        this.nicknameModal?.querySelector('[data-apps-chat="nickname-modal-cancel"]')?.addEventListener('click', () => {
+            this.closeNicknameModal()
+        })
+
+        this.addMembersModal?.querySelector('[data-apps-chat="add-members-close"]')?.addEventListener('click', () => {
+            this.getBootstrapModal(this.addMembersModal)?.hide()
+        })
+
+        this.addMembersSearch?.addEventListener('input', async () => {
+            try {
+                await this.loadAddableMembers(this.addMembersSearch.value || '')
+            } catch (error) {
+                this.showBottomNotice(error?.message || 'Failed to load users.')
+            }
+        })
+
+        this.addMembersList?.addEventListener('click', async (event) => {
+            const addButton = event.target.closest('[data-add-user-id]')
+            if (!addButton) {
+                return
+            }
+
+            const userId = addButton.getAttribute('data-add-user-id')
+            if (!userId) {
+                return
+            }
+
+            addButton.setAttribute('disabled', 'disabled')
+            try {
+                await this.addMemberToConversation(userId)
+            } catch (error) {
+                this.showBottomNotice(error?.message || 'Failed to add member.')
+            } finally {
+                addButton.removeAttribute('disabled')
+            }
         })
     }
 
@@ -1342,7 +1745,10 @@ class ChatApp {
 
     createMessageNode = (message, index) => {
         const isOwn = !!message.isOwn
-        const senderName = message.senderName || 'Unknown User'
+        const senderIdKey = message?.senderId !== null && message?.senderId !== undefined
+            ? String(message.senderId)
+            : ''
+        const senderName = this.participantNicknameMap.get(senderIdKey) || message.senderName || 'Unknown User'
         const displayName = isOwn ? 'You.' : senderName
         const avatarLabel = isOwn ? this.currentUserName : senderName
         const avatarSrc = isOwn
@@ -1487,7 +1893,7 @@ class ChatApp {
         }
     }
 
-    selectConversation = (item) => {
+    selectConversation = async (item) => {
         if (!item) {
             return
         }
@@ -1513,6 +1919,17 @@ class ChatApp {
         this.activeConversationId = nextConversationId
         this.updateConversationHeader(item)
         this.setComposerEnabled(true)
+
+        if (this.isGroupConversation(item)) {
+            await this.loadConversationMembers(nextConversationId)
+        } else {
+            this.participantNicknameMap.clear()
+            this.membersById.clear()
+            if (this.membersList) {
+                this.membersList.innerHTML = ''
+            }
+        }
+
         this.loadConversationMessages(nextConversationId, endpoint)
     }
 

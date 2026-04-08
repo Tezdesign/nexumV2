@@ -281,9 +281,18 @@
                                 </button>
                             </div>
                         </div>
-                        <div class="d-flex align-items-center justify-content-between py-2 border-bottom">
-                            <span class="fw-medium">Chat members</span>
-                            <i class="ti ti-chevron-down text-muted"></i>
+                        <div class="d-none" data-apps-chat="details-members-section">
+                            <div class="d-flex align-items-center justify-content-between py-2 border-bottom" data-apps-chat="details-members-toggle" role="button" tabindex="0" aria-expanded="false">
+                                <span class="fw-medium">Chat members</span>
+                                <i class="ti ti-chevron-down text-muted" data-apps-chat="details-members-chevron"></i>
+                            </div>
+                            <div class="pb-2 border-bottom d-none" data-apps-chat="details-members-body">
+                                <div class="d-flex flex-column gap-2 py-2" data-apps-chat="members-list"></div>
+                                <button type="button" class="btn btn-sm btn-light w-100 text-start" data-apps-chat="members-add-button">
+                                    <i class="ti ti-user-plus me-1"></i>
+                                    <span>Add people</span>
+                                </button>
+                            </div>
                         </div>
                         <div class="d-flex align-items-center justify-content-between py-2 border-bottom">
                             <span class="fw-medium">Media, files and links</span>
@@ -320,6 +329,44 @@
                     </div>
                 </div>
 
+                <div class="modal fade" tabindex="-1" aria-hidden="true" data-apps-chat="nickname-modal">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <form data-apps-chat="nickname-form">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Change member nickname</h5>
+                                    <button type="button" class="btn-close" data-apps-chat="nickname-modal-close" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <label for="memberNicknameInput" class="form-label" data-apps-chat="nickname-label">Nickname</label>
+                                    <input type="text" class="form-control" id="memberNicknameInput" autocomplete="off" data-apps-chat="nickname-input">
+                                    <div class="text-danger small mt-2 d-none" data-apps-chat="nickname-error"></div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-light" data-apps-chat="nickname-modal-cancel">Cancel</button>
+                                    <button type="submit" class="btn btn-primary" data-apps-chat="nickname-submit">Save nickname</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal fade" tabindex="-1" aria-hidden="true" data-apps-chat="add-members-modal">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Add people</h5>
+                                <button type="button" class="btn-close" data-apps-chat="add-members-close" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <input type="text" class="form-control mb-3" placeholder="Search users" autocomplete="off" data-apps-chat="add-members-search">
+                                <div class="d-flex flex-column gap-2" data-apps-chat="add-members-list"></div>
+                                <div class="text-muted small mt-2 d-none" data-apps-chat="add-members-empty">No users available to add.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <input type="file" accept="image/*" class="d-none" data-apps-chat="customize-avatar-input">
 
     </div>
@@ -327,5 +374,5 @@
 {% endblock %}
 
 {% block script %}
-    <script src="/js/pages/apps-chat.js?v=20260408a"></script>
+    <script src="/js/pages/apps-chat.js?v=20260408b"></script>
 {% endblock %}

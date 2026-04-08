@@ -91,12 +91,51 @@ class Conversation
 
     public function assertCanBeCustomizedBy(int $userId): void
     {
-        if ($this->isDirectConversation()) {
+        if (!$this->isGroupConversation()) {
             throw new InvalidArgumentException('Only group chats can be customized.');
         }
 
         if ((int) $this->getCreatedBy() !== $userId) {
             throw new InvalidArgumentException('Only the chat owner can modify this discussion.');
+        }
+    }
+
+    public function assertGroupConversation(): void
+    {
+        if (!$this->isGroupConversation()) {
+            throw new InvalidArgumentException('Only group chats support this action.');
+        }
+    }
+
+    public function isGroupConversation(): bool
+    {
+        return !$this->isDirectConversation();
+    }
+
+    public function isAdminUser(int $userId): bool
+    {
+        return (int) $this->getCreatedBy() === $userId;
+    }
+
+    public function assertCanKickParticipant(int $actorUserId, int $targetUserId): void
+    {
+        $this->assertGroupConversation();
+
+        if (!$this->isAdminUser($actorUserId)) {
+            throw new InvalidArgumentException('Only the group admin can kick members.');
+        }
+
+        if ($actorUserId === $targetUserId) {
+            throw new InvalidArgumentException('You cannot kick yourself.');
+        }
+    }
+
+    public function assertCanRenameParticipant(int $actorUserId, int $targetUserId): void
+    {
+        $this->assertGroupConversation();
+
+        if ($actorUserId <= 0 || $targetUserId <= 0) {
+            throw new InvalidArgumentException('Invalid participant id.');
         }
     }
 
