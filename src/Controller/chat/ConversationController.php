@@ -4,6 +4,8 @@ namespace App\Controller\chat;
 
 use App\Entity\Chat\Conversation;
 use App\Entity\Chat\ConversationParticipant;
+use App\Entity\Chat\Message;
+use App\Entity\Chat\MessageAttachment;
 use App\Entity\UserHandling\Utilisateur;
 use App\Repository\Chat\ConversationParticipantRepository;
 use App\Repository\Chat\ConversationRepository;
@@ -354,6 +356,89 @@ class ConversationController extends AbstractController
 
         return $this->json([
             'success' => true,
+        ]);
+    }
+
+    #[Route('/apps-chat/conversations/{conversationId}/danger-action', name: 'apps-chat-conversation-danger-action', methods: ['POST'])]
+    public function executeDangerAction(
+        int $conversationId,
+        ConversationRepository $conversationRepository,
+        ConversationParticipantRepository $participantRepository,
+        EntityManagerInterface $entityManager,
+    ): JsonResponse {
+        $conversation = $conversationRepository->find($conversationId);
+        if (!$conversation instanceof Conversation) {
+            return $this->json([
+                'success' => false,
+                'error' => 'Conversation not found.',
+            ], 404);
+        }
+
+        $isParticipant = $participantRepository->isActiveParticipant($conversationId, self::SESSION_CURRENT_USER_ID);
+        if (!$isParticipant) {
+            return $this->json([
+                'success' => false,
+                'error' => 'Access denied for this conversation.',
+            ], 403);
+        }
+
+        $isAdmin = (int) ($conversation->getCreatedBy() ?? 0) === self::SESSION_CURRENT_USER_ID;
+        $shouldDeleteConversation = $conversation->isGroupConversation() ? $isAdmin : true;
+
+        if (!$shouldDeleteConversation) {
+            try {
+                $participantRepository->removeParticipant($conversationId, self::SESSION_CURRENT_USER_ID);
+            } catch (InvalidArgumentException $exception) {
+                return $this->json([
+                    'success' => false,
+                    'error' => $exception->getMessage(),
+                ], 422);
+            }
+
+            return $this->json([
+                'success' => true,
+                'action' => 'left',
+                'conversationId' => $conversationId,
+            ]);
+        }
+
+        $messages = $entityManager->getRepository(Message::class)->findBy([
+            'conversation_id' => $conversationId,
+        ]);
+        $messageIds = array_values(array_filter(array_map(
+            static fn (Message $message): ?int => $message->getId(),
+            $messages
+        )));
+
+        if ($messageIds !== []) {
+            $attachments = $entityManager->getRepository(MessageAttachment::class)->findBy([
+                'message_id' => $messageIds,
+            ]);
+
+            foreach ($attachments as $attachment) {
+                $entityManager->remove($attachment);
+            }
+        }
+
+        foreach ($messages as $message) {
+            $entityManager->remove($message);
+        }
+
+        $participants = $entityManager->getRepository(ConversationParticipant::class)->findBy([
+            'conversation_id' => $conversationId,
+        ]);
+
+        foreach ($participants as $participant) {
+            $entityManager->remove($participant);
+        }
+
+        $entityManager->remove($conversation);
+        $entityManager->flush();
+
+        return $this->json([
+            'success' => true,
+            'action' => 'deleted',
+            'conversationId' => $conversationId,
         ]);
     }
 

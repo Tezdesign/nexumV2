@@ -26,6 +26,7 @@ class ChatApp {
         this.detailsAvatarFallback = null
         this.detailsName = null
         this.detailsType = null
+        this.detailsDangerActionWrap = null
         this.detailsDangerAction = null
         this.detailsDangerIcon = null
         this.detailsChatInfoToggle = null
@@ -119,6 +120,7 @@ class ChatApp {
         this.detailsAvatarFallback = document.querySelector('[data-apps-chat="details-avatar-fallback"]')
         this.detailsName = document.querySelector('[data-apps-chat="details-name"]')
         this.detailsType = document.querySelector('[data-apps-chat="details-type"]')
+        this.detailsDangerActionWrap = document.querySelector('[data-apps-chat="details-danger-action-wrap"]')
         this.detailsDangerAction = document.querySelector('[data-apps-chat="details-danger-action"]')
         this.detailsDangerIcon = document.querySelector('[data-apps-chat="details-danger-icon"]')
         this.detailsChatInfoToggle = document.querySelector('[data-apps-chat="details-chat-info-toggle"]')
@@ -678,6 +680,10 @@ class ChatApp {
         return `/apps-chat/conversations/${encodeURIComponent(String(conversationId))}/participants/${encodeURIComponent(String(userId))}/kick`
     }
 
+    buildConversationDangerActionEndpoint = (conversationId) => {
+        return `/apps-chat/conversations/${encodeURIComponent(String(conversationId))}/danger-action`
+    }
+
     setNicknameError = (message = '') => {
         if (!this.nicknameError) {
             return
@@ -948,6 +954,92 @@ class ChatApp {
         await this.loadConversationMembers(this.activeConversationId)
     }
 
+    resetConversationView = () => {
+        this.activeConversationItem = null
+        this.activeConversationId = null
+
+        this.conversationItems.forEach((conversationItem) => {
+            conversationItem.classList.remove('active')
+        })
+
+        if (this.activeConversationName) {
+            this.activeConversationName.textContent = 'Select a conversation'
+        }
+
+        if (this.activeConversationMeta) {
+            this.activeConversationMeta.textContent = 'Choose a conversation from the list'
+        }
+
+        if (this.activeConversationAvatar) {
+            this.activeConversationAvatar.removeAttribute('src')
+            this.activeConversationAvatar.classList.add('d-none')
+        }
+
+        if (this.activeConversationAvatarFallback) {
+            this.activeConversationAvatarFallback.classList.remove('d-none')
+            this.activeConversationAvatarFallback.textContent = '-'
+        }
+
+        this.clearMessages()
+        this.setMessagesState('Select a conversation to load messages.', true)
+        this.setComposerEnabled(false)
+        this.setDetailsDrawerOpen(false)
+    }
+
+    removeConversationItemById = (conversationId) => {
+        const idText = String(conversationId || '')
+        const targetItem = this.conversationItems.find((item) => String(item.dataset.conversationId || '') === idText)
+        if (!targetItem) {
+            return
+        }
+
+        targetItem.remove()
+        this.conversationItems = this.conversationItems.filter((item) => item !== targetItem)
+    }
+
+    executeConversationDangerAction = async () => {
+        if (!this.activeConversationId || !this.activeConversationItem) {
+            return
+        }
+
+        const conversationId = this.activeConversationId
+        const actionLabel = (this.detailsDangerAction?.textContent || '').trim() || 'Delete conversation'
+        const confirmed = window.confirm(`${actionLabel}?`)
+        if (!confirmed) {
+            return
+        }
+
+        this.detailsDangerActionWrap?.classList.add('disabled')
+        this.detailsDangerActionWrap?.setAttribute('aria-disabled', 'true')
+
+        try {
+            const response = await fetch(this.buildConversationDangerActionEndpoint(conversationId), {
+                method: 'POST',
+                headers: { 'Accept': 'application/json' },
+            })
+
+            const payload = await response.json().catch(() => ({}))
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.error || 'Failed to process this action.')
+            }
+
+            this.removeConversationItemById(conversationId)
+            this.applyConversationVisibility()
+
+            const nextConversation = this.getFirstVisibleConversation()
+            if (nextConversation) {
+                await this.selectConversation(nextConversation)
+            } else {
+                this.resetConversationView()
+            }
+        } catch (error) {
+            this.showBottomNotice(error?.message || 'Failed to process this action.')
+        } finally {
+            this.detailsDangerActionWrap?.classList.remove('disabled')
+            this.detailsDangerActionWrap?.removeAttribute('aria-disabled')
+        }
+    }
+
     submitConversationRename = async (event) => {
         event.preventDefault()
 
@@ -1132,6 +1224,28 @@ class ChatApp {
             } finally {
                 addButton.removeAttribute('disabled')
             }
+        })
+
+        this.detailsDangerActionWrap?.addEventListener('click', async (event) => {
+            event.preventDefault()
+            if (this.detailsDangerActionWrap?.classList.contains('disabled')) {
+                return
+            }
+
+            await this.executeConversationDangerAction()
+        })
+
+        this.detailsDangerActionWrap?.addEventListener('keydown', async (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') {
+                return
+            }
+
+            event.preventDefault()
+            if (this.detailsDangerActionWrap?.classList.contains('disabled')) {
+                return
+            }
+
+            await this.executeConversationDangerAction()
         })
     }
 
