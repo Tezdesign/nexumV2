@@ -11,11 +11,13 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 
 use App\Repository\FinancialAnalysis\BudgetProfileRepository;
+use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 
 #[ORM\Entity(repositoryClass: BudgetProfileRepository::class)]
 #[ORM\Table(name: 'budget_profile')]
 #[ORM\Index(name: "fiscal_year", columns: ["fiscal_year"])]
 #[ORM\HasLifecycleCallbacks]
+#[UniqueEntity(fields: ['fiscal_year'], message: 'A budget profile for this fiscal year already exists.')]
 class BudgetProfile
 {
     #[ORM\Id]
@@ -234,20 +236,22 @@ class BudgetProfile
             $currentYear = (int) date('Y');
             $inputYear = (int) $this->fiscal_year;
 
-            if ($inputYear < ($currentYear - 10)) {
-                $context->buildViolation('The fiscal year must fall within the last 10 years.')
+            if ($inputYear < ($currentYear - 10) || $inputYear > ($currentYear + 10)) {
+                $context->buildViolation('The fiscal year must fall within a 10-year range.')
                     ->atPath('fiscal_year')
                     ->addViolation();
             }
-            elseif ($this->start_date && $this->end_date) {
-                $expectedEndDate = clone $this->start_date;
-                $expectedEndDate->modify('+1 year');
+        }
 
-                if ($this->end_date->format('Y-m-d') !== $expectedEndDate->format('Y-m-d')) {
-                    $context->buildViolation('The budget period must be exactly 12 months long.')
-                        ->atPath('end_date')
-                        ->addViolation();
-                }
+        if ($this->start_date && $this->end_date) {
+            $expectedEndDate = clone $this->start_date;
+            $expectedEndDate->modify('+1 year');
+            $expectedEndDate->modify('-1 day');
+
+            if ($this->end_date->format('Y-m-d') !== $expectedEndDate->format('Y-m-d')) {
+                $context->buildViolation('The budget period must be exactly 12 months long.')
+                    ->atPath('end_date')
+                    ->addViolation();
             }
         }
     }
