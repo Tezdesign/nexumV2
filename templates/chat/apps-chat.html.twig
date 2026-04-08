@@ -380,6 +380,24 @@
                     </div>
                 </div>
 
+                <div class="modal fade" tabindex="-1" aria-hidden="true" data-apps-chat="danger-confirm-modal">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Confirm action</h5>
+                                <button type="button" class="btn-close" data-apps-chat="danger-confirm-close" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p class="mb-0" data-apps-chat="danger-confirm-message">Delete conversation?</p>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-light" data-apps-chat="danger-confirm-cancel">Cancel</button>
+                                <button type="button" class="btn btn-danger" data-apps-chat="danger-confirm-submit">Confirm</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <input type="file" accept="image/*" class="d-none" data-apps-chat="customize-avatar-input">
 
                 <div class="modal fade" tabindex="-1" aria-hidden="true" id="dmCreateModal">
@@ -413,5 +431,5 @@
 {% endblock %}
 
 {% block script %}
-    <script src="/js/pages/apps-chat.js?v=20260408c"></script>
+    <script src="/js/pages/apps-chat.js?v=20260408d"></script>
 {% endblock %}

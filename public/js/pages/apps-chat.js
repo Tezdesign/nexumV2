@@ -64,6 +64,11 @@ class ChatApp {
         this.addMembersSearch = null
         this.addMembersList = null
         this.addMembersEmpty = null
+        this.dangerConfirmModal = null
+        this.dangerConfirmMessage = null
+        this.dangerConfirmSubmitButton = null
+        this.dangerConfirmCancelButton = null
+        this.dangerConfirmResolver = null
         this.editingMemberUserId = null
         this.membersById = new Map()
         this.participantNicknameMap = new Map()
@@ -157,6 +162,10 @@ class ChatApp {
         this.addMembersSearch = document.querySelector('[data-apps-chat="add-members-search"]')
         this.addMembersList = document.querySelector('[data-apps-chat="add-members-list"]')
         this.addMembersEmpty = document.querySelector('[data-apps-chat="add-members-empty"]')
+        this.dangerConfirmModal = document.querySelector('[data-apps-chat="danger-confirm-modal"]')
+        this.dangerConfirmMessage = document.querySelector('[data-apps-chat="danger-confirm-message"]')
+        this.dangerConfirmSubmitButton = document.querySelector('[data-apps-chat="danger-confirm-submit"]')
+        this.dangerConfirmCancelButton = document.querySelector('[data-apps-chat="danger-confirm-cancel"]')
         this.chatForm = document.querySelector('#chat-form')
         if (this.chatForm) {
             this.chatInput = this.chatForm.querySelector('[data-apps-chat="chat-input"]')
@@ -624,6 +633,37 @@ class ChatApp {
         }, 2600)
     }
 
+    resolveDangerConfirm = (confirmed) => {
+        if (!this.dangerConfirmResolver) {
+            return
+        }
+
+        const resolve = this.dangerConfirmResolver
+        this.dangerConfirmResolver = null
+        resolve(confirmed)
+    }
+
+    openDangerConfirmModal = (message) => {
+        if (!this.dangerConfirmModal || !window.bootstrap?.Modal) {
+            return Promise.resolve(window.confirm(message))
+        }
+
+        if (this.dangerConfirmMessage) {
+            this.dangerConfirmMessage.textContent = message
+        }
+
+        if (this.dangerConfirmResolver) {
+            this.resolveDangerConfirm(false)
+        }
+
+        const modal = this.getBootstrapModal(this.dangerConfirmModal)
+        modal?.show()
+
+        return new Promise((resolve) => {
+            this.dangerConfirmResolver = resolve
+        })
+    }
+
     openRenameModal = () => {
         if (!this.activeConversationItem || !this.isGroupConversation(this.activeConversationItem)) {
             return
@@ -1004,7 +1044,7 @@ class ChatApp {
 
         const conversationId = this.activeConversationId
         const actionLabel = (this.detailsDangerAction?.textContent || '').trim() || 'Delete conversation'
-        const confirmed = window.confirm(`${actionLabel}?`)
+        const confirmed = await this.openDangerConfirmModal(`${actionLabel}?`)
         if (!confirmed) {
             return
         }
@@ -1224,6 +1264,25 @@ class ChatApp {
             } finally {
                 addButton.removeAttribute('disabled')
             }
+        })
+
+        this.dangerConfirmSubmitButton?.addEventListener('click', () => {
+            this.resolveDangerConfirm(true)
+            this.getBootstrapModal(this.dangerConfirmModal)?.hide()
+        })
+
+        this.dangerConfirmCancelButton?.addEventListener('click', () => {
+            this.resolveDangerConfirm(false)
+            this.getBootstrapModal(this.dangerConfirmModal)?.hide()
+        })
+
+        this.dangerConfirmModal?.querySelector('[data-apps-chat="danger-confirm-close"]')?.addEventListener('click', () => {
+            this.resolveDangerConfirm(false)
+            this.getBootstrapModal(this.dangerConfirmModal)?.hide()
+        })
+
+        this.dangerConfirmModal?.addEventListener('hidden.bs.modal', () => {
+            this.resolveDangerConfirm(false)
         })
 
         this.detailsDangerActionWrap?.addEventListener('click', async (event) => {
