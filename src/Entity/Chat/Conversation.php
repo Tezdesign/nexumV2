@@ -117,11 +117,11 @@ class Conversation
         return (int) $this->getCreatedBy() === $userId;
     }
 
-    public function assertCanKickParticipant(int $actorUserId, int $targetUserId): void
+    public function assertCanKickParticipant(int $actorUserId, int $targetUserId, bool $actorHasAdminPrivileges = false): void
     {
         $this->assertGroupConversation();
 
-        if (!$this->isAdminUser($actorUserId)) {
+        if (!$this->isAdminUser($actorUserId) && !$actorHasAdminPrivileges) {
             throw new InvalidArgumentException('Only the group admin can kick members.');
         }
 

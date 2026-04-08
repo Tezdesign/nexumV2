@@ -130,7 +130,7 @@ class ConversationController extends AbstractController
 
         $participants = $this->findActiveParticipants($participantRepository, $conversationId);
         $usersById = $this->mapUsersByIds($participants, $utilisateurRepository);
-        $actorIsAdmin = $conversation->isAdminUser(self::SESSION_CURRENT_USER_ID);
+        $actorIsAdmin = $this->hasActorAdminPrivileges($conversation, $participants, self::SESSION_CURRENT_USER_ID);
 
         return $this->json([
             'success' => true,
@@ -232,7 +232,6 @@ class ConversationController extends AbstractController
         ConversationRepository $conversationRepository,
         ConversationParticipantRepository $participantRepository,
         UtilisateurRepository $utilisateurRepository,
-        EntityManagerInterface $entityManager,
     ): JsonResponse {
         $conversation = $this->loadEditableGroupConversation($conversationId, $conversationRepository, $participantRepository);
         if ($conversation instanceof JsonResponse) {
@@ -256,18 +255,6 @@ class ConversationController extends AbstractController
             ], 422);
         }
 
-        $existing = $participantRepository->findOneBy([
-            'conversation_id' => $conversationId,
-            'user_id' => $userId,
-            'left_at' => null,
-        ]);
-        if ($existing instanceof ConversationParticipant) {
-            return $this->json([
-                'success' => false,
-                'error' => 'This user is already in the conversation.',
-            ], 422);
-        }
-
         $user = $utilisateurRepository->find($userId);
         if (!$user instanceof Utilisateur) {
             return $this->json([
@@ -276,17 +263,19 @@ class ConversationController extends AbstractController
             ], 404);
         }
 
-        $participant = (new ConversationParticipant())
-            ->setConversation_id($conversationId)
-            ->setUser_id($userId)
-            ->setRole('member')
-            ->setNickname(null)
-            ->setAdded_by(self::SESSION_CURRENT_USER_ID)
-            ->setJoined_at(new \DateTimeImmutable())
-            ->setLeft_at(null);
-
-        $entityManager->persist($participant);
-        $entityManager->flush();
+        try {
+            $participantRepository->addOrReactivateParticipant($conversationId, $userId, self::SESSION_CURRENT_USER_ID);
+        } catch (InvalidArgumentException $exception) {
+            return $this->json([
+                'success' => false,
+                'error' => $exception->getMessage(),
+            ], 422);
+        } catch (\Throwable) {
+            return $this->json([
+                'success' => false,
+                'error' => 'Unable to add this member right now. Please try again.',
+            ], 500);
+        }
 
         return $this->json([
             'success' => true,
@@ -363,8 +352,11 @@ class ConversationController extends AbstractController
             ], 404);
         }
 
+        $activeParticipants = $this->findActiveParticipants($participantRepository, $conversationId);
+        $actorHasAdminPrivileges = $this->hasActorAdminPrivileges($conversation, $activeParticipants, self::SESSION_CURRENT_USER_ID);
+
         try {
-            $conversation->assertCanKickParticipant(self::SESSION_CURRENT_USER_ID, $userId);
+            $conversation->assertCanKickParticipant(self::SESSION_CURRENT_USER_ID, $userId, $actorHasAdminPrivileges);
             $participant->leaveConversation();
         } catch (InvalidArgumentException $exception) {
             return $this->json([
@@ -478,5 +470,23 @@ class ConversationController extends AbstractController
         $name = trim(sprintf('%s %s', (string) $user->getPrenom(), (string) $user->getNom()));
 
         return $name !== '' ? $name : 'Unknown User';
+    }
+
+    /**
+     * @param ConversationParticipant[] $participants
+     */
+    private function hasActorAdminPrivileges(Conversation $conversation, array $participants, int $actorUserId): bool
+    {
+        if ($conversation->isAdminUser($actorUserId)) {
+            return true;
+        }
+
+        foreach ($participants as $participant) {
+            if ((int) ($participant->getUserId() ?? 0) === $actorUserId) {
+                return $participant->hasAdminPrivileges();
+            }
+        }
+
+        return false;
     }
 }

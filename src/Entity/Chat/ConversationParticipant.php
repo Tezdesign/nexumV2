@@ -2,7 +2,6 @@
 
 namespace App\Entity\Chat;
 
-use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -54,6 +53,13 @@ class ConversationParticipant
     public function getRole(): ?string
     {
         return $this->role;
+    }
+
+    public function hasAdminPrivileges(): bool
+    {
+        $role = strtolower((string) ($this->role ?? ''));
+
+        return in_array($role, ['admin', 'owner'], true);
     }
 
     public function setRole(string $role): self
@@ -110,7 +116,7 @@ class ConversationParticipant
 
     public function leaveConversation(): self
     {
-        $this->left_at = new DateTimeImmutable();
+        $this->left_at = new \DateTime();
 
         return $this;
     }

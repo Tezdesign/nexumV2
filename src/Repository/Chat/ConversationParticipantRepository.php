@@ -4,6 +4,7 @@ namespace App\Repository\Chat;
 use App\Entity\Chat\ConversationParticipant;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
+use InvalidArgumentException;
 /**
  * @extends ServiceEntityRepository<ConversationParticipant>
  */
@@ -73,6 +74,44 @@ class ConversationParticipantRepository extends ServiceEntityRepository
             ->getSingleScalarResult();
 
         return (int) $count > 0;
+    }
+
+    public function addOrReactivateParticipant(int $conversationId, int $userId, int $addedBy): void
+    {
+        $participant = $this->findOneBy([
+            'conversation_id' => $conversationId,
+            'user_id' => $userId,
+        ]);
+
+        if ($participant instanceof ConversationParticipant) {
+            if ($participant->getLeftAt() === null) {
+                throw new InvalidArgumentException('This user is already in the conversation.');
+            }
+
+            $participant
+                ->setAdded_by($addedBy)
+                ->setJoined_at(new \DateTime())
+                ->setLeft_at(null);
+
+            if (trim((string) $participant->getRole()) === '') {
+                $participant->setRole('member');
+            }
+
+            $this->getEntityManager()->flush();
+            return;
+        }
+
+        $participant = (new ConversationParticipant())
+            ->setConversation_id($conversationId)
+            ->setUser_id($userId)
+            ->setRole('member')
+            ->setNickname(null)
+            ->setAdded_by($addedBy)
+            ->setJoined_at(new \DateTime())
+            ->setLeft_at(null);
+
+        $this->getEntityManager()->persist($participant);
+        $this->getEntityManager()->flush();
     }
 
     //    /**
