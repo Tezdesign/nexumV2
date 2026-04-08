@@ -217,15 +217,18 @@ class ConversationSidebarProvider
 
     private function buildDmName(?Utilisateur $user, ?ConversationParticipant $participant): string
     {
+        if ($participant !== null && $participant->getNickname() !== null) {
+            $nickname = trim((string) $participant->getNickname());
+            if ($nickname !== '') {
+                return $nickname;
+            }
+        }
+
         if ($user !== null) {
             $name = trim(sprintf('%s %s', (string) $user->getPrenom(), (string) $user->getNom()));
             if ($name !== '') {
                 return $name;
             }
-        }
-
-        if ($participant !== null && $participant->getNickname() !== null) {
-            return $participant->getNickname();
         }
 
         return 'Unknown User';

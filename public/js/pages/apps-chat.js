@@ -725,9 +725,10 @@ class ChatApp {
             ? String(targetMember.name || targetMember.fullName || 'Unknown conversation')
             : String(selfMember?.name || selfMember?.fullName || this.getConversationDisplayName(this.activeConversationItem))
 
-        this.activeConversationItem.dataset.conversationName = nextName
-        this.activeConversationItem.dataset.dmName = nextName
-        this.activeConversationItem.dataset.groupTitle = ''
+        this.syncConversationItem(this.activeConversationItem, {
+            name: nextName,
+            avatarSrc: this.activeConversationItem.dataset.conversationAvatar || '',
+        })
         this.updateConversationHeader(this.activeConversationItem)
     }
 
