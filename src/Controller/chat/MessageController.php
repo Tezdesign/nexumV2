@@ -126,6 +126,10 @@ class MessageController extends AbstractController
 		$entityManager->persist($message);
 		$entityManager->flush();
 
+		$conversation->setLastMessageId($message->getId());
+		$conversation->setLastMessageAt($message->getCreatedAt());
+		$entityManager->flush();
+
 		$sender = $utilisateurRepository->find(ConversationController::SESSION_CURRENT_USER_ID);
 
 		return $this->json([
