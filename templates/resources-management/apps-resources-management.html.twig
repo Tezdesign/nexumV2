@@ -2,61 +2,76 @@
 
 {% set title = 'Resources Management' %}
 
-{% block css %}{% endblock %}
+{% block css %}
+    {% endblock %}
 
 {% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-sm-4">
+                           <a href="{{ path('apps-resources-add') }}" class="btn btn-primary mb-2">
+    <i class="mdi mdi-plus-circle me-2"></i> Add New Resource
+</a>
+                        </div>
+                        <div class="col-sm-8">
+                            <div class="text-sm-end">
+                                <a href="#" class="btn btn-success mb-2 me-1">Manage Requests</a>
+                            </div>
+                        </div></div>
 
-    <div class="d-flex min-vh-100 justify-content-center align-items-center">
-        <div class="row g-0 justify-content-center w-100 m-xxl-5 px-xxl-4 m-3">
-            <div class="col-xl-4 col-lg-5 col-md-6">
-                <div class="card overflow-hidden text-center h-100 p-xxl-4 p-3 mb-0">
-                    <a href="/" class="auth-brand mb-3">
-                        <img src="/images/logo-removebg.png" alt="dark logo" height="26" class="logo-dark">
-                        <img src="/images/logo-removebg.png" alt="logo light" height="26" class="logo-light">
-                    </a>
-
-                    <div>
-                        <h3 class="fw-semibold mb-2">Stay tuned, we're launching very soon</h3>
-                        <p class="text-muted mb-0">We're working on the Resources Management module.</p>
+                    <div class="table-responsive">
+                        <table class="table table-centered table-nowrap table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Code</th>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                    <th>Unit Cost</th>
+                                    <th>Total Quantity</th>
+                                    <th>Available</th>
+                                    <th>Status</th>
+                                    <th style="width: 82px;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {# This part will be looped once we have the Controller logic #}
+                                {% for resource in resources|default([]) %}
+                                <tr>
+                                    <td>{{ resource.resource_code }}</td>
+                                    <td>{{ resource.resource_name }}</td>
+                                    <td>
+                                        <span class="badge {{ resource.resource_type == 'SOFTWARE' ? 'bg-info-subtle text-info' : 'bg-primary-subtle text-primary' }}">
+                                            {{ resource.resource_type }}
+                                        </span>
+                                    </td>
+                                    <td>${{ resource.unit_cost }}</td>
+                                    <td>{{ resource.total_quantity }}</td>
+                                    <td>{{ resource.available_quantity }}</td>
+                                    <td>
+                                        <span class="badge bg-success-subtle text-success">{{ resource.status }}</span>
+                                    </td>
+                                    <td>
+                                        <a href="javascript:void(0);" class="action-icon text-danger"> <i class="mdi mdi-delete"></i></a>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="8" class="text-center">No resources found. Please add your first resource!</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
-
-                    <div class="row text-center justify-content-center my-4 g-2">
-                        <div class="col-6 col-sm-4 col-md-3 col-lg">
-                            <div class="bg-body-secondary border border-primary-subtle border-dashed p-2 rounded">
-                                <h3 id="days" class="fw-bold text-primary fs-35">00</h3>
-                                <p class="fw-semibold fs-12 mb-0">Days</p>
-                            </div>
-                        </div>
-                        <div class="col-6 col-sm-4 col-md-3 col-lg">
-                            <div class="bg-body-secondary border border-primary-subtle border-dashed p-2 rounded">
-                                <h3 id="hours" class="fw-bold text-primary fs-35">00</h3>
-                                <p class="fw-semibold fs-12 mb-0">Hours</p>
-                            </div>
-                        </div>
-                        <div class="col-6 col-sm-4 col-md-3 col-lg">
-                            <div class="bg-body-secondary border border-primary-subtle border-dashed p-2 rounded">
-                                <h3 id="minutes" class="fw-bold text-primary fs-35">00</h3>
-                                <p class="fw-semibold fs-12 mb-0">Minutes</p>
-                            </div>
-                        </div>
-                        <div class="col-6 col-sm-4 col-md-3 col-lg">
-                            <div class="bg-body-secondary border border-primary-subtle border-dashed p-2 rounded">
-                                <h3 id="seconds" class="fw-bold text-primary fs-35">00</h3>
-                                <p class="fw-semibold fs-12 mb-0">Seconds</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
+                </div> </div> </div> </div>
+</div>
 {% endblock %}
 
 {% block script %}
-	<script src="/js/pages/coming-soon.js"></script>
+    {# You can add search bar logic (DataTables) here later #}
 {% endblock %}
 
-
 {% block footer %}{% endblock %}
-

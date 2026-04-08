@@ -6,6 +6,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 
+
 class HomeController extends AbstractController
 {
     #[Route('/', name: 'dashboard')]
@@ -54,5 +55,10 @@ class HomeController extends AbstractController
     public function resourcesManagement(): Response
     {
         return $this->render('resources-management/apps-resources-management.html.twig');
+    }
+    #[Route('/admin/resources/add', name: 'apps-resources-add')]
+    public function addResource()
+    {
+        return $this->render('resources-management/apps-resources-add.html.twig');
     }
 }
