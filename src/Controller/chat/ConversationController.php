@@ -333,23 +333,10 @@ class ConversationController extends AbstractController
         int $userId,
         ConversationRepository $conversationRepository,
         ConversationParticipantRepository $participantRepository,
-        EntityManagerInterface $entityManager,
     ): JsonResponse {
         $conversation = $this->loadEditableGroupConversation($conversationId, $conversationRepository, $participantRepository);
         if ($conversation instanceof JsonResponse) {
             return $conversation;
-        }
-
-        $participant = $participantRepository->findOneBy([
-            'conversation_id' => $conversationId,
-            'user_id' => $userId,
-            'left_at' => null,
-        ]);
-        if (!$participant instanceof ConversationParticipant) {
-            return $this->json([
-                'success' => false,
-                'error' => 'Member not found in this conversation.',
-            ], 404);
         }
 
         $activeParticipants = $this->findActiveParticipants($participantRepository, $conversationId);
@@ -357,15 +344,13 @@ class ConversationController extends AbstractController
 
         try {
             $conversation->assertCanKickParticipant(self::SESSION_CURRENT_USER_ID, $userId, $actorHasAdminPrivileges);
-            $participant->leaveConversation();
+            $participantRepository->removeParticipant($conversationId, $userId);
         } catch (InvalidArgumentException $exception) {
             return $this->json([
                 'success' => false,
                 'error' => $exception->getMessage(),
             ], 422);
         }
-
-        $entityManager->flush();
 
         return $this->json([
             'success' => true,

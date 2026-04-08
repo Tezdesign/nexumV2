@@ -88,17 +88,8 @@ class ConversationParticipantRepository extends ServiceEntityRepository
                 throw new InvalidArgumentException('This user is already in the conversation.');
             }
 
-            $participant
-                ->setAdded_by($addedBy)
-                ->setJoined_at(new \DateTime())
-                ->setLeft_at(null);
-
-            if (trim((string) $participant->getRole()) === '') {
-                $participant->setRole('member');
-            }
-
+            $this->getEntityManager()->remove($participant);
             $this->getEntityManager()->flush();
-            return;
         }
 
         $participant = (new ConversationParticipant())
@@ -111,6 +102,22 @@ class ConversationParticipantRepository extends ServiceEntityRepository
             ->setLeft_at(null);
 
         $this->getEntityManager()->persist($participant);
+        $this->getEntityManager()->flush();
+    }
+
+    public function removeParticipant(int $conversationId, int $userId): void
+    {
+        $participant = $this->findOneBy([
+            'conversation_id' => $conversationId,
+            'user_id' => $userId,
+            'left_at' => null,
+        ]);
+
+        if (!$participant instanceof ConversationParticipant) {
+            throw new InvalidArgumentException('Member not found in this conversation.');
+        }
+
+        $this->getEntityManager()->remove($participant);
         $this->getEntityManager()->flush();
     }
 
