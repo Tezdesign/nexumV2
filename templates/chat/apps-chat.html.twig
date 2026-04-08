@@ -14,6 +14,69 @@
         .max-height-400 {
             max-height: 400px;
         }
+        .group-avatar-picker {
+            width: 88px;
+            height: 88px;
+            border-radius: 999px;
+            border: 2px dashed rgba(13, 110, 253, 0.35);
+            background: rgba(13, 110, 253, 0.06);
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .group-avatar-picker:hover {
+            border-color: rgba(13, 110, 253, 0.65);
+            background: rgba(13, 110, 253, 0.12);
+        }
+        .group-avatar-plus {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(13, 110, 253, 0.85);
+            font-size: 30px;
+            font-weight: 600;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            pointer-events: none;
+        }
+        .group-avatar-picker:hover .group-avatar-plus {
+            opacity: 1;
+        }
+        .group-avatar-preview {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+        }
+        .group-avatar-clear {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            width: 22px;
+            height: 22px;
+            border-radius: 999px;
+            border: none;
+            background: rgba(220, 53, 69, 0.92);
+            color: #fff;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            font-size: 14px;
+            z-index: 2;
+        }
+        .group-avatar-picker.has-image .group-avatar-preview {
+            display: block;
+        }
+        .group-avatar-picker.has-image .group-avatar-clear {
+            display: inline-flex;
+        }
+        .group-avatar-picker.has-image .group-avatar-plus {
+            display: none;
+        }
     </style>
 {% endblock %}
 
@@ -411,10 +474,16 @@
                                 <div class="mb-3">
                                     <label class="form-label">Group name</label>
                                     <input type="text" class="form-control" autocomplete="off" placeholder="Letters only, 4-7 chars" data-apps-chat="group-name-input">
+                                    <div class="text-danger small mt-2 d-none" data-apps-chat="group-title-error"></div>
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label">Group image (optional)</label>
-                                    <input type="file" class="form-control" accept="image/*" data-apps-chat="group-avatar-input">
+                                    <div class="group-avatar-picker" data-apps-chat="group-avatar-trigger" role="button" tabindex="0" aria-label="Choose group image">
+                                        <img alt="Group image preview" class="group-avatar-preview" data-apps-chat="group-avatar-preview">
+                                        <span class="group-avatar-plus" data-apps-chat="group-avatar-plus">+</span>
+                                        <button type="button" class="group-avatar-clear" data-apps-chat="group-avatar-clear" aria-label="Remove image">x</button>
+                                    </div>
+                                    <input type="file" class="d-none" accept="image/*" data-apps-chat="group-avatar-input">
                                 </div>
                                 <div class="mb-2">
                                     <input type="text" class="form-control" autocomplete="off" placeholder="Search people..." data-apps-chat="group-search-input">
@@ -462,5 +531,5 @@
 {% endblock %}
 
 {% block script %}
-    <script src="/js/pages/apps-chat.js?v=20260408e"></script>
+    <script src="/js/pages/apps-chat.js?v=20260408f"></script>
 {% endblock %}

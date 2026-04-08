@@ -71,7 +71,11 @@ class ChatApp {
         this.dangerConfirmResolver = null
         this.groupCreateModal = null
         this.groupNameInput = null
+        this.groupTitleError = null
         this.groupAvatarInput = null
+        this.groupAvatarTrigger = null
+        this.groupAvatarPreview = null
+        this.groupAvatarClear = null
         this.groupSearchInput = null
         this.groupCandidatesList = null
         this.groupEmpty = null
@@ -176,7 +180,11 @@ class ChatApp {
         this.dangerConfirmCancelButton = document.querySelector('[data-apps-chat="danger-confirm-cancel"]')
         this.groupCreateModal = document.getElementById('groupCreateModal')
         this.groupNameInput = document.querySelector('[data-apps-chat="group-name-input"]')
+        this.groupTitleError = document.querySelector('[data-apps-chat="group-title-error"]')
         this.groupAvatarInput = document.querySelector('[data-apps-chat="group-avatar-input"]')
+        this.groupAvatarTrigger = document.querySelector('[data-apps-chat="group-avatar-trigger"]')
+        this.groupAvatarPreview = document.querySelector('[data-apps-chat="group-avatar-preview"]')
+        this.groupAvatarClear = document.querySelector('[data-apps-chat="group-avatar-clear"]')
         this.groupSearchInput = document.querySelector('[data-apps-chat="group-search-input"]')
         this.groupCandidatesList = document.querySelector('[data-apps-chat="group-candidates-list"]')
         this.groupEmpty = document.querySelector('[data-apps-chat="group-empty"]')
@@ -619,6 +627,7 @@ class ChatApp {
             this.bottomNotice.className = 'position-fixed bottom-0 start-50 translate-middle-x mb-3 z-3'
             this.bottomNotice.style.maxWidth = '92vw'
             this.bottomNotice.style.width = 'auto'
+            this.bottomNotice.style.zIndex = '2000'
 
             const card = document.createElement('div')
             card.className = 'shadow-lg rounded-3 border border-danger-subtle bg-danger-subtle text-danger px-3 py-2 small'
@@ -2246,6 +2255,43 @@ class ChatApp {
         return '/apps-chat/groups/create'
     }
 
+    setGroupTitleError = (message = '') => {
+        if (!this.groupTitleError) {
+            return
+        }
+
+        const text = String(message || '').trim()
+        this.groupTitleError.textContent = text
+        this.groupTitleError.classList.toggle('d-none', text.length === 0)
+    }
+
+    clearGroupAvatar = () => {
+        if (this.groupAvatarInput) {
+            this.groupAvatarInput.value = ''
+        }
+
+        if (this.groupAvatarPreview) {
+            this.groupAvatarPreview.removeAttribute('src')
+        }
+
+        this.groupAvatarTrigger?.classList.remove('has-image')
+    }
+
+    updateGroupAvatarPreview = () => {
+        const file = this.groupAvatarInput?.files?.[0]
+        if (!file || !this.groupAvatarPreview) {
+            this.clearGroupAvatar()
+            return
+        }
+
+        const reader = new FileReader()
+        reader.onload = () => {
+            this.groupAvatarPreview.src = String(reader.result || '')
+            this.groupAvatarTrigger?.classList.add('has-image')
+        }
+        reader.readAsDataURL(file)
+    }
+
     renderGroupCandidates = (candidates) => {
         if (!this.groupCandidatesList) {
             return
@@ -2310,6 +2356,12 @@ class ChatApp {
 
         const title = String(this.groupNameInput.value || '').trim()
         const memberIds = Array.from(this.selectedGroupMemberIds)
+        this.setGroupTitleError('')
+
+        if (title.length === 0) {
+            this.setGroupTitleError('Chat name cannot be empty.')
+            return
+        }
 
         this.groupCreateSubmitButton.setAttribute('disabled', 'disabled')
 
@@ -2333,7 +2385,13 @@ class ChatApp {
 
             const payload = await response.json().catch(() => ({}))
             if (!response.ok || !payload.success) {
-                throw new Error(payload.error || 'Failed to create group.')
+                const serverError = payload.error || 'Failed to create group.'
+                if (/chat name|letters only|between 4 and 7/i.test(serverError)) {
+                    this.setGroupTitleError(serverError)
+                    return
+                }
+
+                throw new Error(serverError)
             }
 
             this.getBootstrapModal(this.groupCreateModal)?.hide()
@@ -2354,12 +2412,14 @@ class ChatApp {
 
         this.groupCreateModal.addEventListener('show.bs.modal', async () => {
             this.selectedGroupMemberIds.clear()
+            this.setGroupTitleError('')
             if (this.groupNameInput) {
                 this.groupNameInput.value = ''
             }
             if (this.groupAvatarInput) {
                 this.groupAvatarInput.value = ''
             }
+            this.clearGroupAvatar()
             if (this.groupSearchInput) {
                 this.groupSearchInput.value = ''
             }
@@ -2381,6 +2441,33 @@ class ChatApp {
 
         this.groupCreateSubmitButton?.addEventListener('click', async () => {
             await this.createGroupConversation()
+        })
+
+        this.groupNameInput?.addEventListener('input', () => {
+            this.setGroupTitleError('')
+        })
+
+        this.groupAvatarTrigger?.addEventListener('click', () => {
+            this.groupAvatarInput?.click()
+        })
+
+        this.groupAvatarTrigger?.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') {
+                return
+            }
+
+            event.preventDefault()
+            this.groupAvatarInput?.click()
+        })
+
+        this.groupAvatarInput?.addEventListener('change', () => {
+            this.updateGroupAvatarPreview()
+        })
+
+        this.groupAvatarClear?.addEventListener('click', (event) => {
+            event.preventDefault()
+            event.stopPropagation()
+            this.clearGroupAvatar()
         })
     }
 
