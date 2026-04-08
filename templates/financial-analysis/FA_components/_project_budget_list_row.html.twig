@@ -33,7 +33,7 @@
             <!-- Action & Due Date -->
             <div class="col-md-1 col-lg-2 text-md-end text-center mt-3 mt-md-0">
                 <p class="text-muted mb-1 fs-12"><i class="ti ti-calendar-event me-1"></i>{{ project.dueDate }}</p>
-                <a href="#" class="btn btn-soft-primary btn-sm">{{ 'Details'|trans }}</a>
+                <a href="{{ path('apps-financial-analysis-budget-details', {id: project.id}) }}" class="btn btn-soft-primary btn-sm">{{ 'Details'|trans }}</a>
             </div>
         </div>
     </div>

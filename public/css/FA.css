@@ -95,3 +95,15 @@
     border-color: #6b1cdb !important;
     color: #ffffff !important;
 }
+
+/* Custom Purple Hover Effect for Tabs */
+.nav-tabs .nav-item .nav-link {
+    transition: color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+}
+.nav-tabs .nav-item .nav-link:hover {
+    color: #7F22FE !important;
+}
+.nav-tabs .nav-item.show .nav-link, .nav-tabs .nav-link.active {
+    color: #7F22FE !important;
+    border-bottom-color: #7F22FE !important;
+}

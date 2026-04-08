@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Form\FinancialAnalysis;
+namespace App\Form\FinanicalAnalysis;
 
 use App\Entity\FinancialAnalysis\BudgetProfile;
 use Symfony\Component\Form\AbstractType;
@@ -16,6 +16,10 @@ class BudgetProfileType extends AbstractType
             ->add('budget_disposable')
             ->add('total_expense')
             ->add('margin_profit')
+            ->add('base_currency')
+            ->add('start_date')
+            ->add('end_date')
+            ->add('status')
         ;
     }
 

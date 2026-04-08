@@ -1,0 +1,62 @@
+<div class="row">
+    <!-- Transactions List (60%) -->
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="header-title m-0">{{ 'Transactions'|trans }}</h4>
+                <div class="d-flex flex-wrap gap-2 align-items-center p-2 rounded" style="background-color: var(--ct-secondary-bg-subtle, rgba(91, 105, 188, 0.1));">
+                    <!-- Search Bar -->
+                    <div class="app-search d-none d-sm-block me-auto">
+                        <form>
+                            <div class="position-relative">
+                                <input type="search" class="form-control border-0" style="background-color: var(--ct-body-bg, #fff); border-radius: 20px; padding-left: 35px; box-shadow: none; min-width: 150px;" placeholder="{{ 'Search...'|trans }}">
+                                <i class="ri-search-line fs-18 position-absolute text-muted" style="left: 10px; top: 50%; transform: translateY(-50%);"></i>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="button" class="btn btn-outline-primary btn-sm rounded-pill d-flex align-items-center gap-1">
+                            <i class="ti ti-filter fs-16"></i> {{ 'Filter'|trans }}
+                        </button>
+                        <button type="button" class="btn btn-legacy-purple btn-sm"><i class="ti ti-playlist-add fs-20"></i></button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">{{ 'Transaction list will populate here.'|trans }}</p>
+                <!-- Transaction items go here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Extra Component Tabs (40%) -->
+    <div class="col-lg-5">
+        <div class="card">
+            <div class="card-header border-bottom border-dashed d-flex align-items-center">
+                <h4 class="header-title m-0">{{ 'Transaction Details'|trans }}</h4>
+            </div>
+            <div class="card-body p-0">
+                <ul class="nav nav-tabs nav-bordered mb-0">
+                    <li class="nav-item">
+                        <a href="#subtab1" data-bs-toggle="tab" aria-expanded="true" class="nav-link active">
+                            <span>{{ 'Detail View'|trans }}</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#subtab2" data-bs-toggle="tab" aria-expanded="false" class="nav-link">
+                            <span>{{ 'Attachments'|trans }}</span>
+                        </a>
+                    </li>
+                </ul>
+                <div class="tab-content p-3">
+                    <div class="tab-pane show active" id="subtab1">
+                        <p class="text-muted">{{ 'Select a transaction to view details.'|trans }}</p>
+                    </div>
+                    <div class="tab-pane" id="subtab2">
+                        <p class="text-muted">{{ 'No attachments available.'|trans }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

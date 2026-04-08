@@ -2,6 +2,9 @@
 
 namespace App\Entity\FinancialAnalysis;
 
+use Symfony\Component\Validator\Constraints as Assert;
+use Symfony\Component\Validator\Context\ExecutionContextInterface;
+use Doctrine\ORM\Mapping\HasLifecycleCallbacks;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -12,6 +15,7 @@ use App\Repository\FinancialAnalysis\BudgetProfileRepository;
 #[ORM\Entity(repositoryClass: BudgetProfileRepository::class)]
 #[ORM\Table(name: 'budget_profile')]
 #[ORM\Index(name: "fiscal_year", columns: ["fiscal_year"])]
+#[ORM\HasLifecycleCallbacks]
 class BudgetProfile
 {
     #[ORM\Id]
@@ -31,6 +35,8 @@ class BudgetProfile
     }
 
     #[ORM\Column(type: 'string', nullable: false)]
+    #[Assert\NotBlank(message: "select the fiscal year within a 10-year range")]
+    #[Assert\Regex(pattern: "/^\d{4}$/", message: " either select or type a valid year  within a 10-year range")]
     private ?string $fiscal_year = null;
 
     public function getFiscal_year(): ?string
@@ -45,6 +51,9 @@ class BudgetProfile
     }
 
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2, nullable: false)]
+    #[Assert\NotBlank(message: 'The budget field is can not be blank.')]
+    #[Assert\GreaterThanOrEqual(value: 10000, message:"the budget must be mininum 10000 ")]
+    #[Assert\DivisibleBy(value: 10, message: 'The budget field is divisible by 10')]
     private ?string $budget_disposable = null;
 
     public function getBudget_disposable(): ?string
@@ -76,6 +85,8 @@ class BudgetProfile
     private ?float $margin_profit = null;
 
     #[ORM\Column(type: 'string', length: 3, nullable: true)]
+    #[Assert\NotBlank(message: 'Type or select your currency')]
+    #[Assert\Regex("/^\[A-Z]{3}$/", message: "type or select a valid recognized currency")]
     private ?string $base_currency = null;
 
     #[ORM\Column(type: 'date', nullable: true)]
@@ -193,5 +204,46 @@ class BudgetProfile
 
         return $this;
     }
+    #[ORM\PrePersist]
+    #[ORM\PreUpdate]
+    public function calculateStatus(): void
+    {
+        // Automatically determine if the budget is DRAFT or ACTIVE based on the fiscal year
+        if ($this->fiscal_year) {
+            $currentYear = date('Y');
+
+            if ($this->fiscal_year === $currentYear) {
+                $this->status = 'ACTIVE';
+            } else {
+                $this->status = 'DRAFT';
+            }
+        }
+    }
+    #[Assert\Callback]
+    public function validateBusinessLogic(ExecutionContextInterface $context, mixed $payload): void
+    {
+        if ($this->fiscal_year) {
+            $currentYear = (int) date('Y');
+            $inputYear = (int) $this->fiscal_year;
+
+            if ($inputYear < ($currentYear - 10)) {
+                $context->buildViolation('The fiscal year must fall within the last 10 years.')
+                    ->atPath('fiscal_year')
+                    ->addViolation();
+            }
+            else {
+                $expectedEndDate = clone $this->start_date;
+                $expectedEndDate->modify('+1 year');
+
+                if ($this->end_date->format('Y-m-d') !== $expectedEndDate->format('Y-m-d')) {
+                    $context->buildViolation('The budget period must be exactly 12 months long.')
+                        ->atPath('end_date')
+                        ->addViolation();
+                }
+            }
+        }
+    }
+
+
 }
 
