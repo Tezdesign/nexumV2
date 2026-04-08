@@ -614,6 +614,141 @@ class ConversationController extends AbstractController
         ]);
     }
 
+    #[Route('/apps-chat/groups/candidates', name: 'apps-chat-group-candidates', methods: ['GET'])]
+    public function listGroupCandidates(
+        Request $request,
+        UtilisateurRepository $utilisateurRepository,
+    ): JsonResponse {
+        $search = trim((string) $request->query->get('q', ''));
+
+        $qb = $utilisateurRepository->createQueryBuilder('u')
+            ->andWhere('u.id != :currentUserId')
+            ->setParameter('currentUserId', self::SESSION_CURRENT_USER_ID);
+
+        if ($search !== '') {
+            $qb->andWhere('LOWER(u.nom) LIKE :search OR LOWER(u.prenom) LIKE :search OR LOWER(u.email) LIKE :search')
+                ->setParameter('search', '%' . mb_strtolower($search) . '%');
+        }
+
+        $users = $qb
+            ->orderBy('u.prenom', 'ASC')
+            ->addOrderBy('u.nom', 'ASC')
+            ->setMaxResults(100)
+            ->getQuery()
+            ->getResult();
+
+        return $this->json([
+            'success' => true,
+            'candidates' => array_map(function (Utilisateur $user): array {
+                return [
+                    'userId' => $user->getId(),
+                    'name' => $this->buildUserName($user),
+                    'role' => $user->getRole() ?? 'Member',
+                    'avatarSrc' => $this->toDataUri($user->getImagelink(), 'image/jpeg'),
+                ];
+            }, $users),
+        ]);
+    }
+
+    #[Route('/apps-chat/groups/create', name: 'apps-chat-group-create', methods: ['POST'])]
+    public function createGroupConversation(
+        Request $request,
+        UtilisateurRepository $utilisateurRepository,
+        EntityManagerInterface $entityManager,
+    ): JsonResponse {
+        $title = (string) $request->request->get('title', '');
+        $memberUserIds = $this->extractUserIds($request);
+
+        $conversation = new Conversation();
+        try {
+            $normalizedMemberIds = $conversation->initializeGroupConversation(self::SESSION_CURRENT_USER_ID, $title, $memberUserIds);
+        } catch (InvalidArgumentException $exception) {
+            return $this->json([
+                'success' => false,
+                'error' => $exception->getMessage(),
+            ], 422);
+        }
+
+        $avatar = $request->files->get('avatar');
+        if ($avatar instanceof UploadedFile) {
+            $mimeType = (string) ($avatar->getMimeType() ?? '');
+            $binary = file_get_contents($avatar->getPathname());
+            if ($binary === false || $binary === '') {
+                return $this->json([
+                    'success' => false,
+                    'error' => 'Could not read the selected image.',
+                ], 422);
+            }
+
+            try {
+                $conversation->setAvatar($binary);
+                $conversation->setAvatarMime($mimeType);
+            } catch (InvalidArgumentException $exception) {
+                return $this->json([
+                    'success' => false,
+                    'error' => $exception->getMessage(),
+                ], 422);
+            }
+        }
+
+        $knownUsers = $utilisateurRepository->findBy(['id' => $normalizedMemberIds]);
+        $knownUserIds = array_values(array_map(
+            static fn (Utilisateur $user): int => (int) $user->getId(),
+            $knownUsers
+        ));
+
+        if (count($knownUserIds) !== count($normalizedMemberIds)) {
+            return $this->json([
+                'success' => false,
+                'error' => 'One or more selected users were not found.',
+            ], 404);
+        }
+
+        $entityManager->persist($conversation);
+        $entityManager->flush();
+
+        $conversationId = (int) ($conversation->getId() ?? 0);
+        if ($conversationId <= 0) {
+            return $this->json([
+                'success' => false,
+                'error' => 'Unable to create group right now.',
+            ], 500);
+        }
+
+        $creatorParticipant = (new ConversationParticipant())
+            ->setConversation_id($conversationId)
+            ->setUser_id(self::SESSION_CURRENT_USER_ID)
+            ->setRole('owner')
+            ->setNickname(null)
+            ->setAdded_by(self::SESSION_CURRENT_USER_ID)
+            ->setJoined_at(new \DateTime())
+            ->setLeft_at(null);
+        $entityManager->persist($creatorParticipant);
+
+        foreach ($normalizedMemberIds as $memberUserId) {
+            $participant = (new ConversationParticipant())
+                ->setConversation_id($conversationId)
+                ->setUser_id((int) $memberUserId)
+                ->setRole('member')
+                ->setNickname(null)
+                ->setAdded_by(self::SESSION_CURRENT_USER_ID)
+                ->setJoined_at(new \DateTime())
+                ->setLeft_at(null);
+            $entityManager->persist($participant);
+        }
+
+        $entityManager->flush();
+
+        return $this->json([
+            'success' => true,
+            'conversation' => [
+                'id' => $conversationId,
+                'type' => 'GROUP',
+                'name' => $conversation->getTitle(),
+            ],
+        ], 201);
+    }
+
     #[Route('/apps-chat/direct-messages/create', name: 'apps-chat-dm-create', methods: ['POST'])]
     public function createDirectMessage(
         Request $request,
@@ -712,5 +847,28 @@ class ConversationController extends AbstractController
                 'dmKey' => $conversation->getDmKey(),
             ],
         ], 201);
+    }
+
+    /**
+     * @return int[]
+     */
+    private function extractUserIds(Request $request): array
+    {
+        $payload = $request->request->all();
+        $rawValues = $payload['userIds'] ?? [];
+
+        if (!is_array($rawValues)) {
+            $csv = trim((string) $rawValues);
+            if ($csv === '') {
+                return [];
+            }
+
+            $rawValues = array_map('trim', explode(',', $csv));
+        }
+
+        return array_values(array_filter(array_map(
+            static fn (mixed $value): int => (int) $value,
+            $rawValues
+        ), static fn (int $id): bool => $id > 0));
     }
 }

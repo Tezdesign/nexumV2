@@ -69,6 +69,14 @@ class ChatApp {
         this.dangerConfirmSubmitButton = null
         this.dangerConfirmCancelButton = null
         this.dangerConfirmResolver = null
+        this.groupCreateModal = null
+        this.groupNameInput = null
+        this.groupAvatarInput = null
+        this.groupSearchInput = null
+        this.groupCandidatesList = null
+        this.groupEmpty = null
+        this.groupCreateSubmitButton = null
+        this.selectedGroupMemberIds = new Set()
         this.editingMemberUserId = null
         this.membersById = new Map()
         this.participantNicknameMap = new Map()
@@ -166,6 +174,13 @@ class ChatApp {
         this.dangerConfirmMessage = document.querySelector('[data-apps-chat="danger-confirm-message"]')
         this.dangerConfirmSubmitButton = document.querySelector('[data-apps-chat="danger-confirm-submit"]')
         this.dangerConfirmCancelButton = document.querySelector('[data-apps-chat="danger-confirm-cancel"]')
+        this.groupCreateModal = document.getElementById('groupCreateModal')
+        this.groupNameInput = document.querySelector('[data-apps-chat="group-name-input"]')
+        this.groupAvatarInput = document.querySelector('[data-apps-chat="group-avatar-input"]')
+        this.groupSearchInput = document.querySelector('[data-apps-chat="group-search-input"]')
+        this.groupCandidatesList = document.querySelector('[data-apps-chat="group-candidates-list"]')
+        this.groupEmpty = document.querySelector('[data-apps-chat="group-empty"]')
+        this.groupCreateSubmitButton = document.querySelector('[data-apps-chat="group-create-submit"]')
         this.chatForm = document.querySelector('#chat-form')
         if (this.chatForm) {
             this.chatInput = this.chatForm.querySelector('[data-apps-chat="chat-input"]')
@@ -2218,6 +2233,157 @@ class ChatApp {
         return '/apps-chat/direct-messages/create'
     }
 
+    buildGroupCandidatesEndpoint = (query = '') => {
+        const q = String(query || '').trim()
+        if (!q) {
+            return '/apps-chat/groups/candidates'
+        }
+
+        return `/apps-chat/groups/candidates?q=${encodeURIComponent(q)}`
+    }
+
+    buildCreateGroupEndpoint = () => {
+        return '/apps-chat/groups/create'
+    }
+
+    renderGroupCandidates = (candidates) => {
+        if (!this.groupCandidatesList) {
+            return
+        }
+
+        this.groupCandidatesList.innerHTML = ''
+        candidates.forEach((candidate) => {
+            const userId = String(candidate.userId || '')
+
+            const row = document.createElement('label')
+            row.className = 'd-flex align-items-center gap-2 border rounded-3 px-2 py-2'
+
+            const checkbox = document.createElement('input')
+            checkbox.type = 'checkbox'
+            checkbox.className = 'form-check-input mt-0'
+            checkbox.value = userId
+            checkbox.checked = this.selectedGroupMemberIds.has(userId)
+            checkbox.addEventListener('change', () => {
+                if (checkbox.checked) {
+                    this.selectedGroupMemberIds.add(userId)
+                } else {
+                    this.selectedGroupMemberIds.delete(userId)
+                }
+            })
+            row.appendChild(checkbox)
+
+            const avatar = this.createAvatarElement(candidate.avatarSrc || '', candidate.name || 'M')
+            row.appendChild(avatar)
+
+            const body = document.createElement('div')
+            body.className = 'flex-grow-1 min-w-0'
+            body.innerHTML = `<div class="fw-medium text-truncate">${candidate.name || 'Unknown User'}</div><div class="text-muted small">${candidate.role || 'Member'}</div>`
+            row.appendChild(body)
+
+            this.groupCandidatesList.appendChild(row)
+        })
+
+        if (this.groupEmpty) {
+            this.groupEmpty.classList.toggle('d-none', candidates.length > 0)
+        }
+    }
+
+    loadGroupCandidates = async (query = '') => {
+        const response = await fetch(this.buildGroupCandidatesEndpoint(query), {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' },
+        })
+
+        const payload = await response.json().catch(() => ({}))
+        if (!response.ok || !payload.success) {
+            throw new Error(payload.error || 'Failed to load users.')
+        }
+
+        const candidates = Array.isArray(payload.candidates) ? payload.candidates : []
+        this.renderGroupCandidates(candidates)
+    }
+
+    createGroupConversation = async () => {
+        if (!this.groupNameInput || !this.groupCreateSubmitButton) {
+            return
+        }
+
+        const title = String(this.groupNameInput.value || '').trim()
+        const memberIds = Array.from(this.selectedGroupMemberIds)
+
+        this.groupCreateSubmitButton.setAttribute('disabled', 'disabled')
+
+        try {
+            const formData = new FormData()
+            formData.append('title', title)
+            memberIds.forEach((id) => {
+                formData.append('userIds[]', String(id))
+            })
+
+            const avatarFile = this.groupAvatarInput?.files?.[0]
+            if (avatarFile) {
+                formData.append('avatar', avatarFile)
+            }
+
+            const response = await fetch(this.buildCreateGroupEndpoint(), {
+                method: 'POST',
+                headers: { 'Accept': 'application/json' },
+                body: formData,
+            })
+
+            const payload = await response.json().catch(() => ({}))
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.error || 'Failed to create group.')
+            }
+
+            this.getBootstrapModal(this.groupCreateModal)?.hide()
+            setTimeout(() => {
+                window.location.reload()
+            }, 150)
+        } catch (error) {
+            this.showBottomNotice(error?.message || 'Failed to create group.')
+        } finally {
+            this.groupCreateSubmitButton.removeAttribute('disabled')
+        }
+    }
+
+    initGroupModal = () => {
+        if (!this.groupCreateModal) {
+            return
+        }
+
+        this.groupCreateModal.addEventListener('show.bs.modal', async () => {
+            this.selectedGroupMemberIds.clear()
+            if (this.groupNameInput) {
+                this.groupNameInput.value = ''
+            }
+            if (this.groupAvatarInput) {
+                this.groupAvatarInput.value = ''
+            }
+            if (this.groupSearchInput) {
+                this.groupSearchInput.value = ''
+            }
+
+            try {
+                await this.loadGroupCandidates('')
+            } catch (error) {
+                this.showBottomNotice(error?.message || 'Failed to load users.')
+            }
+        })
+
+        this.groupSearchInput?.addEventListener('input', async () => {
+            try {
+                await this.loadGroupCandidates(this.groupSearchInput?.value || '')
+            } catch (error) {
+                this.showBottomNotice(error?.message || 'Failed to load users.')
+            }
+        })
+
+        this.groupCreateSubmitButton?.addEventListener('click', async () => {
+            await this.createGroupConversation()
+        })
+    }
+
     loadDMCandidates = async (query = '') => {
         const dmCandidatesList = document.querySelector('[data-apps-chat="dm-candidates-list"]')
         const dmEmpty = document.querySelector('[data-apps-chat="dm-empty"]')
@@ -2364,6 +2530,7 @@ class ChatApp {
         this.initDetailsDrawer();
         this.initCustomization();
         this.initDMModal();
+        this.initGroupModal();
         this.scrollToBottom();
         this.initFilters();
         this.initSearch();

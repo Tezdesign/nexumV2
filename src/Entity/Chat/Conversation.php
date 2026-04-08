@@ -18,6 +18,8 @@ use App\Repository\Chat\ConversationRepository;
 class Conversation
 {
     public const MAX_AVATAR_BLOB_BYTES = 2097152;
+    public const GROUP_NAME_MIN_LENGTH = 4;
+    public const GROUP_NAME_MAX_LENGTH = 7;
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -64,12 +66,55 @@ class Conversation
             throw new InvalidArgumentException('Chat name cannot be empty.');
         }
 
-        if ($normalizedTitle !== null && mb_strlen($normalizedTitle) < 3) {
-            throw new InvalidArgumentException('Chat name must contain at least 3 characters.');
+        if ($normalizedTitle !== null) {
+            $length = mb_strlen($normalizedTitle);
+            if ($length < self::GROUP_NAME_MIN_LENGTH || $length > self::GROUP_NAME_MAX_LENGTH) {
+                throw new InvalidArgumentException('Chat name must be between 4 and 7 letters.');
+            }
+
+            if (!preg_match('/^[A-Za-z]+$/', $normalizedTitle)) {
+                throw new InvalidArgumentException('Chat name can contain letters only.');
+            }
         }
 
         $this->title = $normalizedTitle;
         return $this;
+    }
+
+    /**
+     * @param int[] $memberUserIds Users to invite (excluding creator).
+     *
+     * @return int[] Normalized unique invited user IDs.
+     */
+    public function initializeGroupConversation(int $creatorUserId, string $title, array $memberUserIds): array
+    {
+        if ($creatorUserId <= 0) {
+            throw new InvalidArgumentException('Invalid creator id.');
+        }
+
+        $normalizedMemberIds = [];
+        foreach ($memberUserIds as $memberUserId) {
+            $id = (int) $memberUserId;
+            if ($id <= 0 || $id === $creatorUserId) {
+                continue;
+            }
+
+            $normalizedMemberIds[$id] = $id;
+        }
+
+        if (count($normalizedMemberIds) < 2) {
+            throw new InvalidArgumentException('A group conversation must include at least 3 people.');
+        }
+
+        $this->setType('GROUP');
+        $this->setDmKey(null);
+        $this->setTitle($title);
+        $this->setCreatedBy($creatorUserId);
+        $this->setCreatedAt(new \DateTime());
+        $this->setLastMessageId(null);
+        $this->setLastMessageAt(null);
+
+        return array_values($normalizedMemberIds);
     }
 
     public function renameBy(int $userId, string $title): self
@@ -265,6 +310,10 @@ class Conversation
 
     public function setAvatarMime(?string $avatar_mime): static
     {
+        if ($avatar_mime !== null && $avatar_mime !== '' && !str_starts_with($avatar_mime, 'image/')) {
+            throw new InvalidArgumentException('Only image files are allowed.');
+        }
+
         $this->avatar_mime = $avatar_mime;
 
         return $this;
