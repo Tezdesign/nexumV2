@@ -17,6 +17,8 @@ use App\Repository\Chat\ConversationRepository;
 #[ORM\UniqueConstraint(name: "uq_conversations_dm_key", columns: ["dm_key"])]
 class Conversation
 {
+    public const MAX_AVATAR_BLOB_BYTES = 2097152;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: 'integer')]
@@ -127,6 +129,10 @@ class Conversation
 
     public function setAvatar(?string $avatar): self
     {
+        if ($avatar !== null && strlen($avatar) > self::MAX_AVATAR_BLOB_BYTES) {
+            throw new InvalidArgumentException('Chat image is too large. Maximum size is 2 MB.');
+        }
+
         $this->avatar = $avatar;
         return $this;
     }

@@ -659,7 +659,7 @@ class ChatApp {
 
             this.syncConversationSelection(payload.conversation)
         } catch (error) {
-            window.alert(error?.message || 'Failed to update the chat picture.')
+            this.showBottomNotice(error?.message || 'Failed to update the chat picture.')
         } finally {
             this.customizeAvatarInput.value = ''
         }
