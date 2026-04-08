@@ -2,11 +2,15 @@
 
 namespace App\Controller\chat;
 
+use App\Entity\Chat\Conversation;
+use App\Entity\Chat\Message;
 use App\Entity\Chat\MessageAttachment;
 use App\Repository\Chat\ConversationParticipantRepository;
 use App\Repository\Chat\MessageAttachmentRepository;
 use App\Repository\Chat\MessageRepository;
+use App\Repository\UserHandling\UtilisateurRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use InvalidArgumentException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -21,28 +25,34 @@ class MessageAttachmentController extends AbstractController
 	#[Route('/apps-chat/attachments', name: 'apps-chat-attachments', methods: ['POST'])]
 	public function upload(
 		Request $request,
-		MessageRepository $messageRepository,
+		UtilisateurRepository $utilisateurRepository,
 		ConversationParticipantRepository $participantRepository,
 		EntityManagerInterface $entityManager,
 	): JsonResponse {
-		$messageId = $request->request->get('messageId');
-		$message = $messageId ? $messageRepository->find((int)$messageId) : null;
-
-		if (!$message || !$message->getConversationId()) {
+		$conversationId = (int) $request->request->get('conversationId', 0);
+		if ($conversationId <= 0) {
 			return $this->json([
 				'success' => false,
-				'error' => 'Message not found or invalid.',
-			], 404);
+				'error' => 'Invalid conversation id.',
+			], 400);
 		}
 
-		if (!$participantRepository->isActiveParticipant($message->getConversationId(), ConversationController::SESSION_CURRENT_USER_ID)) {
+		if (!$participantRepository->isActiveParticipant($conversationId, ConversationController::SESSION_CURRENT_USER_ID)) {
 			return $this->json([
 				'success' => false,
 				'error' => 'Access denied.',
 			], 403);
 		}
 
-		$files = $request->files->all();
+		$conversation = $entityManager->getRepository(Conversation::class)->find($conversationId);
+		if (!$conversation instanceof Conversation) {
+			return $this->json([
+				'success' => false,
+				'error' => 'Conversation not found.',
+			], 404);
+		}
+
+		$files = $this->normalizeUploadedFiles($request);
 		if (empty($files)) {
 			return $this->json([
 				'success' => false,
@@ -50,32 +60,77 @@ class MessageAttachmentController extends AbstractController
 			], 400);
 		}
 
+		$sender = $utilisateurRepository->find(ConversationController::SESSION_CURRENT_USER_ID);
+		$messagesPayload = [];
 		$attachments = [];
 		foreach ($files as $file) {
-			if (!$file instanceof UploadedFile) {
-				continue;
-			}
-
 			$mimeType = $file->getMimeType() ?: 'application/octet-stream';
 			$fileContent = file_get_contents($file->getRealPath());
 
 			if ($fileContent === false) {
-				continue;
+				return $this->json([
+					'success' => false,
+					'error' => 'Could not read uploaded file.',
+				], 422);
 			}
 
+			$message = new Message();
+			$now = new \DateTime();
+			try {
+				$message->setConversationId($conversationId)
+					->setSenderId(ConversationController::SESSION_CURRENT_USER_ID)
+					->setBody($file->getClientOriginalName())
+					->setKind('ATTACHMENT')
+					->setCreatedAt($now);
+			} catch (InvalidArgumentException $exception) {
+				return $this->json([
+					'success' => false,
+					'error' => $exception->getMessage(),
+				], 422);
+			}
+
+			$entityManager->persist($message);
+			$entityManager->flush();
+
 			$attachment = new MessageAttachment();
-			$attachment->setMessageId($message->getId());
-			$attachment->setFileName($file->getClientOriginalName());
-			$attachment->setMimeType($mimeType);
-			$attachment->setSizeBytes(strlen($fileContent));
-			$attachment->setData($fileContent);
-			$attachment->setCreatedAt(new \DateTime());
+			try {
+				$attachment->setMessageId((int) $message->getId())
+					->setFileName($file->getClientOriginalName())
+					->setMimeType($mimeType)
+					->setSizeBytes(strlen($fileContent))
+					->setData($fileContent)
+					->setCreatedAt($now);
+			} catch (InvalidArgumentException $exception) {
+				return $this->json([
+					'success' => false,
+					'error' => $exception->getMessage(),
+				], 422);
+			}
 
 			$entityManager->persist($attachment);
 			$entityManager->flush();
 
+			$conversation->setLastMessageId($message->getId());
+			$conversation->setLastMessageAt($message->getCreatedAt());
+			$entityManager->flush();
+
+			$messagesPayload[] = [
+				'id' => $message->getId(),
+				'body' => $message->getBody() ?? '',
+				'kind' => 'ATTACHMENT',
+				'senderId' => ConversationController::SESSION_CURRENT_USER_ID,
+				'senderName' => $sender !== null
+					? trim(sprintf('%s %s', (string) $sender->getPrenom(), (string) $sender->getNom()))
+					: 'Unknown User',
+				'senderAvatarSrc' => $sender !== null ? $this->toDataUri($sender->getImagelink(), 'image/jpeg') : null,
+				'isOwn' => true,
+				'createdAt' => $message->getCreatedAt()?->format(DATE_ATOM),
+				'timeLabel' => $message->getCreatedAt()?->format('g:ia') ?? '--',
+			];
+
 			$attachments[] = [
 				'id' => $attachment->getId(),
+				'messageId' => $message->getId(),
 				'fileName' => $attachment->getFileName(),
 				'mimeType' => $attachment->getMimeType(),
 				'sizeBytes' => $attachment->getSizeBytes(),
@@ -85,8 +140,44 @@ class MessageAttachmentController extends AbstractController
 
 		return $this->json([
 			'success' => true,
+			'messages' => $messagesPayload,
 			'attachments' => $attachments,
 		]);
+	}
+
+	/**
+	 * @return UploadedFile[]
+	 */
+	private function normalizeUploadedFiles(Request $request): array
+	{
+		$all = $request->files->all();
+		$files = [];
+
+		foreach ($all as $value) {
+			if ($value instanceof UploadedFile) {
+				$files[] = $value;
+				continue;
+			}
+
+			if (is_array($value)) {
+				foreach ($value as $nestedValue) {
+					if ($nestedValue instanceof UploadedFile) {
+						$files[] = $nestedValue;
+					}
+				}
+			}
+		}
+
+		return $files;
+	}
+
+	private function toDataUri(mixed $blobValue, string $mime): ?string
+	{
+		if ($blobValue === null || $blobValue === '') {
+			return null;
+		}
+
+		return sprintf('data:%s;base64,%s', $mime, base64_encode((string) $blobValue));
 	}
 
 	#[Route('/apps-chat/messages/{messageId}/attachments', name: 'apps-chat-message-attachments', methods: ['GET'])]

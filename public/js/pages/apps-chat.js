@@ -92,6 +92,8 @@ class ChatApp {
         this.chatForm = null
         this.chatInput = null
         this.chatSendButton = null
+        this.attachmentButton = null
+        this.attachmentInput = null
         this.activeFetchController = null
         this.activeAttachmentControllers = new Map()
         this.activeAudioElement = null
@@ -194,6 +196,8 @@ class ChatApp {
             this.chatInput = this.chatForm.querySelector('[data-apps-chat="chat-input"]')
             this.chatSendButton = this.chatForm.querySelector('[data-apps-chat="chat-send"]')
         }
+        this.attachmentButton = document.querySelector('[data-apps-chat="attachment-button"]')
+        this.attachmentInput = document.querySelector('[data-apps-chat="attachment-input"]')
         if (this.messagesScrollWrapper && window.SimpleBar)
             this.messagesSimplebar = new SimpleBar(this.messagesScrollWrapper)
     }
@@ -781,6 +785,63 @@ class ChatApp {
 
     buildConversationMessageStoreEndpoint = (conversationId) => {
         return `/apps-chat/conversations/${encodeURIComponent(String(conversationId))}/messages`
+    }
+
+    buildAttachmentUploadEndpoint = () => {
+        return '/apps-chat/attachments'
+    }
+
+    uploadSelectedAttachments = async () => {
+        if (!this.activeConversationId || !this.attachmentInput?.files?.length) {
+            return
+        }
+
+        const files = Array.from(this.attachmentInput.files)
+        const formData = new FormData()
+        formData.append('conversationId', String(this.activeConversationId))
+        files.forEach((file) => {
+            formData.append('files[]', file)
+        })
+
+        this.attachmentButton?.setAttribute('disabled', 'disabled')
+        this.chatSendButton?.setAttribute('disabled', 'disabled')
+
+        try {
+            const response = await fetch(this.buildAttachmentUploadEndpoint(), {
+                method: 'POST',
+                headers: { 'Accept': 'application/json' },
+                body: formData,
+            })
+
+            const payload = await response.json().catch(() => ({}))
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.error || 'Failed to upload file.')
+            }
+
+            const createdMessages = Array.isArray(payload.messages) ? payload.messages : []
+            if (createdMessages.length > 0) {
+                this.setMessagesState('', false)
+            }
+
+            createdMessages.forEach((message, index) => {
+                this.messagesList?.appendChild(this.createMessageNode(message, Date.now() + index))
+            })
+
+            const latestMessage = createdMessages[createdMessages.length - 1]
+            if (latestMessage) {
+                this.syncConversationItemLastMessage(this.activeConversationItem, latestMessage)
+            }
+
+            this.scrollToBottom(true)
+        } catch (error) {
+            this.showBottomNotice(error?.message || 'Failed to upload file.')
+        } finally {
+            if (this.attachmentInput) {
+                this.attachmentInput.value = ''
+            }
+            this.attachmentButton?.removeAttribute('disabled')
+            this.chatSendButton?.removeAttribute('disabled')
+        }
     }
 
     setNicknameError = (message = '') => {
@@ -2262,6 +2323,19 @@ class ChatApp {
                 .finally(() => {
                     this.chatSendButton?.removeAttribute('disabled')
                 })
+        })
+
+        this.attachmentButton?.addEventListener('click', (event) => {
+            event.preventDefault()
+            if (!this.activeConversationId) {
+                return
+            }
+
+            this.attachmentInput?.click()
+        })
+
+        this.attachmentInput?.addEventListener('change', async () => {
+            await this.uploadSelectedAttachments()
         })
     }
 

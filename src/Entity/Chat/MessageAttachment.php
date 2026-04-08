@@ -14,6 +14,8 @@ use App\Repository\Chat\MessageAttachmentRepository;
 #[ORM\Index(name: "index_attachment_message", columns: ["message_id"])]
 class MessageAttachment
 {
+    public const MAX_FILE_SIZE_BYTES = 20971520;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: 'integer')]
@@ -54,7 +56,7 @@ class MessageAttachment
 
     public function setFile_name(string $file_name): self
     {
-        $this->file_name = $file_name;
+        $this->setFileName($file_name);
         return $this;
     }
 
@@ -68,7 +70,7 @@ class MessageAttachment
 
     public function setMime_type(string $mime_type): self
     {
-        $this->mime_type = $mime_type;
+        $this->setMimeType($mime_type);
         return $this;
     }
 
@@ -82,7 +84,7 @@ class MessageAttachment
 
     public function setSize_bytes(int $size_bytes): self
     {
-        $this->size_bytes = $size_bytes;
+        $this->setSizeBytes($size_bytes);
         return $this;
     }
 
@@ -96,6 +98,10 @@ class MessageAttachment
 
     public function setData(mixed $data): self
     {
+        if (!is_string($data) || $data === '') {
+            throw new \InvalidArgumentException('File content is empty.');
+        }
+
         $this->data = $data;
         return $this;
     }
@@ -133,7 +139,16 @@ class MessageAttachment
 
     public function setFileName(string $file_name): static
     {
-        $this->file_name = $file_name;
+        $normalized = trim($file_name);
+        if ($normalized === '') {
+            throw new \InvalidArgumentException('File name cannot be empty.');
+        }
+
+        if (mb_strlen($normalized) > 255) {
+            throw new \InvalidArgumentException('File name is too long.');
+        }
+
+        $this->file_name = $normalized;
 
         return $this;
     }
@@ -145,7 +160,12 @@ class MessageAttachment
 
     public function setMimeType(string $mime_type): static
     {
-        $this->mime_type = $mime_type;
+        $normalized = trim($mime_type);
+        if ($normalized === '') {
+            throw new \InvalidArgumentException('Invalid file type.');
+        }
+
+        $this->mime_type = $normalized;
 
         return $this;
     }
@@ -157,6 +177,14 @@ class MessageAttachment
 
     public function setSizeBytes(int $size_bytes): static
     {
+        if ($size_bytes <= 0) {
+            throw new \InvalidArgumentException('Invalid file size.');
+        }
+
+        if ($size_bytes > self::MAX_FILE_SIZE_BYTES) {
+            throw new \InvalidArgumentException('File is too big. Maximum size is 20 MB.');
+        }
+
         $this->size_bytes = $size_bytes;
 
         return $this;

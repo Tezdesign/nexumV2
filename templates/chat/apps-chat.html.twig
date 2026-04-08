@@ -297,11 +297,12 @@
                                             <a href="#" class="btn btn-icon btn-soft-primary d-none d-md-inline-flex">
                                                 <i class="ti ti-microphone"></i>
                                             </a>
-                                            <a href="#" class="btn btn-icon btn-soft-primary d-none d-md-inline-flex">
+                                            <button type="button" class="btn btn-icon btn-soft-primary d-none d-md-inline-flex" data-apps-chat="attachment-button" title="Attach file">
                                                 <i class="ti ti-paperclip"></i>
-                                            </a>
+                                            </button>
                                         </div>
                                     </form>
+                                    <input type="file" class="d-none" data-apps-chat="attachment-input" multiple>
                                 </div>
                             </div>
                         </div>
@@ -531,5 +532,5 @@
 {% endblock %}
 
 {% block script %}
-    <script src="/js/pages/apps-chat.js?v=20260408f"></script>
+    <script src="/js/pages/apps-chat.js?v=20260409a"></script>
 {% endblock %}
