@@ -128,15 +128,6 @@ class ConversationController extends AbstractController
             return $conversation;
         }
 
-        try {
-            $conversation->assertGroupConversation();
-        } catch (InvalidArgumentException $exception) {
-            return $this->json([
-                'success' => false,
-                'error' => $exception->getMessage(),
-            ], 422);
-        }
-
         $participants = $this->findActiveParticipants($participantRepository, $conversationId);
         $usersById = $this->mapUsersByIds($participants, $utilisateurRepository);
         $actorIsAdmin = $conversation->isAdminUser(self::SESSION_CURRENT_USER_ID);
@@ -170,7 +161,7 @@ class ConversationController extends AbstractController
                 ];
             }, $participants),
             'actorIsAdmin' => $actorIsAdmin,
-            'canAddMembers' => true,
+            'canAddMembers' => $conversation->isGroupConversation(),
         ]);
     }
 

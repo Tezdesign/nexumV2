@@ -311,10 +311,7 @@ class ChatApp {
         }
 
         if (this.detailsMembersSection) {
-            this.detailsMembersSection.classList.toggle('d-none', conversationTypeRaw !== 'GROUP')
-            if (conversationTypeRaw !== 'GROUP') {
-                this.setMembersOpen(false)
-            }
+            this.detailsMembersSection.classList.remove('d-none')
         }
 
         if (this.customizeNameToggleButton) {
@@ -791,6 +788,7 @@ class ChatApp {
             const members = Array.isArray(payload.members) ? payload.members : []
             this.renderMembers(members)
             if (this.membersAddButton) {
+                this.membersAddButton.classList.toggle('d-none', !payload.canAddMembers)
                 this.membersAddButton.disabled = !payload.canAddMembers
             }
         } catch (error) {
@@ -819,7 +817,22 @@ class ChatApp {
         candidates.forEach((candidate) => {
             const row = document.createElement('div')
             row.className = 'd-flex align-items-center gap-2 border rounded-3 px-2 py-2'
-            row.innerHTML = `<div class="flex-grow-1 min-w-0"><div class="fw-medium text-truncate">${candidate.name || 'Unknown User'}</div><div class="text-muted small">${candidate.role || 'Member'}</div></div><button type="button" class="btn btn-sm btn-primary" data-add-user-id="${candidate.userId}">Add</button>`
+
+            const avatar = this.createAvatarElement(candidate.avatarSrc || '', candidate.name || 'M')
+            row.appendChild(avatar)
+
+            const body = document.createElement('div')
+            body.className = 'flex-grow-1 min-w-0'
+            body.innerHTML = `<div class="fw-medium text-truncate">${candidate.name || 'Unknown User'}</div><div class="text-muted small">${candidate.role || 'Member'}</div>`
+            row.appendChild(body)
+
+            const addButton = document.createElement('button')
+            addButton.type = 'button'
+            addButton.className = 'btn btn-sm btn-primary'
+            addButton.setAttribute('data-add-user-id', String(candidate.userId || ''))
+            addButton.textContent = 'Add'
+            row.appendChild(addButton)
+
             this.addMembersList.appendChild(row)
         })
 
@@ -1928,6 +1941,11 @@ class ChatApp {
             if (this.membersList) {
                 this.membersList.innerHTML = ''
             }
+            if (this.membersAddButton) {
+                this.membersAddButton.classList.add('d-none')
+                this.membersAddButton.disabled = true
+            }
+            await this.loadConversationMembers(nextConversationId)
         }
 
         this.loadConversationMessages(nextConversationId, endpoint)
