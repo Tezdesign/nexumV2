@@ -463,6 +463,37 @@ class ChatApp {
         this.updateConversationHeader(this.activeConversationItem)
     }
 
+    promoteConversationItem = (item) => {
+        if (!item || !item.parentElement) {
+            return
+        }
+
+        item.parentElement.prepend(item)
+        this.conversationItems = [item, ...this.conversationItems.filter((conversationItem) => conversationItem !== item)]
+    }
+
+    syncConversationItemLastMessage = (item, message) => {
+        if (!item || !message) {
+            return
+        }
+
+        const previewText = String(message.body || '').trim()
+        const timeLabel = String(message.timeLabel || '--')
+
+        const previewNode = item.querySelector('.chat-users + div p span')
+        if (previewNode) {
+            previewNode.textContent = previewText !== '' ? previewText : 'No messages yet'
+        }
+
+        const timeNode = item.querySelector('h5 .float-end')
+        if (timeNode) {
+            timeNode.textContent = timeLabel
+        }
+
+        item.dataset.conversationCreatedAt = item.dataset.conversationCreatedAt || ''
+        this.promoteConversationItem(item)
+    }
+
     setDetailsDrawerOpen = (open) => {
         if (!this.detailsDrawer) {
             return
@@ -2221,6 +2252,7 @@ class ChatApp {
 
                     this.setMessagesState('', false)
                     this.messagesList?.appendChild(this.createMessageNode(message, Date.now()))
+                    this.syncConversationItemLastMessage(this.activeConversationItem, message)
                     this.chatInput.value = ''
                     this.scrollToBottom(true)
                 })
