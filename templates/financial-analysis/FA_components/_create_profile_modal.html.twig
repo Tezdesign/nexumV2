@@ -7,8 +7,28 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             
-            {{ form_start(form, {'attr': {'class': 'needs-validation', 'novalidate': 'novalidate'}}) }}
+            {{ form_start(form, {'attr': {'id': 'createProfileForm', 'novalidate': 'novalidate'}}) }}
             <div class="modal-body p-4">
+
+                {% if form.vars.submitted and not form.vars.valid %}
+                    <div class="alert alert-danger mb-4">
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="ti ti-alert-triangle fs-18 me-2"></i>
+                            <strong>{{ 'Please correct the errors below:'|trans }}</strong>
+                        </div>
+                        <ul class="mb-0">
+                            {% for error in form.vars.errors %}
+                                <li>{{ error.message }}</li>
+                            {% endfor %}
+                            {% if not form.fiscal_year.vars.valid %}
+                                {% for error in form.fiscal_year.vars.errors %}
+                                    <li>{{ 'Fiscal Year: '|trans }}{{ error.message }}</li>
+                                {% endfor %}
+                            {% endif %}
+                        </ul>
+                    </div>
+                {% endif %}
+
                 <div class="row">
                     <!-- Left Column: Currency & Budget -->
                     <div class="col-md-6 mb-3">
@@ -18,8 +38,10 @@
                             'data-toggle': 'select2'
                         }}) }}
                         {% if not form.base_currency.vars.valid %}
-                            <div class="invalid-feedback d-block">
-                                {{ form_errors(form.base_currency) }}
+                            <div class="text-danger mt-1" style="font-size: 0.875em; display: block;">
+                                {% for error in form.base_currency.vars.errors %}
+                                    <span class="d-block">{{ error.message }}</span>
+                                {% endfor %}
                             </div>
                         {% endif %}
                     </div>
@@ -33,48 +55,47 @@
                                 'aria-describedby': 'budget-addon'
                             }}) }}
                             {% if not form.budget_disposable.vars.valid %}
-                                <div class="invalid-feedback d-block">
-                                    {{ form_errors(form.budget_disposable) }}
-                                </div>
-                            {% endif %}
+                            <div class="text-danger mt-1" style="font-size: 0.875em; display: block;">
+                                {% for error in form.budget_disposable.vars.errors %}
+                                    <span class="d-block">{{ error.message }}</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
                         </div>
                     </div>
                 </div>
 
                 <hr class="border-dashed my-3">
 
-                <!-- Date Selection Type -->
-                <div class="mb-3">
-                    <label class="form-label d-block">{{ 'Fiscal Period Type'|trans }}</label>
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="radio" name="period_type" id="periodStandard" value="standard" checked>
-                        <label class="form-check-label" for="periodStandard">{{ 'Standard Year'|trans }}</label>
-                    </div>
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="radio" name="period_type" id="periodCustom" value="custom">
-                        <label class="form-check-label" for="periodCustom">{{ 'Custom Dates'|trans }}</label>
-                    </div>
-                </div>
-
-                <!-- Standard Year Selector (JS Only) -->
-                <div class="row mb-3" id="standardYearWrapper">
+                <!-- Fiscal Year & Status -->
+                <div class="row mb-3 align-items-end">
                     <div class="col-md-6">
-                        <label class="form-label" for="standardYearSelect">{{ 'Select Year'|trans }}</label>
-                        <select class="form-select" id="standardYearSelect">
-                            <option value="">{{ 'Choose...'|trans }}</option>
-                            {% set currentYear = "now"|date("Y") %}
-                            {% for year in currentYear..(currentYear + 5) %}
-                                <option value="{{ year }}">{{ year }} (Jan 1 - Dec 31)</option>
-                            {% endfor %}
+                        {{ form_label(form.fiscal_year, 'Fiscal Year'|trans, {'label_attr': {'class': 'form-label d-block'}}) }}
+                        {{ form_widget(form.fiscal_year, {'attr': {
+                            'class': 'form-select ' ~ (form.fiscal_year.vars.valid ? '' : 'is-invalid'),
+                            'id': 'budget_profile_fiscal_year',
+                            'data-toggle': 'select2'
+                        }}) }}
+                        {% if not form.fiscal_year.vars.valid %}
+                            <div class="text-danger mt-1" style="font-size: 0.875em; display: block;">
+                                {% for error in form.fiscal_year.vars.errors %}
+                                    <span class="d-block">{{ error.message }}</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="statusSelect">{{ 'Profile Status'|trans }}</label>
+                        <select class="form-select" id="statusSelect" data-toggle="select2" disabled>
+                            <option value="DRAFT" selected>{{ 'DRAFT'|trans }}</option>
+                            <option value="ACTIVE">{{ 'ACTIVE'|trans }}</option>
+                            <option value="CLOSED">{{ 'CLOSED'|trans }}</option>
                         </select>
                     </div>
                 </div>
 
-                <!-- Hidden Entity Field: Fiscal Year -->
-                {{ form_row(form.fiscal_year, {'attr': {'class': 'd-none'}, 'label_attr': {'class': 'd-none'}, 'row_attr': {'class': 'd-none'}}) }}
-
                 <!-- Custom Date Selectors -->
-                <div class="row" id="customDatesWrapper" style="display: none;">
+                <div class="row" id="customDatesWrapper">
                     <div class="col-md-6 mb-3">
                         {{ form_label(form.start_date, 'Start Date'|trans, {'label_attr': {'class': 'form-label'}}) }}
                         {{ form_widget(form.start_date, {'attr': {
@@ -83,8 +104,10 @@
                             'data-date-format': 'Y-m-d'
                         }}) }}
                         {% if not form.start_date.vars.valid %}
-                            <div class="invalid-feedback d-block">
-                                {{ form_errors(form.start_date) }}
+                            <div class="text-danger mt-1" style="font-size: 0.875em; display: block;">
+                                {% for error in form.start_date.vars.errors %}
+                                    <span class="d-block">{{ error.message }}</span>
+                                {% endfor %}
                             </div>
                         {% endif %}
                     </div>
@@ -97,8 +120,10 @@
                             'data-date-format': 'Y-m-d'
                         }}) }}
                         {% if not form.end_date.vars.valid %}
-                            <div class="invalid-feedback d-block">
-                                {{ form_errors(form.end_date) }}
+                            <div class="text-danger mt-1" style="font-size: 0.875em; display: block;">
+                                {% for error in form.end_date.vars.errors %}
+                                    <span class="d-block">{{ error.message }}</span>
+                                {% endfor %}
                             </div>
                         {% endif %}
                     </div>
@@ -113,3 +138,12 @@
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        {% if form.vars.submitted and not form.vars.valid %}
+            const myModal = new bootstrap.Modal(document.getElementById('createProfileModal'));
+            myModal.show();
+        {% endif %}
+    });
+</script>

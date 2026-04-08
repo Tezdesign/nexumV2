@@ -72,4 +72,21 @@ class FinancialDashboardController extends AbstractController
             'projectBudget' => $formattedBudget,
         ]);
     }
+
+    #[Route('/test-form', name: 'apps-financial-analysis-test-form')]
+    public function testForm(Request $request, EntityManagerInterface $entityManager): Response
+    {
+        $budgetProfile = new BudgetProfile();
+        $form = $this->createForm(BudgetProfileType::class, $budgetProfile);
+        $form->handleRequest($request);
+
+        if ($form->isSubmitted() && $form->isValid()) {
+            $this->addFlash('success', 'Form is valid! But we wont save in this test.');
+            return $this->redirectToRoute('apps-financial-analysis-test-form');
+        }
+
+        return $this->render('financial-analysis/test_form.html.twig', [
+            'form' => $form->createView(),
+        ]);
+    }
 }

@@ -35,8 +35,8 @@ class ProjectBudget
 
     #[ORM\Column(type: 'string', nullable: false)]
     #[Assert\NotBlank(message: "enter the name of the budget")]
-    #[Assert\Regex(pattern: "/^\[a-zA-Z ]$/")]
-    #[Assert\Length(min: 3, minMessage: "The budget name must be at least 3 characters long.")]
+    #[Assert\Regex(pattern: "/^[a-zA-Z ]+$/",message: "The name can only contain letters and spaces")]
+    #[Assert\Length(min: 3, minMessage: "The name must at least 3 characters long.")]
     private ?string $name = null;
 
     public function getName(): ?string
@@ -55,16 +55,7 @@ class ProjectBudget
     #[Assert\Positive(message: "The budget must be greater than zero.")]
     private ?string $total_budget = null;
 
-    public function getTotal_budget(): ?string
-    {
-        return $this->total_budget;
-    }
 
-    public function setTotal_budget(string $total_budget): self
-    {
-        $this->total_budget = $total_budget;
-        return $this;
-    }
 
     #[ORM\Column(name: 'actualSpend', type: Types::DECIMAL, precision: 10, scale: 2, nullable: false)]
     private ?string $actualSpend = null;

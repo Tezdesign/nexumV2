@@ -15,9 +15,18 @@ class BudgetProfileType extends AbstractType
 {
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
+        $currentYear = (int) date('Y');
+        $years = [];
+        for ($y = $currentYear + 10; $y >= 2000; $y--) {
+            $years[(string)$y] = (string)$y;
+        }
+
         $builder
-            ->add('fiscal_year', TextType::class, [
-                'attr' => ['class' => 'form-control', 'readonly' => true],
+            ->add('fiscal_year', ChoiceType::class, [
+                'choices' => $years,
+                'placeholder' => 'Select Fiscal Year...',
+                'empty_data' => '',
+                'attr' => ['class' => 'form-select select2', 'data-toggle' => 'select2'],
                 'label' => 'Fiscal Year'
             ])
             ->add('budget_disposable', NumberType::class, [
@@ -53,6 +62,8 @@ class BudgetProfileType extends AbstractType
                         'New Zealand Dollar (NZD)' => 'NZD',
                     ]
                 ],
+                'placeholder' => 'Choose Currency...',
+                'empty_data' => '',
                 'attr' => ['class' => 'form-control select2', 'data-toggle' => 'select2'],
                 'label' => 'Base Currency'
             ])

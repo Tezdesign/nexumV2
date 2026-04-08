@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Form Validation</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        .error-text { color: red; font-size: 12px; margin-top: 2px; display: block; }
+        .form-row { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; }
+        input, select { padding: 5px; width: 300px; }
+        button { padding: 10px 20px; cursor: pointer; }
+        .global-errors { color: red; border: 1px solid red; padding: 10px; margin-bottom: 20px; background-color: #ffeeee; }
+    </style>
+</head>
+<body>
+    <h1>Test Form Validation</h1>
+    <p>This is a barebones HTML5 form to test if Doctrine Asserts are triggering correctly.</p>
+    
+    {% for message in app.flashes('success') %}
+        <div style="color: green; border: 1px solid green; padding: 10px; margin-bottom: 20px; background-color: #eeffee;">
+            {{ message }}
+        </div>
+    {% endfor %}
+
+    {% if not form.vars.valid %}
+        <div class="global-errors">
+            <strong>Form contains errors!</strong>
+            {{ form_errors(form) }}
+        </div>
+    {% endif %}
+
+    {{ form_start(form, {'attr': {'novalidate': 'novalidate'}}) }}
+        
+        <div class="form-row">
+            {{ form_label(form.fiscal_year) }}
+            {{ form_widget(form.fiscal_year) }}
+            <div class="error-text">{{ form_errors(form.fiscal_year) }}</div>
+        </div>
+
+        <div class="form-row">
+            {{ form_label(form.base_currency) }}
+            {{ form_widget(form.base_currency) }}
+            <div class="error-text">{{ form_errors(form.base_currency) }}</div>
+        </div>
+
+        <div class="form-row">
+            {{ form_label(form.budget_disposable) }}
+            {{ form_widget(form.budget_disposable) }}
+            <div class="error-text">{{ form_errors(form.budget_disposable) }}</div>
+        </div>
+
+        <div class="form-row">
+            {{ form_label(form.start_date) }}
+            {{ form_widget(form.start_date) }}
+            <div class="error-text">{{ form_errors(form.start_date) }}</div>
+        </div>
+
+        <div class="form-row">
+            {{ form_label(form.end_date) }}
+            {{ form_widget(form.end_date) }}
+            <div class="error-text">{{ form_errors(form.end_date) }}</div>
+        </div>
+
+        <button type="submit">Submit (Test Validation)</button>
+
+    {{ form_end(form) }}
+</body>
+</html>

@@ -86,13 +86,15 @@ class BudgetProfile
 
     #[ORM\Column(type: 'string', length: 3, nullable: true)]
     #[Assert\NotBlank(message: 'Type or select your currency')]
-    #[Assert\Regex("/^\[A-Z]{3}$/", message: "type or select a valid recognized currency")]
+    #[Assert\Regex(pattern: "/^[A-Z]{3}$/", message: "type or select a valid recognized currency")]
     private ?string $base_currency = null;
 
     #[ORM\Column(type: 'date', nullable: true)]
+    #[Assert\NotBlank(message: 'fill the staring date.')]
     private ?\DateTimeInterface $start_date = null;
 
     #[ORM\Column(type: 'date', nullable: true)]
+    #[Assert\NotBlank(message: 'fill the end date.')]
     private ?\DateTimeInterface $end_date = null;
 
     #[ORM\Column(type: 'string', length: 50, nullable: false, options: ['default' => 'DRAFT'])]
@@ -237,7 +239,7 @@ class BudgetProfile
                     ->atPath('fiscal_year')
                     ->addViolation();
             }
-            else {
+            elseif ($this->start_date && $this->end_date) {
                 $expectedEndDate = clone $this->start_date;
                 $expectedEndDate->modify('+1 year');
 
