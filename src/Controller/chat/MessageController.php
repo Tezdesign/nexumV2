@@ -2,12 +2,17 @@
 
 namespace App\Controller\chat;
 
+use App\Entity\Chat\Conversation;
+use App\Entity\Chat\Message;
 use App\Entity\UserHandling\Utilisateur;
 use App\Repository\Chat\ConversationParticipantRepository;
+use App\Repository\Chat\ConversationRepository;
 use App\Repository\Chat\MessageRepository;
 use App\Repository\UserHandling\UtilisateurRepository;
 use DateTimeImmutable;
 use DateTimeInterface;
+use Doctrine\ORM\EntityManagerInterface;
+use InvalidArgumentException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -72,8 +77,74 @@ class MessageController extends AbstractController
 		]);
 	}
 
-	#[Route('/apps-chat/messages', name: 'apps-chat-messages', methods: ['POST'])]
-	public function store(Request $request): JsonResponse
+	#[Route('/apps-chat/conversations/{conversationId}/messages', name: 'apps-chat-message-store', methods: ['POST'])]
+	public function store(
+		int $conversationId,
+		Request $request,
+		ConversationRepository $conversationRepository,
+		ConversationParticipantRepository $participantRepository,
+		UtilisateurRepository $utilisateurRepository,
+		EntityManagerInterface $entityManager,
+	): JsonResponse {
+		if ($conversationId <= 0) {
+			return $this->json([
+				'success' => false,
+				'error' => 'Invalid conversation id.',
+			], 400);
+		}
+
+		if (!$participantRepository->isActiveParticipant($conversationId, ConversationController::SESSION_CURRENT_USER_ID)) {
+			return $this->json([
+				'success' => false,
+				'error' => 'Access denied for this conversation.',
+			], 403);
+		}
+
+		$conversation = $conversationRepository->find($conversationId);
+		if (!$conversation instanceof Conversation) {
+			return $this->json([
+				'success' => false,
+				'error' => 'Conversation not found.',
+			], 404);
+		}
+
+		$body = (string) $request->request->get('body', '');
+		$message = new Message();
+		try {
+			$message->setConversationId($conversationId)
+				->setSenderId(ConversationController::SESSION_CURRENT_USER_ID)
+				->setBody($body)
+				->setKind('TEXT')
+				->setCreatedAt(new \DateTime());
+		} catch (InvalidArgumentException $exception) {
+			return $this->json([
+				'success' => false,
+				'error' => $exception->getMessage(),
+			], 422);
+		}
+
+		$entityManager->persist($message);
+		$entityManager->flush();
+
+		$sender = $utilisateurRepository->find(ConversationController::SESSION_CURRENT_USER_ID);
+
+		return $this->json([
+			'success' => true,
+			'message' => [
+				'id' => $message->getId(),
+				'body' => $message->getBody() ?? '',
+				'kind' => 'TEXT',
+				'senderId' => ConversationController::SESSION_CURRENT_USER_ID,
+				'senderName' => $this->buildUserName($sender),
+				'senderAvatarSrc' => $sender !== null ? $this->toDataUri($sender->getImagelink(), 'image/jpeg') : null,
+				'isOwn' => true,
+				'createdAt' => $message->getCreatedAt()?->format(DATE_ATOM),
+				'timeLabel' => $this->formatMessageTimeLabel($message->getCreatedAt()),
+			],
+		]);
+	}
+
+	public function storeLegacy(Request $request): JsonResponse
 	{
 		return $this->json([
 			'success' => true,

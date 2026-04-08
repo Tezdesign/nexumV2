@@ -748,6 +748,10 @@ class ChatApp {
         return `/apps-chat/conversations/${encodeURIComponent(String(conversationId))}/danger-action`
     }
 
+    buildConversationMessageStoreEndpoint = (conversationId) => {
+        return `/apps-chat/conversations/${encodeURIComponent(String(conversationId))}/messages`
+    }
+
     setNicknameError = (message = '') => {
         if (!this.nicknameError) {
             return
@@ -2194,29 +2198,38 @@ class ChatApp {
                 return
             }
 
-            const data = Object.fromEntries(new FormData(e.target).entries());
-            if (data.message) {
-                if (data.message.trim().length === 0) {
-                    this.chatForm.reset();
-                } else {
-                    const localMessage = {
-                        id: `local-${Date.now()}`,
-                        body: data['message'],
-                        senderName: 'You',
-                        senderAvatarSrc: '',
-                        isOwn: true,
-                        timeLabel: new Date().toLocaleTimeString([], {
-                            hour: 'numeric',
-                            minute: '2-digit',
-                        }).toLowerCase(),
+            const body = String(this.chatInput.value || '')
+            this.chatSendButton?.setAttribute('disabled', 'disabled')
+
+            fetch(this.buildConversationMessageStoreEndpoint(this.activeConversationId), {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                },
+                body: new URLSearchParams({ body }),
+            })
+                .then(async (response) => {
+                    const payload = await response.json().catch(() => ({}))
+                    if (!response.ok || !payload.success) {
+                        throw new Error(payload.error || 'Failed to send message.')
+                    }
+
+                    const message = payload.message || null
+                    if (!message) {
+                        throw new Error('Failed to send message.')
                     }
 
                     this.setMessagesState('', false)
-                    this.messagesList?.appendChild(this.createMessageNode(localMessage, Date.now()))
+                    this.messagesList?.appendChild(this.createMessageNode(message, Date.now()))
                     this.chatInput.value = ''
                     this.scrollToBottom(true)
-                }
-            }
+                })
+                .catch((error) => {
+                    this.showBottomNotice(error?.message || 'Failed to send message.')
+                })
+                .finally(() => {
+                    this.chatSendButton?.removeAttribute('disabled')
+                })
         })
     }
 
