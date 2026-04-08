@@ -17,7 +17,7 @@ use InvalidArgumentException;
 
 class ConversationController extends AbstractController
 {
-    public const SESSION_CURRENT_USER_ID = 44;
+    public const SESSION_CURRENT_USER_ID = 53;
 
     #[Route('/apps-chat', name: 'apps-chat')]
     public function index(ConversationSidebarProvider $sidebarProvider): Response
@@ -44,15 +44,8 @@ class ConversationController extends AbstractController
         }
 
         $title = trim((string) $request->request->get('title', ''));
-        if ($title === '') {
-            return $this->json([
-                'success' => false,
-                'error' => 'Chat name cannot be empty.',
-            ], 422);
-        }
-
         try {
-            $conversation->setTitle($title);
+            $conversation->renameBy(self::SESSION_CURRENT_USER_ID, $title);
         } catch (InvalidArgumentException $exception) {
             return $this->json([
                 'success' => false,
@@ -104,8 +97,14 @@ class ConversationController extends AbstractController
             ], 422);
         }
 
-        $conversation->setAvatar($binary);
-        $conversation->setAvatarMime($mimeType);
+        try {
+            $conversation->updateAvatarBy(self::SESSION_CURRENT_USER_ID, $binary, $mimeType);
+        } catch (InvalidArgumentException $exception) {
+            return $this->json([
+                'success' => false,
+                'error' => $exception->getMessage(),
+            ], 422);
+        }
         $entityManager->flush();
 
         return $this->json([
@@ -141,31 +140,7 @@ class ConversationController extends AbstractController
             ], 403);
         }
 
-        if ($this->isDirectConversation($conversation)) {
-            return $this->json([
-                'success' => false,
-                'error' => 'Only group chats can be customized.',
-            ], 422);
-        }
-
-        if ((int) $conversation->getCreatedBy() !== self::SESSION_CURRENT_USER_ID) {
-            return $this->json([
-                'success' => false,
-                'error' => 'Only the group creator can customize this chat.',
-            ], 403);
-        }
-
         return $conversation;
-    }
-
-    private function isDirectConversation(Conversation $conversation): bool
-    {
-        $type = $conversation->getType();
-        if ($type !== null && strcasecmp($type, 'dm') === 0) {
-            return true;
-        }
-
-        return $conversation->getDmKey() !== null;
     }
 
     private function formatConversationUpdate(Conversation $conversation): array

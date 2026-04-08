@@ -58,12 +58,54 @@ class Conversation
     public function setTitle(?string $title): self
     {
         $normalizedTitle = $title !== null ? trim($title) : null;
-        if ($normalizedTitle !== null && $normalizedTitle !== '' && mb_strlen($normalizedTitle) < 3) {
+        if ($normalizedTitle === '') {
+            throw new InvalidArgumentException('Chat name cannot be empty.');
+        }
+
+        if ($normalizedTitle !== null && mb_strlen($normalizedTitle) < 3) {
             throw new InvalidArgumentException('Chat name must contain at least 3 characters.');
         }
 
         $this->title = $normalizedTitle;
         return $this;
+    }
+
+    public function renameBy(int $userId, string $title): self
+    {
+        $this->assertCanBeCustomizedBy($userId);
+        $this->setTitle($title);
+
+        return $this;
+    }
+
+    public function updateAvatarBy(int $userId, string $avatar, string $mimeType): self
+    {
+        $this->assertCanBeCustomizedBy($userId);
+        $this->setAvatar($avatar);
+        $this->setAvatarMime($mimeType);
+
+        return $this;
+    }
+
+    public function assertCanBeCustomizedBy(int $userId): void
+    {
+        if ($this->isDirectConversation()) {
+            throw new InvalidArgumentException('Only group chats can be customized.');
+        }
+
+        if ((int) $this->getCreatedBy() !== $userId) {
+            throw new InvalidArgumentException('Only the chat owner can modify this discussion.');
+        }
+    }
+
+    private function isDirectConversation(): bool
+    {
+        $type = $this->getType();
+        if ($type !== null && strcasecmp($type, 'dm') === 0) {
+            return true;
+        }
+
+        return $this->getDmKey() !== null;
     }
 
     #[ORM\Column(type: 'blob', nullable: true)]

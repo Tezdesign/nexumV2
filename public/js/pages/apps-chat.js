@@ -511,7 +511,6 @@ class ChatApp {
         const hasError = String(message || '').trim().length > 0
         this.renameError.textContent = message || ''
         this.renameError.classList.toggle('d-none', !hasError)
-        this.renameInput?.classList.toggle('is-invalid', hasError)
     }
 
     showBottomNotice = (message) => {
@@ -526,7 +525,7 @@ class ChatApp {
             this.bottomNotice.style.width = 'auto'
 
             const card = document.createElement('div')
-            card.className = 'shadow-lg rounded-3 border border-warning-subtle bg-warning text-dark px-3 py-2 small'
+            card.className = 'shadow-lg rounded-3 border border-danger-subtle bg-danger-subtle text-danger px-3 py-2 small'
             card.style.maxWidth = '360px'
             card.style.boxShadow = '0 18px 36px rgba(0,0,0,0.18)'
             card.dataset.appsChatNotice = 'body'
@@ -593,10 +592,6 @@ class ChatApp {
 
         const conversationId = this.activeConversationItem.dataset.conversationId || ''
         const title = this.renameInput.value.trim()
-        if (title.length < 3) {
-            this.setRenameError('Chat name must contain at least 3 characters.')
-            return
-        }
 
         this.setRenameError('')
         this.renameSubmitButton?.setAttribute('disabled', 'disabled')
