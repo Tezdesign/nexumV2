@@ -111,9 +111,9 @@
                                             <div class="chat-users">
                                                 <div class="avatar-md {{ conversation.isDm ? 'chat-avatar-online' : 'chat-avatar-offline' }}">
                                                     {% if conversation.avatarSrc %}
-                                                        <img src="{{ conversation.avatarSrc }}" class="w-100 h-100 object-fit-cover rounded-circle" alt="{{ conversation.name }}" />
+                                                        <img src="{{ conversation.avatarSrc }}" class="w-100 h-100 object-fit-cover rounded-circle" alt="{{ conversation.name }}" data-apps-chat="conversation-avatar-image" />
                                                     {% else %}
-                                                        <div class="h-100 w-100 rounded-circle bg-secondary-subtle text-secondary d-flex align-items-center justify-content-center fw-semibold">
+                                                        <div class="h-100 w-100 rounded-circle bg-secondary-subtle text-secondary d-flex align-items-center justify-content-center fw-semibold" data-apps-chat="conversation-avatar-fallback">
                                                             {{ conversation.name|slice(0, 1)|upper }}
                                                         </div>
                                                     {% endif %}
@@ -124,7 +124,7 @@
                                                         <span class="float-end text-muted fs-12">
                                                             {{ conversation.lastMessageTimeLabel ?? '--' }}
                                                         </span>
-                                                        {{ conversation.name }}
+                                                        <span data-apps-chat="conversation-name">{{ conversation.name }}</span>
                                                     </h5>
                                                     <p class="mt-1 mb-0 text-muted lh-1">
                                                         <span class="w-75 d-inline-block text-truncate overflow-hidden fs-13">
@@ -265,9 +265,21 @@
                                 <span class="fw-medium" data-apps-chat="details-info-created">--</span>
                             </div>
                         </div>
-                        <div class="d-flex align-items-center justify-content-between py-2 border-bottom">
-                            <span class="fw-medium">Customize chat</span>
-                            <i class="ti ti-chevron-down text-muted"></i>
+                        <div class="d-none" data-apps-chat="details-customize-section">
+                            <div class="d-flex align-items-center justify-content-between py-2 border-bottom">
+                                <span class="fw-medium">Customize chat</span>
+                                <i class="ti ti-sparkles text-muted"></i>
+                            </div>
+                            <div class="py-2 border-bottom d-flex flex-column gap-2">
+                                <button type="button" class="btn btn-sm btn-light text-start" data-apps-chat="customize-name-toggle">
+                                    <i class="ti ti-edit me-1"></i>
+                                    <span>Change chat name</span>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-light text-start" data-apps-chat="customize-avatar-toggle">
+                                    <i class="ti ti-photo-up me-1"></i>
+                                    <span>Change chat picture</span>
+                                </button>
+                            </div>
                         </div>
                         <div class="d-flex align-items-center justify-content-between py-2 border-bottom">
                             <span class="fw-medium">Chat members</span>
@@ -286,10 +298,34 @@
                     </div>
                 </div>
 
+                <div class="modal fade" tabindex="-1" aria-hidden="true" data-apps-chat="rename-modal">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <form data-apps-chat="rename-form">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Change chat name</h5>
+                                    <button type="button" class="btn-close" data-apps-chat="rename-modal-close" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <label for="chatRenameInput" class="form-label">Chat name</label>
+                                    <input type="text" class="form-control" id="chatRenameInput" maxlength="120" autocomplete="off" data-apps-chat="rename-input" required>
+                                    <div class="invalid-feedback d-none mt-2" data-apps-chat="rename-error"></div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-light" data-apps-chat="rename-modal-cancel">Cancel</button>
+                                    <button type="submit" class="btn btn-primary" data-apps-chat="rename-submit">Save changes</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <input type="file" accept="image/*" class="d-none" data-apps-chat="customize-avatar-input">
+
     </div>
 
 {% endblock %}
 
 {% block script %}
-    <script src="/js/pages/apps-chat.js?v=20260407h"></script>
+    <script src="/js/pages/apps-chat.js?v=20260408a"></script>
 {% endblock %}

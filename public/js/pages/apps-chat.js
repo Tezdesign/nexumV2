@@ -34,6 +34,16 @@ class ChatApp {
         this.detailsInfoName = null
         this.detailsInfoType = null
         this.detailsInfoCreated = null
+        this.detailsCustomizeSection = null
+        this.customizeNameToggleButton = null
+        this.customizeAvatarToggleButton = null
+        this.customizeAvatarInput = null
+        this.renameModal = null
+        this.renameModalInstance = null
+        this.renameForm = null
+        this.renameInput = null
+        this.renameError = null
+        this.renameSubmitButton = null
         this.currentUserName = 'You'
         this.currentUserAvatar = ''
         this.messagesSimplebar = null
@@ -93,6 +103,15 @@ class ChatApp {
         this.detailsInfoName = document.querySelector('[data-apps-chat="details-info-name"]')
         this.detailsInfoType = document.querySelector('[data-apps-chat="details-info-type"]')
         this.detailsInfoCreated = document.querySelector('[data-apps-chat="details-info-created"]')
+        this.detailsCustomizeSection = document.querySelector('[data-apps-chat="details-customize-section"]')
+        this.customizeNameToggleButton = document.querySelector('[data-apps-chat="customize-name-toggle"]')
+        this.customizeAvatarToggleButton = document.querySelector('[data-apps-chat="customize-avatar-toggle"]')
+        this.customizeAvatarInput = document.querySelector('[data-apps-chat="customize-avatar-input"]')
+        this.renameModal = document.querySelector('[data-apps-chat="rename-modal"]')
+        this.renameForm = document.querySelector('[data-apps-chat="rename-form"]')
+        this.renameInput = document.querySelector('[data-apps-chat="rename-input"]')
+        this.renameError = document.querySelector('[data-apps-chat="rename-error"]')
+        this.renameSubmitButton = document.querySelector('[data-apps-chat="rename-submit"]')
         this.chatForm = document.querySelector('#chat-form')
         if (this.chatForm) {
             this.chatInput = this.chatForm.querySelector('[data-apps-chat="chat-input"]')
@@ -168,6 +187,14 @@ class ChatApp {
         return 'Conversation'
     }
 
+    getConversationTypeRaw = (item) => {
+        return (item?.dataset.conversationType || '').toUpperCase()
+    }
+
+    isGroupConversation = (item) => {
+        return this.getConversationTypeRaw(item) === 'GROUP'
+    }
+
     updateConversationHeader = (item) => {
         const conversationName = this.getConversationDisplayName(item)
         const conversationType = this.getConversationDisplayType(item)
@@ -203,7 +230,7 @@ class ChatApp {
         }
 
         const conversationName = this.getConversationDisplayName(item)
-        const conversationTypeRaw = (item?.dataset.conversationType || '').toUpperCase()
+        const conversationTypeRaw = this.getConversationTypeRaw(item)
         const conversationType = conversationTypeRaw === 'DM' ? 'Direct message' : 'Group conversation'
         const avatarSrc = item?.dataset.conversationAvatar || ''
         const conversationCreatedAt = item?.dataset.conversationCreatedAt || '--'
@@ -227,6 +254,18 @@ class ChatApp {
 
         if (this.detailsInfoCreated) {
             this.detailsInfoCreated.textContent = conversationCreatedAt
+        }
+
+        if (this.detailsCustomizeSection) {
+            this.detailsCustomizeSection.classList.toggle('d-none', conversationTypeRaw !== 'GROUP')
+        }
+
+        if (this.customizeNameToggleButton) {
+            this.customizeNameToggleButton.disabled = conversationTypeRaw !== 'GROUP'
+        }
+
+        if (this.customizeAvatarToggleButton) {
+            this.customizeAvatarToggleButton.disabled = conversationTypeRaw !== 'GROUP'
         }
 
         if (this.detailsDangerAction) {
@@ -258,6 +297,82 @@ class ChatApp {
                 this.detailsAvatarFallback.textContent = conversationName.slice(0, 1).toUpperCase() || '-'
             }
         }
+    }
+
+    syncConversationItem = (item, update) => {
+        if (!item || !update) {
+            return
+        }
+
+        const nextName = String(update.name || this.getConversationDisplayName(item))
+        const nextAvatar = String(update.avatarSrc || '')
+
+        item.dataset.conversationName = nextName
+        item.dataset.groupTitle = this.isGroupConversation(item) ? nextName : ''
+        item.dataset.dmName = this.isGroupConversation(item) ? '' : nextName
+        item.dataset.conversationAvatar = nextAvatar
+
+        const nameNode = item.querySelector('[data-apps-chat="conversation-name"]')
+        if (nameNode) {
+            nameNode.textContent = nextName
+        }
+
+        const avatarContainer = item.querySelector('.avatar-md')
+        const imageNode = item.querySelector('[data-apps-chat="conversation-avatar-image"]')
+        const fallbackNode = item.querySelector('[data-apps-chat="conversation-avatar-fallback"]')
+        if (nextAvatar) {
+            let nextImageNode = imageNode
+            if (!nextImageNode && avatarContainer) {
+                nextImageNode = document.createElement('img')
+                nextImageNode.className = 'w-100 h-100 object-fit-cover rounded-circle'
+                nextImageNode.alt = nextName
+                nextImageNode.setAttribute('data-apps-chat', 'conversation-avatar-image')
+                avatarContainer.textContent = ''
+                avatarContainer.appendChild(nextImageNode)
+            }
+
+            if (nextImageNode) {
+                nextImageNode.src = nextAvatar
+                nextImageNode.classList.remove('d-none')
+            }
+
+            if (fallbackNode) {
+                fallbackNode.classList.add('d-none')
+            }
+        } else {
+            let nextFallbackNode = fallbackNode
+            if (!nextFallbackNode && avatarContainer) {
+                nextFallbackNode = document.createElement('div')
+                nextFallbackNode.className = 'h-100 w-100 rounded-circle bg-secondary-subtle text-secondary d-flex align-items-center justify-content-center fw-semibold'
+                nextFallbackNode.setAttribute('data-apps-chat', 'conversation-avatar-fallback')
+                avatarContainer.textContent = ''
+                avatarContainer.appendChild(nextFallbackNode)
+            }
+
+            if (imageNode) {
+                imageNode.removeAttribute('src')
+                imageNode.classList.add('d-none')
+            }
+
+            if (nextFallbackNode) {
+                nextFallbackNode.classList.remove('d-none')
+                nextFallbackNode.textContent = nextName.slice(0, 1).toUpperCase() || '-'
+            }
+        }
+    }
+
+    syncConversationSelection = (update) => {
+        if (!update || !this.activeConversationItem) {
+            return
+        }
+
+        const conversationId = String(this.activeConversationItem.dataset.conversationId || '')
+        if (conversationId !== String(update.id || '')) {
+            return
+        }
+
+        this.syncConversationItem(this.activeConversationItem, update)
+        this.updateConversationHeader(this.activeConversationItem)
     }
 
     setDetailsDrawerOpen = (open) => {
@@ -330,6 +445,168 @@ class ChatApp {
             event.preventDefault()
             const isOpen = !this.detailsChatInfoBody?.classList.contains('d-none')
             this.setChatInfoOpen(!isOpen)
+        })
+    }
+
+    getBootstrapModal = (element) => {
+        if (!element || !window.bootstrap?.Modal) {
+            return null
+        }
+
+        this.renameModalInstance = window.bootstrap.Modal.getOrCreateInstance(element)
+        return this.renameModalInstance
+    }
+
+    setRenameError = (message = '') => {
+        if (!this.renameError) {
+            return
+        }
+
+        const hasError = String(message || '').trim().length > 0
+        this.renameError.textContent = message || ''
+        this.renameError.classList.toggle('d-none', !hasError)
+        this.renameInput?.classList.toggle('is-invalid', hasError)
+    }
+
+    openRenameModal = () => {
+        if (!this.activeConversationItem || !this.isGroupConversation(this.activeConversationItem)) {
+            return
+        }
+
+        if (!this.renameModal || !this.renameInput) {
+            return
+        }
+
+        this.setRenameError('')
+        this.renameInput.value = this.getConversationDisplayName(this.activeConversationItem)
+        this.getBootstrapModal(this.renameModal)?.show()
+
+        queueMicrotask(() => {
+            this.renameInput?.focus()
+            this.renameInput?.select()
+        })
+    }
+
+    closeRenameModal = () => {
+        this.getBootstrapModal(this.renameModal)?.hide()
+    }
+
+    buildConversationRenameEndpoint = (conversationId) => {
+        return `/apps-chat/conversations/${encodeURIComponent(String(conversationId))}/name`
+    }
+
+    buildConversationAvatarEndpoint = (conversationId) => {
+        return `/apps-chat/conversations/${encodeURIComponent(String(conversationId))}/avatar`
+    }
+
+    submitConversationRename = async (event) => {
+        event.preventDefault()
+
+        if (!this.activeConversationItem || !this.renameInput) {
+            return
+        }
+
+        const conversationId = this.activeConversationItem.dataset.conversationId || ''
+        const title = this.renameInput.value.trim()
+        if (title.length === 0) {
+            this.setRenameError('Chat name cannot be empty.')
+            return
+        }
+
+        this.setRenameError('')
+        this.renameSubmitButton?.setAttribute('disabled', 'disabled')
+
+        try {
+            const response = await fetch(this.buildConversationRenameEndpoint(conversationId), {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                },
+                body: new URLSearchParams({ title }),
+            })
+
+            const payload = await response.json().catch(() => ({}))
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.error || 'Failed to rename chat.')
+            }
+
+            this.syncConversationSelection(payload.conversation)
+            this.closeRenameModal()
+        } catch (error) {
+            this.setRenameError(error?.message || 'Failed to rename chat.')
+        } finally {
+            this.renameSubmitButton?.removeAttribute('disabled')
+        }
+    }
+
+    triggerAvatarPicker = () => {
+        if (!this.activeConversationItem || !this.isGroupConversation(this.activeConversationItem)) {
+            return
+        }
+
+        this.customizeAvatarInput?.click()
+    }
+
+    uploadConversationAvatar = async () => {
+        if (!this.activeConversationItem || !this.customizeAvatarInput?.files?.length) {
+            return
+        }
+
+        const conversationId = this.activeConversationItem.dataset.conversationId || ''
+        const file = this.customizeAvatarInput.files[0]
+
+        const formData = new FormData()
+        formData.append('avatar', file)
+
+        try {
+            const response = await fetch(this.buildConversationAvatarEndpoint(conversationId), {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                },
+                body: formData,
+            })
+
+            const payload = await response.json().catch(() => ({}))
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.error || 'Failed to update the chat picture.')
+            }
+
+            this.syncConversationSelection(payload.conversation)
+        } catch (error) {
+            window.alert(error?.message || 'Failed to update the chat picture.')
+        } finally {
+            this.customizeAvatarInput.value = ''
+        }
+    }
+
+    initCustomization = () => {
+        this.customizeNameToggleButton?.addEventListener('click', (event) => {
+            event.preventDefault()
+            this.openRenameModal()
+        })
+
+        this.customizeAvatarToggleButton?.addEventListener('click', (event) => {
+            event.preventDefault()
+            this.triggerAvatarPicker()
+        })
+
+        this.customizeAvatarInput?.addEventListener('change', () => {
+            this.uploadConversationAvatar()
+        })
+
+        this.renameForm?.addEventListener('submit', this.submitConversationRename)
+
+        this.renameModal?.addEventListener('hidden.bs.modal', () => {
+            this.setRenameError('')
+        })
+
+        this.renameModal?.querySelector('[data-apps-chat="rename-modal-close"]')?.addEventListener('click', () => {
+            this.closeRenameModal()
+        })
+
+        this.renameModal?.querySelector('[data-apps-chat="rename-modal-cancel"]')?.addEventListener('click', () => {
+            this.closeRenameModal()
         })
     }
 
@@ -1215,6 +1492,7 @@ class ChatApp {
         this.cacheElements();
         this.setComposerEnabled(false);
         this.initDetailsDrawer();
+        this.initCustomization();
         this.scrollToBottom();
         this.initFilters();
         this.initSearch();
