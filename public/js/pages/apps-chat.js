@@ -2032,11 +2032,158 @@ class ChatApp {
         }
     }
 
+    buildDMCandidatesEndpoint = (query = '') => {
+        const q = String(query || '').trim()
+        if (!q) {
+            return '/apps-chat/direct-messages/candidates'
+        }
+
+        return `/apps-chat/direct-messages/candidates?q=${encodeURIComponent(q)}`
+    }
+
+    buildCreateDMEndpoint = () => {
+        return '/apps-chat/direct-messages/create'
+    }
+
+    loadDMCandidates = async (query = '') => {
+        const dmCandidatesList = document.querySelector('[data-apps-chat="dm-candidates-list"]')
+        const dmEmpty = document.querySelector('[data-apps-chat="dm-empty"]')
+        const dmLoading = document.querySelector('[data-apps-chat="dm-loading"]')
+
+        try {
+            const response = await fetch(this.buildDMCandidatesEndpoint(query), {
+                method: 'GET',
+                headers: { 'Accept': 'application/json' },
+            })
+
+            const payload = await response.json().catch(() => ({}))
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.error || 'Failed to load users.')
+            }
+
+            if (dmLoading) dmLoading.classList.add('d-none')
+
+            const candidates = Array.isArray(payload.candidates) ? payload.candidates : []
+            if (dmCandidatesList) {
+                dmCandidatesList.innerHTML = ''
+
+                candidates.forEach((candidate) => {
+                    const row = document.createElement('div')
+                    row.className = 'd-flex align-items-center gap-2 border rounded-3 px-2 py-2 cursor-pointer hover-shadow'
+                    row.style.cursor = 'pointer'
+                    row.style.transition = 'all 0.2s ease'
+                    row.setAttribute('data-dm-user-id', String(candidate.userId || ''))
+
+                    const avatar = this.createAvatarElement(candidate.avatarSrc || '', candidate.name || 'M')
+                    row.appendChild(avatar)
+
+                    const body = document.createElement('div')
+                    body.className = 'flex-grow-1 min-w-0'
+                    body.innerHTML = `<div class="fw-medium text-truncate">${candidate.name || 'Unknown User'}</div><div class="text-muted small">${candidate.role || 'Member'}</div>`
+                    row.appendChild(body)
+
+                    row.addEventListener('click', () => {
+                        this.createDirectMessage(candidate.userId)
+                    })
+
+                    dmCandidatesList.appendChild(row)
+                })
+            }
+
+            if (dmEmpty) {
+                dmEmpty.classList.toggle('d-none', candidates.length > 0)
+            }
+        } catch (error) {
+            if (dmLoading) dmLoading.classList.add('d-none')
+            if (dmEmpty) dmEmpty.classList.remove('d-none')
+            this.showBottomNotice(error?.message || 'Failed to load users.')
+        }
+    }
+
+    createDirectMessage = async (userId) => {
+        const userIdNum = parseInt(userId, 10)
+        if (!Number.isInteger(userIdNum) || userIdNum <= 0) {
+            this.showBottomNotice('Invalid user id.')
+            return
+        }
+
+        const btnCreateDM = document.querySelector('[data-apps-chat="dm-candidates-list"]')?.closest('.modal-content')?.querySelector('[data-dm-user-id="' + userId + '"]')
+        if (btnCreateDM) {
+            btnCreateDM.setAttribute('disabled', 'disabled')
+        }
+
+        try {
+            const response = await fetch(this.buildCreateDMEndpoint(), {
+                method: 'POST',
+                headers: { 'Accept': 'application/json' },
+                body: new URLSearchParams({ userId: String(userIdNum) }),
+            })
+
+            const payload = await response.json().catch(() => ({}))
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.error || 'Failed to create direct message.')
+            }
+
+            const conversationId = payload.conversation?.id
+            if (!conversationId) {
+                throw new Error('No conversation ID returned.')
+            }
+
+            // Close the modal
+            const dmModal = document.getElementById('dmCreateModal')
+            if (dmModal && window.bootstrap?.Modal) {
+                window.bootstrap.Modal.getInstance(dmModal)?.hide()
+            }
+
+            // Find and click the conversation in the list, or reload the page
+            const conversationItem = document.querySelector(`[data-apps-chat="conversation-item"][data-conversation-id="${conversationId}"]`)
+            if (conversationItem) {
+                conversationItem.click()
+            } else {
+                // Reload the page to see the new conversation
+                setTimeout(() => {
+                    window.location.reload()
+                }, 300)
+            }
+        } catch (error) {
+            this.showBottomNotice(error?.message || 'Failed to create direct message.')
+        } finally {
+            if (btnCreateDM) {
+                btnCreateDM.removeAttribute('disabled')
+            }
+        }
+    }
+
+    initDMModal = () => {
+        const dmModal = document.getElementById('dmCreateModal')
+        const dmSearchInput = document.querySelector('[data-apps-chat="dm-search-input"]')
+
+        if (!dmModal) {
+            return
+        }
+
+        // Load candidates when modal is shown
+        dmModal.addEventListener('show.bs.modal', async () => {
+            if (dmSearchInput) {
+                dmSearchInput.value = ''
+            }
+            await this.loadDMCandidates('')
+        })
+
+        // Search functionality
+        if (dmSearchInput) {
+            dmSearchInput.addEventListener('input', async () => {
+                await this.loadDMCandidates(dmSearchInput.value || '')
+            })
+        }
+    }
+
     init = () => {
         this.cacheElements();
         this.setComposerEnabled(false);
         this.initDetailsDrawer();
         this.initCustomization();
+        this.initDMModal();
         this.scrollToBottom();
         this.initFilters();
         this.initSearch();

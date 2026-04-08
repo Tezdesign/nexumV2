@@ -474,4 +474,147 @@ class ConversationController extends AbstractController
 
         return false;
     }
+
+    #[Route('/apps-chat/direct-messages/candidates', name: 'apps-chat-dm-candidates', methods: ['GET'])]
+    public function listDirectMessageCandidates(
+        Request $request,
+        ConversationRepository $conversationRepository,
+        UtilisateurRepository $utilisateurRepository,
+    ): JsonResponse {
+        $search = trim((string) $request->query->get('q', ''));
+
+        // Get all users
+        $qb = $utilisateurRepository->createQueryBuilder('u');
+
+        // Exclude current user
+        $qb->andWhere('u.id != :currentUserId')
+            ->setParameter('currentUserId', self::SESSION_CURRENT_USER_ID);
+
+        // Apply search filter if provided
+        if ($search !== '') {
+            $qb->andWhere('LOWER(u.nom) LIKE :search OR LOWER(u.prenom) LIKE :search OR LOWER(u.email) LIKE :search')
+                ->setParameter('search', '%' . mb_strtolower($search) . '%');
+        }
+
+        $allUsers = $qb
+            ->orderBy('u.prenom', 'ASC')
+            ->addOrderBy('u.nom', 'ASC')
+            ->setMaxResults(100)
+            ->getQuery()
+            ->getResult();
+
+        // Filter out users who already have a DM with current user
+        $candidates = [];
+        foreach ($allUsers as $user) {
+            $userId = $user->getId();
+            if ($userId !== null) {
+                // Check if DM already exists between current user and this user
+                $existingDM = $conversationRepository->findExistingDM(self::SESSION_CURRENT_USER_ID, $userId);
+                if ($existingDM === null) {
+                    $candidates[] = $user;
+                }
+            }
+        }
+
+        return $this->json([
+            'success' => true,
+            'candidates' => array_map(function (Utilisateur $user): array {
+                return [
+                    'userId' => $user->getId(),
+                    'name' => $this->buildUserName($user),
+                    'role' => $user->getRole() ?? 'Member',
+                    'avatarSrc' => $this->toDataUri($user->getImagelink(), 'image/jpeg'),
+                ];
+            }, $candidates),
+        ]);
+    }
+
+    #[Route('/apps-chat/direct-messages/create', name: 'apps-chat-dm-create', methods: ['POST'])]
+    public function createDirectMessage(
+        Request $request,
+        ConversationRepository $conversationRepository,
+        UtilisateurRepository $utilisateurRepository,
+        EntityManagerInterface $entityManager,
+    ): JsonResponse {
+        $otherUserId = (int) $request->request->get('userId', 0);
+
+        // Validate userId
+        if ($otherUserId <= 0) {
+            return $this->json([
+                'success' => false,
+                'error' => 'Invalid user id.',
+            ], 422);
+        }
+
+        // Cannot start DM with self
+        if ($otherUserId === self::SESSION_CURRENT_USER_ID) {
+            return $this->json([
+                'success' => false,
+                'error' => 'You cannot start a direct message with yourself.',
+            ], 422);
+        }
+
+        // Verify other user exists
+        $otherUser = $utilisateurRepository->find($otherUserId);
+        if (!$otherUser instanceof Utilisateur) {
+            return $this->json([
+                'success' => false,
+                'error' => 'User not found.',
+            ], 404);
+        }
+
+        // Check if DM already exists
+        $existingDM = $conversationRepository->findExistingDM(self::SESSION_CURRENT_USER_ID, $otherUserId);
+        if ($existingDM !== null) {
+            return $this->json([
+                'success' => true,
+                'conversation' => [
+                    'id' => $existingDM->getId(),
+                    'type' => 'DM',
+                    'dmKey' => $existingDM->getDmKey(),
+                ],
+                'message' => 'Conversation already exists',
+            ]);
+        }
+
+        // Create DM key: smaller_id_larger_id
+        $dmKey = min(self::SESSION_CURRENT_USER_ID, $otherUserId) . '_' . max(self::SESSION_CURRENT_USER_ID, $otherUserId);
+
+        // Create new conversation
+        $conversation = new Conversation();
+        $conversation->setType('DM');
+        $conversation->setDmKey($dmKey);
+        $conversation->setCreatedBy(self::SESSION_CURRENT_USER_ID);
+        $conversation->setCreatedAt(new \DateTime());
+        // Keep message fields null as per requirements
+        // $conversation->setLastMessageId(null); // already null by default
+        // $conversation->setLastMessageAt(null); // already null by default
+
+        $entityManager->persist($conversation);
+        $entityManager->flush();
+
+        // Add participants to the conversation
+        $participant1 = new ConversationParticipant();
+        $participant1->setConversation_id($conversation->getId());
+        $participant1->setUser_id(self::SESSION_CURRENT_USER_ID);
+        $participant1->setRole('member');
+
+        $participant2 = new ConversationParticipant();
+        $participant2->setConversation_id($conversation->getId());
+        $participant2->setUser_id($otherUserId);
+        $participant2->setRole('member');
+
+        $entityManager->persist($participant1);
+        $entityManager->persist($participant2);
+        $entityManager->flush();
+
+        return $this->json([
+            'success' => true,
+            'conversation' => [
+                'id' => $conversation->getId(),
+                'type' => 'DM',
+                'dmKey' => $conversation->getDmKey(),
+            ],
+        ], 201);
+    }
 }
