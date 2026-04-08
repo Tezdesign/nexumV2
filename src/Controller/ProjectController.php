@@ -26,6 +26,7 @@ final class ProjectController extends AbstractController
         Request $request,
         ProjectRepository $projectRepository,
         ProjectAssignmentRepository $projectAssignmentRepository,
+        TaskRepository $taskRepository,
         UtilisateurRepository $utilisateurRepository,
         EntityManagerInterface $entityManager
     ): Response
@@ -104,6 +105,8 @@ final class ProjectController extends AbstractController
                 $projectIds[] = $project->getId();
             }
         }
+
+        $projectProgressById = $taskRepository->getProgressPercentByProjectIds($projectIds);
 
         $assignedUserIdsByProjectId = $projectAssignmentRepository->getUserIdsByProjectIds($projectIds);
 
@@ -191,6 +194,7 @@ final class ProjectController extends AbstractController
             'usersById' => $usersById,
             'avatarUrlById' => $avatarUrlById,
             'memberIdsByProjectId' => $memberIdsByProjectId,
+            'projectProgressById' => $projectProgressById,
             'createForm' => $createForm->createView(),
             'assignableUsers' => $assignableUsers,
             'isManager' => $isManager,

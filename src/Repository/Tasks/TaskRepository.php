@@ -109,6 +109,48 @@ class TaskRepository extends ServiceEntityRepository
         return $qb->getQuery()->getResult();
     }
 
+    /**
+     * @param int[] $projectIds
+     * @return array<int, int>
+     */
+    public function getProgressPercentByProjectIds(array $projectIds): array
+    {
+        $ids = array_values(array_unique(array_filter(
+            array_map('intval', $projectIds),
+            static fn (int $id): bool => $id > 0
+        )));
+
+        if ($ids === []) {
+            return [];
+        }
+
+        $rows = $this->createQueryBuilder('t')
+            ->select('t.project_id AS project_id')
+            ->addSelect('COUNT(t.id) AS total')
+            ->addSelect(
+                'SUM(CASE WHEN (t.status IS NOT NULL AND (LOWER(t.status) IN (:completed) OR LOWER(t.status) IN (:progress))) THEN 1 ELSE 0 END) AS active'
+            )
+            ->andWhere('t.project_id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->setParameter('completed', self::COMPLETED_STATUSES)
+            ->setParameter('progress', self::IN_PROGRESS_STATUSES)
+            ->groupBy('t.project_id')
+            ->getQuery()
+            ->getArrayResult();
+
+        $progressByProjectId = [];
+        foreach ($rows as $row) {
+            $projectId = (int) ($row['project_id'] ?? 0);
+            $total = (int) ($row['total'] ?? 0);
+            $active = (int) ($row['active'] ?? 0);
+            $progressByProjectId[$projectId] = $total > 0
+                ? (int) round(($active / $total) * 100)
+                : 0;
+        }
+
+        return $progressByProjectId;
+    }
+
     public function deleteByProjectId(int $projectId): int
     {
         return (int) $this->createQueryBuilder('t')
