@@ -2107,10 +2107,10 @@ class ChatApp {
             return
         }
 
-        const btnCreateDM = document.querySelector('[data-apps-chat="dm-candidates-list"]')?.closest('.modal-content')?.querySelector('[data-dm-user-id="' + userId + '"]')
-        if (btnCreateDM) {
-            btnCreateDM.setAttribute('disabled', 'disabled')
-        }
+        // Disable all buttons while processing
+        const dmCandidatesList = document.querySelector('[data-apps-chat="dm-candidates-list"]')
+        const allButtons = dmCandidatesList?.querySelectorAll('[data-dm-user-id]') || []
+        allButtons.forEach(btn => btn.setAttribute('disabled', 'disabled'))
 
         try {
             const response = await fetch(this.buildCreateDMEndpoint(), {
@@ -2120,7 +2120,11 @@ class ChatApp {
             })
 
             const payload = await response.json().catch(() => ({}))
-            if (!response.ok || !payload.success) {
+            if (!response.ok) {
+                throw new Error(payload.error || `Failed to create direct message (${response.status}).`)
+            }
+
+            if (!payload.success) {
                 throw new Error(payload.error || 'Failed to create direct message.')
             }
 
@@ -2132,25 +2136,28 @@ class ChatApp {
             // Close the modal
             const dmModal = document.getElementById('dmCreateModal')
             if (dmModal && window.bootstrap?.Modal) {
-                window.bootstrap.Modal.getInstance(dmModal)?.hide()
+                const modalInstance = window.bootstrap.Modal.getInstance(dmModal)
+                if (modalInstance) {
+                    modalInstance.hide()
+                }
             }
 
-            // Find and click the conversation in the list, or reload the page
-            const conversationItem = document.querySelector(`[data-apps-chat="conversation-item"][data-conversation-id="${conversationId}"]`)
-            if (conversationItem) {
-                conversationItem.click()
-            } else {
-                // Reload the page to see the new conversation
-                setTimeout(() => {
-                    window.location.reload()
-                }, 300)
-            }
+            // Try to find and select the conversation, or reload
+            queueMicrotask(async () => {
+                const conversationItem = document.querySelector(`[data-apps-chat="conversation-item"][data-conversation-id="${conversationId}"]`)
+                if (conversationItem) {
+                    conversationItem.click()
+                } else {
+                    // Reload page after a short delay to ensure all events are processed
+                    setTimeout(() => {
+                        window.location.reload()
+                    }, 200)
+                }
+            })
         } catch (error) {
             this.showBottomNotice(error?.message || 'Failed to create direct message.')
-        } finally {
-            if (btnCreateDM) {
-                btnCreateDM.removeAttribute('disabled')
-            }
+            // Re-enable buttons on error
+            allButtons.forEach(btn => btn.removeAttribute('disabled'))
         }
     }
 

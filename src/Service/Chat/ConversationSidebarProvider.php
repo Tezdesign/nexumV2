@@ -26,7 +26,9 @@ class ConversationSidebarProvider
     public function getSidebarData(int $requestedUserId): array
     {
         $currentUser = $this->utilisateurRepository->find($requestedUserId);
-        $conversationIds = $this->participantRepository->findConversationIdsForUser($requestedUserId);
+        $participantConversationIds = $this->participantRepository->findConversationIdsForUser($requestedUserId);
+        $dmConversationIds = $this->conversationRepository->findDmConversationIdsForUser($requestedUserId);
+        $conversationIds = array_values(array_unique(array_merge($participantConversationIds, $dmConversationIds)));
 
         return [
             'currentUser' => $this->formatCurrentUser($currentUser),

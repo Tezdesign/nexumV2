@@ -586,23 +586,34 @@ class ConversationController extends AbstractController
         $conversation->setDmKey($dmKey);
         $conversation->setCreatedBy(self::SESSION_CURRENT_USER_ID);
         $conversation->setCreatedAt(new \DateTime());
-        // Keep message fields null as per requirements
-        // $conversation->setLastMessageId(null); // already null by default
-        // $conversation->setLastMessageAt(null); // already null by default
 
         $entityManager->persist($conversation);
         $entityManager->flush();
 
-        // Add participants to the conversation
-        $participant1 = new ConversationParticipant();
-        $participant1->setConversation_id($conversation->getId());
-        $participant1->setUser_id(self::SESSION_CURRENT_USER_ID);
-        $participant1->setRole('member');
+        // Verify conversation was persisted with an ID
+        $conversationId = $conversation->getId();
+        if (!$conversationId) {
+            throw new \RuntimeException('Failed to generate conversation ID.');
+        }
 
-        $participant2 = new ConversationParticipant();
-        $participant2->setConversation_id($conversation->getId());
-        $participant2->setUser_id($otherUserId);
-        $participant2->setRole('member');
+        // Add participants to the conversation using the same pattern as addOrReactivateParticipant
+        $participant1 = (new ConversationParticipant())
+            ->setConversation_id($conversationId)
+            ->setUser_id(self::SESSION_CURRENT_USER_ID)
+            ->setRole('member')
+            ->setNickname(null)
+            ->setAdded_by(null)
+            ->setJoined_at(new \DateTime())
+            ->setLeft_at(null);
+
+        $participant2 = (new ConversationParticipant())
+            ->setConversation_id($conversationId)
+            ->setUser_id($otherUserId)
+            ->setRole('member')
+            ->setNickname(null)
+            ->setAdded_by(null)
+            ->setJoined_at(new \DateTime())
+            ->setLeft_at(null);
 
         $entityManager->persist($participant1);
         $entityManager->persist($participant2);
@@ -611,7 +622,7 @@ class ConversationController extends AbstractController
         return $this->json([
             'success' => true,
             'conversation' => [
-                'id' => $conversation->getId(),
+                'id' => $conversationId,
                 'type' => 'DM',
                 'dmKey' => $conversation->getDmKey(),
             ],

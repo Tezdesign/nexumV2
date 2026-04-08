@@ -18,10 +18,9 @@ class ConversationParticipantRepository extends ServiceEntityRepository
     public function findConversationIdsForUser(int $userId): array
     {
         $rows = $this->createQueryBuilder('cp')
-            ->select('cp.conversation_id AS conversationId')
+            ->select('DISTINCT cp.conversation_id AS conversationId')
             ->innerJoin('App\\Entity\\Chat\\Conversation', 'c', 'WITH', 'c.id = cp.conversation_id')
             ->andWhere('cp.user_id = :userId')
-            ->andWhere('cp.left_at IS NULL')
             ->setParameter('userId', $userId)
             ->orderBy('c.last_message_at', 'DESC')
             ->addOrderBy('c.created_at', 'DESC')
@@ -36,7 +35,6 @@ class ConversationParticipantRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('cp')
             ->andWhere('cp.conversation_id = :conversationId')
             ->andWhere('cp.user_id != :userId')
-            ->andWhere('cp.left_at IS NULL')
             ->setParameter('conversationId', $conversationId)
             ->setParameter('userId', $userId)
             ->setMaxResults(1)

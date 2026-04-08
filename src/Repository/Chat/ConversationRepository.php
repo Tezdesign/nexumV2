@@ -60,6 +60,44 @@ class ConversationRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
+    /**
+     * @return int[]
+     */
+    public function findDmConversationIdsForUser(int $userId): array
+    {
+        $rows = $this->createQueryBuilder('c')
+            ->select('c.id AS id', 'c.dm_key AS dmKey')
+            ->andWhere('c.dm_key IS NOT NULL')
+            ->orderBy('c.last_message_at', 'DESC')
+            ->addOrderBy('c.created_at', 'DESC')
+            ->getQuery()
+            ->getArrayResult();
+
+        $ids = [];
+        foreach ($rows as $row) {
+            $dmKey = (string) ($row['dmKey'] ?? '');
+            if ($dmKey === '') {
+                continue;
+            }
+
+            [$firstId, $secondId] = array_pad(explode('_', $dmKey, 2), 2, null);
+            if ($firstId === null || $secondId === null) {
+                continue;
+            }
+
+            if ((int) $firstId !== $userId && (int) $secondId !== $userId) {
+                continue;
+            }
+
+            $id = (int) ($row['id'] ?? 0);
+            if ($id > 0) {
+                $ids[] = $id;
+            }
+        }
+
+        return $ids;
+    }
+
     //    /**
     //     * @return Conversation[] Returns an array of Conversation objects
     //     */
