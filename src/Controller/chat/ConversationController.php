@@ -13,10 +13,11 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use InvalidArgumentException;
 
 class ConversationController extends AbstractController
 {
-    public const SESSION_CURRENT_USER_ID = 53;
+    public const SESSION_CURRENT_USER_ID = 44;
 
     #[Route('/apps-chat', name: 'apps-chat')]
     public function index(ConversationSidebarProvider $sidebarProvider): Response
@@ -50,7 +51,14 @@ class ConversationController extends AbstractController
             ], 422);
         }
 
-        $conversation->setTitle($title);
+        try {
+            $conversation->setTitle($title);
+        } catch (InvalidArgumentException $exception) {
+            return $this->json([
+                'success' => false,
+                'error' => $exception->getMessage(),
+            ], 422);
+        }
         $entityManager->flush();
 
         return $this->json([

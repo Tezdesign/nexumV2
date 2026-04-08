@@ -6,6 +6,7 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use InvalidArgumentException;
 
 use App\Repository\Chat\ConversationRepository;
 
@@ -56,7 +57,12 @@ class Conversation
 
     public function setTitle(?string $title): self
     {
-        $this->title = $title;
+        $normalizedTitle = $title !== null ? trim($title) : null;
+        if ($normalizedTitle !== null && $normalizedTitle !== '' && mb_strlen($normalizedTitle) < 3) {
+            throw new InvalidArgumentException('Chat name must contain at least 3 characters.');
+        }
+
+        $this->title = $normalizedTitle;
         return $this;
     }
 

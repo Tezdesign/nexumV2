@@ -47,6 +47,8 @@ class ChatApp {
         this.renameInput = null
         this.renameError = null
         this.renameSubmitButton = null
+        this.bottomNotice = null
+        this.bottomNoticeTimer = null
         this.currentUserName = 'You'
         this.currentUserAvatar = ''
         this.messagesSimplebar = null
@@ -199,6 +201,10 @@ class ChatApp {
 
     isGroupConversation = (item) => {
         return this.getConversationTypeRaw(item) === 'GROUP'
+    }
+
+    isConversationOwner = (item) => {
+        return (item?.dataset.conversationIsAdmin || '0') === '1'
     }
 
     updateConversationHeader = (item) => {
@@ -508,6 +514,45 @@ class ChatApp {
         this.renameInput?.classList.toggle('is-invalid', hasError)
     }
 
+    showBottomNotice = (message) => {
+        if (!message) {
+            return
+        }
+
+        if (!this.bottomNotice) {
+            this.bottomNotice = document.createElement('div')
+            this.bottomNotice.className = 'position-fixed bottom-0 start-50 translate-middle-x mb-3 z-3'
+            this.bottomNotice.style.maxWidth = '92vw'
+            this.bottomNotice.style.width = 'auto'
+
+            const card = document.createElement('div')
+            card.className = 'shadow-lg rounded-3 border border-warning-subtle bg-warning text-dark px-3 py-2 small'
+            card.style.maxWidth = '360px'
+            card.style.boxShadow = '0 18px 36px rgba(0,0,0,0.18)'
+            card.dataset.appsChatNotice = 'body'
+
+            this.bottomNotice.appendChild(card)
+            document.body.appendChild(this.bottomNotice)
+        }
+
+        const body = this.bottomNotice.querySelector('[data-apps-chat-notice="body"]')
+        if (body) {
+            body.textContent = message
+        }
+
+        this.bottomNotice.classList.remove('d-none')
+
+        if (this.bottomNoticeTimer) {
+            window.clearTimeout(this.bottomNoticeTimer)
+        }
+
+        this.bottomNoticeTimer = window.setTimeout(() => {
+            if (this.bottomNotice) {
+                this.bottomNotice.classList.add('d-none')
+            }
+        }, 2600)
+    }
+
     openRenameModal = () => {
         if (!this.activeConversationItem || !this.isGroupConversation(this.activeConversationItem)) {
             return
@@ -548,8 +593,8 @@ class ChatApp {
 
         const conversationId = this.activeConversationItem.dataset.conversationId || ''
         const title = this.renameInput.value.trim()
-        if (title.length === 0) {
-            this.setRenameError('Chat name cannot be empty.')
+        if (title.length < 3) {
+            this.setRenameError('Chat name must contain at least 3 characters.')
             return
         }
 
@@ -581,6 +626,11 @@ class ChatApp {
 
     triggerAvatarPicker = () => {
         if (!this.activeConversationItem || !this.isGroupConversation(this.activeConversationItem)) {
+            return
+        }
+
+        if (!this.isConversationOwner(this.activeConversationItem)) {
+            this.showBottomNotice('Only the chat owner can modify this discussion.')
             return
         }
 
