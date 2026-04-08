@@ -123,17 +123,7 @@
     <script src="/vendor/select2/js/select2.min.js"></script>
 
     <!-- Custom FA JS Logic -->
-    <script src="/js/FA_custom.js"></script>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            // Show modal automatically if there are validation errors from the server
-            {% if form.vars.submitted and not form.vars.valid %}
-                const myModal = new bootstrap.Modal(document.getElementById('createProfileModal'));
-                myModal.show();
-            {% endif %}
-        });
-    </script>
+    <script src="/js/FA_custom.js?v={{ random() }}"></script>
 {% endblock %}
 
 {% block footer %}{% endblock %}

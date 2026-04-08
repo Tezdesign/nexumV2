@@ -244,12 +244,17 @@ class BudgetProfile
         }
 
         if ($this->start_date && $this->end_date) {
-            $expectedEndDate = clone $this->start_date;
-            $expectedEndDate->modify('+1 year');
-            $expectedEndDate->modify('-1 day');
+            // Safely convert to a mutable DateTime to avoid DateTimeImmutable bugs
+            $expectedEndDateMinusOneDay = new \DateTime($this->start_date->format('Y-m-d'));
+            $expectedEndDateMinusOneDay->modify('+1 year')->modify('-1 day');
+            
+            $expectedEndDateExact = new \DateTime($this->start_date->format('Y-m-d'));
+            $expectedEndDateExact->modify('+1 year');
 
-            if ($this->end_date->format('Y-m-d') !== $expectedEndDate->format('Y-m-d')) {
-                $context->buildViolation('The budget period must be exactly 12 months long.')
+            $actualEnd = $this->end_date->format('Y-m-d');
+
+            if ($actualEnd !== $expectedEndDateMinusOneDay->format('Y-m-d') && $actualEnd !== $expectedEndDateExact->format('Y-m-d')) {
+                $context->buildViolation('The budget period must be exactly 12 months long (e.g., ' . $this->start_date->format('Y-m-d') . ' to ' . $expectedEndDateMinusOneDay->format('Y-m-d') . ').')
                     ->atPath('end_date')
                     ->addViolation();
             }

@@ -46,9 +46,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 $(fiscalYearSelect).trigger('change');
             }
         } else {
-            // Custom: Disable Fiscal Year dropdown, Enable Flatpickr popups & allow editing
+            // Custom: Keep Fiscal Year dropdown ENABLED so it submits, but don't auto-fill dates from it!
             if (fiscalYearSelect) {
-                $(fiscalYearSelect).prop('disabled', true).trigger('change.select2');
+                $(fiscalYearSelect).prop('disabled', false).trigger('change.select2');
             }
             if (startDateInput) startDateInput.removeAttribute('readonly');
             if (endDateInput) endDateInput.removeAttribute('readonly');
