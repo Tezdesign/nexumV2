@@ -503,8 +503,7 @@
         <span class="text-dark">{{ project.name|plain_text }}</span>
     </div>
 
-    {% set pctRaw = project.progress is not null ? project.progress : 0 %}
-    {% set pct = pctRaw < 0 ? 0 : (pctRaw > 100 ? 100 : pctRaw) %}
+    {% set pct = projectProgressPercent|default(0) %}
 
     <div class="card nexum-shell-card mb-4">
         <div class="card-body">
@@ -514,18 +513,28 @@
                         <h2 class="mb-2 text-truncate flex-grow-1">{{ project.name|plain_text }}</h2>
 
                         <div class="d-flex gap-2 flex-shrink-0">
-                            <a class="nexum-icon-btn" href="{{ path('app_project_edit', {id: project.id}) }}" title="Edit" aria-label="Edit">
-                                <i class="ri-pencil-line"></i>
-                            </a>
+                            {% if canEditProject|default(false) %}
+                                <button class="nexum-icon-btn"
+                                        type="button"
+                                        title="Edit"
+                                        aria-label="Edit"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#editProjectModal"
+                                        data-edit-url="{{ path('app_project_edit', {id: project.id}) }}">
+                                    <i class="ri-pencil-line"></i>
+                                </button>
+                            {% endif %}
 
-                            <button class="nexum-icon-btn"
-                                    type="button"
-                                    title="Delete"
-                                    aria-label="Delete"
-                                    data-bs-toggle="modal"
-                                    data-bs-target="#deleteProjectModal">
-                                <i class="ri-delete-bin-6-line"></i>
-                            </button>
+                            {% if canDeleteProject|default(false) %}
+                                <button class="nexum-icon-btn"
+                                        type="button"
+                                        title="Delete"
+                                        aria-label="Delete"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#deleteProjectModal">
+                                    <i class="ri-delete-bin-6-line"></i>
+                                </button>
+                            {% endif %}
                         </div>
                     </div>
                     <div class="text-muted d-flex flex-wrap gap-3 small">
@@ -591,7 +600,6 @@
                 <div class="card nexum-shell-card">
                     <div class="card-body d-flex align-items-center justify-content-between">
                         <h5 class="mb-0">Recent Activity</h5>
-                        <a href="javascript:void(0)" style="color: var(--nexum-accent); text-decoration: none; font-weight: 600;">View All</a>
                     </div>
                     <div class="card-body pt-0">
                         <div class="text-muted small">
@@ -603,28 +611,19 @@
                 <div class="card nexum-shell-card">
                     <div class="card-body d-flex align-items-center justify-content-between">
                         <h5 class="mb-0">Tasks</h5>
-                        <div class="d-flex align-items-center gap-2">
-                            {% set cu = current_user|default(null) %}
-                            {% set isManagerUser = cu and (('manager' in ((cu.role|default(''))|plain_text|lower))) %}
-
-                            {% if isManagerUser %}
-                                <a class="nexum-icon-btn"
-                                   href="{{ path('app_task_index', {create: 1, project: project.id}) }}"
-                                   title="Add task"
-                                   aria-label="Add task">
-                                    <i class="ri-add-line"></i>
-                                </a>
-                            {% endif %}
-                            <a href="{{ path('app_task_index', {project: project.id}) }}"
-                               style="color: var(--nexum-accent); text-decoration: none; font-weight: 600;">
-                                View All
+                        {% if canCreateTask|default(false) %}
+                            <a class="nexum-icon-btn"
+                               href="{{ path('app_task_index', {create: 1, project: project.id}) }}"
+                               title="Add task"
+                               aria-label="Add task">
+                                <i class="ri-add-line"></i>
                             </a>
-                        </div>
+                        {% endif %}
                     </div>
                     <div class="card-body pt-0">
                         {% set completedStatuses = ['done','completed','complete','finished'] %}
                         {% set inProgressStatuses = ['in_progress','in progress','progress','doing','started'] %}
-                        {% set curId = cu ? (cu.id ?? 0) : 0 %}
+                        {% set curId = currentUserId|default(0) %}
                         {% for task in (tasks|default([]))|slice(0, 50) %}
                             {% set st = (task.status ?? '')|plain_text|lower %}
                             {% set isDone = st and (st in completedStatuses) %}
@@ -669,6 +668,15 @@
                                             <span class="nexum-task-action {{ statusKey == 'in_progress' ? 'is-progress' : '' }} is-disabled" aria-hidden="true">
                                                 <i class="ri-time-line"></i>
                                             </span>
+                                        {% endif %}
+
+                                        {% if canEditProject|default(false) %}
+                                            <a class="nexum-task-action"
+                                               href="{{ path('app_task_edit', {id: task.id, back: app.request.requestUri}) }}"
+                                               title="Edit task"
+                                               aria-label="Edit task">
+                                                <i class="ri-pencil-line"></i>
+                                            </a>
                                         {% endif %}
                                     </div>
                                     <div class="min-w-0">
@@ -757,7 +765,7 @@
                 <div class="card-body d-flex align-items-center justify-content-between">
                     <h5 class="mb-0">Team Members</h5>
                     <div class="d-flex gap-2">
-                        {% if isManager|default(false) %}
+                        {% if canEditProject|default(false) %}
                             <button type="button"
                                     class="nexum-icon-btn"
                                     title="Add member"
@@ -770,11 +778,8 @@
                     </div>
                 </div>
                 <div class="card-body pt-2">
-                    <div class="d-flex align-items-center">
-                        {% set shownIds = memberIds|slice(0, 4) %}
-                        {% set extraCount = memberIds|length > 4 ? (memberIds|length - 4) : 0 %}
-
-                        {% for uid in shownIds %}
+                    <div class="d-flex align-items-center flex-wrap gap-1">
+                        {% for uid in memberIds %}
                             {% set user = membersById[uid] ?? null %}
                             {% if user %}
                                 {% set fullName = (user.prenom ~ ' ' ~ user.nom)|trim %}
@@ -793,13 +798,7 @@
                             {% endif %}
                         {% endfor %}
 
-                        {% if extraCount > 0 %}
-                            <span class="nexum-avatar" title="+{{ extraCount }} more" style="background: #f1f5f9; color: #334155;">
-                                +{{ extraCount }}
-                            </span>
-                        {% endif %}
-
-                        {% if isManager|default(false) %}
+                        {% if canEditProject|default(false) %}
                             <button type="button"
                                     class="nexum-avatar nexum-avatar--add ms-2"
                                     title="Add member"
@@ -841,7 +840,7 @@
     </div>
 
     {# Add members popup (Bootstrap modal) #}
-    {% if isManager|default(false) %}
+    {% if canEditProject|default(false) %}
         <div class="modal fade nexum-member-modal" id="addMembersModal" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered modal-lg">
                 <div class="modal-content">
@@ -928,7 +927,19 @@
         </div>
     {% endif %}
 
+    {# Project edit popup (Bootstrap modal) #}
+    {% if canEditProject|default(false) %}
+        <div class="modal fade nexum-confirm" id="editProjectModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
+                <div class="modal-content" id="editProjectModalContent">
+                    <div class="modal-body text-muted small p-4">Loading...</div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
     {# Clean delete popup (Bootstrap modal) #}
+    {% if canDeleteProject|default(false) %}
     <div class="modal fade nexum-confirm" id="deleteProjectModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -952,12 +963,65 @@
             </div>
         </div>
     </div>
+    {% endif %}
 
 {% endblock %}
 
 {% block script %}
     {{ parent() }}
     <script>
+        (function () {
+            const modalEl = document.getElementById('editProjectModal');
+            const contentEl = document.getElementById('editProjectModalContent');
+            if (!modalEl || !contentEl) return;
+
+            const wireForm = function () {
+                const form = contentEl.querySelector('form');
+                if (!form) return;
+
+                form.addEventListener('submit', async function (e) {
+                    e.preventDefault();
+                    try {
+                        const res = await fetch(form.action, {
+                            method: form.method || 'POST',
+                            body: new FormData(form),
+                            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                        });
+
+                        if (res.status === 204) {
+                            if (window.bootstrap && bootstrap.Modal) {
+                                bootstrap.Modal.getInstance(modalEl)?.hide();
+                            }
+                            window.location.reload();
+                            return;
+                        }
+
+                        const html = await res.text();
+                        contentEl.innerHTML = html;
+                        wireForm();
+                    } catch (err) {
+                        contentEl.innerHTML = '<div class="modal-body p-4 text-danger small">Failed to load the edit form.</div>';
+                    }
+                }, { once: true });
+            };
+
+            modalEl.addEventListener('show.bs.modal', async function (ev) {
+                const btn = ev.relatedTarget;
+                const url = btn ? (btn.getAttribute('data-edit-url') || '') : '';
+                contentEl.innerHTML = '<div class="modal-body text-muted small p-4">Loading...</div>';
+                if (!url) return;
+
+                try {
+                    const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                    const html = await res.text();
+                    contentEl.innerHTML = html;
+                    wireForm();
+                } catch (err) {
+                    contentEl.innerHTML = '<div class="modal-body p-4 text-danger small">Failed to load the edit form.</div>';
+                }
+            });
+        })();
+
         (function () {
             const modalEl = document.getElementById('addMembersModal');
             if (!modalEl) return;

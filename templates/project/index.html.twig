@@ -243,13 +243,15 @@
                 <button class="btn btn-outline-secondary" type="button" title="List">≡</button>
             </div>
 
-            <button class="btn btn-primary"
-                    style="background: var(--nexum-accent); border-color: var(--nexum-accent);"
-                    type="button"
-                    data-bs-toggle="modal"
-                    data-bs-target="#createProjectModal">
-                + New Project
-            </button>
+            {% if isManager|default(false) %}
+                <button class="btn btn-primary"
+                        style="background: var(--nexum-accent); border-color: var(--nexum-accent);"
+                        type="button"
+                        data-bs-toggle="modal"
+                        data-bs-target="#createProjectModal">
+                    + New Project
+                </button>
+            {% endif %}
         </div>
     </div>
 
@@ -354,7 +356,7 @@
         {% endfor %}
     </div>
 
-    {% if createForm is defined %}
+    {% if isManager|default(false) and createForm is defined %}
         <div class="modal fade nexum-modal" id="createProjectModal" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered modal-lg">
                 <div class="modal-content">

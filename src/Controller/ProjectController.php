@@ -29,6 +29,10 @@ final class ProjectController extends AbstractController
     ): Response
     {
         $q = trim((string) $request->query->get('q', ''));
+        $currentUser = $utilisateurRepository->findFirstManagerOrFirst();
+        $currentUserId = $currentUser?->getId() ?? 1;
+        $role = strtolower((string) ($currentUser?->getRole() ?? ''));
+        $isManager = $role !== '' && str_contains($role, 'manager');
 
         // Modal "quick create" form (same page, no navigation).
         $createProject = new Project();
@@ -38,10 +42,13 @@ final class ProjectController extends AbstractController
         ]);
         $createForm->handleRequest($request);
 
+        if ($createForm->isSubmitted() && !$isManager) {
+            throw $this->createAccessDeniedException();
+        }
+
         if ($createForm->isSubmitted() && $createForm->isValid()) {
             // Set legacy required field(s) that shouldn't be user-editable in the modal.
-            $manager = $utilisateurRepository->findFirstManagerOrFirst();
-            $createProject->setCreatedBy($manager?->getId() ?? 1);
+            $createProject->setCreatedBy((int) $currentUserId);
 
             $entityManager->persist($createProject);
             $entityManager->flush();
@@ -184,12 +191,20 @@ final class ProjectController extends AbstractController
             'memberIdsByProjectId' => $memberIdsByProjectId,
             'createForm' => $createForm->createView(),
             'assignableUsers' => $assignableUsers,
+            'isManager' => $isManager,
         ]);
     }
 
     #[Route('/new', name: 'app_project_new', methods: ['GET', 'POST'])]
-    public function new(Request $request, EntityManagerInterface $entityManager): Response
+    public function new(Request $request, UtilisateurRepository $utilisateurRepository, EntityManagerInterface $entityManager): Response
     {
+        $currentUser = $utilisateurRepository->findFirstManagerOrFirst();
+        $role = strtolower((string) ($currentUser?->getRole() ?? ''));
+        $isManager = $role !== '' && str_contains($role, 'manager');
+        if (!$isManager) {
+            throw $this->createAccessDeniedException();
+        }
+
         $project = new Project();
         $form = $this->createForm(ProjectType::class, $project);
         $form->handleRequest($request);
@@ -245,6 +260,23 @@ final class ProjectController extends AbstractController
                 $teamMemberIds[(int) $uid] = true;
             }
         }
+
+        $canEditProject = $isManager;
+        $canDeleteProject = $isManager;
+        $canCreateTask = $isManager || isset($teamMemberIds[(int) $currentUserId]);
+
+        $projectTasks = $pid !== null ? $taskRepository->findForProject((int) $pid) : [];
+        $progressTotal = count($projectTasks);
+        $progressDoneOrInProgress = 0;
+        foreach ($projectTasks as $projectTask) {
+            $status = strtolower(trim((string) ($projectTask->getStatus() ?? '')));
+            if (in_array($status, ['done', 'completed', 'complete', 'finished', 'in_progress', 'in progress', 'progress', 'doing', 'started'], true)) {
+                $progressDoneOrInProgress++;
+            }
+        }
+        $projectProgressPercent = $progressTotal > 0
+            ? (int) round(($progressDoneOrInProgress / $progressTotal) * 100)
+            : 0;
 
         $stats = ['total' => 0, 'completed' => 0, 'overdue' => 0];
         if ($pid !== null) {
@@ -327,6 +359,10 @@ final class ProjectController extends AbstractController
             'stats' => $stats,
             'tasks' => $tasks,
             'activeTab' => $tab,
+            'canEditProject' => $canEditProject,
+            'canDeleteProject' => $canDeleteProject,
+            'canCreateTask' => $canCreateTask,
+            'projectProgressPercent' => $projectProgressPercent,
         ]);
     }
 
@@ -410,15 +446,42 @@ final class ProjectController extends AbstractController
     }
 
     #[Route('/{id}/edit', name: 'app_project_edit', methods: ['GET', 'POST'])]
-    public function edit(Request $request, Project $project, EntityManagerInterface $entityManager): Response
+    public function edit(Request $request, Project $project, UtilisateurRepository $utilisateurRepository, EntityManagerInterface $entityManager): Response
     {
+        $currentUser = $utilisateurRepository->findFirstManagerOrFirst();
+        $role = strtolower((string) ($currentUser?->getRole() ?? ''));
+        $isManager = $role !== '' && str_contains($role, 'manager');
+        if (!$isManager) {
+            throw $this->createAccessDeniedException();
+        }
+
         $form = $this->createForm(ProjectType::class, $project);
         $form->handleRequest($request);
 
-        if ($form->isSubmitted() && $form->isValid()) {
-            $entityManager->flush();
+        if ($form->isSubmitted()) {
+            if ($form->isValid()) {
+                $entityManager->flush();
 
-            return $this->redirectToRoute('app_project_index', [], Response::HTTP_SEE_OTHER);
+                if ($request->isXmlHttpRequest()) {
+                    return new Response('', Response::HTTP_NO_CONTENT);
+                }
+
+                return $this->redirectToRoute('app_project_index', [], Response::HTTP_SEE_OTHER);
+            }
+
+            if ($request->isXmlHttpRequest()) {
+                return $this->render('project/_edit_modal_content.html.twig', [
+                    'project' => $project,
+                    'form' => $form->createView(),
+                ], new Response('', Response::HTTP_UNPROCESSABLE_ENTITY));
+            }
+        }
+
+        if ($request->isXmlHttpRequest()) {
+            return $this->render('project/_edit_modal_content.html.twig', [
+                'project' => $project,
+                'form' => $form->createView(),
+            ]);
         }
 
         return $this->render('project/edit.html.twig', [
@@ -428,8 +491,15 @@ final class ProjectController extends AbstractController
     }
 
     #[Route('/{id}', name: 'app_project_delete', methods: ['POST'])]
-    public function delete(Request $request, Project $project, TaskRepository $taskRepository, EntityManagerInterface $entityManager): Response
+    public function delete(Request $request, Project $project, TaskRepository $taskRepository, UtilisateurRepository $utilisateurRepository, EntityManagerInterface $entityManager): Response
     {
+        $currentUser = $utilisateurRepository->findFirstManagerOrFirst();
+        $role = strtolower((string) ($currentUser?->getRole() ?? ''));
+        $isManager = $role !== '' && str_contains($role, 'manager');
+        if (!$isManager) {
+            throw $this->createAccessDeniedException();
+        }
+
         if ($this->isCsrfTokenValid('delete'.$project->getId(), (string) $request->request->get('_token', ''))) {
             $pid = $project->getId();
             if ($pid !== null) {

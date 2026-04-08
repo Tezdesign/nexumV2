@@ -61,6 +61,33 @@ class ProjectAssignmentRepository extends ServiceEntityRepository
         return $map[$projectId] ?? [];
     }
 
+    /**
+     * @return int[]
+     */
+    public function getProjectIdsByUserId(int $userId): array
+    {
+        if ($userId <= 0) {
+            return [];
+        }
+
+        $rows = $this->createQueryBuilder('pa')
+            ->select('pa.project_id AS project_id')
+            ->andWhere('pa.user_id = :uid')
+            ->setParameter('uid', $userId)
+            ->getQuery()
+            ->getArrayResult();
+
+        $ids = [];
+        foreach ($rows as $row) {
+            $pid = (int) ($row['project_id'] ?? 0);
+            if ($pid > 0) {
+                $ids[$pid] = true;
+            }
+        }
+
+        return array_map('intval', array_keys($ids));
+    }
+
     //    /**
     //     * @return ProjectAssignment[] Returns an array of ProjectAssignment objects
     //     */

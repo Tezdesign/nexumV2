@@ -42,6 +42,13 @@ final class TaskController extends AbstractController
         $currentUserId = $currentUser?->getId() ?? 1;
         $role = strtolower((string) ($currentUser?->getRole() ?? ''));
         $isManager = $role !== '' && str_contains($role, 'manager');
+        $allowedProjectIds = $isManager
+            ? []
+            : array_values(array_unique(array_merge(
+                $projectRepository->getProjectIdsForUser((int) $currentUserId),
+                $projectAssignmentRepository->getProjectIdsByUserId((int) $currentUserId),
+            )));
+        $canCreateTask = $isManager || $allowedProjectIds !== [];
 
         $prefillProjectId = (int) $request->query->get('project', 0);
         $openCreate = (string) $request->query->get('create', '') === '1';
@@ -52,6 +59,8 @@ final class TaskController extends AbstractController
         $createForm = $this->createForm(TaskQuickCreateType::class, $createTask, [
             'action' => $this->generateUrl('app_task_index'),
             'method' => 'POST',
+            'is_manager' => $isManager,
+            'allowed_project_ids' => $allowedProjectIds,
         ]);
 
         // Preselect project when arriving from a per-project "+" button.
@@ -60,67 +69,60 @@ final class TaskController extends AbstractController
         }
 
         // Default assignee to the current user (manager can change it).
-        if ($currentUser !== null) {
+        if ($isManager && $currentUser !== null && $createForm->has('assignedUser')) {
             $createForm->get('assignedUser')->setData($currentUser);
         }
         $createForm->handleRequest($request);
+        $createFormResponseStatus = Response::HTTP_OK;
 
         if ($createForm->isSubmitted()) {
             $canPersist = false;
             if ($createForm->isValid()) {
-                if (!$isManager) {
-                    throw $this->createAccessDeniedException();
-                }
-
                 /** @var \App\Entity\Projects\Project|null $project */
                 $project = $createForm->get('project')->getData();
                 if ($project === null || $project->getId() === null) {
-                    if ($request->isXmlHttpRequest()) {
-                        return $this->render('task/_create_modal_content.html.twig', [
-                            'createForm' => $createForm->createView(),
-                        ], new Response('', Response::HTTP_UNPROCESSABLE_ENTITY));
+                    $createForm->get('project')->addError(new FormError('Please select a project.'));
+                } else {
+                    if ($isManager) {
+                        /** @var \App\Entity\UserHandling\Utilisateur|null $assignedUser */
+                        $assignedUser = $createForm->get('assignedUser')->getData();
+                        $assignedUserId = $assignedUser?->getId() ?? null;
+
+                        // Only allow assigning to project team members.
+                        $pid = (int) $project->getId();
+                        $memberIds = [];
+                        $createdBy = $project->getCreatedBy();
+                        if ($createdBy !== null) {
+                            $memberIds[(int) $createdBy] = true;
+                        }
+                        $assignedTo = $project->getAssignedTo();
+                        if ($assignedTo !== null) {
+                            $memberIds[(int) $assignedTo] = true;
+                        }
+                        foreach ($projectAssignmentRepository->getUserIdsByProjectId($pid) as $uid) {
+                            $memberIds[(int) $uid] = true;
+                        }
+
+                        if ($assignedUserId !== null && !isset($memberIds[(int) $assignedUserId])) {
+                            $createForm->get('assignedUser')->addError(new FormError('You can only assign tasks to this project team members.'));
+                        }
+                    } else {
+                        $assignedUserId = (int) $currentUserId;
                     }
 
-                    return $this->redirectToRoute('app_task_index', [], Response::HTTP_SEE_OTHER);
-                }
-
-                /** @var \App\Entity\UserHandling\Utilisateur|null $assignedUser */
-                $assignedUser = $createForm->get('assignedUser')->getData();
-                $assignedUserId = $assignedUser?->getId() ?? null;
-
-                // Only allow assigning to project team members.
-                $pid = (int) $project->getId();
-                $memberIds = [];
-                $createdBy = $project->getCreatedBy();
-                if ($createdBy !== null) {
-                    $memberIds[(int) $createdBy] = true;
-                }
-                $assignedTo = $project->getAssignedTo();
-                if ($assignedTo !== null) {
-                    $memberIds[(int) $assignedTo] = true;
-                }
-                foreach ($projectAssignmentRepository->getUserIdsByProjectId($pid) as $uid) {
-                    $memberIds[(int) $uid] = true;
-                }
-
-                if ($assignedUserId !== null && !isset($memberIds[(int) $assignedUserId])) {
-                    $createForm->get('assignedUser')->addError(new FormError('You can only assign tasks to this project team members.'));
-                }
-
-                if ($createForm->isValid()) {
-                    $canPersist = true;
+                    if ($createForm->isValid()) {
+                        $canPersist = true;
+                    }
                 }
             }
 
             if ($canPersist) {
                 /** @var \App\Entity\Projects\Project $project */
                 $project = $createForm->get('project')->getData();
-                /** @var \App\Entity\UserHandling\Utilisateur|null $assignedUser */
-                $assignedUser = $createForm->get('assignedUser')->getData();
-                $assignedUserId = $assignedUser?->getId() ?? null;
+                $assignedUserId = $isManager ? (int) (($createForm->get('assignedUser')->getData()?->getId()) ?? 0) : (int) $currentUserId;
 
                 $createTask->setProjectId((int) $project->getId());
-                $createTask->setAssignedTo($assignedUserId !== null ? (int) $assignedUserId : (int) $currentUserId);
+                $createTask->setAssignedTo($assignedUserId > 0 ? $assignedUserId : (int) $currentUserId);
                 $createTask->setCreatedBy((int) $currentUserId);
                 $createTask->setCreatedAt(new \DateTime());
 
@@ -135,9 +137,7 @@ final class TaskController extends AbstractController
             }
 
             if ($request->isXmlHttpRequest()) {
-                return $this->render('task/_create_modal_content.html.twig', [
-                    'createForm' => $createForm->createView(),
-                ], new Response('', Response::HTTP_UNPROCESSABLE_ENTITY));
+                $createFormResponseStatus = Response::HTTP_UNPROCESSABLE_ENTITY;
             }
         }
 
@@ -208,7 +208,8 @@ final class TaskController extends AbstractController
             'usersById' => $usersById,
             'avatarUrlById' => $avatarUrlById,
             'createForm' => $createForm->createView(),
-        ]);
+            'canCreateTask' => $canCreateTask,
+        ], new Response('', $createFormResponseStatus));
     }
 
     #[Route('/assignees', name: 'app_task_assignees', methods: ['GET'])]

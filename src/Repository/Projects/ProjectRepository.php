@@ -62,6 +62,33 @@ class ProjectRepository extends ServiceEntityRepository
         return $out;
     }
 
+    /**
+     * @return int[]
+     */
+    public function getProjectIdsForUser(int $userId): array
+    {
+        if ($userId <= 0) {
+            return [];
+        }
+
+        $rows = $this->createQueryBuilder('p')
+            ->select('p.id AS id')
+            ->andWhere('p.created_by = :uid OR p.assigned_to = :uid')
+            ->setParameter('uid', $userId)
+            ->getQuery()
+            ->getArrayResult();
+
+        $ids = [];
+        foreach ($rows as $row) {
+            $id = (int) ($row['id'] ?? 0);
+            if ($id > 0) {
+                $ids[$id] = true;
+            }
+        }
+
+        return array_map('intval', array_keys($ids));
+    }
+
     //    /**
     //     * @return Project[] Returns an array of Project objects
     //     */
