@@ -6,8 +6,9 @@
     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 </div>
 
-{{ form_start(form, { action: path('app_task_edit_modal', {id: task.id}), method: 'POST' }) }}
+{{ form_start(form, { action: path('app_task_edit_modal', {id: task.id}), method: 'POST', attr: { novalidate: 'novalidate' } }) }}
 <div class="modal-body">
+    {{ form_errors(form) }}
     <div class="mb-3">
         {{ form_label(form.title) }} <span class="text-danger">*</span>
         {{ form_widget(form.title, { attr: { class: 'form-control' } }) }}

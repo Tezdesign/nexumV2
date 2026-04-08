@@ -2,6 +2,7 @@
 
 namespace App\Twig;
 
+use App\Support\PlainTextSanitizer;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFilter;
 
@@ -23,11 +24,7 @@ final class TextSanitizerExtension extends AbstractExtension
             return '';
         }
 
-        $s = (string) $value;
-        $s = html_entity_decode($s, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        $s = strip_tags($s);
-        $s = preg_replace('/\\s+/u', ' ', $s) ?? $s;
-        $s = trim($s);
+        $s = PlainTextSanitizer::toLine((string) $value);
 
         if ($maxLen > 0) {
             $len = function_exists('mb_strlen') ? mb_strlen($s, 'UTF-8') : strlen($s);

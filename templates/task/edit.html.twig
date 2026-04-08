@@ -147,7 +147,7 @@
                 </a>
             </div>
 
-            {{ form_start(form) }}
+            {{ form_start(form, { attr: { novalidate: 'novalidate' } }) }}
 
             <div class="mb-3">
                 {{ form_label(form.title) }} <span class="text-danger">*</span>

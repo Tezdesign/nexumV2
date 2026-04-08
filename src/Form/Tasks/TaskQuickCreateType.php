@@ -14,6 +14,7 @@ use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
+use Symfony\Component\Validator\Constraints as Assert;
 
 final class TaskQuickCreateType extends AbstractType
 {
@@ -21,6 +22,7 @@ final class TaskQuickCreateType extends AbstractType
     {
         $builder
             ->add('title', TextType::class, [
+                'required' => true,
                 'label' => 'Task Name',
             ])
             ->add('description', TextareaType::class, [
@@ -30,6 +32,9 @@ final class TaskQuickCreateType extends AbstractType
             ->add('project', EntityType::class, [
                 'mapped' => false,
                 'required' => true,
+                'constraints' => [
+                    new Assert\NotNull(message: 'Please select a project.'),
+                ],
                 'class' => Project::class,
                 // Keep DB strings as plain text in option labels.
                 'choice_label' => static fn (Project $p): string => trim(strip_tags((string) $p->getName())),
@@ -37,7 +42,7 @@ final class TaskQuickCreateType extends AbstractType
                 'label' => 'Project',
             ])
             ->add('status', ChoiceType::class, [
-                'required' => false,
+                'required' => true,
                 'choices' => [
                     'To Do' => 'todo',
                     'In Progress' => 'in_progress',
@@ -48,7 +53,10 @@ final class TaskQuickCreateType extends AbstractType
             ])
             ->add('assignedUser', EntityType::class, [
                 'mapped' => false,
-                'required' => false,
+                'required' => true,
+                'constraints' => [
+                    new Assert\NotNull(message: 'Please assign a user.'),
+                ],
                 'class' => Utilisateur::class,
                 'placeholder' => 'Select team ...',
                 'label' => 'Assign User',
@@ -60,11 +68,11 @@ final class TaskQuickCreateType extends AbstractType
             ])
             ->add('due_date', DateType::class, [
                 'widget' => 'single_text',
-                'required' => false,
+                'required' => true,
                 'label' => 'Due Date',
             ])
             ->add('priority', ChoiceType::class, [
-                'required' => false,
+                'required' => true,
                 'choices' => [
                     'High' => 'high',
                     'Medium' => 'medium',
@@ -79,6 +87,7 @@ final class TaskQuickCreateType extends AbstractType
     {
         $resolver->setDefaults([
             'data_class' => Task::class,
+            'validation_groups' => ['Default', 'task_quick_create'],
         ]);
     }
 }

@@ -774,67 +774,7 @@
 	    {% if createForm is defined %}
 	        <div class="modal fade nexum-modal" id="createTaskModal" tabindex="-1" aria-hidden="true">
 	            <div class="modal-dialog modal-dialog-centered">
-	                <div class="modal-content">
-	                    {{ form_start(createForm, { attr: { id: 'createTaskForm' } }) }}
-
-	                    <div class="modal-header">
-	                        <div>
-	                            <h5 class="modal-title mb-1">Create New Task</h5>
-	                            <div class="text-muted small">Assign a new objective to this project</div>
-	                        </div>
-	                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-	                    </div>
-	
-	                    <div class="modal-body">
-	                        <div class="mb-3">
-	                            {{ form_label(createForm.title) }} <span class="text-danger">*</span>
-	                            {{ form_widget(createForm.title, { attr: { class: 'form-control', placeholder: 'e.g. Design System Audit' } }) }}
-	                            {{ form_errors(createForm.title) }}
-	                        </div>
-
-	                        <div class="mb-3">
-	                            {{ form_label(createForm.description) }}
-	                            {{ form_widget(createForm.description, { attr: { class: 'form-control', placeholder: 'Describe the task goals...' } }) }}
-	                            {{ form_errors(createForm.description) }}
-	                        </div>
-
-	                        <div class="mb-3">
-	                            {{ form_label(createForm.project) }} <span class="text-danger">*</span>
-	                            {{ form_widget(createForm.project, { attr: { class: 'form-select', 'data-task-project': '1' } }) }}
-	                            {{ form_errors(createForm.project) }}
-	                        </div>
-	
-	                        <div class="row g-3">
-	                            <div class="col-12 col-md-3">
-	                                {{ form_label(createForm.due_date) }}
-	                                {{ form_widget(createForm.due_date, { attr: { class: 'form-control' } }) }}
-	                                {{ form_errors(createForm.due_date) }}
-	                            </div>
-	                            <div class="col-12 col-md-3">
-	                                {{ form_label(createForm.status) }}
-	                                {{ form_widget(createForm.status, { attr: { class: 'form-select' } }) }}
-	                                {{ form_errors(createForm.status) }}
-	                            </div>
-		                            <div class="col-12 col-md-3">
-		                                {{ form_label(createForm.assignedUser) }}
-		                                {{ form_widget(createForm.assignedUser, { attr: { class: 'form-select', 'data-task-assignee': '1' } }) }}
-		                                {{ form_errors(createForm.assignedUser) }}
-		                            </div>
-	                            <div class="col-12 col-md-3">
-	                                {{ form_label(createForm.priority) }}
-	                                {{ form_widget(createForm.priority, { attr: { class: 'form-select' } }) }}
-	                                {{ form_errors(createForm.priority) }}
-	                            </div>
-	                        </div>
-	                    </div>
-
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn nexum-btn-primary text-white">Create Task</button>
-                    </div>
-
-	                    {{ form_end(createForm) }}
-	                </div>
+	                {% include 'task/_create_modal_content.html.twig' %}
 	            </div>
 	        </div>
 	    {% endif %}
@@ -944,11 +884,10 @@
 		            const modalEl = document.getElementById('createTaskModal');
 		            if (!modalEl) return;
 
-		            const projectSelect = modalEl.querySelector('select[data-task-project="1"]');
-		            const assigneeSelect = modalEl.querySelector('select[data-task-assignee="1"]');
 		            const assigneesEndpoint = {{ path('app_task_assignees')|json_encode|raw }};
 
 		            async function refreshAssignees(projectId) {
+		                const assigneeSelect = modalEl.querySelector('select[data-task-assignee="1"]');
 		                if (!assigneeSelect) return;
 		                const prev = assigneeSelect.value;
 		                assigneeSelect.innerHTML = '<option value="">Loading...</option>';
@@ -982,11 +921,51 @@
 		                }
 		            }
 
-		            if (projectSelect) {
-		                projectSelect.addEventListener('change', function () {
-		                    refreshAssignees(projectSelect.value);
-		                });
-		            }
+		            modalEl.addEventListener('change', function (e) {
+		                const t = e.target;
+		                if (t && t.matches && t.matches('select[data-task-project="1"]')) {
+		                    refreshAssignees(t.value);
+		                }
+		            });
+
+		            modalEl.addEventListener('submit', async function (e) {
+		                const form = e.target;
+		                if (!form || form.id !== 'createTaskForm') return;
+		                e.preventDefault();
+		                try {
+		                    const res = await fetch(form.action, {
+		                        method: 'POST',
+		                        body: new FormData(form),
+		                        headers: {
+		                            'X-Requested-With': 'XMLHttpRequest',
+		                            'Accept': 'application/json, text/html;q=0.9'
+		                        }
+		                    });
+		                    const ct = (res.headers.get('Content-Type') || '');
+		                    if (res.ok && ct.indexOf('application/json') !== -1) {
+		                        const data = await res.json();
+		                        if (data && data.location) {
+		                            window.location.href = data.location;
+		                        }
+		                        return;
+		                    }
+		                    if (res.status === 422) {
+		                        const html = await res.text();
+		                        const wrap = document.getElementById('createTaskModalContent');
+		                        if (wrap && html) {
+		                            wrap.outerHTML = html;
+		                        }
+		                        return;
+		                    }
+		                    if (res.status === 403) {
+		                        window.location.reload();
+		                        return;
+		                    }
+		                    window.location.reload();
+		                } catch (err) {
+		                    window.location.reload();
+		                }
+		            });
 
 		            // Support deep-linking from other pages:
 		            // /task?create=1&project=123 opens the modal with the project pre-selected.
@@ -994,6 +973,7 @@
 		                const url = new URL(window.location.href);
 		                const pid = url.searchParams.get('project');
 		                const open = url.searchParams.get('create') === '1';
+		                const projectSelect = modalEl.querySelector('select[data-task-project="1"]');
 		                if (pid && projectSelect) {
 		                    projectSelect.value = String(pid);
 		                    refreshAssignees(pid);
@@ -1009,6 +989,7 @@
 		                const btn = e.target.closest('[data-prefill-project]');
 		                if (!btn) return;
 		                const pid = btn.getAttribute('data-prefill-project');
+		                const projectSelect = modalEl.querySelector('select[data-task-project="1"]');
 		                if (projectSelect && pid) {
 		                    projectSelect.value = String(pid);
 		                    refreshAssignees(pid);

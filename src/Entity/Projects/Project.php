@@ -8,6 +8,7 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 
 use App\Repository\Projects\ProjectRepository;
+use App\Support\PlainTextSanitizer;
 
 #[ORM\Entity(repositoryClass: ProjectRepository::class)]
 #[ORM\Table(name: 'projects')]
@@ -43,7 +44,7 @@ class Project
 
     public function setName(string $name): self
     {
-        $this->name = $name;
+        $this->name = PlainTextSanitizer::toLine($name);
         return $this;
     }
 
@@ -57,7 +58,7 @@ class Project
 
     public function setDescription(?string $description): self
     {
-        $this->description = $description;
+        $this->description = PlainTextSanitizer::toBlock($description);
         return $this;
     }
 
