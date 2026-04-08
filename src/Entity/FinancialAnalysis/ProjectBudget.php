@@ -9,6 +9,8 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 
 use App\Repository\FinancialAnalysis\ProjectBudgetRepository;
+use Symfony\Component\Validator\Constraints as Assert;
+use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 #[ORM\Entity(repositoryClass: ProjectBudgetRepository::class)]
 #[ORM\Table(name: 'project_budget')]
@@ -32,6 +34,9 @@ class ProjectBudget
     }
 
     #[ORM\Column(type: 'string', nullable: false)]
+    #[Assert\NotBlank(message: "enter the name of the budget")]
+    #[Assert\Regex(pattern: "/^\[a-zA-Z ]$/")]
+    #[Assert\Length(min: 3, minMessage: "The budget name must be at least 3 characters long.")]
     private ?string $name = null;
 
     public function getName(): ?string
@@ -46,6 +51,8 @@ class ProjectBudget
     }
 
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2, nullable: false)]
+    #[Assert\NotBlank(message: "enter the budget for the project")]
+    #[Assert\Positive(message: "The budget must be greater than zero.")]
     private ?string $total_budget = null;
 
     public function getTotal_budget(): ?string
@@ -74,7 +81,7 @@ class ProjectBudget
     }
 
     #[ORM\Column(type: 'string', nullable: true)]
-    private ?string $status = null;
+    private ?string $status = "ON TRACK";
 
     public function getStatus(): ?string
     {
@@ -88,6 +95,7 @@ class ProjectBudget
     }
 
     #[ORM\Column(name: 'dueDate', type: 'date', nullable: false)]
+    #[Assert\NotBlank(message: "A due date is required.")]
     private ?\DateTimeInterface $dueDate = null;
 
     public function getDueDate(): ?\DateTimeInterface
@@ -103,6 +111,7 @@ class ProjectBudget
 
     #[ORM\ManyToOne(targetEntity: \App\Entity\Projects\Project::class)]
     #[ORM\JoinColumn(name: 'projectId', referencedColumnName: 'id', nullable: false)]
+    #[Assert\NotBlank(message: "You must select a project.")]
     private ?\App\Entity\Projects\Project $project = null;
 
     public function getProject(): ?\App\Entity\Projects\Project
@@ -122,6 +131,8 @@ class ProjectBudget
     public function __construct()
     {
         $this->transactions = new ArrayCollection();
+        $this->actualSpend = '0.00';
+        $this->status = 'ON TRACK';
     }
 
     /**
@@ -159,6 +170,23 @@ class ProjectBudget
         $this->total_budget = $total_budget;
 
         return $this;
+    }
+
+    #[Assert\Callback]
+    public function validateProjectLogic(ExecutionContextInterface $context, mixed $payload): void
+    {
+
+        if ($this->dueDate && $this->project && $this->project->getEndDate()) {
+
+            $budgetDate = $this->dueDate->format('Y-m-d');
+            $projectEndDate = $this->project->getEndDate()->format('Y-m-d');
+
+            if ($budgetDate > $projectEndDate) {
+                $context->buildViolation('The budget due date cannot be later than the project end date (' . $projectEndDate . ').')
+                    ->atPath('dueDate')
+                    ->addViolation();
+            }
+        }
     }
 
 }

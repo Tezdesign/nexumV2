@@ -6,12 +6,43 @@
     <!-- Tabler Icons Webfont (CDN) -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
     
+    <!-- Flatpickr css -->
+    <link rel="stylesheet" href="/vendor/flatpickr/flatpickr.min.css">
+    
+    <!-- Select2 css -->
+    <link href="/vendor/select2/css/select2.min.css" rel="stylesheet" type="text/css" />
+    
     <!-- Custom FA css -->
     <link href="/css/FA.css" rel="stylesheet" type="text/css" />
+
+    <style>
+        .modal-backdrop.show {
+            backdrop-filter: blur(5px);
+            background-color: rgba(0,0,0,0.4);
+            opacity: 1;
+        }
+    </style>
 {% endblock %}
 
 {% block content %}
     <div class="container-fluid pt-4">
+        <!-- Flash Messages -->
+        {% for label, messages in app.flashes %}
+            {% for message in messages %}
+                <div class="alert alert-{{ label == 'success' ? 'success' : 'danger' }} alert-dismissible d-flex align-items-center mb-4" role="alert">
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    {% if label == 'success' %}
+                        <i class="ti ti-check fs-20 me-2"></i>
+                    {% else %}
+                        <i class="ti ti-alert-triangle fs-20 me-2"></i>
+                    {% endif %}
+                    <div class="lh-1">
+                        <strong>{{ label|capitalize|trans }} - </strong> {{ message|trans }}
+                    </div>
+                </div>
+            {% endfor %}
+        {% endfor %}
+        
         <!-- Title & Action -->
         <div class="row align-items-center mb-4">
             <div class="col-12 d-flex align-items-center justify-content-between">
@@ -55,7 +86,7 @@
                     <div class="app-search d-none d-sm-block me-auto">
                         <form>
                             <div class="position-relative">
-                                <input type="search" class="form-control border-0" style="background-color: var(--ct-body-bg, #fff); border-radius: 20px; padding-left: 35px; box-shadow: none; min-width: 200px;" placeholder="{{ 'Search...'|trans }}" id="top-search">
+                                <input type="search" class="form-control border-0" style="background-color: var(--ct-body-bg, #fff); border-radius: 20px; padding-left: 35px; box-shadow: none; min-width: 200px;" placeholder="{{ 'Search Profiles...'|trans }}" id="top-search">
                                 <i class="ri-search-line fs-18 position-absolute text-muted" style="left: 10px; top: 50%; transform: translateY(-50%);"></i>
                             </div>
                         </form>
@@ -80,8 +111,29 @@
         {% endif %}
 
     </div> <!-- end container -->
+
+    {% include 'financial-analysis/FA_components/_create_profile_modal.html.twig' %}
 {% endblock %}
 
 {% block script %}
+    <!-- Flatpickr js -->
+    <script src="/vendor/flatpickr/flatpickr.min.js"></script>
+
+    <!-- Select2 js -->
+    <script src="/vendor/select2/js/select2.min.js"></script>
+
+    <!-- Custom FA JS Logic -->
+    <script src="/js/FA_custom.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Show modal automatically if there are validation errors from the server
+            {% if form.vars.submitted and not form.vars.valid %}
+                const myModal = new bootstrap.Modal(document.getElementById('createProfileModal'));
+                myModal.show();
+            {% endif %}
+        });
+    </script>
 {% endblock %}
+
 {% block footer %}{% endblock %}

@@ -4,9 +4,12 @@ namespace App\Controller\FinancialAnalysis;
 
 use App\Entity\FinancialAnalysis\BudgetProfile;
 use App\Entity\FinancialAnalysis\ProjectBudget;
+use App\Form\FinancialAnalysis\BudgetProfileType;
 use App\Repository\FinancialAnalysis\BudgetProfileRepository;
 use App\Service\FinancialAnalysis\BudgetDashboardService;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 
@@ -14,12 +17,26 @@ use Symfony\Component\Routing\Annotation\Route;
 class FinancialDashboardController extends AbstractController
 {
     #[Route('', name: 'apps-financial-analysis-landing')]
-    public function index(BudgetProfileRepository $budgetProfileRepository): Response
+    public function index(Request $request, EntityManagerInterface $entityManager, BudgetProfileRepository $budgetProfileRepository): Response
     {
+        $budgetProfile = new BudgetProfile();
+        $form = $this->createForm(BudgetProfileType::class, $budgetProfile);
+        $form->handleRequest($request);
+
+        if ($form->isSubmitted() && $form->isValid()) {
+            $entityManager->persist($budgetProfile);
+            $entityManager->flush();
+
+            $this->addFlash('success', 'Budget Profile created successfully!');
+
+            return $this->redirectToRoute('apps-financial-analysis-landing');
+        }
+
         $budgetProfiles = $budgetProfileRepository->findAll();
 
         return $this->render('financial-analysis/landing.html.twig', [
-            'budgetProfiles' => $budgetProfiles
+            'budgetProfiles' => $budgetProfiles,
+            'form' => $form->createView(),
         ]);
     }
 
