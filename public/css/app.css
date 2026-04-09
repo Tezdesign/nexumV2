@@ -32,9 +32,9 @@ File: App Css File
 :root[data-menu-color=light] {
   --ct-menu-bg: #fff;
   --ct-menu-item-color: #6c757d;
-  --ct-menu-item-hover-color: #188ae2;
-  --ct-menu-item-hover-bg: rgba(24, 138, 226, 0.1);
-  --ct-menu-item-active-color: #188ae2;
+  --ct-menu-item-hover-color: #6f42c1;
+  --ct-menu-item-hover-bg: rgba(111, 66, 193, 0.1);
+  --ct-menu-item-active-color: #6f42c1;
   --ct-menu-item-active-bg: transparent;
   --ct-sidenav-user-bg: #f6fafd;
 }
@@ -68,7 +68,7 @@ File: App Css File
 :root[data-topbar-color=light] {
   --ct-topbar-bg: #ffffff;
   --ct-topbar-item-color: #6c757d;
-  --ct-topbar-item-hover-color: #188ae2;
+  --ct-topbar-item-hover-color: #6f42c1;
   --ct-topbar-search-bg: #eaeff3;
   --ct-topbar-user-bg: transparent;
   --ct-topbar-user-border: transparent;
@@ -82,7 +82,7 @@ File: App Css File
   --ct-topbar-user-border: transparent;
 }
 :root[data-topbar-color=brand] {
-  --ct-topbar-bg: #188ae2;
+  --ct-topbar-bg: #6f42c1;
   --ct-topbar-item-color: rgba(255, 255, 255, 0.7);
   --ct-topbar-item-hover-color: #ffffff;
   --ct-topbar-search-bg: rgba(255, 255, 255, 0.1);
@@ -97,7 +97,7 @@ File: App Css File
  */
 :root,
 [data-bs-theme=light] {
-  --ct-blue: #188ae2;
+  --ct-blue: #6f42c1;
   --ct-indigo: #5b69bc;
   --ct-pink: #ff8acc;
   --ct-red: #ff5b5b;
@@ -119,7 +119,7 @@ File: App Css File
   --ct-gray-700: #6c757d;
   --ct-gray-800: #343a40;
   --ct-gray-900: #313a46;
-  --ct-primary: #188ae2;
+  --ct-primary: #6f42c1;
   --ct-secondary: #5b69bc;
   --ct-success: #10c469;
   --ct-info: #35b8e0;
@@ -127,7 +127,7 @@ File: App Css File
   --ct-danger: #ff5b5b;
   --ct-light: #eef2f7;
   --ct-dark: #313a46;
-  --ct-primary-rgb: 24, 138, 226;
+  --ct-primary-rgb: 111, 66, 193;
   --ct-secondary-rgb: 91, 105, 188;
   --ct-success-rgb: 16, 196, 105;
   --ct-info-rgb: 53, 184, 224;
@@ -183,8 +183,8 @@ File: App Css File
   --ct-tertiary-bg: #f6f7fb;
   --ct-tertiary-bg-rgb: 246, 247, 251;
   --ct-heading-color: inherit;
-  --ct-link-color: #188ae2;
-  --ct-link-color-rgb: 24, 138, 226;
+  --ct-link-color: #6f42c1;
+  --ct-link-color-rgb: 111, 66, 193;
   --ct-link-decoration: none;
   --ct-link-hover-color: rgb(20.4, 117.3, 192.1);
   --ct-link-hover-color-rgb: 20, 117, 192;
@@ -208,7 +208,7 @@ File: App Css File
   --ct-box-shadow-inset: inset 0 1px 2px rgba(var(--ct-body-color-rgb), 0.075);
   --ct-focus-ring-width: 0;
   --ct-focus-ring-opacity: 0.25;
-  --ct-focus-ring-color: rgba(24, 138, 226, 0.25);
+  --ct-focus-ring-color: rgba(111, 66, 193, 0.25);
   --ct-form-valid-color: #10c469;
   --ct-form-valid-border-color: #10c469;
   --ct-form-invalid-color: #ff5b5b;
@@ -239,7 +239,7 @@ File: App Css File
   --ct-danger-text-emphasis: rgb(255, 156.6, 156.6);
   --ct-light-text-emphasis: #f6f7fb;
   --ct-dark-text-emphasis: #e7e9eb;
-  --ct-primary-bg-subtle: rgba(24, 138, 226, 0.2);
+  --ct-primary-bg-subtle: rgba(111, 66, 193, 0.2);
   --ct-secondary-bg-subtle: rgba(91, 105, 188, 0.2);
   --ct-success-bg-subtle: rgba(16, 196, 105, 0.2);
   --ct-info-bg-subtle: rgba(53, 184, 224, 0.2);

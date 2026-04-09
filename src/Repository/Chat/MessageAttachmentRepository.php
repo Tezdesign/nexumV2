@@ -16,6 +16,41 @@ class MessageAttachmentRepository extends ServiceEntityRepository
         parent::__construct($registry, MessageAttachment::class);
     }
 
+    /**
+     * @param int[] $messageIds
+     *
+     * @return MessageAttachment[]
+     */
+    public function findByMessageIds(array $messageIds): array
+    {
+        if ($messageIds === []) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('ma')
+            ->andWhere('ma.message_id IN (:messageIds)')
+            ->setParameter('messageIds', $messageIds)
+            ->orderBy('ma.message_id', 'ASC')
+            ->addOrderBy('ma.created_at', 'ASC')
+            ->addOrderBy('ma.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * @return MessageAttachment[]
+     */
+    public function findByMessageId(int $messageId): array
+    {
+        return $this->createQueryBuilder('ma')
+            ->andWhere('ma.message_id = :messageId')
+            ->setParameter('messageId', $messageId)
+            ->orderBy('ma.created_at', 'ASC')
+            ->addOrderBy('ma.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
     //    /**
     //     * @return MessageAttachment[] Returns an array of MessageAttachment objects
     //     */

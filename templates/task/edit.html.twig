@@ -173,9 +173,13 @@
                     {{ form_errors(form.status) }}
                 </div>
                 <div class="col-12 col-md-3">
-                    {{ form_label(form.assignedUser) }}
-                    {{ form_widget(form.assignedUser, { attr: { class: 'form-select' } }) }}
-                    {{ form_errors(form.assignedUser) }}
+                    {% if form.assignedUser is defined %}
+                        {{ form_label(form.assignedUser) }}
+                        {{ form_widget(form.assignedUser, { attr: { class: 'form-select' } }) }}
+                        {{ form_errors(form.assignedUser) }}
+                    {% else %}
+                        <div class="text-muted small">Assignment is locked for this task.</div>
+                    {% endif %}
                 </div>
                 <div class="col-12 col-md-3">
                     {{ form_label(form.priority) }}

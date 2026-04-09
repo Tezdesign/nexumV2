@@ -16,8 +16,14 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 
 final class TaskUpdateType extends AbstractType
 {
+    /**
+     * @param array{allow_assigned_user?: bool, member_ids?: int[]} $options
+     */
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
+        $allowAssignedUser = (bool) ($options['allow_assigned_user'] ?? false);
+        $memberIds = array_values(array_unique(array_map('intval', $options['member_ids'] ?? [])));
+
         $builder
             ->add('title', TextType::class, [
                 'label' => 'Task Name',
@@ -41,19 +47,6 @@ final class TaskUpdateType extends AbstractType
                 'placeholder' => 'Select status...',
                 'label' => 'Status',
             ])
-            ->add('assignedUser', EntityType::class, [
-                'mapped' => false,
-                'required' => false,
-                'class' => Utilisateur::class,
-                'placeholder' => 'Select team ...',
-                'label' => 'Assigned To',
-                'choice_label' => static fn (Utilisateur $u): string => trim(strip_tags((string) ($u->getPrenom().' '.$u->getNom()))),
-                'query_builder' => static fn (UtilisateurRepository $repo) => $repo->createQueryBuilder('u')
-                    ->andWhere('LOWER(u.role) NOT LIKE :adminRole')
-                    ->setParameter('adminRole', '%admin%')
-                    ->orderBy('u.prenom', 'ASC')
-                    ->addOrderBy('u.nom', 'ASC'),
-            ])
             ->add('priority', ChoiceType::class, [
                 'required' => false,
                 'choices' => [
@@ -64,12 +57,42 @@ final class TaskUpdateType extends AbstractType
                 'placeholder' => 'Select priority...',
                 'label' => 'Priority',
             ]);
+
+        if ($allowAssignedUser) {
+            $builder->add('assignedUser', EntityType::class, [
+                'mapped' => false,
+                'required' => false,
+                'class' => Utilisateur::class,
+                'placeholder' => 'Select team ...',
+                'label' => 'Assigned To',
+                'choice_label' => static fn (Utilisateur $u): string => trim(strip_tags((string) ($u->getPrenom().' '.$u->getNom()))),
+                'query_builder' => static function (UtilisateurRepository $repo) use ($memberIds) {
+                    $qb = $repo->createQueryBuilder('u')
+                        ->andWhere('LOWER(u.role) NOT LIKE :adminRole')
+                        ->setParameter('adminRole', '%admin%')
+                        ->orderBy('u.prenom', 'ASC')
+                        ->addOrderBy('u.nom', 'ASC');
+
+                    if ($memberIds !== []) {
+                        $qb
+                            ->andWhere('u.id IN (:ids)')
+                            ->setParameter('ids', $memberIds);
+                    }
+
+                    return $qb;
+                },
+            ]);
+        }
     }
 
     public function configureOptions(OptionsResolver $resolver): void
     {
         $resolver->setDefaults([
             'data_class' => Task::class,
+            'allow_assigned_user' => false,
+            'member_ids' => [],
         ]);
+        $resolver->setAllowedTypes('allow_assigned_user', 'bool');
+        $resolver->setAllowedTypes('member_ids', 'array');
     }
 }

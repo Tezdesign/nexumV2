@@ -16,6 +16,8 @@ use App\Repository\Chat\MessageRepository;
 #[ORM\Index(name: "idx_messages_sender_time", columns: ["sender_id", "created_at"])]
 class Message
 {
+    public const MAX_TEXT_BODY_LENGTH = 300;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: 'integer')]
@@ -70,7 +72,16 @@ class Message
 
     public function setBody(string $body): self
     {
-        $this->body = $body;
+        $normalizedBody = trim($body);
+        if ($normalizedBody === '') {
+            throw new \InvalidArgumentException('Message cannot be empty.');
+        }
+
+        if (mb_strlen($normalizedBody) > self::MAX_TEXT_BODY_LENGTH) {
+            throw new \InvalidArgumentException('Message must not exceed 300 characters.');
+        }
+
+        $this->body = $normalizedBody;
         return $this;
     }
 

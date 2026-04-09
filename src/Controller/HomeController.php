@@ -450,12 +450,6 @@ class HomeController extends AbstractController
         ]);
     }
 
-    #[Route('/apps-chat', name: 'apps-chat')]
-    public function chat(): Response
-    {
-        return $this->render('chat/apps-chat.html.twig');
-    }
-
     #[Route('/apps-projects', name: 'apps-projects')]
     public function projects(): Response
     {

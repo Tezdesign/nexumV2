@@ -243,6 +243,139 @@
             border-color: #cbd5e1;
         }
 
+        .nexum-modal .modal-content {
+            border-radius: 16px;
+            border: 1px solid #eef2f7;
+        }
+
+        .nexum-modal .modal-header {
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .nexum-modal .modal-footer {
+            border-top: 1px solid #f1f5f9;
+        }
+
+        .nexum-assignee-btn {
+            border-radius: 12px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 0 12px;
+        }
+
+        .nexum-assignee-left {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .nexum-assignee-name {
+            font-weight: 700;
+            font-size: 13px;
+            color: #0f172a;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 320px;
+        }
+
+        .nexum-assignee-role {
+            font-size: 12px;
+            color: #64748b;
+            white-space: nowrap;
+        }
+
+        .nexum-assignee-avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 999px;
+            border: 1px solid #e2e8f0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            font-weight: 800;
+            font-size: 12px;
+            flex: 0 0 auto;
+        }
+
+        .nexum-assignee-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .nexum-assignee-menu {
+            width: 100%;
+            border-radius: 14px;
+            border: 1px solid #eef2f7;
+            padding: 10px;
+        }
+
+        .nexum-assignee-item {
+            border-radius: 12px;
+            padding: 8px 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .nexum-assignee-item:hover {
+            background: #f8fafc;
+        }
+
+        .nexum-assignee-item .meta {
+            min-width: 0;
+        }
+
+        .nexum-assignee-item .meta .name {
+            font-weight: 700;
+            font-size: 13px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .nexum-assignee-item .meta .role {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 2px;
+            text-transform: capitalize;
+        }
+
+        .nexum-assignee-check {
+            width: 18px;
+            height: 18px;
+            border-radius: 999px;
+            border: 2px solid #cbd5e1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            flex: 0 0 auto;
+        }
+
+        .nexum-assignee-item[data-selected="1"] .nexum-assignee-check {
+            background: var(--nexum-accent);
+            border-color: var(--nexum-accent);
+        }
+
+        .nexum-assignee-item[data-selected="1"] .nexum-assignee-check::after {
+            content: "";
+            width: 6px;
+            height: 10px;
+            border: solid #fff;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+            margin-top: -1px;
+        }
+
         .nexum-task-row {
             display: flex;
             align-items: center;
@@ -1003,15 +1136,13 @@
     {% endif %}
 
     {# Edit task popup (shared with Tasks page) #}
-    {% if isManager|default(false) %}
-        <div class="modal fade nexum-modal nexum-edit" id="editTaskModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content" id="editTaskModalContent">
-                    <div class="modal-body text-muted small p-4">Loading...</div>
-                </div>
+        <div class="modal fade nexum-modal" id="editTaskModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" id="editTaskModalContent">
+                <div class="modal-body text-muted small p-4">Loading...</div>
             </div>
         </div>
-    {% endif %}
+    </div>
 
     {# Add members popup (Bootstrap modal) #}
     {% if canEditProject|default(false) %}
@@ -1103,7 +1234,7 @@
 
     {# Project edit popup (Bootstrap modal) #}
     {% if canEditProject|default(false) %}
-        <div class="modal fade nexum-confirm" id="editProjectModal" tabindex="-1" aria-hidden="true">
+        <div class="modal fade nexum-modal" id="editProjectModal" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered modal-lg">
                 <div class="modal-content" id="editProjectModalContent">
                     <div class="modal-body text-muted small p-4">Loading...</div>
@@ -1411,8 +1542,107 @@
 
         (function () {
             const modalEl = document.getElementById('editProjectModal');
-            const contentEl = document.getElementById('editProjectModalContent');
+            let contentEl = document.getElementById('editProjectModalContent');
             if (!modalEl || !contentEl) return;
+
+            const getState = function () {
+                return {
+                    selectEl: contentEl.querySelector('select[data-assigned-select="1"]'),
+                    btnAvatars: contentEl.querySelector('[data-assignee-avatars]'),
+                    btnName: contentEl.querySelector('[data-assignee-name]'),
+                    btnRole: contentEl.querySelector('[data-assignee-role]'),
+                    searchEl: contentEl.querySelector('[data-assignee-search]'),
+                    items: Array.from(contentEl.querySelectorAll('[data-assignee-item]'))
+                };
+            };
+
+            const getSelectedIds = function () {
+                const { selectEl } = getState();
+                const ids = [];
+                if (!selectEl) return ids;
+                for (const opt of Array.from(selectEl.options)) {
+                    if (opt.selected && opt.value) ids.push(opt.value);
+                }
+                return ids;
+            };
+
+            const applySelectedIds = function (ids) {
+                const { selectEl } = getState();
+                if (!selectEl) return;
+                const set = new Set((ids || []).map(String));
+                for (const opt of Array.from(selectEl.options)) {
+                    opt.selected = opt.value ? set.has(String(opt.value)) : false;
+                }
+            };
+
+            const renderButton = function () {
+                const { btnAvatars, btnName, btnRole, items } = getState();
+                const ids = getSelectedIds() || [];
+                const selectedItems = items.filter((it) => ids.includes(String(it.getAttribute('data-user-id') || '')));
+
+                items.forEach((it) => {
+                    const id = String(it.getAttribute('data-user-id') || '');
+                    it.setAttribute('data-selected', ids.includes(id) ? '1' : '0');
+                });
+
+                if (btnAvatars) {
+                    btnAvatars.innerHTML = '';
+                    selectedItems.slice(0, 3).forEach((it) => {
+                        const srcAvatar = it.querySelector('.nexum-assignee-avatar');
+                        if (!srcAvatar) return;
+                        const span = document.createElement('span');
+                        span.className = 'nexum-assignee-avatar';
+                        const style = srcAvatar.getAttribute('style');
+                        if (style) span.setAttribute('style', style);
+                        span.innerHTML = srcAvatar.innerHTML;
+                        btnAvatars.appendChild(span);
+                    });
+                }
+
+                if (btnName) {
+                    if (ids.length === 0) {
+                        btnName.textContent = 'Select team members...';
+                        btnName.classList.add('text-muted');
+                    } else if (ids.length === 1) {
+                        const one = selectedItems[0];
+                        btnName.textContent = one ? (one.getAttribute('data-user-name') || 'User') : '1 selected';
+                        btnName.classList.remove('text-muted');
+                    } else {
+                        btnName.textContent = ids.length + ' selected';
+                        btnName.classList.remove('text-muted');
+                    }
+                }
+
+                if (btnRole) {
+                    btnRole.textContent = ids.length === 1 ? (selectedItems[0]?.getAttribute('data-user-role') || '') : '';
+                }
+            };
+
+            modalEl.addEventListener('click', function (e) {
+                const it = e.target.closest('[data-assignee-item]');
+                if (!it || !modalEl.contains(it)) return;
+                const userId = it.getAttribute('data-user-id');
+                if (!userId) return;
+
+                const ids = getSelectedIds() || [];
+                const set = new Set(ids.map(String));
+                if (set.has(String(userId))) set.delete(String(userId)); else set.add(String(userId));
+                applySelectedIds(Array.from(set));
+                renderButton();
+            });
+
+            modalEl.addEventListener('input', function (e) {
+                const t = e.target;
+                if (!t || !t.matches || !t.matches('[data-assignee-search]')) return;
+                const q = (t.value || '').trim().toLowerCase();
+                const { items } = getState();
+                for (const it of items) {
+                    const name = (it.getAttribute('data-user-name') || '').toLowerCase();
+                    const role = (it.getAttribute('data-user-role') || '').toLowerCase();
+                    const show = q === '' || name.includes(q) || role.includes(q);
+                    it.style.display = show ? '' : 'none';
+                }
+            });
 
             const wireForm = function () {
                 const form = contentEl.querySelector('form');
@@ -1427,20 +1657,28 @@
                             headers: { 'X-Requested-With': 'XMLHttpRequest' }
                         });
 
-                        if (res.status === 204) {
-                            if (window.bootstrap && bootstrap.Modal) {
-                                bootstrap.Modal.getInstance(modalEl)?.hide();
-                            }
-                            window.location.reload();
-                            return;
+                    if (res.status === 204) {
+                        if (window.bootstrap && bootstrap.Modal) {
+                            bootstrap.Modal.getInstance(modalEl)?.hide();
                         }
-
-                        const html = await res.text();
-                        contentEl.innerHTML = html;
-                        wireForm();
-                    } catch (err) {
-                        contentEl.innerHTML = '<div class="modal-body p-4 text-danger small">Failed to load the edit form.</div>';
+                        window.location.reload();
+                        return;
                     }
+
+                    const html = await res.text();
+                    const doc = new DOMParser().parseFromString(html, 'text/html');
+                    const nextWrap = doc.getElementById('editProjectModalContent');
+                    if (nextWrap) {
+                        contentEl.outerHTML = nextWrap.outerHTML;
+                        contentEl = document.getElementById('editProjectModalContent');
+                        renderButton();
+                        wireForm();
+                    } else {
+                        window.location.reload();
+                    }
+                } catch (err) {
+                    contentEl.innerHTML = '<div class="modal-body p-4 text-danger small">Failed to load the edit form.</div>';
+                }
                 }, { once: true });
             };
 
@@ -1453,8 +1691,16 @@
                 try {
                     const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
                     const html = await res.text();
-                    contentEl.innerHTML = html;
-                    wireForm();
+                    const doc = new DOMParser().parseFromString(html, 'text/html');
+                    const nextWrap = doc.getElementById('editProjectModalContent');
+                    if (nextWrap) {
+                        contentEl.outerHTML = nextWrap.outerHTML;
+                        contentEl = document.getElementById('editProjectModalContent');
+                        renderButton();
+                        wireForm();
+                    } else {
+                        window.location.reload();
+                    }
                 } catch (err) {
                     contentEl.innerHTML = '<div class="modal-body p-4 text-danger small">Failed to load the edit form.</div>';
                 }

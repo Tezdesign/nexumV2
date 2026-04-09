@@ -213,7 +213,6 @@ class Utilisateur
         return $this;
     }
 
-
     #[ORM\OneToMany(targetEntity: ResourceAssignment::class, mappedBy: 'utilisateur')]
     private Collection $resourceAssignments;
 
