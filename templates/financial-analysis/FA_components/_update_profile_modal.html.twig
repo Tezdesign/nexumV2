@@ -10,8 +10,6 @@
             {{ form_start(form, {'attr': {'id': 'updateProfileForm', 'novalidate': 'novalidate'}}) }}
             <div class="modal-body p-4">
 
-                
-
                 <div class="row">
                     <!-- Left Column: Currency & Budget -->
                     <div class="col-md-6 mb-3">
@@ -140,11 +138,44 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        const updateModalEl = document.getElementById('updateProfileModal');
+        
         {% if form.vars.submitted and not form.vars.valid %}
-            const modalEl = document.getElementById('updateProfileModal');
-            const myModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            const myModal = bootstrap.Modal.getOrCreateInstance(updateModalEl);
             myModal.show();
         {% endif %}
+
+        if (updateModalEl) {
+            updateModalEl.addEventListener('hidden.bs.modal', function () {
+                const form = document.getElementById('updateProfileForm');
+                if (form) {
+                    form.reset();
+
+                    // Recall the original data straight from the cached PHP entity!
+                    const budgetInput = document.getElementById('budget_profile_budget_disposable');
+                    if (budgetInput) budgetInput.value = '{{ budgetProfile.budgetDisposable|number_format(0, "", "") }}';
+                    
+                    const currencySelect = document.getElementById('budget_profile_base_currency');
+                    if (currencySelect) $(currencySelect).val('{{ budgetProfile.baseCurrency }}').trigger('change.select2');
+
+                    const fiscalSelect = document.getElementById('budget_profile_fiscal_year');
+                    if (fiscalSelect) $(fiscalSelect).val('{{ budgetProfile.fiscalYear }}').trigger('change.select2');
+
+                    const sInput = document.getElementById('budget_profile_start_date');
+                    if (sInput && sInput._flatpickr) {
+                        sInput._flatpickr.setDate('{{ budgetProfile.startDate ? budgetProfile.startDate|date("Y-m-d") : "" }}', true);
+                    }
+
+                    const eInput = document.getElementById('budget_profile_end_date');
+                    if (eInput && eInput._flatpickr) {
+                        eInput._flatpickr.setDate('{{ budgetProfile.endDate ? budgetProfile.endDate|date("Y-m-d") : "" }}', true);
+                    }
+
+                    $(form).find('.is-invalid').removeClass('is-invalid');
+                    $(form).find('.text-danger.mt-1').remove();
+                }
+            });
+        }
     });
 </script>
 
