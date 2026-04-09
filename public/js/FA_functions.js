@@ -234,12 +234,12 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // 1. Initialize NoUiSlider with Tooltips
         noUiSlider.create(sliderElement, {
-            start: [0, 10000], // Sensible defaults; could be dynamic based on dataset
+            start: [0, 100000], // Sensible defaults; could be dynamic based on dataset
             connect: true,
             tooltips: [true, true], // Show floating tooltips above handles
             range: {
                 'min': 0,
-                'max': 10000
+                'max': 100000
             },
             format: wNumb({
                 decimals: 0,
@@ -333,6 +333,137 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const allTxCards = document.querySelectorAll('.transaction-card');
             allTxCards.forEach(card => card.classList.remove('d-none'));
+        });
+    }
+
+    /**
+     * ==========================================
+     * TRANSACTION DROPDOWN FILTER & NOUISLIDER
+     * ==========================================
+     */
+
+
+    const filterStatus = document.getElementById('filter-project-status');
+    const filterName = document.getElementById('filter-project-name');
+    const filterPMonth = document.getElementById('filter-project-month');
+    const btnApplyPFilters = document.getElementById('btn-apply-project-filters');
+    const btnClearPFilters = document.getElementById('btn-clear-project-filters');
+    const sliderPElement = document.getElementById('project-amount-slider');
+
+    if (sliderElement && btnApplyFilters && btnClearFilters) {
+
+        // 2. Initialize NoUiSlider with Tooltips
+        noUiSlider.create(sliderPElement, {
+            start: [0, 100000], // Sensible defaults; adjust based on dataset
+            connect: true,
+            tooltips: [true, true], // Show floating tooltips above handles
+            range: {
+                'min': 0,
+                'max': 100000
+            },
+            format: wNumb({
+                decimals: 0,
+                prefix: '$'
+            })
+        });
+
+        // 3. Apply Filters Logic
+        btnApplyPFilters.addEventListener('click', function() {
+            const selectedStatus = filterStatus.value.toUpperCase();
+            const selectedName = filterName.value;
+            const selectedMonth = filterMonth.value;
+
+            // Get raw slider values (remove the '$' prefix for math)
+            const sliderPValues = sliderPElement.noUiSlider.get();
+            const minPAmount = parseFloat(sliderValues[0].replace(/[^0-9.-]+/g, ""));
+            const maxPAmount = parseFloat(sliderValues[1].replace(/[^0-9.-]+/g, ""));
+
+            // IMPORTANT: Ensure your project items have the class 'project-card'
+            const allProjectCards = document.querySelectorAll('.project-card');
+
+            allProjectCards.forEach(card => {
+                let showCard = true;
+
+                // A. Status Check
+                if (selectedStatus !== 'ALL') {
+                    // Adjust selector to find your status badge (e.g., .badge)
+                    const statusBadge = card.querySelector('.badge');
+                    if (!statusBadge || statusBadge.textContent.trim().toUpperCase() !== selectedStatus) {
+                        showCard = false;
+                    }
+                }
+
+                // B. Project Name Check
+                if (showCard && selectedName !== 'ALL') {
+                    // Adjust selector to find your project title (e.g., h5 or .project-title)
+                    const nameEl = card.querySelector('h5, .project-title');
+                    if (!nameEl || nameEl.textContent.trim() !== selectedName) {
+                        showCard = false;
+                    }
+                }
+
+                // C. Month Check
+                if (showCard && selectedMonth !== 'ALL') {
+                    // Adjust selector to find your date text
+                    const dateEl = card.querySelector('p.text-muted, .project-date');
+                    if (dateEl) {
+                        const dateText = dateEl.textContent.trim(); // Expecting format like "2026-04-09"
+                        const parts = dateText.split('-');
+
+                        if (parts.length >= 2) {
+                            const cardMonth = parts[1]; // Grabs the "04" from "2026-04-09"
+                            if (cardMonth !== selectedMonth) {
+                                showCard = false;
+                            }
+                        }
+                    }
+                }
+
+                // D. Amount Check (Total Budget)
+                if (showCard) {
+                    // Adjust selector to target where the budget is displayed
+                    const budgetEl = card.querySelector('h4.fw-normal, .project-budget');
+                    if (budgetEl) {
+                        const budgetText = budgetEl.textContent.replace(/[^0-9.]/g, '');
+                        const budgetValue = parseFloat(budgetText);
+
+                        if (!isNaN(budgetValue)) {
+                            if (budgetValue < minPAmount || budgetValue > maxPAmount) {
+                                showCard = false;
+                            }
+                        }
+                    }
+                }
+
+                // E. Toggle Visibility
+                if (showCard) {
+                    card.classList.remove('d-none');
+                } else {
+                    card.classList.add('d-none');
+                }
+            });
+
+            // Close the dropdown after applying
+            const dropdownEl = document.getElementById('projectFilterDropdown');
+            if (dropdownEl) {
+                const dropdownInstance = bootstrap.Dropdown.getInstance(dropdownEl);
+                if (dropdownInstance) dropdownInstance.hide();
+            }
+        });
+
+        // 4. Clear Filters Logic
+        btnClearPFilters.addEventListener('click', function() {
+            // Reset Selects
+            filterStatus.value = 'ALL';
+            filterName.value = 'ALL';
+            filterPMonth.value = 'ALL';
+
+            // Reset Slider
+            sliderPElement.noUiSlider.set([0, 100000]);
+
+            // Reveal all cards
+            const allProjectCards = document.querySelectorAll('.project-card');
+            allProjectCards.forEach(card => card.classList.remove('d-none'));
         });
     }
 
