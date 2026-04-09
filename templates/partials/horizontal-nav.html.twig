@@ -19,11 +19,11 @@
                             <div class="menu-arrow"></div>
                         </a>
                         <div class="dropdown-menu" aria-labelledby="topnav-apps">
-                            <a href="apps-calendar" class="dropdown-item">Calendar</a>
+                            <a href="{{ path('apps-calendar') }}" class="dropdown-item">Calendar</a>
                             <a href="apps-chat" class="dropdown-item">Chat</a>
                             <a href="apps-email" class="dropdown-item">Email</a>
                             <a href="apps-file-manager" class="dropdown-item">File Manager</a>
-                            <a href="apps-projects" class="dropdown-item">Projects</a>
+                            <a href="{{ path('app_project_index') }}" class="dropdown-item">Projects</a>
                             <div class="dropdown hover-dropdown">
                                 <a class="dropdown-item dropdown-toggle drop-arrow-none" href="#" id="topnav-user"
                                     role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -44,7 +44,7 @@
                                 </a>
                                 <div class="dropdown-menu" aria-labelledby="topnav-tasks">
                                     <a href="apps-kanban" class="dropdown-item">Kanban</a>
-                                    <a href="apps-task-details" class="dropdown-item">View Details</a>
+                                    <a href="{{ path('app_task_index') }}" class="dropdown-item">View Details</a>
                                 </div>
                             </div>
 

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: DejaVu Sans, sans-serif; font-size: 10px; color: #222; }
+        h1 { font-size: 16px; margin: 0 0 8px 0; }
+        .meta { font-size: 9px; color: #555; margin-bottom: 12px; }
+        .stats { margin-bottom: 12px; border: 1px solid #ccc; padding: 8px; }
+        .stats span { margin-right: 16px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #999; padding: 4px 6px; text-align: left; vertical-align: top; }
+        th { background: #eee; font-weight: bold; }
+        tr:nth-child(even) { background: #f9f9f9; }
+        .num { text-align: right; }
+    </style>
+</head>
+<body>
+    <h1>User management — export</h1>
+    <div class="meta">Generated: {{ generated_at|date('Y-m-d H:i') }} · Sort: {{ sort }} {{ dir }}</div>
+    <div class="stats">
+        <span><strong>Total</strong> {{ stats.total }}</span>
+        <span><strong>Active</strong> {{ stats.active }}</span>
+        <span><strong>Pending</strong> {{ stats.pending }}</span>
+        <span><strong>Admins</strong> {{ stats.admins }}</span>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Role</th>
+                <th>Department</th>
+                <th>Status</th>
+                <th>Registered</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in users %}
+            <tr>
+                <td>{{ u.prenom }} {{ u.nom }}</td>
+                <td>{{ u.email }}</td>
+                <td>{{ u.telephone|default('—') }}</td>
+                <td>{{ u.role }}</td>
+                <td>{{ u.departement|default('—') }}</td>
+                <td>{{ u.statut|default('—') }}</td>
+                <td>{% if u.date_inscription %}{{ u.date_inscription|date('Y-m-d') }}{% else %}—{% endif %}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

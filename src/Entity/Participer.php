@@ -4,7 +4,7 @@ namespace App\Entity;
 
 use App\Repository\ParticiperRepository;
 use Doctrine\ORM\Mapping as ORM;
-
+use App\Entity\UserHandling\Utilisateur as User;
 #[ORM\Entity(repositoryClass: ParticiperRepository::class)]
 class Participer
 {

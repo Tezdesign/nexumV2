@@ -1,0 +1,308 @@
+{% extends 'layouts/vertical.html.twig' %}
+
+{% set title = 'My account' %}
+
+{% block css %}
+<link href="{{ asset('css/nexum-pages-polish.css') }}" rel="stylesheet">
+<style>
+    .account-page .account-profile-card {
+        border-radius: 0.75rem;
+        box-shadow: 0 0.35rem 1.15rem rgba(0, 0, 0, 0.05);
+    }
+    .account-page .account-profile-cover {
+        height: 6.5rem;
+    }
+    .account-page .account-profile-avatar-wrap {
+        margin-top: -3rem;
+        display: inline-block;
+        padding: 0.3rem;
+        border-radius: 50%;
+        background: var(--bs-body-bg);
+        box-shadow: 0 0.35rem 1.25rem rgba(124, 58, 237, 0.18);
+        transition: box-shadow 0.3s ease, transform 0.3s ease;
+    }
+    .account-page .account-profile-card:hover .account-profile-avatar-wrap {
+        box-shadow: 0 0.5rem 1.75rem rgba(124, 58, 237, 0.22);
+        transform: scale(1.02);
+    }
+    .account-page .account-profile-avatar-wrap img {
+        width: 6.5rem;
+        height: 6.5rem;
+        object-fit: cover;
+    }
+    .account-page .account-section-icon {
+        width: 2.5rem;
+        height: 2.5rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 0.5rem;
+        font-size: 1.25rem;
+    }
+    .account-page .account-form-card {
+        border-radius: 0.75rem;
+        box-shadow: 0 0.35rem 1.15rem rgba(0, 0, 0, 0.05);
+    }
+    .account-page .account-upload-zone {
+        border: 2px dashed var(--bs-border-color);
+        border-radius: 0.5rem;
+        padding: 1.25rem;
+        text-align: center;
+        transition: border-color 0.2s ease, background-color 0.2s ease;
+        cursor: pointer;
+        background: var(--bs-tertiary-bg);
+    }
+    .account-page .account-upload-zone:hover,
+    .account-page .account-upload-zone:focus-within {
+        border-color: #8b5cf6;
+        background: color-mix(in srgb, #7c3aed 8%, var(--bs-body-bg));
+    }
+    .account-page .account-upload-zone input[type="file"] {
+        cursor: pointer;
+    }
+    .account-page .account-preview {
+        width: 5rem;
+        height: 5rem;
+        border-radius: 0.5rem;
+        object-fit: cover;
+        border: 1px solid var(--bs-border-color);
+    }
+    .account-page .account-meta-item {
+        font-size: 0.8125rem;
+    }
+    .account-page .account-meta-item i {
+        width: 1.25rem;
+        opacity: 0.75;
+    }
+    @supports not (color: color-mix(in srgb, red, blue)) {
+        .account-page .account-upload-zone:hover,
+        .account-page .account-upload-zone:focus-within {
+            background: rgba(124, 58, 237, 0.06);
+        }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .account-page .account-profile-avatar-wrap,
+        .account-page .account-profile-card:hover .account-profile-avatar-wrap {
+            transition: none;
+            transform: none;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{% set account_avatar_src = path('user_account_avatar', {v: auth_service.getCurrentUser().avatar_v|default(0)}) %}
+
+<div class="account-page nexum-page-ambient">
+    <div class="row mb-4 nexum-reveal">
+        <div class="col-12">
+            <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-md-between gap-3">
+                <div>
+                    <h4 class="page-title fw-semibold mb-1">My account</h4>
+                    <p class="text-muted mb-0 fs-14">Manage your profile, photo, and sign-in security.</p>
+                </div>
+                <a href="{{ path('dashboard') }}" class="btn btn-sm align-self-start align-self-md-center nexum-btn-ghost-purple">
+                    <i class="ri-arrow-left-line me-1"></i> Back to dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-12">
+            {% for label, messages in app.flashes %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ label == 'error' ? 'danger' : label }} alert-dismissible fade show shadow-sm" role="alert">
+                        <i class="ri-{{ label == 'success' ? 'checkbox-circle-line' : (label == 'error' ? 'alert-line' : 'information-line') }} me-2"></i>
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-xl-4">
+            <div class="card account-profile-card border-0 overflow-hidden nexum-card-static nexum-reveal nexum-reveal-delay-1">
+                <div class="account-profile-cover nexum-profile-cover"></div>
+                <div class="card-body text-center px-4 pb-4 pt-0">
+                    <div class="account-profile-avatar-wrap">
+                        <img src="{{ account_avatar_src }}" id="accountAvatarDisplay" class="rounded-circle" alt="Profile photo">
+                    </div>
+                    <h4 class="fw-semibold mt-3 mb-1">{{ utilisateur.prenom }} {{ utilisateur.nom }}</h4>
+                    <p class="text-muted mb-3 fs-14 text-break">{{ utilisateur.email }}</p>
+                    <div class="d-flex flex-wrap gap-2 justify-content-center mb-4">
+                        {% if utilisateur.role %}
+                            <span class="badge rounded-pill px-3 py-1 border border-primary border-opacity-25" style="background: linear-gradient(135deg, var(--bs-primary-bg-subtle), rgba(124, 58, 237, 0.12)); color: var(--bs-primary);">{{ utilisateur.role }}</span>
+                        {% endif %}
+                        {% if utilisateur.statut %}
+                            <span class="badge bg-success-subtle text-success rounded-pill px-3 py-1">{{ utilisateur.statut }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="text-start border-top border-dashed pt-3">
+                        {% if utilisateur.telephone %}
+                            <div class="account-meta-item d-flex align-items-center gap-2 mb-2 text-body-secondary">
+                                <i class="ri-phone-line"></i>
+                                <span>{{ utilisateur.telephone }}</span>
+                            </div>
+                        {% endif %}
+                        {% if utilisateur.departement %}
+                            <div class="account-meta-item d-flex align-items-center gap-2 mb-2 text-body-secondary">
+                                <i class="ri-building-2-line"></i>
+                                <span>{{ utilisateur.departement }}</span>
+                            </div>
+                        {% endif %}
+                        {% if utilisateur.dateInscription %}
+                            <div class="account-meta-item d-flex align-items-center gap-2 text-body-secondary">
+                                <i class="ri-calendar-event-line"></i>
+                                <span>Member since {{ utilisateur.dateInscription|date('M j, Y') }}</span>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-8 nexum-reveal nexum-reveal-delay-2">
+            <form method="post" action="{{ path('user_account') }}" enctype="multipart/form-data" novalidate id="accountForm">
+                <div class="card account-form-card border-0 mb-4 nexum-card nexum-reveal nexum-reveal-delay-2">
+                    <div class="card-header bg-transparent border-bottom border-dashed py-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <span class="account-section-icon bg-primary-subtle text-primary" style="box-shadow: 0 4px 12px rgba(124, 58, 237, 0.15);">
+                                <i class="ri-user-settings-line"></i>
+                            </span>
+                            <div>
+                                <h5 class="header-title mb-0">Personal information</h5>
+                                <p class="text-muted fs-13 mb-0">Details visible to your team where applicable.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="row g-3 mb-2">
+                            <div class="col-md-6">
+                                <label for="prenom" class="form-label fw-medium">First name <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="ri-user-line"></i></span>
+                                    <input type="text" class="form-control border-start-0 ps-0" id="prenom" name="prenom" value="{{ utilisateur.prenom }}" required maxlength="255" placeholder="Jane">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="nom" class="form-label fw-medium">Last name <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="ri-user-line"></i></span>
+                                    <input type="text" class="form-control border-start-0 ps-0" id="nom" name="nom" value="{{ utilisateur.nom }}" required maxlength="255" placeholder="Doe">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="email" class="form-label fw-medium">Work email <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0 text-muted"><i class="ri-mail-line"></i></span>
+                                <input type="email" class="form-control border-start-0 ps-0" id="email" name="email" value="{{ utilisateur.email }}" required maxlength="255" placeholder="you@company.com">
+                            </div>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="telephone" class="form-label fw-medium">Phone</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="ri-smartphone-line"></i></span>
+                                    <input type="text" class="form-control border-start-0 ps-0" id="telephone" name="telephone" value="{{ utilisateur.telephone ?? '' }}" maxlength="64" placeholder="+216 …">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="departement" class="form-label fw-medium">Department</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="ri-team-line"></i></span>
+                                    <input type="text" class="form-control border-start-0 ps-0" id="departement" name="departement" value="{{ utilisateur.departement ?? '' }}" maxlength="255" placeholder="Engineering, HR, …">
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="border-dashed my-4">
+
+                        <label class="form-label fw-medium d-block mb-2">Profile photo</label>
+                        <div class="row align-items-center g-3">
+                            <div class="col-auto">
+                                <img src="{{ account_avatar_src }}" id="accountPhotoPreview" class="account-preview" alt="Current profile photo">
+                            </div>
+                            <div class="col">
+                                {# Sibling label + file input (not nested) so all browsers submit multipart correctly #}
+                                <input type="file" class="visually-hidden" id="imagelink" name="imagelink" accept="image/*" tabindex="-1">
+                                <label class="account-upload-zone w-100 mb-0" for="imagelink">
+                                    <i class="ri-image-add-line fs-24 text-primary d-block mb-2"></i>
+                                    <span class="fw-medium d-block">Drop an image or click to browse</span>
+                                    <span class="text-muted fs-13">PNG, JPG or WebP — leave empty to keep your current photo</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card account-form-card border-0 mb-4 nexum-card nexum-reveal nexum-reveal-delay-3">
+                    <div class="card-header bg-transparent border-bottom border-dashed py-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <span class="account-section-icon bg-warning-subtle text-warning" style="box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);">
+                                <i class="ri-shield-keyhole-line"></i>
+                            </span>
+                            <div>
+                                <h5 class="header-title mb-0">Security</h5>
+                                <p class="text-muted fs-13 mb-0">Change your password only if you need to. Leave both fields blank to keep it.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="new_password" class="form-label fw-medium">New password</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="ri-lock-password-line"></i></span>
+                                    <input type="password" class="form-control border-start-0 ps-0" id="new_password" name="new_password" autocomplete="new-password" minlength="6" placeholder="Min. 6 characters">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="confirm_password" class="form-label fw-medium">Confirm new password</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="ri-lock-unlock-line"></i></span>
+                                    <input type="password" class="form-control border-start-0 ps-0" id="confirm_password" name="confirm_password" autocomplete="new-password" minlength="6" placeholder="Repeat password">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center justify-content-between gap-3 pb-2">
+                    <p class="text-muted fs-13 mb-0 order-2 order-sm-1">
+                        <i class="ri-information-line align-middle me-1"></i>
+                        Role and account status are managed by an administrator.
+                    </p>
+                    <button type="submit" class="btn px-4 order-1 order-sm-2 nexum-btn-gradient">
+                        <i class="ri-save-3-line me-1"></i> Save changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block script %}
+<script>
+(function () {
+    var fileInput = document.getElementById('imagelink');
+    var preview = document.getElementById('accountPhotoPreview');
+    var avatarDisplay = document.getElementById('accountAvatarDisplay');
+    if (!fileInput) return;
+
+    fileInput.addEventListener('change', function () {
+        var f = fileInput.files && fileInput.files[0];
+        if (!f || !f.type.match(/^image\//)) return;
+        var url = URL.createObjectURL(f);
+        if (preview) preview.src = url;
+        if (avatarDisplay) avatarDisplay.src = url;
+    });
+})();
+</script>
+{% endblock %}

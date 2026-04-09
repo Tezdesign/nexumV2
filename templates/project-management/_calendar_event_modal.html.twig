@@ -1,0 +1,39 @@
+<div class="modal fade nexum-modal" id="calendarEventModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="min-w-0">
+                    <h5 class="modal-title mb-1" id="calendarEventTitle">Event</h5>
+                    <div class="text-muted small" id="calendarEventType"></div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <div class="text-muted small mb-1">Date</div>
+                    <div class="fw-semibold" id="calendarEventDate"></div>
+                </div>
+                <div class="mb-3">
+                    <div class="text-muted small mb-1">Project</div>
+                    <div class="fw-semibold" id="calendarEventProject"></div>
+                </div>
+                <div class="mb-3">
+                    <div class="text-muted small mb-1">Assigned to</div>
+                    <div class="fw-semibold" id="calendarEventAssignedTo"></div>
+                </div>
+                <div class="mb-3 d-none" id="calendarEventTaskWrap">
+                    <div class="text-muted small mb-1">Task</div>
+                    <div class="fw-semibold" id="calendarEventTask"></div>
+                </div>
+                <div class="mb-0">
+                    <div class="text-muted small mb-1">Details</div>
+                    <div class="text-muted" id="calendarEventDetails"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <a href="#" class="btn btn-outline-secondary" id="calendarEventLink">Open</a>
+                <button type="button" class="btn btn-primary nexum-btn-primary text-white" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>

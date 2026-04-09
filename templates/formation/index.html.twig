@@ -1,8 +1,9 @@
-{% extends 'base.html.twig' %}
+{% extends 'layouts/vertical.html.twig' %}
 
 {% block title %}Formations{% endblock %}
 
-{% block body %}
+{% block content %}
+{% set participations = participations|default({}) %}
 
 {% if not ajax %}
 <section class="py-4">
@@ -48,14 +49,12 @@
         <!-- AJAX CONTENT -->
         <div id="formationContent">
 {% endif %}
-
+ 
             {% if formations|length > 0 %}
                 <div class="row g-4">
 
                     {% for formation in formations %}
-                        {% set p = participations[formation.id] ?? null %}
-
-                        <div class="col-12 col-md-6 col-xl-4">
+{% set p = participations[formation.id] ?? null %}                        <div class="col-12 col-md-6 col-xl-4">
                             <div class="formation-card h-100 d-flex flex-column">
 
                                 <!-- TOP -->

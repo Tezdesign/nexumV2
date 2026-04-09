@@ -1,5 +1,9 @@
 twig:
     file_name_pattern: '*.twig'
+    form_themes:
+        - bootstrap_5_layout.html.twig
+    globals:
+        auth_service: '@App\Service\AuthService'
 
 when@test:
     twig:

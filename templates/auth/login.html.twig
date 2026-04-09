@@ -1,0 +1,319 @@
+{% extends 'layouts/auth.html.twig' %}
+
+{% set title = 'Login - Nexum' %}
+
+{% block css %}
+<style>
+    :root {
+        --primary-purple: #7c3aed;
+        --text-main: #111827;
+        --text-muted: #6b7280;
+        --bg-gray: #f3f4f6;
+        --input-bg: #f9fafb;
+        --border-color: #e5e7eb;
+    }
+
+    body {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background-color: var(--bg-gray);
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .auth-card {
+        background: white;
+        width: 900px;
+        max-width: 95%;
+        height: 550px;
+        border-radius: 24px;
+        display: flex;
+        overflow: hidden;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Left Section: Form */
+    .form-section {
+        flex: 1;
+        padding: 50px 60px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .back-link {
+        text-decoration: none;
+        color: var(--text-muted);
+        font-size: 14px;
+        margin-bottom: 30px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .title {
+        color: var(--text-main);
+        font-size: 28px;
+        font-weight: 700;
+        margin-bottom: 8px;
+    }
+
+    .subtitle {
+        color: var(--text-muted);
+        font-size: 14px;
+        margin-bottom: 35px;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+        position: relative;
+    }
+
+    .label-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+
+    label {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-main);
+    }
+
+    .forgot-password {
+        font-size: 12px;
+        color: var(--primary-purple);
+        text-decoration: none;
+        font-weight: 600;
+    }
+
+    .input-wrapper {
+        position: relative;
+    }
+
+    .input-icon {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 18px;
+        height: 18px;
+        color: #9ca3af;
+    }
+
+    .eye-icon {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 18px;
+        height: 18px;
+        color: #9ca3af;
+        cursor: pointer;
+    }
+
+    input {
+        width: 100%;
+        padding: 12px 12px 12px 40px;
+        background-color: var(--input-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        font-size: 14px;
+        outline: none;
+        transition: border-color 0.2s;
+    }
+
+    input:focus {
+        border-color: var(--primary-purple);
+    }
+
+    .btn-signin {
+        width: 100%;
+        padding: 14px;
+        background-color: var(--primary-purple);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        margin-top: 10px;
+        transition: opacity 0.2s;
+    }
+
+    .btn-signin:hover {
+        opacity: 0.9;
+    }
+
+    .footer-text {
+        text-align: center;
+        margin-top: 25px;
+        font-size: 13px;
+        color: var(--text-muted);
+    }
+
+    .get-started {
+        color: var(--primary-purple);
+        text-decoration: none;
+        font-weight: 700;
+    }
+
+    /* Right Section: Image */
+    .image-section {
+        flex: 1;
+        background-color: #1e1b4b; /* Dark Navy Fallback */
+        background-image: url('{{ asset('images/users/purple.jpg') }}');
+        background-size: cover;
+        background-position: center;
+        position: relative;
+    }
+
+    /* Overlay to mimic purple glow in screenshot */
+    .image-section::after {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: radial-gradient(circle at center, rgba(124, 58, 237, 0.2) 0%, transparent 70%);
+    }
+
+    @media (max-width: 768px) {
+        .auth-card {
+            flex-direction: column;
+            height: auto;
+            width: 400px;
+        }
+        .image-section {
+            display: none;
+        }
+    }
+
+    /* Alert styles */
+    .alert {
+        position: relative;
+        padding: 12px 16px;
+        margin-bottom: 20px;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        font-size: 14px;
+        line-height: 1.5;
+    }
+
+    .alert-success {
+        color: #0f5132;
+        background-color: #d1e7dd;
+        border-color: #badbcc;
+    }
+
+    .alert-danger {
+        color: #842029;
+        background-color: #f8d7da;
+        border-color: #f5c2c7;
+    }
+
+    .alert-info {
+        color: #055160;
+        background-color: #cff4fc;
+        border-color: #b6effb;
+    }
+
+    .alert-warning {
+        color: #664d03;
+        background-color: #fff3cd;
+        border-color: #ffecb5;
+    }
+
+    .btn-close {
+        position: absolute;
+        top: 8px;
+        right: 12px;
+        padding: 0;
+        font-size: 16px;
+        font-weight: bold;
+        line-height: 1;
+        color: #000;
+        text-shadow: 0 1px 0 #fff;
+        opacity: 0.5;
+        background: none;
+        border: none;
+        cursor: pointer;
+        transition: opacity 0.3s ease;
+    }
+
+    .btn-close:hover {
+        opacity: 1;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="auth-card">
+    <div class="form-section">
+        <a href="{{ path('welcome') }}" class="back-link">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+            Back
+        </a>
+
+        <h1 class="title">Welcome Back</h1>
+        <p class="subtitle">Enter your credentials to access your workspace.</p>
+
+        {% for type, messages in app.session.flashbag.all() %}
+            {% for message in messages %}
+                <div class="alert alert-{{ type == 'error' ? 'danger' : type }} alert-dismissible fade show" style="margin-bottom: 20px; padding: 12px 16px; border-radius: 8px; font-size: 14px;">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close" style="float: right; font-size: 16px; background: none; border: none; cursor: pointer;">×</button>
+                </div>
+            {% endfor %}
+        {% endfor %}
+
+        <form action="{{ path('login') }}" method="post" id="nexum-login-form" novalidate>
+            <div class="js-validation-summary alert alert-danger py-2 px-3 small d-none mb-3" role="alert"></div>
+            <div class="form-group">
+                <label>Email Address</label>
+                <div class="input-wrapper">
+                    <svg class="input-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                    <input type="text" name="_username" placeholder="name@company.com" autocomplete="username">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <div class="label-row">
+                    <label>Password</label>
+                    <a href="#" class="forgot-password">Forgot password?</a>
+                </div>
+                <div class="input-wrapper">
+                    <svg class="input-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                    <input type="password" name="_password" placeholder="••••••••" autocomplete="current-password">
+                    <svg class="eye-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-signin">Sign In</button>
+        </form>
+
+        <p class="footer-text">
+            Don't have an account? <a href="{{ path('signin') }}" class="get-started">Get Started</a>
+        </p>
+    </div>
+
+    <div class="image-section"></div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script src="{{ asset('js/nexum-validation.js') }}"></script>
+<script>
+(function () {
+    var form = document.getElementById('nexum-login-form');
+    if (!form || !window.NexumValidate) return;
+    form.addEventListener('submit', function (e) {
+        if (NexumValidate.loginForm(form).length) e.preventDefault();
+    });
+})();
+</script>
+{% endblock %}

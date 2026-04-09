@@ -1,0 +1,427 @@
+{% extends 'layouts/admin_vertical.html.twig' %}
+
+{% macro sort_link(label, column, current_sort, current_dir) %}
+    {% set next_dir = current_sort == column ? (current_dir == 'ASC' ? 'DESC' : 'ASC') : 'ASC' %}
+    <a href="{{ path('admin_users_index', {sort: column, dir: next_dir}) }}" class="nexum-sort-link text-body fw-semibold text-decoration-none d-inline-flex align-items-center gap-1">
+        {{ label }}
+        {% if current_sort == column %}
+            <i class="ri-arrow-{{ current_dir == 'ASC' ? 'up' : 'down' }}-s-line text-primary"></i>
+        {% else %}
+            <i class="ri-expand-up-down-line text-muted opacity-50 fs-14"></i>
+        {% endif %}
+    </a>
+{% endmacro %}
+
+{% import _self as um %}
+
+{% set title = 'User management' %}
+
+{% block css %}
+<link href="{{ asset('css/nexum-pages-polish.css') }}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+
+<div class="nexum-page-ambient">
+
+<div class="row mb-3">
+    <div class="col-12">
+        {% for label, messages in app.flashes %}
+            {% for message in messages %}
+                <div class="alert alert-{{ label == 'error' ? 'danger' : label }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endfor %}
+    </div>
+</div>
+
+{# KPI cards #}
+<div class="row g-4 mb-5 nexum-stagger">
+    <div class="col-xl-3 col-lg-6 nexum-reveal-item">
+        <div class="card border-0 shadow-sm h-100 nexum-stat-card">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <p class="text-muted fw-medium mb-1 fs-13">Total users</p>
+                        <h3 class="mb-0 fw-semibold">{{ stats.total }}</h3>
+                    </div>
+                    <div class="avatar-md bg-primary-subtle text-primary rounded">
+                        <i class="ri-team-line fs-22"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-lg-6 nexum-reveal-item">
+        <div class="card border-0 shadow-sm h-100 nexum-stat-card">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <p class="text-muted fw-medium mb-1 fs-13">Active</p>
+                        <h3 class="mb-0 fw-semibold text-success">{{ stats.active }}</h3>
+                    </div>
+                    <div class="avatar-md bg-success-subtle text-success rounded">
+                        <i class="ri-user-follow-line fs-22"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-lg-6 nexum-reveal-item">
+        <div class="card border-0 shadow-sm h-100 nexum-stat-card">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <p class="text-muted fw-medium mb-1 fs-13">Pending</p>
+                        <h3 class="mb-0 fw-semibold text-warning">{{ stats.pending }}</h3>
+                    </div>
+                    <div class="avatar-md bg-warning-subtle text-warning rounded">
+                        <i class="ri-time-line fs-22"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-lg-6 nexum-reveal-item">
+        <div class="card border-0 shadow-sm h-100 nexum-stat-card">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <p class="text-muted fw-medium mb-1 fs-13">Administrators</p>
+                        <h3 class="mb-0 fw-semibold">{{ stats.admins }}</h3>
+                    </div>
+                    <div class="avatar-md bg-danger-subtle text-danger rounded">
+                        <i class="ri-shield-user-line fs-22"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row nexum-reveal">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm nexum-card-static">
+            <div class="card-header border-bottom border-dashed nexum-admin-toolbar">
+                <div class="d-flex flex-column flex-lg-row flex-wrap align-items-lg-center justify-content-lg-between gap-3">
+                    <div>
+                        <h4 class="header-title mb-0">Users</h4>
+                        <p class="text-muted fs-13 mb-0">Type to filter the table in real time. Click column headers to sort.</p>
+                    </div>
+                    <div class="d-flex flex-wrap align-items-center gap-2 w-100 w-lg-auto">
+                        <div class="input-group input-group-sm flex-grow-1" style="max-width: 420px;">
+                            <span class="input-group-text bg-light border-end-0"><i class="ri-search-line"></i></span>
+                            <input type="search" id="adminUserSearch" class="form-control border-start-0"
+                                   placeholder="Filter by name, email, role, status…"
+                                   autocomplete="off"
+                                   aria-label="Filter users in real time">
+                        </div>
+                        <a href="{{ path('admin_users_export_pdf', {sort: sort, dir: dir}) }}" class="btn btn-sm flex-shrink-0 nexum-btn-ghost-purple">
+                            <i class="ri-file-pdf-line me-1"></i> Export PDF
+                        </a>
+                        <button type="button" class="btn btn-sm flex-shrink-0 nexum-btn-gradient" id="adminUserBtnNew" data-bs-toggle="modal" data-bs-target="#adminUserModal" data-fragment-url="{{ path('admin_users_new') }}?fragment=1">
+                            <i class="ri-user-add-line me-1"></i> New user
+                        </button>
+                    </div>
+                </div>
+                <p class="text-muted fs-13 mb-0 mt-2">
+                    Showing <strong id="adminUserVisibleCount">{{ users|length }}</strong> of <strong>{{ users|length }}</strong> in this list
+                    · Sort: <strong>{{ sort }}</strong> {{ dir }}
+                </p>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-centered mb-0" id="adminUsersTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th>{{ um.sort_link('Name', 'nom', sort, dir) }}</th>
+                                <th>{{ um.sort_link('Email', 'email', sort, dir) }}</th>
+                                <th>Phone</th>
+                                <th>{{ um.sort_link('Role', 'role', sort, dir) }}</th>
+                                <th>{{ um.sort_link('Department', 'departement', sort, dir) }}</th>
+                                <th>{{ um.sort_link('Status', 'statut', sort, dir) }}</th>
+                                <th>{{ um.sort_link('Registered', 'date_inscription', sort, dir) }}</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for u in users %}
+                            {% set search_blob = (u.prenom ~ ' ' ~ u.nom ~ ' ' ~ u.email ~ ' ' ~ (u.telephone|default('')) ~ ' ' ~ (u.departement|default('')) ~ ' ' ~ u.role ~ ' ' ~ u.statut)|lower %}
+                            <tr class="admin-user-row" data-search="{{ search_blob|e('html_attr') }}">
+                                <td class="fw-medium">{{ u.prenom }} {{ u.nom }}</td>
+                                <td>{{ u.email }}</td>
+                                <td>{{ u.telephone ?? '—' }}</td>
+                                <td><span class="badge bg-light text-dark">{{ u.role }}</span></td>
+                                <td>{{ u.departement ?? '—' }}</td>
+                                <td>
+                                    <span class="badge {{ u.statut|lower == 'active' ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning' }}">
+                                        {{ u.statut }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if u.date_inscription %}
+                                        {{ u.date_inscription|date('M j, Y') }}
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>
+                                <td class="text-end text-nowrap">
+                                    {% if u.statut|lower != 'active' %}
+                                    <form method="post" action="{{ path('admin_users_activate', {id: u.id}) }}" class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-soft-success" title="Activate user">
+                                            <i class="ri-user-follow-line"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                    <button type="button" class="btn btn-sm btn-soft-primary btn-admin-user-edit" data-bs-toggle="modal" data-bs-target="#adminUserModal" data-fragment-url="{{ path('admin_users_edit', {id: u.id}) }}?fragment=1">
+                                        <i class="ri-pencil-line"></i>
+                                    </button>
+                                    {% if u.id != auth_service.getCurrentUserId() %}
+                                    <form method="post" action="{{ path('admin_users_delete', {id: u.id}) }}" class="d-inline" onsubmit="return confirm('Delete this user permanently?');">
+                                        <button type="submit" class="btn btn-sm btn-soft-danger" title="Delete">
+                                            <i class="ri-delete-bin-line"></i>
+                                        </button>
+                                    </form>
+                                    {% else %}
+                                    <span class="text-muted fs-12 ms-1">(you)</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="8" class="text-center text-muted py-4">No users found.</td>
+                            </tr>
+                            {% endfor %}
+                            <tr id="adminUserFilterEmpty" class="d-none">
+                                <td colspan="8" class="text-center text-muted py-4">No rows match your filter. Clear the search box to show everyone again.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="application/json" id="admin-charts-data">{{ charts_json|raw }}</script>
+
+{# Charts #}
+<div class="row g-3 mb-4">
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm h-100 nexum-chart-card">
+            <div class="card-header bg-transparent border-bottom border-dashed py-3">
+                <h5 class="header-title mb-0">Users by role</h5>
+                <p class="text-muted fs-13 mb-0">Distribution in the database</p>
+            </div>
+            <div class="card-body" style="min-height: 120px;">
+                <canvas id="adminChartRoles" aria-label="Chart users by role" style="height:120px;max-height:120px;"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm h-100 nexum-chart-card">
+            <div class="card-header bg-transparent border-bottom border-dashed py-3">
+                <h5 class="header-title mb-0">Users by status</h5>
+                <p class="text-muted fs-13 mb-0">Active vs pending and other values</p>
+            </div>
+            <div class="card-body" style="min-height: 120px;">
+                <canvas id="adminChartStatuts" aria-label="Chart users by status" style="height:120px;max-height:120px;"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade nexum-modal" id="adminUserModal" tabindex="-1" aria-labelledby="adminUserModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header border-bottom border-dashed">
+                <h5 class="modal-title" id="adminUserModalTitle">User</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="adminUserModalBody">
+                <p class="text-center text-muted py-4 mb-0">Loading…</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+</div>
+
+{% endblock %}
+
+{% block script %}
+<script src="{{ asset('js/nexum-validation.js') }}"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+<script>
+(function () {
+    var palette = ['#5b69bc', '#10c469', '#ff8acc', '#35b8e0', '#f9c851', '#ff5b5b', '#188ae2', '#8e44ad'];
+
+    var dataEl = document.getElementById('admin-charts-data');
+    if (dataEl && typeof Chart !== 'undefined') {
+        try {
+            var cfg = JSON.parse(dataEl.textContent || '{}');
+            var common = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { boxWidth: 12, font: { size: 12 }, padding: 10 }
+                    }
+                }
+            };
+            if (cfg.roles && document.getElementById('adminChartRoles')) {
+                new Chart(document.getElementById('adminChartRoles'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: cfg.roles.labels,
+                        datasets: [{
+                            data: cfg.roles.values,
+                            backgroundColor: palette.slice(0, cfg.roles.labels.length),
+                            borderWidth: 0
+                        }]
+                    },
+                    options: common
+                });
+            }
+            if (cfg.statuts && document.getElementById('adminChartStatuts')) {
+                new Chart(document.getElementById('adminChartStatuts'), {
+                    type: 'bar',
+                    data: {
+                        labels: cfg.statuts.labels,
+                        datasets: [{
+                            label: 'Users',
+                            data: cfg.statuts.values,
+                            backgroundColor: palette.slice(0, cfg.statuts.labels.length),
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { beginAtZero: true, ticks: { precision: 0, font: { size: 11 } } },
+                            x: { ticks: { font: { size: 11 } }, grid: { display: false } }
+                        }
+                    }
+                });
+            }
+        } catch (e) { console.warn('Admin charts:', e); }
+    }
+
+    var input = document.getElementById('adminUserSearch');
+    var tbody = document.querySelector('#adminUsersTable tbody');
+    var countEl = document.getElementById('adminUserVisibleCount');
+    var emptyRow = document.getElementById('adminUserFilterEmpty');
+    if (!input || !tbody) return;
+
+    var rows = tbody.querySelectorAll('tr.admin-user-row');
+    var total = rows.length;
+    var debounce;
+
+    function applyFilter() {
+        var q = input.value.toLowerCase().trim();
+        var n = 0;
+        rows.forEach(function (tr) {
+            var hay = tr.getAttribute('data-search') || '';
+            var show = !q || hay.indexOf(q) !== -1;
+            tr.classList.toggle('d-none', !show);
+            if (show) n++;
+        });
+        if (countEl) countEl.textContent = String(n);
+        if (emptyRow) {
+            var showEmpty = q.length > 0 && n === 0 && total > 0;
+            emptyRow.classList.toggle('d-none', !showEmpty);
+        }
+    }
+
+    input.addEventListener('input', function () {
+        clearTimeout(debounce);
+        debounce = setTimeout(applyFilter, 80);
+    });
+    applyFilter();
+})();
+
+(function () {
+    var modalEl = document.getElementById('adminUserModal');
+    var bodyEl = document.getElementById('adminUserModalBody');
+    var titleEl = document.getElementById('adminUserModalTitle');
+    if (!modalEl || !bodyEl || typeof bootstrap === 'undefined' || !bootstrap.Modal) return;
+
+    function loadingHtml() {
+        return '<p class="text-center text-muted py-4 mb-0">Loading…</p>';
+    }
+
+    function bindUserModalForm(container) {
+        var form = container.querySelector('#admin-user-form');
+        if (!form || !window.NexumValidate) return;
+        var isCreate = (form.getAttribute('data-nexum-user-mode') || '') === 'create';
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            if (NexumValidate.adminUserForm(form, isCreate).length) return;
+            var submitBtn = form.querySelector('[type="submit"]');
+            if (submitBtn) submitBtn.disabled = true;
+            var fd = new FormData(form);
+            fetch(form.getAttribute('action'), {
+                method: 'POST',
+                body: fd,
+                credentials: 'same-origin',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            }).then(function (res) {
+                var ct = (res.headers.get('Content-Type') || '').toLowerCase();
+                if (ct.indexOf('application/json') !== -1) {
+                    return res.json().then(function (data) {
+                        if (data && data.redirect) window.location.href = data.redirect;
+                    });
+                }
+                return res.text().then(function (html) {
+                    bodyEl.innerHTML = html;
+                    bindUserModalForm(bodyEl);
+                });
+            }).catch(function () {
+                bodyEl.innerHTML = '<div class="alert alert-danger mb-0">Network error. Please try again.</div>';
+            }).finally(function () {
+                if (submitBtn) submitBtn.disabled = false;
+            });
+        });
+    }
+
+    function loadFragment(url, title) {
+        if (titleEl) titleEl.textContent = title;
+        bodyEl.innerHTML = loadingHtml();
+        fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function (res) {
+                if (!res.ok) throw new Error('load');
+                return res.text();
+            })
+            .then(function (html) {
+                bodyEl.innerHTML = html;
+                bindUserModalForm(bodyEl);
+            })
+            .catch(function () {
+                bodyEl.innerHTML = '<div class="alert alert-danger mb-0">Could not load the form.</div>';
+            });
+    }
+
+    var btnNew = document.getElementById('adminUserBtnNew');
+    if (btnNew) btnNew.addEventListener('click', function () {
+        var u = this.getAttribute('data-fragment-url');
+        if (u) loadFragment(u, 'New user');
+    });
+
+    document.querySelectorAll('.btn-admin-user-edit').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var u = this.getAttribute('data-fragment-url');
+            if (u) loadFragment(u, 'Edit user');
+        });
+    });
+
+    modalEl.addEventListener('hidden.bs.modal', function () {
+        bodyEl.innerHTML = loadingHtml();
+    });
+})();
+</script>
+{% endblock %}

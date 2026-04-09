@@ -1,0 +1,1782 @@
+{% extends 'layouts/vertical.html.twig' %}
+
+{% set accent = '#7c3aed' %}
+{% set activeTab = activeTab|default('overview') %}
+
+{% block css %}
+    {% include 'partials/_task_project_design_system.html.twig' %}
+    <style>
+        :root {
+            --nexum-accent: {{ accent }};
+            --nexum-card-radius: 14px;
+            --nexum-stone-50: #fafaf9;
+            --nexum-stone-100: #f5f5f4;
+            --nexum-stone-200: #e7e5e4;
+            --nexum-stone-300: #d6d3d1;
+            --nexum-stone-400: #a8a29e;
+            --nexum-stone-500: #78716c;
+            --nexum-stone-600: #57534e;
+            --nexum-stone-900: #1c1917;
+        }
+
+        .nexum-breadcrumb {
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        .nexum-breadcrumb a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .nexum-breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        .nexum-shell-card {
+            border-radius: var(--nexum-card-radius);
+        }
+
+        .nexum-progress .progress {
+            height: 6px;
+            border-radius: 999px;
+        }
+
+        .nexum-progress .progress-bar {
+            background: var(--nexum-accent);
+            border-radius: 999px;
+        }
+
+        .nexum-tabs {
+            gap: 18px;
+            border-top: 1px solid #f1f5f9;
+            padding-top: 12px;
+            margin-top: 14px;
+        }
+
+        .nexum-tab {
+            display: inline-flex;
+            gap: 8px;
+            align-items: center;
+            padding: 8px 2px;
+            color: #64748b;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 13px;
+            border-bottom: 2px solid transparent;
+        }
+
+        .nexum-tab.active {
+            color: var(--nexum-accent);
+            border-bottom-color: var(--nexum-accent);
+        }
+
+        .nexum-avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 999px;
+            border: 2px solid #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background: #f1f5f9;
+            color: #0f172a;
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1;
+            margin-left: -8px;
+        }
+
+        .nexum-avatar:first-child {
+            margin-left: 0;
+        }
+
+        .nexum-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .nexum-avatar--add {
+            background: #fff;
+            color: #64748b;
+            border: 1px solid #e2e8f0;
+            width: 32px;
+            height: 32px;
+        }
+
+        .nexum-stat {
+            border: 1px solid #eef2f7;
+            border-radius: 12px;
+            padding: 12px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .nexum-stat .label {
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .nexum-stat .value {
+            font-weight: 800;
+            font-size: 18px;
+            color: #0f172a;
+        }
+
+        .nexum-stat--ok {
+            background: #ecfdf3;
+            border-color: #bbf7d0;
+        }
+
+        .nexum-stat--ok .label,
+        .nexum-stat--ok .value {
+            color: #047857;
+        }
+
+        .nexum-stat--bad {
+            background: #fff1f2;
+            border-color: #fecdd3;
+        }
+
+        .nexum-stat--bad .label,
+        .nexum-stat--bad .value {
+            color: #be123c;
+        }
+
+        .nexum-activity-list {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .nexum-activity-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 14px 0;
+            border-top: 1px solid #f1f5f9;
+        }
+
+        .nexum-activity-item:first-child {
+            border-top: 0;
+            padding-top: 0;
+        }
+
+        .nexum-activity-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 auto;
+            background: #f8fafc;
+            color: #334155;
+            border: 1px solid #e2e8f0;
+        }
+
+        .nexum-activity-icon.is-create {
+            background: #ecfdf5;
+            color: #047857;
+            border-color: #bbf7d0;
+        }
+
+        .nexum-activity-icon.is-update {
+            background: #eff6ff;
+            color: #2563eb;
+            border-color: #bfdbfe;
+        }
+
+        .nexum-activity-icon.is-delete {
+            background: #fff1f2;
+            color: #be123c;
+            border-color: #fecdd3;
+        }
+
+        .nexum-activity-icon.is-member {
+            background: #f5f3ff;
+            color: #7c3aed;
+            border-color: #ddd6fe;
+        }
+
+        .nexum-activity-main {
+            min-width: 0;
+            flex: 1 1 auto;
+        }
+
+        .nexum-activity-title {
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.35;
+        }
+
+        .nexum-activity-title .actor {
+            font-weight: 800;
+        }
+
+        .nexum-activity-meta {
+            color: #64748b;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+
+        .nexum-icon-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+            background: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+            text-decoration: none;
+        }
+
+        .nexum-icon-btn:hover {
+            color: #0f172a;
+            border-color: #cbd5e1;
+        }
+
+        .nexum-modal .modal-content {
+            border-radius: 16px;
+            border: 1px solid #eef2f7;
+        }
+
+        .nexum-modal .modal-header {
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .nexum-modal .modal-footer {
+            border-top: 1px solid #f1f5f9;
+        }
+
+        .nexum-assignee-btn {
+            border-radius: 12px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 0 12px;
+        }
+
+        .nexum-assignee-left {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .nexum-assignee-name {
+            font-weight: 700;
+            font-size: 13px;
+            color: #0f172a;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 320px;
+        }
+
+        .nexum-assignee-role {
+            font-size: 12px;
+            color: #64748b;
+            white-space: nowrap;
+        }
+
+        .nexum-assignee-avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 999px;
+            border: 1px solid #e2e8f0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            font-weight: 800;
+            font-size: 12px;
+            flex: 0 0 auto;
+        }
+
+        .nexum-assignee-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .nexum-assignee-menu {
+            width: 100%;
+            border-radius: 14px;
+            border: 1px solid #eef2f7;
+            padding: 10px;
+        }
+
+        .nexum-assignee-item {
+            border-radius: 12px;
+            padding: 8px 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .nexum-assignee-item:hover {
+            background: #f8fafc;
+        }
+
+        .nexum-assignee-item .meta {
+            min-width: 0;
+        }
+
+        .nexum-assignee-item .meta .name {
+            font-weight: 700;
+            font-size: 13px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .nexum-assignee-item .meta .role {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 2px;
+            text-transform: capitalize;
+        }
+
+        .nexum-assignee-check {
+            width: 18px;
+            height: 18px;
+            border-radius: 999px;
+            border: 2px solid #cbd5e1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            flex: 0 0 auto;
+        }
+
+        .nexum-assignee-item[data-selected="1"] .nexum-assignee-check {
+            background: var(--nexum-accent);
+            border-color: var(--nexum-accent);
+        }
+
+        .nexum-assignee-item[data-selected="1"] .nexum-assignee-check::after {
+            content: "";
+            width: 6px;
+            height: 10px;
+            border: solid #fff;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+            margin-top: -1px;
+        }
+
+        .nexum-task-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px 0;
+            border-top: 1px solid #f1f5f9;
+        }
+
+        .nexum-task-left {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .nexum-task-actions {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            flex: 0 0 auto;
+        }
+
+        .nexum-task-actions form {
+            margin: 0;
+        }
+
+        .nexum-task-action {
+            width: 28px;
+            height: 28px;
+            border-radius: 999px;
+            border: 1px solid #e2e8f0;
+            background: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .nexum-task-action:hover {
+            color: #0f172a;
+            border-color: #cbd5e1;
+        }
+
+        .nexum-task-action.is-done {
+            background: #10b981;
+            border-color: #10b981;
+            color: #fff;
+        }
+
+        .nexum-task-action.is-progress {
+            background: #ffedd5;
+            border-color: #fed7aa;
+            color: #c2410c;
+        }
+
+        .nexum-task-action.is-delete {
+            background: #fff1f2;
+            border-color: #fecdd3;
+            color: #be123c;
+        }
+
+        .nexum-task-action.is-delete:hover {
+            border-color: #fda4af;
+            color: #9f1239;
+        }
+
+        .nexum-task-action.is-disabled {
+            opacity: 0.55;
+            pointer-events: none;
+        }
+
+        .nexum-task-title {
+            font-weight: 700;
+            font-size: 13px;
+            color: #0f172a;
+            text-decoration: none;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 420px;
+            display: inline-block;
+        }
+
+        .nexum-task-title:hover {
+            text-decoration: underline;
+        }
+
+        .nexum-task-title.done {
+            color: #94a3b8;
+            text-decoration: line-through;
+        }
+
+        .nexum-priority {
+            font-size: 11px;
+            font-weight: 800;
+            border-radius: 999px;
+            padding: 4px 10px;
+            border: 1px solid transparent;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .nexum-priority.high {
+            background: #ffe4e6;
+            color: #be123c;
+            border-color: #fecdd3;
+        }
+
+        .nexum-priority.medium {
+            background: #fef3c7;
+            color: #b45309;
+            border-color: #fde68a;
+        }
+
+        .nexum-priority.low {
+            background: #dbeafe;
+            color: #1d4ed8;
+            border-color: #bfdbfe;
+        }
+
+        .nexum-status {
+            font-size: 11px;
+            font-weight: 800;
+            border-radius: 999px;
+            padding: 4px 10px;
+            border: 1px solid transparent;
+            display: inline-flex;
+            align-items: center;
+            letter-spacing: .01em;
+        }
+
+        .nexum-status.todo {
+            background: #f1f5f9;
+            color: #64748b;
+            border-color: #e2e8f0;
+        }
+
+        .nexum-status.in_progress {
+            background: #ffedd5;
+            color: #c2410c;
+            border-color: #fed7aa;
+        }
+
+        .nexum-status.done {
+            background: #dcfce7;
+            color: #15803d;
+            border-color: #bbf7d0;
+        }
+
+        .nexum-task-meta {
+            display: inline-flex;
+            align-items: center;
+            gap: 14px;
+            color: #64748b;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .nexum-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px 16px;
+            border-top: 1px solid #eef2f7;
+            position: relative;
+            background: #fff;
+        }
+
+        .nexum-row:hover {
+            background: #fafafa;
+        }
+
+        .nexum-row-left {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .nexum-meta {
+            display: inline-flex;
+            align-items: center;
+            gap: 14px;
+            color: #64748b;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .nexum-meta .nexum-icon-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+            background: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+            text-decoration: none;
+        }
+
+        .nexum-meta .nexum-icon-btn:hover {
+            color: #0f172a;
+            border-color: #cbd5e1;
+        }
+
+        .nexum-icon-btn.is-disabled {
+            opacity: 0.45;
+            pointer-events: none;
+        }
+
+        .nexum-assignee {
+            border: 1px solid #e2e8f0;
+            background: #f8fafc;
+            color: #334155;
+            border-radius: 999px;
+            padding: 4px 10px;
+            font-weight: 700;
+            font-size: 11px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            max-width: 210px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .nexum-assignee.is-empty {
+            color: #64748b;
+        }
+
+        .nexum-assignee-dot {
+            width: 16px;
+            height: 16px;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 900;
+            line-height: 1;
+            flex: 0 0 auto;
+            overflow: hidden;
+        }
+
+        .nexum-assignee-dot img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .nexum-member-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 10px 0;
+            border-top: 1px solid #f1f5f9;
+        }
+
+        .nexum-member-left {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .nexum-member-name {
+            font-weight: 700;
+            font-size: 13px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 240px;
+        }
+
+        .nexum-member-modal .modal-content {
+            border-radius: 16px;
+            border: 1px solid var(--nexum-stone-200);
+        }
+
+        .nexum-member-modal .modal-header,
+        .nexum-member-modal .modal-footer {
+            border-color: var(--nexum-stone-200);
+        }
+
+        .nexum-member-modal .modal-title {
+            font-weight: 900;
+        }
+
+        .nexum-modal .modal-content {
+            border-radius: 16px;
+            border: 1px solid var(--nexum-stone-200);
+        }
+
+        .nexum-modal .modal-header,
+        .nexum-modal .modal-footer {
+            border-color: var(--nexum-stone-200);
+        }
+
+        .nexum-modal .modal-dialog {
+            max-width: 720px;
+        }
+
+        .nexum-modal .modal-title {
+            font-weight: 900;
+        }
+
+        .nexum-modal label {
+            font-size: 12px;
+            font-weight: 800;
+            color: #475569;
+        }
+
+        .nexum-modal .form-control,
+        .nexum-modal .form-select {
+            border-radius: 12px;
+            border-color: #e2e8f0;
+            padding-top: 10px;
+            padding-bottom: 10px;
+        }
+
+        .nexum-modal textarea.form-control {
+            min-height: 92px;
+            resize: none;
+        }
+
+        .nexum-modal .modal-footer .btn {
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-weight: 800;
+            font-family: "Inter", "Segoe UI", sans-serif;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .nexum-modal .modal-footer .btn.btn-outline-secondary {
+            border-color: #e2e8f0;
+            color: #334155;
+            background: #fff;
+        }
+
+        .nexum-btn-primary {
+            background: var(--nexum-accent) !important;
+            border-color: var(--nexum-accent) !important;
+            box-shadow: 0 10px 18px rgba(124, 58, 237, 0.18);
+        }
+
+        .nexum-btn-primary:hover {
+            background: #6d28d9 !important;
+            border-color: #6d28d9 !important;
+        }
+
+        .btn.btn-primary {
+            background: var(--nexum-accent) !important;
+            border-color: var(--nexum-accent) !important;
+        }
+
+        .btn.btn-primary:hover {
+            background: #6d28d9 !important;
+            border-color: #6d28d9 !important;
+        }
+
+        .nexum-member-search {
+            border-radius: 12px;
+            height: 44px;
+        }
+
+        .nexum-member-list {
+            border: 1px solid #eef2f7;
+            border-radius: 14px;
+            overflow: hidden;
+            max-height: 360px;
+            overflow-y: auto;
+        }
+
+        .nexum-member-item {
+            padding: 10px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            cursor: pointer;
+            background: #fff;
+        }
+
+        .nexum-member-item + .nexum-member-item {
+            border-top: 1px solid #f1f5f9;
+        }
+
+        .nexum-member-item:hover {
+            background: #f8fafc;
+        }
+
+        .nexum-member-item.is-disabled {
+            cursor: not-allowed;
+            opacity: .7;
+            background: #fff;
+        }
+
+        .nexum-member-check {
+            width: 18px;
+            height: 18px;
+            border-radius: 999px;
+            border: 2px solid #cbd5e1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            flex: 0 0 auto;
+        }
+
+        .nexum-member-item[data-selected="1"] .nexum-member-check {
+            border-color: var(--nexum-accent);
+            background: var(--nexum-accent);
+        }
+
+        .nexum-member-item[data-selected="1"] .nexum-member-check::after {
+            content: "✓";
+            font-size: 12px;
+            font-weight: 900;
+            line-height: 1;
+        }
+
+        .nexum-member-meta {
+            min-width: 0;
+        }
+
+        .nexum-member-meta .name {
+            font-weight: 800;
+            font-size: 13px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .nexum-member-meta .role {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 2px;
+            text-transform: capitalize;
+        }
+
+        .nexum-confirm .modal-content {
+            border-radius: 16px;
+            border: 1px solid var(--nexum-stone-200);
+        }
+
+        .nexum-confirm .modal-header,
+        .nexum-confirm .modal-footer {
+            border-color: var(--nexum-stone-200);
+        }
+
+        .nexum-danger-title {
+            color: var(--nexum-stone-900);
+            font-weight: 800;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+
+    <div class="nexum-breadcrumb mb-3">
+        <a href="{{ path('app_project_index') }}">Projects</a>
+        <span class="px-2">›</span>
+        <span class="text-dark">{{ project.name|plain_text }}</span>
+    </div>
+
+    {% set renderedMemberIds = visibleMemberIds is defined ? visibleMemberIds : memberIds %}
+    {% set pct = projectProgressPercent|default(0) %}
+
+    <div class="card nexum-shell-card mb-4">
+        <div class="card-body">
+            <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
+                <div class="min-w-0">
+                    <div class="d-flex align-items-start justify-content-between gap-2">
+                        <h2 class="mb-2 text-truncate flex-grow-1">{{ project.name|plain_text }}</h2>
+
+                        <div class="d-flex gap-2 flex-shrink-0">
+                            {% if canEditProject|default(false) %}
+                                <button class="nexum-icon-btn"
+                                        type="button"
+                                        title="Edit"
+                                        aria-label="Edit"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#editProjectModal"
+                                        data-edit-url="{{ path('app_project_edit', {id: project.id}) }}">
+                                    <i class="ri-pencil-line"></i>
+                                </button>
+                            {% endif %}
+
+                            {% if canDeleteProject|default(false) %}
+                                <button class="nexum-icon-btn"
+                                        type="button"
+                                        title="Delete"
+                                        aria-label="Delete"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#deleteProjectModal">
+                                    <i class="ri-delete-bin-6-line"></i>
+                                </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="text-muted d-flex flex-wrap gap-3 small">
+                        <span class="d-inline-flex align-items-center gap-2">
+                            <span class="ti ti-calendar"></span>
+                            <span>
+                                Due
+                                {% if project.endDate %}{{ project.endDate|date('M d, Y') }}{% else %}—{% endif %}
+                            </span>
+                        </span>
+
+                        <span class="d-inline-flex align-items-center gap-2">
+                            <span class="ti ti-users"></span>
+                            <span>{{ renderedMemberIds|length }} members</span>
+                        </span>
+                    </div>
+                </div>
+
+                <div style="min-width: 220px;">
+                    <div class="d-flex justify-content-between text-muted small mb-2">
+                        <div>Progress</div>
+                        <div class="fw-semibold" style="color: var(--nexum-accent)">{{ pct }}%</div>
+                    </div>
+                    <div class="nexum-progress">
+                        <div class="progress" role="progressbar" aria-valuenow="{{ pct }}" aria-valuemin="0" aria-valuemax="100">
+                            <div class="progress-bar" style="width: {{ pct }}%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex flex-wrap nexum-tabs">
+                <a class="nexum-tab {{ activeTab == 'overview' ? 'active' : '' }}"
+                   href="{{ path('app_project_show', {id: project.id, tab: 'overview'}) }}">Overview</a>
+                <a class="nexum-tab {{ activeTab == 'tasks' ? 'active' : '' }}"
+                   href="{{ path('app_project_show', {id: project.id, tab: 'tasks'}) }}">Tasks</a>
+                <a class="nexum-tab {{ activeTab == 'kanban' ? 'active' : '' }}"
+                   href="{{ path('app_project_show', {id: project.id, tab: 'kanban'}) }}">Kanban</a>
+                <a class="nexum-tab {{ activeTab == 'discussion' ? 'active' : '' }}"
+                   href="{{ path('app_project_show', {id: project.id, tab: 'discussion'}) }}">Discussion</a>
+                <a class="nexum-tab {{ activeTab == 'files' ? 'active' : '' }}"
+                   href="{{ path('app_project_show', {id: project.id, tab: 'files'}) }}">Files</a>
+                <a class="nexum-tab {{ activeTab == 'activity' ? 'active' : '' }}"
+                   href="{{ path('app_project_show', {id: project.id, tab: 'activity'}) }}">Activity</a>
+                <a class="nexum-tab {{ activeTab == 'settings' ? 'active' : '' }}"
+                   href="{{ path('app_project_show', {id: project.id, tab: 'settings'}) }}">Settings</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-12 col-xl-8">
+            {% if activeTab == 'overview' %}
+                <div class="card nexum-shell-card mb-3">
+                    <div class="card-body">
+                        <h5 class="mb-2">Description</h5>
+                        <p class="text-muted mb-0">
+                            {{ project.description ? (project.description|plain_text) : 'No description provided.' }}
+                        </p>
+                    </div>
+                </div>
+
+                <div class="card nexum-shell-card">
+                    <div class="card-body d-flex align-items-center justify-content-between">
+                        <h5 class="mb-0">Recent Activity</h5>
+                    </div>
+                    <div class="card-body pt-0">
+                        <div class="nexum-activity-list">
+                            {% for activity in recentActivities|default([]) %}
+                                {% set action = (activity.action ?? '')|lower %}
+                                {% set iconClass = action in ['task_created', 'project_created'] ? 'is-create'
+                                    : (action in ['task_deleted', 'project_deleted'] ? 'is-delete'
+                                    : (action in ['members_added'] ? 'is-member' : 'is-update')) %}
+                                {% set iconName = action in ['task_created', 'project_created']
+                                    ? 'ri-add-line'
+                                    : (action in ['task_deleted', 'project_deleted']
+                                    ? 'ri-delete-bin-6-line'
+                                    : (action in ['members_added']
+                                    ? 'ri-user-add-line'
+                                    : 'ri-edit-2-line')) %}
+
+                                <div class="nexum-activity-item">
+                                    <div class="nexum-activity-icon {{ iconClass }}">
+                                        <i class="{{ iconName }}"></i>
+                                    </div>
+                                    <div class="nexum-activity-main min-w-0">
+                                        <div class="nexum-activity-title">
+                                            <span class="actor">{{ activity.actorName|plain_text }}</span>
+                                            <span class="text-muted">{{ activity.message|plain_text }}</span>
+                                        </div>
+                                        <div class="nexum-activity-meta">
+                                            {{ activity.createdAt ? activity.createdAt|date('M d, Y H:i') : '' }}
+                                        </div>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="text-muted small">No recent activity yet.</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            {% elseif activeTab == 'tasks' %}
+                <div class="card nexum-shell-card">
+                    <div class="card-body d-flex align-items-center justify-content-between">
+                        <h5 class="mb-0">Tasks</h5>
+                        {% if canCreateTask|default(false) %}
+                            <button class="nexum-icon-btn"
+                               type="button"
+                               data-bs-toggle="modal"
+                               data-bs-target="#createTaskModal"
+                               title="Add task"
+                               aria-label="Add task">
+                                <i class="ri-add-line"></i>
+                            </button>
+                        {% endif %}
+                    </div>
+                    <div class="card-body pt-0">
+                        {% for task in (tasks|default([]))|slice(0, 50) %}
+                            {% include 'task/_task_card.html.twig' with {
+                                task: task,
+                                currentUserId: currentUserId,
+                                isManager: isManager,
+                                usersById: membersById,
+                                avatarUrlById: avatarUrlById,
+                                projectName: project.name|default(''),
+                                taskUrl: path('app_task_show', {id: task.id})
+                            } %}
+                        {% else %}
+                            <div class="text-muted small py-2">No tasks for this project yet.</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% else %}
+                <div class="card nexum-shell-card">
+                    <div class="card-body">
+                        <div class="text-muted small">This section is coming soon.</div>
+                    </div>
+                </div>
+            {% endif %}
+
+        </div>
+
+        <div class="col-12 col-xl-4">
+            <div class="card nexum-shell-card mb-3">
+                <div class="card-body">
+                    <h5 class="mb-3">Project Stats</h5>
+
+                    <div class="d-flex flex-column gap-2">
+                        <div class="nexum-stat">
+                            <div class="label">Total Tasks</div>
+                            <div class="value">{{ stats.total }}</div>
+                        </div>
+                        <div class="nexum-stat nexum-stat--ok">
+                            <div class="label">Completed</div>
+                            <div class="value">{{ stats.completed }}</div>
+                        </div>
+                        <div class="nexum-stat nexum-stat--bad">
+                            <div class="label">Overdue</div>
+                            <div class="value">{{ stats.overdue }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card nexum-shell-card">
+                <div class="card-body d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">Team Members</h5>
+                    <div class="d-flex gap-2">
+                        {% if canEditProject|default(false) %}
+                            <button type="button"
+                                    class="nexum-icon-btn"
+                                    title="Add member"
+                                    aria-label="Add member"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#addMembersModal">
+                                <i class="ri-add-line"></i>
+                            </button>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-body pt-2">
+                    <div class="d-flex align-items-center flex-wrap gap-1">
+                        {% for uid in renderedMemberIds %}
+                            {% set user = membersById[uid] ?? null %}
+                            {% if user %}
+                                {% set fullName = (user.prenom ~ ' ' ~ user.nom)|trim %}
+                                {% set avatarUrl = avatarUrlById[user.id] ?? null %}
+
+                                {% if avatarUrl %}
+                                    <span class="nexum-avatar" title="{{ fullName }}">
+                                        <img src="{{ avatarUrl }}" alt="{{ fullName }}">
+                                    </span>
+                                {% else %}
+                                    {% set ap = avatar_placeholder(fullName) %}
+                                    <span class="nexum-avatar" title="{{ fullName }}" style="background: {{ ap.bg }}; color: {{ ap.fg }};">
+                                        {{ ap.initial }}
+                                    </span>
+                                {% endif %}
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if canEditProject|default(false) %}
+                            <button type="button"
+                                    class="nexum-avatar nexum-avatar--add ms-2"
+                                    title="Add member"
+                                    aria-label="Add member"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#addMembersModal">+</button>
+                        {% endif %}
+                    </div>
+
+                    <div class="mt-2">
+                        {% for uid in renderedMemberIds %}
+                            {% set user = membersById[uid] ?? null %}
+                            {% if user %}
+                                {% set fullName = (user.prenom ~ ' ' ~ user.nom)|trim %}
+                                {% set avatarUrl = avatarUrlById[user.id] ?? null %}
+                                <div class="nexum-member-row">
+                                    <div class="nexum-member-left">
+                                        {% if avatarUrl %}
+                                            <span class="nexum-avatar" title="{{ fullName }}">
+                                                <img src="{{ avatarUrl }}" alt="{{ fullName }}">
+                                            </span>
+                                        {% else %}
+                                            {% set ap = avatar_placeholder(fullName) %}
+                                            <span class="nexum-avatar" title="{{ fullName }}" style="background: {{ ap.bg }}; color: {{ ap.fg }};">
+                                                {{ ap.initial }}
+                                            </span>
+                                        {% endif %}
+                                            <div class="min-w-0">
+                                            <div class="nexum-member-name">{{ fullName|plain_text }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Task create popup (Bootstrap modal) #}
+    {% if canCreateTask|default(false) and createTaskForm is not null %}
+        <div class="modal fade nexum-modal" id="createTaskModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                {% include 'task/_create_modal_content.html.twig' with { createForm: createTaskForm, backUrl: app.request.requestUri } %}
+            </div>
+        </div>
+    {% endif %}
+
+    {# Edit task popup (shared with Tasks page) #}
+        <div class="modal fade nexum-modal" id="editTaskModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" id="editTaskModalContent">
+                <div class="modal-body text-muted small p-4">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    {# Add members popup (Bootstrap modal) #}
+    {% if canEditProject|default(false) %}
+        <div class="modal fade nexum-member-modal" id="addMembersModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
+                <div class="modal-content">
+                    <form method="post" action="{{ path('app_project_add_members', {id: project.id}) }}" id="addMembersForm">
+                        <input type="hidden" name="_token" value="{{ csrf_token('project_members' ~ project.id) }}">
+                        <input type="hidden" name="tab" value="{{ activeTab }}">
+
+                        <div class="modal-header">
+                            <div class="min-w-0">
+                                <h5 class="modal-title mb-1">Add Team Members</h5>
+                                <div class="text-muted small">Select users to add to this project.</div>
+                            </div>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+
+                        <div class="modal-body">
+                            <input type="search" class="form-control nexum-member-search mb-3"
+                                   placeholder="Search users..."
+                                   aria-label="Search users"
+                                   data-member-search>
+
+                            <div class="nexum-member-list" role="list">
+                                {% for u in pickableUsers|default([]) %}
+                                    {% set uid = u.id %}
+                                    {% set already = uid in memberIds %}
+                                    {% set fullName = (u.name ?? 'Unknown user')|plain_text %}
+                                    {% set roleName = (u.role ?? '')|plain_text %}
+
+                                    <div class="nexum-member-item {{ already ? 'is-disabled' : '' }}"
+                                         role="listitem"
+                                         data-user-id="{{ uid }}"
+                                         data-user-name="{{ fullName }}"
+                                         data-user-role="{{ roleName }}"
+                                         data-selected="0"
+                                         data-disabled="{{ already ? '1' : '0' }}">
+                                    <div class="d-flex align-items-center gap-2 min-w-0">
+                                            {% set ap = avatar_placeholder(fullName) %}
+                                            {% if u.img %}
+                                                <span class="nexum-avatar" aria-hidden="true">
+                                                    <img src="{{ u.img }}" alt="{{ fullName }}">
+                                                </span>
+                                            {% else %}
+                                                <span class="nexum-avatar"
+                                                      style="background: {{ ap.bg }}; color: {{ ap.fg }};"
+                                                      aria-hidden="true">
+                                                    {{ ap.initial }}
+                                                </span>
+                                            {% endif %}
+                                            <div class="nexum-member-meta">
+                                                <div class="name">{{ fullName }}</div>
+                                                {% if roleName %}
+                                                    <div class="role">{{ roleName }}</div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+
+                                        <div class="d-flex align-items-center gap-2">
+                                            {% if already %}
+                                                <span class="badge bg-body-secondary text-dark">In project</span>
+                                            {% endif %}
+                                            <span class="nexum-member-check" aria-hidden="true"></span>
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <div class="text-muted small px-3 py-3">No users found.</div>
+                                {% endfor %}
+                            </div>
+
+                            {# Hidden inputs inserted by JS as `user_ids[]` #}
+                            <div data-member-hidden></div>
+                        </div>
+
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-primary"
+                                    style="background: var(--nexum-accent); border-color: var(--nexum-accent);"
+                                    data-member-submit>
+                                Add Members
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    {# Project edit popup (Bootstrap modal) #}
+    {% if canEditProject|default(false) %}
+        <div class="modal fade nexum-modal" id="editProjectModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
+                <div class="modal-content" id="editProjectModalContent">
+                    <div class="modal-body text-muted small p-4">Loading...</div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    {# Clean delete popup (Bootstrap modal) #}
+    {% if canDeleteProject|default(false) %}
+    <div class="modal fade nexum-confirm" id="deleteProjectModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title nexum-danger-title">Delete project?</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-muted">
+                    This will permanently delete <strong>{{ project.name|plain_text }}</strong>.
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <form method="post" action="{{ path('app_project_delete', {'id': project.id}) }}" class="m-0">
+                        <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ project.id) }}">
+                        <button type="submit" class="btn btn-primary"
+                                style="background: var(--nexum-accent); border-color: var(--nexum-accent);">
+                            Delete Project
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="modal fade nexum-modal nexum-danger" id="deleteTaskModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-0">
+                    <div class="nexum-danger-head">
+                        <div class="nexum-danger-icon" aria-hidden="true">
+                            <i class="ri-error-warning-line"></i>
+                        </div>
+                        <div>
+                            <h5 class="nexum-danger-title">Delete Task?</h5>
+                            <div class="nexum-danger-sub">This action cannot be undone.</div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <div class="modal-body pt-0">
+                    <div class="nexum-danger-box">
+                        <div>You are about to permanently delete:</div>
+                        <div class="nexum-danger-task" id="deleteTaskTitle">—</div>
+                        <div class="mt-1 text-muted">This task will be removed from your project.</div>
+                    </div>
+                </div>
+
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <form method="post" action="" id="deleteTaskForm" class="m-0">
+                        <input type="hidden" name="_token" id="deleteTaskToken" value="">
+                        <input type="hidden" name="back" value="{{ app.request.requestUri }}">
+                        <button type="submit" class="btn btn-danger">Delete Task</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% include 'project-management/_calendar_event_modal.html.twig' %}
+
+{% endblock %}
+
+{% block script %}
+    {{ parent() }}
+    <script>
+        (function () {
+            const delModal = document.getElementById('deleteTaskModal');
+            if (!delModal) return;
+
+            delModal.addEventListener('show.bs.modal', function (ev) {
+                const btn = ev.relatedTarget;
+                if (!btn) return;
+
+                const action = btn.getAttribute('data-delete-action') || '';
+                const token = btn.getAttribute('data-delete-token') || '';
+                const title = btn.getAttribute('data-task-title') || '—';
+
+                const form = document.getElementById('deleteTaskForm');
+                const tokenEl = document.getElementById('deleteTaskToken');
+                const titleEl = document.getElementById('deleteTaskTitle');
+                if (form) form.setAttribute('action', action);
+                if (tokenEl) tokenEl.value = token;
+                if (titleEl) titleEl.textContent = title;
+            });
+        })();
+
+        (function () {
+            const modalEl = document.getElementById('calendarEventModal');
+            if (!modalEl) return;
+
+            const titleEl = document.getElementById('calendarEventTitle');
+            const typeEl = document.getElementById('calendarEventType');
+            const dateEl = document.getElementById('calendarEventDate');
+            const projectEl = document.getElementById('calendarEventProject');
+            const assignedEl = document.getElementById('calendarEventAssignedTo');
+            const taskWrapEl = document.getElementById('calendarEventTaskWrap');
+            const taskEl = document.getElementById('calendarEventTask');
+            const detailsEl = document.getElementById('calendarEventDetails');
+            const linkEl = document.getElementById('calendarEventLink');
+
+            document.addEventListener('click', function (ev) {
+                const trigger = ev.target && ev.target.closest ? ev.target.closest('[data-calendar-event="1"]') : null;
+                if (!trigger) return;
+
+                ev.preventDefault();
+
+                const title = String(trigger.getAttribute('data-calendar-title') || trigger.textContent || 'Event');
+                const type = String(trigger.getAttribute('data-calendar-type') || 'Task deadline');
+                const date = String(trigger.getAttribute('data-calendar-date') || '');
+                const project = String(trigger.getAttribute('data-calendar-project') || 'Unknown project');
+                const assigned = String(trigger.getAttribute('data-calendar-assigned-to') || 'Unassigned');
+                const taskName = String(trigger.getAttribute('data-calendar-task') || '');
+                const details = String(trigger.getAttribute('data-calendar-details') || 'Task deadline tracked on the calendar.');
+                const link = String(trigger.getAttribute('data-calendar-link') || trigger.getAttribute('href') || '#');
+
+                if (titleEl) titleEl.textContent = title;
+                if (typeEl) typeEl.textContent = type;
+                if (dateEl) dateEl.textContent = date;
+                if (projectEl) projectEl.textContent = project;
+                if (assignedEl) assignedEl.textContent = assigned;
+                if (detailsEl) detailsEl.textContent = details;
+
+                if (taskWrapEl) {
+                    if (taskName !== '') {
+                        taskWrapEl.classList.remove('d-none');
+                        if (taskEl) taskEl.textContent = taskName;
+                    } else {
+                        taskWrapEl.classList.add('d-none');
+                    }
+                }
+
+                if (linkEl) {
+                    linkEl.href = link;
+                }
+
+                if (window.bootstrap && bootstrap.Modal) {
+                    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+                }
+            });
+        })();
+
+        (function () {
+            const modalEl = document.getElementById('createTaskModal');
+            if (!modalEl) return;
+
+            const assigneesEndpoint = {{ path('app_task_assignees')|json_encode|raw }};
+
+            async function refreshAssignees(projectId) {
+                const assigneeSelect = modalEl.querySelector('select[data-task-assignee="1"]');
+                if (!assigneeSelect) return;
+                const prev = assigneeSelect.value;
+                assigneeSelect.innerHTML = '<option value="">Loading...</option>';
+
+                const pid = parseInt(String(projectId || '0'), 10);
+                if (!pid) {
+                    assigneeSelect.innerHTML = '<option value="">Select team ...</option>';
+                    return;
+                }
+
+                try {
+                    const res = await fetch(assigneesEndpoint + '?project=' + encodeURIComponent(String(pid)), {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+                    const payload = await res.json();
+                    const users = (payload && payload.users) ? payload.users : [];
+
+                    let html = '<option value="">Select team ...</option>';
+                    for (const u of users) {
+                        const id = String(u.id);
+                        const name = String(u.name || 'Unknown user');
+                        html += '<option value="' + id.replace(/\"/g, '') + '">' + name.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</option>';
+                    }
+                    assigneeSelect.innerHTML = html;
+
+                    if (prev) {
+                        assigneeSelect.value = prev;
+                    }
+                } catch (e) {
+                    assigneeSelect.innerHTML = '<option value="">Select team ...</option>';
+                }
+            }
+
+            modalEl.addEventListener('change', function (e) {
+                const t = e.target;
+                if (t && t.matches && t.matches('select[data-task-project="1"]')) {
+                    refreshAssignees(t.value);
+                }
+            });
+
+            modalEl.addEventListener('submit', async function (e) {
+                const form = e.target;
+                if (!form || form.id !== 'createTaskForm') return;
+                e.preventDefault();
+                try {
+                    const res = await fetch(form.action, {
+                        method: 'POST',
+                        body: new FormData(form),
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json, text/html;q=0.9'
+                        }
+                    });
+                    const ct = (res.headers.get('Content-Type') || '');
+                    if (res.ok && ct.indexOf('application/json') !== -1) {
+                        const data = await res.json();
+                        if (data && data.location) {
+                            window.location.href = data.location;
+                        }
+                        return;
+                    }
+                    if (res.status === 422) {
+                        const html = await res.text();
+                        const wrap = document.getElementById('createTaskModalContent');
+                        if (wrap && html) {
+                            const doc = new DOMParser().parseFromString(html, 'text/html');
+                            const nextWrap = doc.getElementById('createTaskModalContent');
+                            if (nextWrap) {
+                                wrap.outerHTML = nextWrap.outerHTML;
+                            } else {
+                                window.location.reload();
+                            }
+                        }
+                        return;
+                    }
+                    if (res.status === 403) {
+                        window.location.reload();
+                        return;
+                    }
+                    window.location.reload();
+                } catch (err) {
+                    window.location.reload();
+                }
+            });
+
+            const projectSelect = modalEl.querySelector('select[data-task-project="1"]');
+            if (projectSelect && projectSelect.value) {
+                refreshAssignees(projectSelect.value);
+            }
+        })();
+
+        (function () {
+            const editModal = document.getElementById('editTaskModal');
+            const editContent = document.getElementById('editTaskModalContent');
+            if (!editModal || !editContent) return;
+
+            const wireEditForm = function () {
+                const form = editContent.querySelector('form');
+                if (!form) return;
+
+                form.addEventListener('submit', async function (e) {
+                    e.preventDefault();
+                    try {
+                        const res = await fetch(form.action, {
+                            method: form.method || 'POST',
+                            body: new FormData(form),
+                            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                        });
+
+                        if (res.status === 204) {
+                            if (window.bootstrap && bootstrap.Modal) {
+                                bootstrap.Modal.getInstance(editModal)?.hide();
+                            }
+                            window.location.reload();
+                            return;
+                        }
+
+                        const html = await res.text();
+                        editContent.innerHTML = html;
+                        wireEditForm();
+                    } catch (err) {
+                        editContent.innerHTML = '<div class="modal-body p-4 text-danger small">Failed to load the edit form.</div>';
+                    }
+                }, { once: true });
+            };
+
+            editModal.addEventListener('show.bs.modal', async function (ev) {
+                const btn = ev.relatedTarget;
+                const url = btn ? (btn.getAttribute('data-edit-url') || '') : '';
+                editContent.innerHTML = '<div class="modal-body text-muted small p-4">Loading...</div>';
+                if (!url) return;
+
+                try {
+                    const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                    const html = await res.text();
+                    editContent.innerHTML = html;
+                    wireEditForm();
+                } catch (err) {
+                    editContent.innerHTML = '<div class="modal-body p-4 text-danger small">Failed to load the edit form.</div>';
+                }
+            });
+        })();
+
+        (function () {
+            const modalEl = document.getElementById('editProjectModal');
+            let contentEl = document.getElementById('editProjectModalContent');
+            if (!modalEl || !contentEl) return;
+
+            const getState = function () {
+                return {
+                    selectEl: contentEl.querySelector('select[data-assigned-select="1"]'),
+                    btnAvatars: contentEl.querySelector('[data-assignee-avatars]'),
+                    btnName: contentEl.querySelector('[data-assignee-name]'),
+                    btnRole: contentEl.querySelector('[data-assignee-role]'),
+                    searchEl: contentEl.querySelector('[data-assignee-search]'),
+                    items: Array.from(contentEl.querySelectorAll('[data-assignee-item]'))
+                };
+            };
+
+            const getSelectedIds = function () {
+                const { selectEl } = getState();
+                const ids = [];
+                if (!selectEl) return ids;
+                for (const opt of Array.from(selectEl.options)) {
+                    if (opt.selected && opt.value) ids.push(opt.value);
+                }
+                return ids;
+            };
+
+            const applySelectedIds = function (ids) {
+                const { selectEl } = getState();
+                if (!selectEl) return;
+                const set = new Set((ids || []).map(String));
+                for (const opt of Array.from(selectEl.options)) {
+                    opt.selected = opt.value ? set.has(String(opt.value)) : false;
+                }
+            };
+
+            const renderButton = function () {
+                const { btnAvatars, btnName, btnRole, items } = getState();
+                const ids = getSelectedIds() || [];
+                const selectedItems = items.filter((it) => ids.includes(String(it.getAttribute('data-user-id') || '')));
+
+                items.forEach((it) => {
+                    const id = String(it.getAttribute('data-user-id') || '');
+                    it.setAttribute('data-selected', ids.includes(id) ? '1' : '0');
+                });
+
+                if (btnAvatars) {
+                    btnAvatars.innerHTML = '';
+                    selectedItems.slice(0, 3).forEach((it) => {
+                        const srcAvatar = it.querySelector('.nexum-assignee-avatar');
+                        if (!srcAvatar) return;
+                        const span = document.createElement('span');
+                        span.className = 'nexum-assignee-avatar';
+                        const style = srcAvatar.getAttribute('style');
+                        if (style) span.setAttribute('style', style);
+                        span.innerHTML = srcAvatar.innerHTML;
+                        btnAvatars.appendChild(span);
+                    });
+                }
+
+                if (btnName) {
+                    if (ids.length === 0) {
+                        btnName.textContent = 'Select team members...';
+                        btnName.classList.add('text-muted');
+                    } else if (ids.length === 1) {
+                        const one = selectedItems[0];
+                        btnName.textContent = one ? (one.getAttribute('data-user-name') || 'User') : '1 selected';
+                        btnName.classList.remove('text-muted');
+                    } else {
+                        btnName.textContent = ids.length + ' selected';
+                        btnName.classList.remove('text-muted');
+                    }
+                }
+
+                if (btnRole) {
+                    btnRole.textContent = ids.length === 1 ? (selectedItems[0]?.getAttribute('data-user-role') || '') : '';
+                }
+            };
+
+            modalEl.addEventListener('click', function (e) {
+                const it = e.target.closest('[data-assignee-item]');
+                if (!it || !modalEl.contains(it)) return;
+                const userId = it.getAttribute('data-user-id');
+                if (!userId) return;
+
+                const ids = getSelectedIds() || [];
+                const set = new Set(ids.map(String));
+                if (set.has(String(userId))) set.delete(String(userId)); else set.add(String(userId));
+                applySelectedIds(Array.from(set));
+                renderButton();
+            });
+
+            modalEl.addEventListener('input', function (e) {
+                const t = e.target;
+                if (!t || !t.matches || !t.matches('[data-assignee-search]')) return;
+                const q = (t.value || '').trim().toLowerCase();
+                const { items } = getState();
+                for (const it of items) {
+                    const name = (it.getAttribute('data-user-name') || '').toLowerCase();
+                    const role = (it.getAttribute('data-user-role') || '').toLowerCase();
+                    const show = q === '' || name.includes(q) || role.includes(q);
+                    it.style.display = show ? '' : 'none';
+                }
+            });
+
+            const wireForm = function () {
+                const form = contentEl.querySelector('form');
+                if (!form) return;
+
+                form.addEventListener('submit', async function (e) {
+                    e.preventDefault();
+                    try {
+                        const res = await fetch(form.action, {
+                            method: form.method || 'POST',
+                            body: new FormData(form),
+                            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                        });
+
+                    if (res.status === 204) {
+                        if (window.bootstrap && bootstrap.Modal) {
+                            bootstrap.Modal.getInstance(modalEl)?.hide();
+                        }
+                        window.location.reload();
+                        return;
+                    }
+
+                    const html = await res.text();
+                    const doc = new DOMParser().parseFromString(html, 'text/html');
+                    const nextWrap = doc.getElementById('editProjectModalContent');
+                    if (nextWrap) {
+                        contentEl.outerHTML = nextWrap.outerHTML;
+                        contentEl = document.getElementById('editProjectModalContent');
+                        renderButton();
+                        wireForm();
+                    } else {
+                        window.location.reload();
+                    }
+                } catch (err) {
+                    contentEl.innerHTML = '<div class="modal-body p-4 text-danger small">Failed to load the edit form.</div>';
+                }
+                }, { once: true });
+            };
+
+            modalEl.addEventListener('show.bs.modal', async function (ev) {
+                const btn = ev.relatedTarget;
+                const url = btn ? (btn.getAttribute('data-edit-url') || '') : '';
+                contentEl.innerHTML = '<div class="modal-body text-muted small p-4">Loading...</div>';
+                if (!url) return;
+
+                try {
+                    const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                    const html = await res.text();
+                    const doc = new DOMParser().parseFromString(html, 'text/html');
+                    const nextWrap = doc.getElementById('editProjectModalContent');
+                    if (nextWrap) {
+                        contentEl.outerHTML = nextWrap.outerHTML;
+                        contentEl = document.getElementById('editProjectModalContent');
+                        renderButton();
+                        wireForm();
+                    } else {
+                        window.location.reload();
+                    }
+                } catch (err) {
+                    contentEl.innerHTML = '<div class="modal-body p-4 text-danger small">Failed to load the edit form.</div>';
+                }
+            });
+        })();
+
+        (function () {
+            const modalEl = document.getElementById('addMembersModal');
+            if (!modalEl) return;
+
+            const hiddenHost = modalEl.querySelector('[data-member-hidden]');
+            const submitBtn = modalEl.querySelector('[data-member-submit]');
+            const searchEl = modalEl.querySelector('[data-member-search]');
+            const items = Array.from(modalEl.querySelectorAll('[data-user-id]'));
+
+            const selected = new Set();
+
+            const renderHidden = function () {
+                if (!hiddenHost) return;
+                hiddenHost.innerHTML = '';
+                for (const id of Array.from(selected)) {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'user_ids[]';
+                    input.value = String(id);
+                    hiddenHost.appendChild(input);
+                }
+            };
+
+            const render = function () {
+                items.forEach((it) => {
+                    const id = String(it.getAttribute('data-user-id') || '');
+                    const isDisabled = it.getAttribute('data-disabled') === '1';
+                    const isSelected = !isDisabled && selected.has(id);
+                    it.setAttribute('data-selected', isSelected ? '1' : '0');
+                });
+
+                if (submitBtn) {
+                    const n = selected.size;
+                    submitBtn.textContent = n === 0 ? 'Add Members' : ('Add ' + n + ' Member' + (n > 1 ? 's' : ''));
+                    submitBtn.disabled = n === 0;
+                }
+
+                renderHidden();
+            };
+
+            modalEl.addEventListener('click', function (e) {
+                const it = e.target.closest('[data-user-id]');
+                if (!it) return;
+                if (it.getAttribute('data-disabled') === '1') return;
+
+                const id = String(it.getAttribute('data-user-id') || '');
+                if (!id) return;
+
+                if (selected.has(id)) selected.delete(id); else selected.add(id);
+                render();
+            });
+
+            if (searchEl) {
+                searchEl.addEventListener('input', function () {
+                    const q = (searchEl.value || '').trim().toLowerCase();
+                    for (const it of items) {
+                        const name = (it.getAttribute('data-user-name') || '').toLowerCase();
+                        const role = (it.getAttribute('data-user-role') || '').toLowerCase();
+                        const show = q === '' || name.includes(q) || role.includes(q);
+                        it.style.display = show ? '' : 'none';
+                    }
+                });
+            }
+
+            modalEl.addEventListener('show.bs.modal', function () {
+                selected.clear();
+                if (searchEl) searchEl.value = '';
+                items.forEach((it) => (it.style.display = ''));
+                render();
+            });
+        })();
+    </script>
+{% endblock %}

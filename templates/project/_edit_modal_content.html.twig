@@ -1,0 +1,7 @@
+{% include 'project/_create_modal_content.html.twig' with {
+    projectForm: form,
+    contentId: 'editProjectModalContent',
+    formId: 'editProjectForm',
+    backUrl: backUrl|default(''),
+    assignableUsers: assignableUsers|default([])
+} %}

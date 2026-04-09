@@ -1,0 +1,61 @@
+{% set projectForm = projectForm|default(createForm|default(null)) %}
+{% set contentId = contentId|default('createProjectModalContent') %}
+{% set formId = formId|default('createProjectForm') %}
+{% set submitLabel = submitLabel|default('Create Project') %}
+{% set headingTitle = headingTitle|default('Create New Project') %}
+{% set headingSubtitle = headingSubtitle|default('Start a new initiative for your team') %}
+
+<div class="modal-content" id="{{ contentId }}">
+    {{ form_start(projectForm, { attr: { id: formId, novalidate: 'novalidate' } }) }}
+    <input type="hidden" name="back" value="{{ backUrl|default('') }}">
+
+    <div class="modal-header">
+        <div>
+            <h5 class="modal-title mb-1">{{ headingTitle }}</h5>
+            <div class="text-muted small">{{ headingSubtitle }}</div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    </div>
+
+    <div class="modal-body">
+        {{ form_errors(projectForm) }}
+
+        <div class="mb-3">
+            {{ form_label(projectForm.name) }} <span class="text-danger">*</span>
+            {{ form_widget(projectForm.name, { attr: { class: 'form-control', placeholder: 'e.g. Q4 Marketing Campaign' } }) }}
+            {{ form_errors(projectForm.name) }}
+        </div>
+
+        <div class="mb-3">
+            {{ form_label(projectForm.description) }}
+            {{ form_widget(projectForm.description, { attr: { class: 'form-control', placeholder: 'Describe the goals and scope of this project...' } }) }}
+            {{ form_errors(projectForm.description) }}
+        </div>
+
+        <div class="row g-3">
+            <div class="col-12 col-md-6">
+                {{ form_label(projectForm.start_date) }} <span class="text-danger">*</span>
+                {{ form_widget(projectForm.start_date, { attr: { class: 'form-control' } }) }}
+                {{ form_errors(projectForm.start_date) }}
+            </div>
+            <div class="col-12 col-md-6">
+                {{ form_label(projectForm.end_date) }} <span class="text-danger">*</span>
+                {{ form_widget(projectForm.end_date, { attr: { class: 'form-control' } }) }}
+                {{ form_errors(projectForm.end_date) }}
+            </div>
+        </div>
+
+        {% include 'project/_team_dropdown.html.twig' with {
+            teamForm: projectForm,
+            teamUsers: assignableUsers|default([]),
+            teamLabel: 'Assign Team'
+        } %}
+    </div>
+
+    <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-primary nexum-btn-primary text-white">{{ submitLabel }}</button>
+    </div>
+
+    {{ form_end(projectForm) }}
+</div>

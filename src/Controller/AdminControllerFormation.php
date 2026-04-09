@@ -17,7 +17,7 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/admin')]
 class AdminControllerFormation extends AbstractController
 {
-    #[Route('', name: 'admin_dashboard_formation')]
+    #[Route('/training-stats', name: 'admin_dashboard_formation')]
     public function index(
         Request $request,
         FormationRepository $formationRepository,

@@ -42,7 +42,7 @@ final class FormationController extends AbstractController
     public function updateProgress(Request $request, EntityManagerInterface $em): JsonResponse
     {
         // 🔥 USER TEMPORAIRE (remplace plus tard)
-        $user = $em->getRepository(\App\Entity\User::class)->find(1);
+        $user = $em->getRepository(\App\Entity\UserHandling\Utilisateur::class)->find(1);
     
         $formationId = $request->request->get('formationId');
         $progress = (int)$request->request->get('progress');
@@ -98,7 +98,10 @@ final class FormationController extends AbstractController
 
 
 
-    #[Route('/quiz/submit', name: 'app_quiz_submit', methods: ['POST'])]
+   
+    
+    
+     #[Route('/quiz/submit', name: 'app_quiz_submit', methods: ['POST'])]
     public function submitQuiz(
         Request $request,
         EntityManagerInterface $em,
@@ -108,9 +111,8 @@ final class FormationController extends AbstractController
         MailerInterface $mailer
     ): JsonResponse{
     // ⚠️ idéalement utiliser $this->getUser()
-    $user = $em->getRepository(\App\Entity\User::class)->find(1);
-
-    if (!$user) {
+        $user = $em->getRepository(\App\Entity\UserHandling\Utilisateur::class)->find(1);
+     if (!$user) {
         return new JsonResponse(['error' => 'User not found'], 404);
     }
 
@@ -221,11 +223,6 @@ $mailService->sendCertificate($user, $formation, $certificatePath, $mailer);
     
     
     
-    
-    
-    
-    
-    
 #[Route(name: 'app_formation_index', methods: ['GET'])]
 public function index(
     Request $request,
@@ -234,7 +231,7 @@ public function index(
     PaginatorInterface $paginator
 ): Response {
     // ⚠️ temporaire
-    $user = $em->getRepository(\App\Entity\User::class)->find(1);
+    $user = $em->getRepository(\App\Entity\UserHandling\Utilisateur::class)->find(1);
 
     $q = trim((string) $request->query->get('q', ''));
     $page = $request->query->getInt('page', 1);
@@ -352,7 +349,7 @@ public function index(
     }
     #[Route('/{id}', name: 'app_formation_show', methods: ['GET'])]
     public function show(Formation $formation, EntityManagerInterface $em, TranslatorService $translator): Response    {
-        $user = $em->getRepository(\App\Entity\User::class)->find(41);
+        $user = $em->getRepository(\App\Entity\UserHandling\Utilisateur::class)->find(1);
     
         $participation = $em->getRepository(Participer::class)
             ->findOneBy(['user'=>$user,'formation'=>$formation]);
@@ -471,7 +468,7 @@ public function index(
 
 
 
-    #[Route('/resultats/formations/quiz', name: 'app_resultats')]
+     #[Route('/resultats/formations/quiz', name: 'app_resultats')]
     public function resultats(EntityManagerInterface $em): Response
     {
         $user = $this->getUser(); // ✅ mieux que find(1)

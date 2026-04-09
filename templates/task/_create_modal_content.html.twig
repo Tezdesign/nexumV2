@@ -1,0 +1,72 @@
+{# Shared create-task modal content. Used in Tasks and Project details. #}
+<div class="modal-content" id="createTaskModalContent">
+    {{ form_start(createForm, { attr: { id: 'createTaskForm', novalidate: 'novalidate' } }) }}
+    {% if backUrl|default('') %}
+        <input type="hidden" name="back" value="{{ backUrl }}">
+    {% endif %}
+
+    <div class="modal-header">
+        <div>
+            <h5 class="modal-title mb-1">Create New Task</h5>
+            <div class="text-muted small">Assign a new objective to this project</div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    </div>
+
+    <div class="modal-body">
+        {{ form_errors(createForm) }}
+        <div class="mb-3">
+            {{ form_label(createForm.title) }} <span class="text-danger">*</span>
+            {{ form_widget(createForm.title, { attr: { class: 'form-control', placeholder: 'e.g. Design System Audit' } }) }}
+            {{ form_errors(createForm.title) }}
+        </div>
+
+        <div class="mb-3">
+            {{ form_label(createForm.description) }}
+            {{ form_widget(createForm.description, { attr: { class: 'form-control', placeholder: 'Describe the task goals...' } }) }}
+            {{ form_errors(createForm.description) }}
+        </div>
+
+        <div class="mb-3">
+            {{ form_label(createForm.project) }} <span class="text-danger">*</span>
+            {{ form_widget(createForm.project, { attr: { class: 'form-select', 'data-task-project': '1' } }) }}
+            {{ form_errors(createForm.project) }}
+        </div>
+
+        <div class="row g-3">
+            <div class="col-12 col-md-3">
+                {{ form_label(createForm.due_date) }} <span class="text-danger">*</span>
+                {{ form_widget(createForm.due_date, { attr: { class: 'form-control' } }) }}
+                {{ form_errors(createForm.due_date) }}
+            </div>
+            <div class="col-12 col-md-3">
+                {{ form_label(createForm.status) }} <span class="text-danger">*</span>
+                {{ form_widget(createForm.status, { attr: { class: 'form-select' } }) }}
+                {{ form_errors(createForm.status) }}
+            </div>
+            {% if createForm.assignedUser is defined %}
+                <div class="col-12 col-md-3">
+                    {{ form_label(createForm.assignedUser) }} <span class="text-danger">*</span>
+                    {{ form_widget(createForm.assignedUser, { attr: { class: 'form-select', 'data-task-assignee': '1' } }) }}
+                    {{ form_errors(createForm.assignedUser) }}
+                </div>
+            {% else %}
+                <div class="col-12 col-md-3 d-flex align-items-end">
+                    <div class="text-muted small">You will be assigned automatically.</div>
+                </div>
+            {% endif %}
+            <div class="col-12 col-md-3">
+                {{ form_label(createForm.priority) }} <span class="text-danger">*</span>
+                {{ form_widget(createForm.priority, { attr: { class: 'form-select' } }) }}
+                {{ form_errors(createForm.priority) }}
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-primary nexum-btn-primary text-white">Create Task</button>
+    </div>
+
+    {{ form_end(createForm) }}
+</div>

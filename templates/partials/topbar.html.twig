@@ -1,10 +1,12 @@
+{% set is_admin_layout = is_admin_layout|default(false) %}
+{% set topbar_title = title|default('Welcome!') %}
 <!-- Topbar Start -->
 <header class="app-topbar" id="header">
     <div class="page-container topbar-menu">
         <div class="d-flex align-items-center gap-2">
 
             <!-- Brand Logo -->
-            <a href="index" class="logo">
+            <a href="{{ is_admin_layout ? path('admin_home') : path('dashboard') }}" class="logo">
                 <span class="logo-light">
                     <span class="logo-lg"><img src="/images/logo.png" alt="logo"></span>
                     <span class="logo-sm"><img src="/images/logo-sm.png" alt="small logo"></span>
@@ -28,11 +30,13 @@
 
             <!-- Topbar Page Title -->
             <div class="topbar-item d-none d-md-flex px-2">
-               
-                <div>
-                    <h4 class="page-title fs-20 fw-semibold mb-0">Welcome!</h4>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <h4 class="page-title fs-20 fw-semibold mb-0">{{ topbar_title }}</h4>
+                    {% if is_admin_layout %}
+                    <span class="badge bg-primary-subtle text-primary rounded-pill">Admin</span>
+                    {% endif %}
                 </div>
-             </div>
+            </div>
 
         </div>
 
@@ -364,11 +368,20 @@
                 <div class="dropdown">
                     <a class="topbar-link dropdown-toggle drop-arrow-none px-2" data-bs-toggle="dropdown"
                         data-bs-offset="0,25" type="button" aria-haspopup="false" aria-expanded="false">
+                        {% if auth_service.isLoggedIn() %}
+                        {% set session_user = auth_service.getCurrentUser() %}
+                        <img src="{{ path('user_account_avatar', {v: session_user.avatar_v|default(0)}) }}" width="32" class="rounded-circle me-lg-2 d-flex"
+                            alt="user-image">
+                        <span class="d-lg-flex flex-column gap-1 d-none">
+                            <h5 class="my-0">{{ session_user.prenom }} {{ session_user.nom }}</h5>
+                        </span>
+                        {% else %}
                         <img src="/images/users/avatar-1.jpg" width="32" class="rounded-circle me-lg-2 d-flex"
                             alt="user-image">
                         <span class="d-lg-flex flex-column gap-1 d-none">
-                            <h5 class="my-0">Nowak Helme</h5>
+                            <h5 class="my-0">Guest</h5>
                         </span>
+                        {% endif %}
                         <i class="ri-arrow-down-s-line d-none d-lg-block align-middle ms-1"></i>
                     </a>
                     <div class="dropdown-menu dropdown-menu-end">
@@ -377,8 +390,21 @@
                             <h6 class="text-overflow m-0">Welcome !</h6>
                         </div>
 
+                        {% if is_admin_layout %}
+                        <a href="{{ path('dashboard') }}" class="dropdown-item">
+                            <i class="ri-home-4-line me-1 fs-16 align-middle"></i>
+                            <span class="align-middle">Main application</span>
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        {% elseif auth_service.isLoggedIn() and auth_service.isAdmin() %}
+                        <a href="{{ path('admin_home') }}" class="dropdown-item">
+                            <i class="ri-dashboard-3-line me-1 fs-16 align-middle"></i>
+                            <span class="align-middle">Administration</span>
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        {% endif %}
                         <!-- item-->
-                        <a href="javascript:void(0);" class="dropdown-item">
+                        <a href="{{ path('user_account') }}" class="dropdown-item">
                             <i class="ri-account-circle-line me-1 fs-16 align-middle"></i>
                             <span class="align-middle">My Account</span>
                         </a>
@@ -410,9 +436,9 @@
                         </a>
 
                         <!-- item-->
-                        <a href="javascript:void(0);" class="dropdown-item active fw-semibold text-danger">
+                        <a href="{{ path('logout') }}" class="dropdown-item text-danger">
                             <i class="ri-logout-box-line me-1 fs-16 align-middle"></i>
-                            <span class="align-middle">Sign Out</span>
+                            <span class="align-middle">Logout</span>
                         </a>
                     </div>
                 </div>

@@ -1,0 +1,87 @@
+{# Shared by full-page form and modal. When modal is true, show flashes here and add hidden _modal for AJAX submit. #}
+{% if modal|default(false) %}
+<div class="mb-3">
+    {% for label, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="alert alert-{{ label == 'error' ? 'danger' : label }} alert-dismissible fade show py-2 small" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endfor %}
+</div>
+{% endif %}
+<form id="admin-user-form" method="post" enctype="multipart/form-data" novalidate data-nexum-user-mode="{{ mode }}" action="{{ mode == 'create' ? path('admin_users_new') : path('admin_users_edit', {id: user.id}) }}">
+    {% if modal|default(false) %}
+        <input type="hidden" name="_modal" value="1">
+    {% endif %}
+    <div class="js-validation-summary alert alert-danger py-2 small d-none mb-3" role="alert"></div>
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label class="form-label">First name <span class="text-danger">*</span></label>
+            <input type="text" name="prenom" class="form-control"
+                   value="{{ user is not null ? user.prenom : '' }}">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Last name <span class="text-danger">*</span></label>
+            <input type="text" name="nom" class="form-control"
+                   value="{{ user is not null ? user.nom : '' }}">
+        </div>
+        <div class="col-12">
+            <label class="form-label">Email <span class="text-danger">*</span></label>
+            <input type="text" name="email" class="form-control" autocomplete="email"
+                   value="{{ user is not null ? user.email : '' }}">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Phone</label>
+            <input type="text" name="telephone" class="form-control"
+                   value="{{ user is not null ? (user.telephone ?? '') : '' }}">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Department</label>
+            <input type="text" name="departement" class="form-control"
+                   value="{{ user is not null ? (user.departement ?? '') : '' }}">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Role <span class="text-danger">*</span></label>
+            <select name="role" class="form-select">
+                {% set r = user is not null ? user.role : '' %}
+                <option value="employee" {{ r == 'employee' ? 'selected' }}>Employee</option>
+                <option value="manager" {{ r == 'manager' ? 'selected' }}>Manager</option>
+                <option value="admin" {{ r == 'admin' ? 'selected' }}>Administrator</option>
+                <option value="hr" {{ r == 'hr' ? 'selected' }}>HR</option>
+                <option value="finance" {{ r == 'finance' ? 'selected' }}>Finance</option>
+            </select>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Status <span class="text-danger">*</span></label>
+            {% set s = user is not null ? (user.statut|lower) : 'active' %}
+            <select name="statut" class="form-select">
+                <option value="active" {{ s == 'active' ? 'selected' }}>active</option>
+                <option value="pending" {{ s == 'pending' ? 'selected' }}>pending</option>
+            </select>
+            <div class="form-text">Login is only allowed for <code>active</code> accounts.</div>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Password {% if mode == 'create' %}<span class="text-danger">*</span>{% endif %}</label>
+            <input type="password" name="_password" class="form-control" autocomplete="new-password" placeholder="{% if mode == 'edit' %}Leave blank to keep current{% else %}Min. 6 characters{% endif %}">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Confirm password {% if mode == 'create' %}<span class="text-danger">*</span>{% endif %}</label>
+            <input type="password" name="confirm_password" class="form-control" autocomplete="new-password" placeholder="{% if mode == 'edit' %}Required if changing password{% else %}Repeat password{% endif %}">
+        </div>
+        <div class="col-12">
+            <label class="form-label">Profile photo</label>
+            <input type="file" name="imagelink" class="form-control" accept="image/*">
+            <div class="form-text">Optional. PNG / JPG / WebP.</div>
+        </div>
+    </div>
+    <div class="mt-4 d-flex flex-wrap gap-2 justify-content-end">
+        {% if modal|default(false) %}
+            <button type="button" class="btn nexum-btn-ghost-purple" data-bs-dismiss="modal">Cancel</button>
+        {% endif %}
+        <button type="submit" class="btn nexum-btn-gradient">
+            <i class="ri-save-3-line me-1"></i> {{ mode == 'create' ? 'Create user' : 'Save changes' }}
+        </button>
+    </div>
+</form>

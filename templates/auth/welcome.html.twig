@@ -1,0 +1,165 @@
+{% extends 'layouts/auth.html.twig' %}
+
+{% set title = 'Welcome to Nexum' %}
+
+{% block css %}
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        font-family: 'Inter', -apple-system, sans-serif;
+        background-color: #f4f4f4; /* Light gray background like the photo's outer area */
+    }
+
+    .welcome-container {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+    }
+
+    .welcome-card {
+        background: #ffffff;
+        border-radius: 24px;
+        box-shadow: 0 30px 60px rgba(0, 0, 0, 0.12);
+        max-width: 700px;
+        width: 90%;
+        display: flex; /* Creates the two-column split */
+        overflow: hidden;
+        min-height: 400px;
+        max-height: 90vh;
+    }
+
+    /* Left Side: Content */
+    .content-section {
+        flex: 1;
+        padding: 60px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        text-align: left;
+    }
+
+    .welcome-logo {
+        width: 48px;
+        height: 48px;
+        margin-bottom: 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .welcome-logo img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+
+    .welcome-title {
+        color: #1a1a1a;
+        font-size: 2rem;
+        font-weight: 800;
+        margin-bottom: 1rem;
+        letter-spacing: -0.5px;
+    }
+
+    .welcome-subtitle {
+        color: #666;
+        font-size: 0.95rem;
+        line-height: 1.6;
+        margin-bottom: 2.5rem;
+        max-width: 350px;
+    }
+
+    .welcome-buttons {
+        display: flex;
+        align-items: center;
+        gap: 2rem;
+    }
+
+    .btn-get-started {
+        background: #7c3aed; /* Vibrant purple from photo */
+        color: white;
+        padding: 12px 28px;
+        border-radius: 10px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: opacity 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: 0 10px 15px -3px rgba(124, 58, 237, 0.3);
+    }
+
+    .btn-get-started:hover {
+        opacity: 0.9;
+        color: white;
+    }
+
+    .link-sign-in {
+        color: #666;
+        text-decoration: none;
+        font-weight: 500;
+        font-size: 0.95rem;
+    }
+
+    .link-sign-in:hover {
+        color: #1a1a1a;
+    }
+
+    /* Right Side: Image/Visual */
+    .visual-section {
+        flex: 1;
+        background-image: url('../images/users/purple.jpg');
+        background-size: cover;
+        background-position: center;
+        position: relative;
+    }
+
+    /* Responsive: Stack on mobile */
+    @media (max-width: 768px) {
+        .welcome-card {
+            flex-direction: column;
+        }
+        .visual-section {
+            display: none; /* Hide image on small screens to focus on login */
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="welcome-container">
+    <div class="welcome-card">
+        <div class="content-section">
+            <div class="welcome-logo">
+                <img src="{{ asset('images/logo-removebg.png') }}" alt="Nexum Logo">
+            </div>
+            
+            <h1 class="welcome-title">Welcome to Nexum</h1>
+            <p class="welcome-subtitle">
+                Manage projects, tasks, training, communication, and finances in one place. 
+                Your all-in-one enterprise workspace.
+            </p>
+            
+            <div class="welcome-buttons">
+                <a href="{{ path('signin') }}" class="btn-get-started">
+                    Get Started &rarr;
+                </a>
+                <a href="{{ url('login') }}" class="link-sign-in" data-turbo="false">
+                    Sign In
+                </a>
+            </div>
+        </div>
+
+        <div class="visual-section">
+            </div>
+    </div>
+</div>
+{% endblock %}

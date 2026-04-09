@@ -4,6 +4,7 @@ namespace App\Entity;
 
 use App\Repository\ResultatRepository;
 use Doctrine\ORM\Mapping as ORM;
+use App\Entity\UserHandling\Utilisateur as User;
 
 #[ORM\Entity(repositoryClass: ResultatRepository::class)]
 class Resultat

@@ -32,26 +32,69 @@
     <div data-simplebar>
 
         <!--- Sidenav Menu -->
+        {% set is_admin_layout = is_admin_layout|default(false) %}
         <ul class="side-nav">
+            {% if is_admin_layout %}
+            {% set _ar = app.request.attributes.get('_route') %}
+            <li class="side-nav-title mt-2">Administration</li>
             <li class="side-nav-item">
-                <a href="/" class="side-nav-link">
+                <a href="{{ path('admin_users_index') }}" class="side-nav-link{{ _ar is not null and _ar starts with 'admin_users' ? ' active' : '' }}">
+                    <span class="menu-icon"><i class="ti ti-users"></i></span>
+                    <span class="menu-text"> User management </span>
+                </a>
+            </li>
+            <li class="side-nav-item">
+                <a href="{{ path('admin_reclamations_index') }}" class="side-nav-link{{ _ar is not null and _ar starts with 'admin_reclamations' ? ' active' : '' }}">
+                    <span class="menu-icon"><i class="ti ti-alert-circle"></i></span>
+                    <span class="menu-text"> Reclamations </span>
+                </a>
+            </li>
+            <li class="side-nav-item">
+                <a href="{{ path('app_project_index') }}" class="side-nav-link{{ _ar is not null and _ar starts with 'app_project' ? ' active' : '' }}">
+                    <span class="menu-icon"><i class="ti ti-briefcase"></i></span>
+                    <span class="menu-text"> Projects </span>
+                </a>
+            </li>
+            <li class="side-nav-item">
+                <a href="{{ path('app_resource_management_index') }}" class="side-nav-link{{ _ar is not null and _ar starts with 'app_resource_management' ? ' active' : '' }}">
+                    <span class="menu-icon"><i class="ti ti-box"></i></span>
+                    <span class="menu-text"> Resources Management </span>
+                </a>
+            </li>
+            {% else %}
+            {% set _ar = app.request.attributes.get('_route') %}
+            <li class="side-nav-item">
+                <a href="{{ path('dashboard') }}" class="side-nav-link{{ _ar == 'dashboard' ? ' active' : '' }}">
                     <span class="menu-icon"><i class="ti ti-dashboard"></i></span>
                     <span class="menu-text"> Dashboard </span>
                     <span class="badge bg-danger rounded-pill">9+</span>
                 </a>
             </li>
+            <li class="side-nav-item">
+                <a href="{{ path('mes_reclamations_index') }}" class="side-nav-link{{ _ar is not null and _ar starts with 'mes_reclamations' ? ' active' : '' }}">
+                    <span class="menu-icon"><i class="ti ti-message-report"></i></span>
+                    <span class="menu-text"> Complaints </span>
+                </a>
+            </li>
 
             <li class="side-nav-item">
-                <a href="apps-chat" class="side-nav-link">
+                <a href="{{ path('apps-chat') }}" class="side-nav-link">
                     <span class="menu-icon"><i class="ti ti-message"></i></span>
                     <span class="menu-text"> Chat </span>
                 </a>
             </li>
 
             <li class="side-nav-item">
-                <a href="apps-projects" class="side-nav-link">
+                <a href="{{ path('app_project_index') }}" class="side-nav-link">
                     <span class="menu-icon"><i class="ti ti-briefcase"></i></span>
                     <span class="menu-text"> Projects </span>
+                </a>
+            </li>
+
+            <li class="side-nav-item">
+                <a href="{{ path('client_resources_view') }}" class="side-nav-link{{ _ar is not null and (_ar starts with 'client_resources' or _ar starts with 'request_resource' or _ar starts with 'manage_requests') ? ' active' : '' }}">
+                    <span class="menu-icon"><i class="ti ti-box"></i></span>
+                    <span class="menu-text"> Resources </span>
                 </a>
             </li>
 
@@ -65,12 +108,12 @@
                 <div class="collapse" id="sidebarTasks">
                     <ul class="sub-menu">
                         <li class="side-nav-item">
-                            <a href="apps-kanban" class="side-nav-link">
+                            <a href="{{ path('apps-kanban') }}" class="side-nav-link">
                                 <span class="menu-text">Kanban</span>
                             </a>
                         </li>
                         <li class="side-nav-item">
-                            <a href="apps-task-details" class="side-nav-link">
+                            <a href="{{ path('app_task_index') }}" class="side-nav-link">
                                 <span class="menu-text">View Details</span>
                             </a>
                         </li>
@@ -78,32 +121,20 @@
                 </div>
             </li>
 
-            <li class="side-nav-item {{ app.request.get('_route') == 'app_formation_index_admin' ? 'active' }}">
-                <a href="{{ path('app_formation_index_admin') }}" class="side-nav-link">
+            <li class="side-nav-item">
+                <a href="{{path('app_formation_index')}}" class="side-nav-link">
                     <span class="menu-icon"><i class="ti ti-school"></i></span>
                     <span class="menu-text"> Training </span>
                 </a>
             </li>
-              <li class="side-nav-item {{ app.request.get('_route') == 'admin_dashboard_formation' ? 'active' }}">
-                <a href="{{ path('admin_dashboard_formation') }}" class="side-nav-link">
-                    <span class="menu-icon"><i class="ti ti-school"></i></span>
-                    <span class="menu-text"> Training Stats</span>
-                </a>
-            </li>
 
             <li class="side-nav-item">
-                <a href="apps-financial-analysis" class="side-nav-link">
+                <a href="/apps-financial-analysis" class="side-nav-link">
                     <span class="menu-icon"><i class="ti ti-chart-infographic"></i></span>
                     <span class="menu-text"> Financial Analysis </span>
                 </a>
             </li>
-
-            <li class="side-nav-item">
-                <a href="apps-resources-management" class="side-nav-link">
-                    <span class="menu-icon"><i class="ti ti-box"></i></span>
-                    <span class="menu-text"> Resources Management </span>
-                </a>
-            </li>
+            {% endif %}
 
         </ul>
 

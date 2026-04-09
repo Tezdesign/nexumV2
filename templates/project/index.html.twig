@@ -1,0 +1,593 @@
+{% extends 'layouts/vertical.html.twig' %}
+
+{% set title = 'Projects' %}
+{% set subtitle = "Manage and track your team's projects" %}
+
+{% block css %}
+    {% include 'partials/_task_project_design_system.html.twig' %}
+    <style>
+        :root {
+            --nexum-accent: #7c3aed;
+            --nexum-card-radius: 14px;
+        }
+
+        .nexum-toolbar {
+            gap: 10px;
+        }
+
+        .nexum-search {
+            width: 340px;
+            max-width: 60vw;
+        }
+
+        .button,
+        .btn {
+            font-family: "Inter", "Segoe UI", sans-serif;
+            font-size: 14px;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 8px;
+        }
+
+        .nexum-toolbar .btn {
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-weight: 800;
+            font-family: "Inter", "Segoe UI", sans-serif;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .nexum-toolbar .btn.btn-outline-secondary {
+            border-color: #e2e8f0;
+            background: #fff;
+            color: #334155;
+        }
+
+        .nexum-toolbar .btn.btn-outline-secondary:hover {
+            border-color: #cbd5e1;
+            background: #fff;
+            color: #0f172a;
+        }
+
+        .nexum-btn-primary {
+            background: var(--nexum-accent) !important;
+            border-color: var(--nexum-accent) !important;
+            box-shadow: 0 10px 18px rgba(124, 58, 237, 0.18);
+        }
+
+        .nexum-btn-primary:hover {
+            background: #6d28d9 !important;
+            border-color: #6d28d9 !important;
+        }
+
+        .btn.btn-primary {
+            background: var(--nexum-accent) !important;
+            border-color: var(--nexum-accent) !important;
+        }
+
+        .btn.btn-primary:hover {
+            background: #6d28d9 !important;
+            border-color: #6d28d9 !important;
+        }
+
+        .nexum-card {
+            border-radius: var(--nexum-card-radius);
+        }
+
+        .nexum-tag {
+            font-size: 11px;
+            letter-spacing: .04em;
+        }
+
+        .nexum-progress .progress {
+            height: 6px;
+            border-radius: 999px;
+        }
+
+        .nexum-progress .progress-bar {
+            background: var(--nexum-accent);
+            border-radius: 999px;
+        }
+
+        .nexum-avatars {
+            display: flex;
+            align-items: center;
+        }
+
+        .nexum-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 999px;
+            border: 2px solid #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background: #f1f5f9;
+            color: #0f172a;
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1;
+            margin-left: -8px;
+        }
+
+        .nexum-avatar:first-child {
+            margin-left: 0;
+        }
+
+        .nexum-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .nexum-avatar--add {
+            background: #fff;
+            color: #64748b;
+            border: 1px solid #e2e8f0;
+            width: 30px;
+            height: 30px;
+        }
+
+        .nexum-ellipsis {
+            color: #94a3b8;
+            text-decoration: none;
+            font-size: 18px;
+            line-height: 1;
+            position: relative;
+            z-index: 2;
+        }
+
+        .nexum-modal .modal-content {
+            border-radius: 16px;
+            border: 1px solid #eef2f7;
+        }
+
+        .nexum-modal .modal-header {
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .nexum-modal .modal-footer {
+            border-top: 1px solid #f1f5f9;
+        }
+
+        /* Modal: keep it minimal for now, we can add templates/team picker later if needed. */
+
+        .nexum-assignee-btn {
+            border-radius: 12px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 0 12px;
+        }
+
+        .nexum-assignee-left {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .nexum-assignee-name {
+            font-weight: 700;
+            font-size: 13px;
+            color: #0f172a;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 320px;
+        }
+
+        .nexum-assignee-role {
+            font-size: 12px;
+            color: #64748b;
+            white-space: nowrap;
+        }
+
+        .nexum-assignee-avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 999px;
+            border: 1px solid #e2e8f0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            font-weight: 800;
+            font-size: 12px;
+            flex: 0 0 auto;
+        }
+
+        .nexum-assignee-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .nexum-assignee-menu {
+            width: 100%;
+            border-radius: 14px;
+            border: 1px solid #eef2f7;
+            padding: 10px;
+        }
+
+        .nexum-assignee-item {
+            border-radius: 12px;
+            padding: 8px 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .nexum-assignee-item:hover {
+            background: #f8fafc;
+        }
+
+        .nexum-assignee-item .meta {
+            min-width: 0;
+        }
+
+        .nexum-assignee-item .meta .name {
+            font-weight: 700;
+            font-size: 13px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .nexum-assignee-item .meta .role {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 2px;
+            text-transform: capitalize;
+        }
+
+        .nexum-assignee-check {
+            width: 18px;
+            height: 18px;
+            border-radius: 999px;
+            border: 2px solid #cbd5e1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            flex: 0 0 auto;
+        }
+
+        .nexum-assignee-item[data-selected="1"] .nexum-assignee-check {
+            border-color: var(--nexum-accent);
+            background: var(--nexum-accent);
+        }
+
+        .nexum-assignee-item[data-selected="1"] .nexum-assignee-check::after {
+            content: "✓";
+            font-size: 12px;
+            font-weight: 900;
+            line-height: 1;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+        <div>
+            <h2 class="mb-1">{{ title }}</h2>
+            <div class="text-muted">{{ subtitle }}</div>
+        </div>
+
+        <div class="d-flex align-items-center nexum-toolbar">
+            <form class="position-relative" method="get" action="{{ path('app_project_index') }}">
+                <input class="form-control nexum-search" type="search" name="q" value="{{ q|default('') }}"
+                       placeholder="Search projects...">
+            </form>
+
+            <button class="btn btn-outline-secondary" type="button">
+                <i class="ri-filter-2-line me-1"></i> Filter
+            </button>
+
+            <a class="nexum-icon-btn" href="{{ path('apps-calendar') }}" title="Calendar" aria-label="Calendar">
+                <i class="ri-calendar-line"></i>
+            </a>
+
+            {% if isManager|default(false) %}
+                <button class="btn nexum-btn-primary text-white"
+                        type="button"
+                        data-bs-toggle="modal"
+                        data-bs-target="#createProjectModal">
+                    + New Project
+                </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row g-3">
+        {% for project in projects %}
+            <div class="col-12 col-md-6 col-xl-4">
+                {% set memberIds = memberIdsByProjectId[project.id] ?? [] %}
+                {% set shownIds = memberIds|slice(0, 3) %}
+                {% set extraCount = memberIds|length > 3 ? (memberIds|length - 3) : 0 %}
+
+                <div class="card h-100 nexum-card position-relative">
+                    {% if project.id is not null %}
+                        <a class="stretched-link"
+                           href="{{ path('app_project_show', {id: project.id}) }}"
+                           aria-label="Open project {{ project.name|plain_text }}"></a>
+                    {% endif %}
+                    <div class="card-body">
+                        <div class="d-flex align-items-start justify-content-between gap-2">
+                            <div class="min-w-0">
+                                <h5 class="mb-1 text-truncate">
+                                    {{ project.name|plain_text }}
+                                </h5>
+                            </div>
+                            <a class="nexum-ellipsis" href="javascript:void(0)" aria-label="More">⋯</a>
+                        </div>
+
+                        {% if project.description %}
+                            {% set desc = project.description|plain_text %}
+                            <p class="text-muted mt-2 mb-3">
+                                {{ desc|plain_text(140) }}
+                            </p>
+                        {% else %}
+                            <p class="text-muted mt-2 mb-3">No description.</p>
+                        {% endif %}
+
+                        {% set pctRaw = projectProgressById[project.id] ?? 0 %}
+                        {% set pct = pctRaw < 0 ? 0 : (pctRaw > 100 ? 100 : pctRaw) %}
+                        <div class="nexum-progress">
+                            <div class="d-flex justify-content-between text-muted small mb-2">
+                                <div>Progress</div>
+                                <div>{{ pct }}%</div>
+                            </div>
+
+                            <div class="progress" role="progressbar" aria-valuenow="{{ pct }}" aria-valuemin="0" aria-valuemax="100">
+                                <div class="progress-bar" style="width: {{ pct }}%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card-footer bg-transparent d-flex align-items-center justify-content-between">
+                        <div class="nexum-avatars">
+                            {% for uid in shownIds %}
+                                {% set user = usersById[uid] ?? null %}
+                                {% if user %}
+                                    {% set fullName = (user.prenom ~ ' ' ~ user.nom)|trim %}
+                                    {% set avatarUrl = avatarUrlById[user.id] ?? null %}
+
+                                    {% if avatarUrl %}
+                                        <span class="nexum-avatar" title="{{ fullName }}">
+                                            <img src="{{ avatarUrl }}" alt="{{ fullName }}">
+                                        </span>
+                                    {% else %}
+                                        {% set ap = avatar_placeholder(fullName) %}
+                                        <span class="nexum-avatar" title="{{ fullName }}"
+                                              style="background: {{ ap.bg }}; color: {{ ap.fg }};">
+                                            {{ ap.initial }}
+                                        </span>
+                                    {% endif %}
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if extraCount > 0 %}
+                                <span class="nexum-avatar" title="+{{ extraCount }} more"
+                                      style="background: #f1f5f9; color: #334155;">
+                                    +{{ extraCount }}
+                                </span>
+                            {% endif %}
+                        </div>
+
+                        <div class="text-muted small d-flex align-items-center gap-1">
+                            <span class="ti ti-calendar"></span>
+                            <span>
+                                {% if project.endDate %}
+                                    {{ project.endDate|date('M d') }}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        No projects found.
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    {% if isManager|default(false) and createForm is defined %}
+        <div class="modal fade nexum-modal" id="createProjectModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
+                {% include 'project/_create_modal_content.html.twig' with {
+                    createForm: createForm,
+                    assignableUsers: assignableUsers,
+                    backUrl: path('app_project_index')
+                } %}
+            </div>
+        </div>
+    {% endif %}
+
+{% endblock %}
+
+{% block script %}
+    <script>
+        (function () {
+            const modalEl = document.getElementById('createProjectModal');
+            if (!modalEl) return;
+
+            const getState = function () {
+                return {
+                    selectEl: modalEl.querySelector('select[data-assigned-select="1"]'),
+                    btnAvatars: modalEl.querySelector('[data-assignee-avatars]'),
+                    btnName: modalEl.querySelector('[data-assignee-name]'),
+                    btnRole: modalEl.querySelector('[data-assignee-role]'),
+                    searchEl: modalEl.querySelector('[data-assignee-search]'),
+                    items: Array.from(modalEl.querySelectorAll('[data-assignee-item]'))
+                };
+            };
+
+            const getSelectedIds = function () {
+                const { selectEl } = getState();
+                const ids = [];
+                if (!selectEl) return ids;
+                for (const opt of Array.from(selectEl.options)) {
+                    if (opt.selected && opt.value) ids.push(opt.value);
+                }
+                return ids;
+            };
+
+            const applySelectedIds = function (ids) {
+                const { selectEl } = getState();
+                if (!selectEl) return;
+                const set = new Set((ids || []).map(String));
+                for (const opt of Array.from(selectEl.options)) {
+                    opt.selected = opt.value ? set.has(String(opt.value)) : false;
+                }
+            };
+
+            const renderButton = function () {
+                const { btnAvatars, btnName, btnRole, items } = getState();
+                const ids = getSelectedIds() || [];
+                const selectedItems = items.filter((it) => ids.includes(String(it.getAttribute('data-user-id') || '')));
+
+                items.forEach((it) => {
+                    const id = String(it.getAttribute('data-user-id') || '');
+                    it.setAttribute('data-selected', ids.includes(id) ? '1' : '0');
+                });
+
+                if (btnAvatars) {
+                    btnAvatars.innerHTML = '';
+                    selectedItems.slice(0, 3).forEach((it) => {
+                        const srcAvatar = it.querySelector('.nexum-assignee-avatar');
+                        if (!srcAvatar) return;
+                        const span = document.createElement('span');
+                        span.className = 'nexum-assignee-avatar';
+                        const style = srcAvatar.getAttribute('style');
+                        if (style) span.setAttribute('style', style);
+                        span.innerHTML = srcAvatar.innerHTML;
+                        btnAvatars.appendChild(span);
+                    });
+                }
+
+                if (btnName) {
+                    if (ids.length === 0) {
+                        btnName.textContent = 'Select team members...';
+                        btnName.classList.add('text-muted');
+                    } else if (ids.length === 1) {
+                        const one = selectedItems[0];
+                        btnName.textContent = one ? (one.getAttribute('data-user-name') || 'User') : '1 selected';
+                        btnName.classList.remove('text-muted');
+                    } else {
+                        btnName.textContent = ids.length + ' selected';
+                        btnName.classList.remove('text-muted');
+                    }
+                }
+
+                if (btnRole) {
+                    btnRole.textContent = ids.length === 1 ? (selectedItems[0]?.getAttribute('data-user-role') || '') : '';
+                }
+            };
+
+            if (getState().selectEl) {
+                renderButton();
+            }
+
+            modalEl.addEventListener('click', function (e) {
+                const it = e.target.closest('[data-assignee-item]');
+                if (!it || !modalEl.contains(it)) return;
+                const userId = it.getAttribute('data-user-id');
+                if (!userId) return;
+
+                const ids = getSelectedIds() || [];
+                const set = new Set(ids.map(String));
+                if (set.has(String(userId))) set.delete(String(userId)); else set.add(String(userId));
+                applySelectedIds(Array.from(set));
+                renderButton();
+            });
+
+            modalEl.addEventListener('input', function (e) {
+                const t = e.target;
+                if (!t || !t.matches || !t.matches('[data-assignee-search]')) return;
+                const q = (t.value || '').trim().toLowerCase();
+                const { items } = getState();
+                for (const it of items) {
+                    const name = (it.getAttribute('data-user-name') || '').toLowerCase();
+                    const role = (it.getAttribute('data-user-role') || '').toLowerCase();
+                    const show = q === '' || name.includes(q) || role.includes(q);
+                    it.style.display = show ? '' : 'none';
+                }
+            });
+
+            modalEl.addEventListener('submit', async function (e) {
+                const form = e.target;
+                if (!form || form.id !== 'createProjectForm') return;
+                e.preventDefault();
+
+                try {
+                    const res = await fetch(form.action, {
+                        method: 'POST',
+                        body: new FormData(form),
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json, text/html;q=0.9'
+                        }
+                    });
+
+                    const ct = (res.headers.get('Content-Type') || '');
+                    if (res.ok && ct.indexOf('application/json') !== -1) {
+                        const data = await res.json();
+                        if (data && data.location) {
+                            window.location.href = data.location;
+                        }
+                        return;
+                    }
+
+                    if (res.status === 422) {
+                        const html = await res.text();
+                        const wrap = document.getElementById('createProjectModalContent');
+                        if (wrap && html) {
+                            const doc = new DOMParser().parseFromString(html, 'text/html');
+                            const nextWrap = doc.getElementById('createProjectModalContent');
+                            if (nextWrap) {
+                                wrap.outerHTML = nextWrap.outerHTML;
+                                renderButton();
+                            } else {
+                                window.location.reload();
+                            }
+                        }
+                        return;
+                    }
+
+                    if (res.status === 403) {
+                        alert('Access denied.');
+                        return;
+                    }
+
+                    window.location.reload();
+                } catch (err) {
+                    console.error(err);
+                    window.location.reload();
+                }
+            });
+
+            {% if createForm is defined and createForm.vars.submitted and not createForm.vars.valid %}
+            // If validation failed, keep the modal open after re-render.
+            if (window.bootstrap && bootstrap.Modal) {
+                new bootstrap.Modal(modalEl).show();
+            }
+            {% endif %}
+        })();
+    </script>
+{% endblock %}
