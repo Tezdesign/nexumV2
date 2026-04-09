@@ -192,4 +192,22 @@ class FinancialDashboardController extends AbstractController
 
         return $this->redirectToRoute('apps-financial-analysis-budget-details', ['id' => $projectBudget->getId()]);
     }
+
+    #[Route('/budget/{id}/transactions/bulk-delete', name: 'apps-financial-analysis-bulk-delete-transactions', methods: ['POST'])]
+    public function bulkDeleteTransactions(
+        ProjectBudget $projectBudget,
+        Request $request,
+        BudgetDashboardService $dashboardService
+    ): Response {
+        $idsString = $request->request->get('transaction_ids');
+        if ($idsString) {
+            $ids = explode(',', $idsString);
+            $profile = $dashboardService->getFiscalProfileForBudget($projectBudget);
+            
+            $dashboardService->handleBulkDeleteCascade($projectBudget, $ids, $profile);
+            $this->addFlash('success', count($ids) . ' transactions deleted successfully!');
+        }
+
+        return $this->redirectToRoute('apps-financial-analysis-budget-details', ['id' => $projectBudget->getId()]);
+    }
 }

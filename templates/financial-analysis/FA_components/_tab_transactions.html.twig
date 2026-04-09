@@ -103,13 +103,21 @@
     </div>
 </div>
 
+{% include 'financial-analysis/FA_components/_delete_transactions_modal.html.twig' %}
+
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const toggleBtn = document.getElementById('multiDeleteToggleBtn');
+        const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
         const listContainer = document.getElementById('transaction-list-container');
         const multiDeleteContainer = document.getElementById('multiDeleteContainer');
         const deleteCountBadge = document.getElementById('deleteCountBadge');
         
+        // Confirmation Modal Elements
+        const deleteModalEl = document.getElementById('deleteTransactionsModal');
+        const modalDeleteCount = document.getElementById('modalDeleteCount');
+        const bulkDeleteInput = document.getElementById('bulkDeleteInput');
+
         if (toggleBtn && listContainer && multiDeleteContainer) {
             toggleBtn.addEventListener('click', function() {
                 listContainer.classList.toggle('show-checkboxes');
@@ -125,6 +133,26 @@
                     if (deleteCountBadge) deleteCountBadge.textContent = '0';
                 }
             });
+
+            // Action Bar Confirm Click (Step 1)
+            if (confirmDeleteBtn) {
+                confirmDeleteBtn.addEventListener('click', function() {
+                    const checkedBoxes = listContainer.querySelectorAll('.transaction-checkbox:checked');
+                    if (checkedBoxes.length === 0) {
+                        alert('{{ "Please select at least one transaction to delete."|trans }}');
+                        return;
+                    }
+
+                    const ids = Array.from(checkedBoxes).map(cb => cb.value);
+                    
+                    // Populate and Show Confirmation Modal (Step 2)
+                    if (modalDeleteCount) modalDeleteCount.textContent = ids.length;
+                    if (bulkDeleteInput) bulkDeleteInput.value = ids.join(',');
+                    
+                    const myModal = bootstrap.Modal.getOrCreateInstance(deleteModalEl);
+                    myModal.show();
+                });
+            }
 
             // Listen to checkbox changes to update count
             listContainer.addEventListener('change', function(e) {

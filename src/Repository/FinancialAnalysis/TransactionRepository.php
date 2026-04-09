@@ -57,6 +57,16 @@ class TransactionRepository extends ServiceEntityRepository
             ->execute();
     }
 
+    public function bulkDeleteDql(array $ids): void
+    {
+        $this->createQueryBuilder('t')
+            ->delete()
+            ->where('t.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->execute();
+    }
+
     //    /**
     //     * @return Transaction[] Returns an array of Transaction objects
     //     */
