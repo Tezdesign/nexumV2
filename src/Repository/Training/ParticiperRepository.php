@@ -2,7 +2,7 @@
 
 namespace App\Repository\Training;
 
-use App\Entity\Training\Participer;
+use App\Entity\Participer;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 

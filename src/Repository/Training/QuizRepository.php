@@ -2,7 +2,7 @@
 
 namespace App\Repository\Training;
 
-use App\Entity\Training\Quiz;
+use App\Entity\Quiz;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
