@@ -22,7 +22,7 @@
                     <div class="app-search d-none d-sm-block">
                         <form class="mb-0">
                             <div class="position-relative">
-                                <input type="search" class="form-control border-0" style="background-color: var(--ct-body-bg, #fff); border-radius: 20px; padding-left: 35px; box-shadow: none; min-width: 150px;" placeholder="{{ 'Search...'|trans }}">
+                                <input type="search" id="transaction-search-input" value="{{ app.request.query.get('q') }}" class="form-control border-0" style="background-color: var(--ct-body-bg, #fff); border-radius: 20px; padding-left: 35px; box-shadow: none; min-width: 150px;" placeholder="{{ 'Search...'|trans }}">
                                 <i class="ri-search-line fs-18 position-absolute text-muted" style="left: 10px; top: 50%; transform: translateY(-50%);"></i>
                             </div>
                         </form>
@@ -43,29 +43,7 @@
             </div>
             <div class="card-body" id="transaction-list-container" data-simplebar data-simplebar-primary style="max-height: 250px; padding-right: 10px;">
                 
-                {% if transactions is empty %}
-                    <!-- Empty State: No Transactions Found -->
-                    <div class="row justify-content-center align-items-center mt-2">
-                        <div class="col-md-10">
-                            <div class="card text-center bg-transparent shadow-none">
-                                <div class="card-body p-4">
-                                    <div class="mb-3">
-                                        <i class="ti ti-receipt-off text-muted opacity-50" style="font-size: 4rem;"></i>
-                                    </div>
-                                    <h5 class="mt-2 mb-1 fw-semibold">{{ 'No Transactions Found'|trans }}</h5>
-                                    <p class="text-muted mb-0 fs-13">
-                                        {{ 'There are no transactions recorded for this budget yet.'|trans }}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                {% else %}
-                    <!-- Transaction items go here -->
-                    {% for transaction in transactions %}
-                        {% include 'financial-analysis/FA_components/_transaction_list_row.html.twig' with {'transaction': transaction} %}
-                    {% endfor %}
-                {% endif %}
+                {% include 'financial-analysis/FA_components/_transaction_list_ajax.html.twig' %}
                 
             </div>
         </div>
@@ -104,65 +82,3 @@
 </div>
 
 {% include 'financial-analysis/FA_components/_delete_transactions_modal.html.twig' %}
-
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const toggleBtn = document.getElementById('multiDeleteToggleBtn');
-        const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
-        const listContainer = document.getElementById('transaction-list-container');
-        const multiDeleteContainer = document.getElementById('multiDeleteContainer');
-        const deleteCountBadge = document.getElementById('deleteCountBadge');
-        
-        // Confirmation Modal Elements
-        const deleteModalEl = document.getElementById('deleteTransactionsModal');
-        const modalDeleteCount = document.getElementById('modalDeleteCount');
-        const bulkDeleteInput = document.getElementById('bulkDeleteInput');
-
-        if (toggleBtn && listContainer && multiDeleteContainer) {
-            toggleBtn.addEventListener('click', function() {
-                listContainer.classList.toggle('show-checkboxes');
-                multiDeleteContainer.classList.toggle('show-checkboxes-mode');
-                
-                if (listContainer.classList.contains('show-checkboxes')) {
-                    toggleBtn.classList.replace('btn-outline-danger', 'btn-danger');
-                } else {
-                    toggleBtn.classList.replace('btn-danger', 'btn-outline-danger');
-                    // Uncheck all boxes when closing multi-delete mode
-                    const checkboxes = listContainer.querySelectorAll('.transaction-checkbox');
-                    checkboxes.forEach(cb => cb.checked = false);
-                    if (deleteCountBadge) deleteCountBadge.textContent = '0';
-                }
-            });
-
-            // Action Bar Confirm Click (Step 1)
-            if (confirmDeleteBtn) {
-                confirmDeleteBtn.addEventListener('click', function() {
-                    const checkedBoxes = listContainer.querySelectorAll('.transaction-checkbox:checked');
-                    if (checkedBoxes.length === 0) {
-                        alert('{{ "Please select at least one transaction to delete."|trans }}');
-                        return;
-                    }
-
-                    const ids = Array.from(checkedBoxes).map(cb => cb.value);
-                    
-                    // Populate and Show Confirmation Modal (Step 2)
-                    if (modalDeleteCount) modalDeleteCount.textContent = ids.length;
-                    if (bulkDeleteInput) bulkDeleteInput.value = ids.join(',');
-                    
-                    const myModal = bootstrap.Modal.getOrCreateInstance(deleteModalEl);
-                    myModal.show();
-                });
-            }
-
-            // Listen to checkbox changes to update count
-            listContainer.addEventListener('change', function(e) {
-                if (e.target.classList.contains('transaction-checkbox')) {
-                    const checkedCount = listContainer.querySelectorAll('.transaction-checkbox:checked').length;
-                    if (deleteCountBadge) {
-                        deleteCountBadge.textContent = checkedCount;
-                    }
-                }
-            });
-        }
-    });
-</script>

@@ -201,13 +201,22 @@ class FinancialDashboardController extends AbstractController
             return $this->redirectToRoute('apps-financial-analysis-budget-details', ['id' => $projectBudget->getId()]);
         }
 
+        $searchTerm = $request->query->get('q');
+        $transactions = $dashboardService->formatTransactions($originalBudget, $searchTerm);
+
+        if ($request->headers->get('X-Requested-With') === 'XMLHttpRequest') {
+            return $this->render('financial-analysis/FA_components/_transaction_list_ajax.html.twig', [
+                'transactions' => $transactions,
+            ]);
+        }
+
         return $this->render('financial-analysis/budget_details.html.twig', [
             'projectBudget' => $dashboardService->formatBudgetDetails($originalBudget),
             'projectBudgetEntity' => $originalBudget,
             'budgetProfile' => $profile, // Pass the Profile object for breadcrumbs
             'projectBudgetForm' => $projectBudgetForm->createView(),
             'transactionForm' => $transactionForm->createView(),
-            'transactions' => $dashboardService->formatTransactions($originalBudget),
+            'transactions' => $transactions,
         ]);
     }
 

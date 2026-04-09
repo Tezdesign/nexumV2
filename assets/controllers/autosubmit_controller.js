@@ -1,15 +1,20 @@
 import { Controller } from '@hotwired/stimulus';
-import { useDebounce } from 'stimulus-use';
 
 export default class extends Controller {
-    static debounces = ['submit'];
-
-    connect() {
-
-        useDebounce(this, { wait: 300 });
+    initialize() {
+        this.submit = this.debounce(this.submit.bind(this), 300);
     }
 
     submit() {
         this.element.requestSubmit();
+    }
+
+    debounce(func, wait) {
+        let timeout;
+        return function(...args) {
+            const context = this;
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(context, args), wait);
+        };
     }
 }

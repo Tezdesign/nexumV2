@@ -37,6 +37,18 @@ class TransactionRepository extends ServiceEntityRepository
         return $result ? (float) $result : 0.0;
     }
 
+    public function searchByReferenceOrDescriptionDql(int $projectBudgetId, string $searchTerm): array
+    {
+        return $this->createQueryBuilder('t')
+            ->andWhere('t.projectBudget = :pbId')
+            ->andWhere('t.reference LIKE :term OR t.description LIKE :term')
+            ->setParameter('pbId', $projectBudgetId)
+            ->setParameter('term', '%' . $searchTerm . '%')
+            ->orderBy('t.date_stamp', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
+
     public function updateTransactionDql(Transaction $transaction): void
     {
         $this->createQueryBuilder('t')

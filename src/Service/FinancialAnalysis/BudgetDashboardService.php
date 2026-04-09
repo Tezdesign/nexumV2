@@ -92,10 +92,16 @@ class BudgetDashboardService
     /**
      * Formats the list of transactions for the UI.
      */
-    public function formatTransactions(ProjectBudget $budget): array
+    public function formatTransactions(ProjectBudget $budget, ?string $searchTerm = null): array
     {
+        if ($searchTerm) {
+            $transactions = $this->transactionRepository->searchByReferenceOrDescriptionDql($budget->getId(), $searchTerm);
+        } else {
+            $transactions = $budget->getTransactions();
+        }
+
         $transactionsData = [];
-        foreach ($budget->getTransactions() as $tx) {
+        foreach ($transactions as $tx) {
             $transactionsData[] = [
                 'id' => $tx->getId(),
                 'reference' => $tx->getReference(),
