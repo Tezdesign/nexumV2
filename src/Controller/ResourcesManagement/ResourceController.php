@@ -18,61 +18,58 @@ final class ResourceController extends AbstractController
      * List all resources
      */
     #[Route('/', name: 'app_resource_management_index', methods: ['GET'])]
-public function index(ResourceRepository $resourceRepository): Response
-{
-    $resources = $resourceRepository->findAll();
+    public function index(ResourceRepository $resourceRepository): Response
+    {
+        $resources = $resourceRepository->findAll();
 
-    return $this->render('resources-management/apps-resources-management.html.twig', [
-        'resources' => $resources,
-    ]);
-}
+        return $this->render('resources-management/apps-resources-management.html.twig', [
+            'resources' => $resources,
+        ]);
+    }
 
     /**
      * Create new resource
      */
     #[Route('/add', name: 'app_resource_management_new', methods: ['GET', 'POST'])]
     public function new(Request $request, EntityManagerInterface $entityManager): Response
-{
-    $resource = new Resource();
-    $form = $this->createForm(ResourceType::class, $resource);
-    $form->handleRequest($request);
+    {
+        $resource = new Resource();
+        $form = $this->createForm(ResourceType::class, $resource);
+        $form->handleRequest($request);
 
-    if ($form->isSubmitted()) {
+        if ($form->isSubmitted()) {
+            // set default fields
+            $resource->setStatus('AVAILABLE');
+            $resource->setAvailableQuantity($resource->getTotalQuantity() ?? 0);
 
-        // ✅ set required fields BEFORE validation
-        
-        $resource->setStatus('AVAILABLE');
-        $resource->setAvailableQuantity($resource->getTotalQuantity() ?? 0);
+            if ($form->isValid()) {
+                $imageFile = $form->get('image_path')->getData();
 
-        if ($form->isValid()) {
+                if ($imageFile) {
+                    $newFilename = uniqid() . '.' . $imageFile->guessExtension();
+                    $imageFile->move(
+                        $this->getParameter('kernel.project_dir') . '/public/uploads',
+                        $newFilename
+                    );
+                    $resource->setImagePath('uploads/' . $newFilename);
+                }
 
-            $imageFile = $form->get('image_path')->getData();
+                $entityManager->persist($resource);
+                $entityManager->flush();
 
-            if ($imageFile) {
-                $newFilename = uniqid().'.'.$imageFile->guessExtension();
-                $imageFile->move(
-                    $this->getParameter('kernel.project_dir').'/public/uploads',
-                    $newFilename
-                );
-                $resource->setImagePath($newFilename);
+                return $this->redirectToRoute('app_resource_management_index');
             }
 
-            $entityManager->persist($resource);
-            $entityManager->flush();
-
-            return $this->redirectToRoute('app_resource_management_index');
+            // debug errors
+            foreach ($form->getErrors(true) as $error) {
+                dd($error->getMessage());
+            }
         }
 
-        // 👇 TEMP DEBUG (if still not working)
-      foreach ($form->getErrors(true) as $error) {
-    dd($error->getMessage());
-}
+        return $this->render('resources-management/apps-resources-add.html.twig', [
+            'form' => $form->createView(),
+        ]);
     }
-
-    return $this->render('resources-management/apps-resources-add.html.twig', [
-        'form' => $form->createView(),
-    ]);
-}
 
     /**
      * Edit an existing resource
@@ -84,13 +81,25 @@ public function index(ResourceRepository $resourceRepository): Response
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
+            $imageFile = $form->get('image_path')->getData();
+
+            if ($imageFile) {
+                $newFilename = uniqid() . '.' . $imageFile->guessExtension();
+                $imageFile->move(
+                    $this->getParameter('kernel.project_dir') . '/public/uploads',
+                    $newFilename
+                );
+                $resource->setImagePath('uploads/' . $newFilename);
+            }
+
             $entityManager->flush();
+
             return $this->redirectToRoute('app_resource_management_index');
         }
 
         return $this->render('resources-management/apps-resources-add.html.twig', [
-            'resource' => $resource,
             'form' => $form->createView(),
+            'resource' => $resource,
             'is_edit' => true,
         ]);
     }

@@ -25,10 +25,10 @@
                         <!-- Image -->
                         <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height:150px;">
                             {% if resource.imagePath %}
-                                <img src="{{ asset(resource.imagePath) }}" 
-                                     alt="{{ resource.resourceName }}" 
-                                     class="img-fluid h-100 w-100"
-                                     style="object-fit: cover;">
+                               <img src="{{ asset(resource.imagePath) }}" 
+     alt="{{ resource.resourceName }}" 
+     class="img-fluid h-100 w-100"
+     style="object-fit: cover;">
                             {% else %}
                                 <span class="text-muted">No Image</span>
                             {% endif %}

@@ -24,14 +24,20 @@
         {% for resource in resources %}
         <div class="col-md-4 resource-card" data-name="{{ resource.resourceName|lower }}" data-type="{{ resource.resourceType|lower }}">
             <div class="card shadow-sm h-100">
+                
+                <!-- Resource Image -->
                 <div class="card-img-top d-flex align-items-center justify-content-center" style="height:150px;">
                     {% if resource.imagePath %}
-                        <img src="{{ asset(resource.imagePath) }}" alt="{{ resource.resourceName }}" class="img-fluid h-100 w-100" style="object-fit: cover;">
+                        <img src="{{ asset(resource.imagePath) }}" 
+                             alt="{{ resource.resourceName }}" 
+                             class="img-fluid h-100 w-100" 
+                             style="object-fit: cover;">
                     {% else %}
                         <span class="text-muted">No Image</span>
                     {% endif %}
                 </div>
 
+                <!-- Resource Info -->
                 <div class="card-body">
                     <h5 class="card-title">{{ resource.resourceName }} ({{ resource.resourceCode }})</h5>
                     <p class="mb-1"><strong>Type:</strong> {{ resource.resourceType }}</p>
@@ -76,7 +82,7 @@
 {% block script %}
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    // Smart Search
+    // Search filter
     const searchInput = document.getElementById('resourceSearch');
     const cards = document.querySelectorAll('.resource-card');
 
@@ -89,7 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Calculate estimated cost dynamically
+    // Dynamic cost calculation
     document.querySelectorAll('.request-form').forEach(form => {
         const quantityInput = form.querySelector('.quantity-input');
         const costSpan = form.querySelector('.estimated-cost');
@@ -99,11 +105,13 @@ document.addEventListener('DOMContentLoaded', () => {
         quantityInput.addEventListener('input', () => {
             let q = parseInt(quantityInput.value) || 0;
             if (q > maxAvailable) q = maxAvailable;
+            if (q < 1) q = 1;
             quantityInput.value = q;
             costSpan.textContent = '$' + (q * price).toFixed(2);
         });
 
-        // Remove preventDefault, let form submit normally
+        // Initialize cost
+        quantityInput.dispatchEvent(new Event('input'));
     });
 });
 </script>
