@@ -1485,6 +1485,8 @@ class ChatApp {
 
         this.conversationItems.forEach((conversationItem) => {
             conversationItem.classList.remove('active')
+            conversationItem.setAttribute('aria-current', 'false')
+            conversationItem.tabIndex = -1
         })
 
         if (this.activeConversationName) {
@@ -2715,6 +2717,8 @@ class ChatApp {
         this.conversationItems.forEach((conversationItem) => {
             const isActive = conversationItem === item
             conversationItem.classList.toggle('active', isActive)
+            conversationItem.setAttribute('aria-current', isActive ? 'true' : 'false')
+            conversationItem.tabIndex = isActive ? 0 : -1
         })
 
         this.activeConversationItem = item

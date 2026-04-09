@@ -227,6 +227,27 @@
             color: #6f42c1 !important;
             font-weight: 600;
         }
+        [data-apps-chat="conversation-item"] {
+            transition: transform 0.18s ease, opacity 0.18s ease;
+        }
+        [data-apps-chat="conversation-item"].active .chat-users {
+            background: linear-gradient(90deg, rgba(111, 66, 193, 0.16), rgba(111, 66, 193, 0.06)) !important;
+            box-shadow: inset 3px 0 0 #6f42c1;
+            border-radius: 0.45rem;
+        }
+        [data-apps-chat="conversation-item"].active [data-apps-chat="conversation-name"] {
+            color: #5b36a4;
+            font-weight: 700;
+        }
+        .chat .users-list:has([data-apps-chat="conversation-item"].active)
+        [data-apps-chat="conversation-item"]:not(.active) {
+            opacity: 0.7;
+        }
+        .chat .users-list:has([data-apps-chat="conversation-item"].active)
+        [data-apps-chat="conversation-item"].active {
+            opacity: 1;
+            transform: translateX(2px);
+        }
     </style>
 {% endblock %}
 
