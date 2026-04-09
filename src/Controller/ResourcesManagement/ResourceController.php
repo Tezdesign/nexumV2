@@ -28,7 +28,7 @@ final class ResourceController extends AbstractController
     }
 
     /**
-     * Create new resource
+     * Create a new resource
      */
     #[Route('/add', name: 'app_resource_management_new', methods: ['GET', 'POST'])]
     public function new(Request $request, EntityManagerInterface $entityManager): Response
@@ -38,31 +38,34 @@ final class ResourceController extends AbstractController
         $form->handleRequest($request);
 
         if ($form->isSubmitted()) {
-            // set default fields
+            // Set default fields
             $resource->setStatus('AVAILABLE');
             $resource->setAvailableQuantity($resource->getTotalQuantity() ?? 0);
 
+            // Handle image upload
+            $imageFile = $form->get('image_path')->getData();
+            if ($imageFile) {
+                $newFilename = uniqid() . '.' . $imageFile->guessExtension();
+                $imageFile->move(
+                    $this->getParameter('kernel.project_dir') . '/public/uploads',
+                    $newFilename
+                );
+                $resource->setImagePath('uploads/' . $newFilename);
+            }
+
             if ($form->isValid()) {
-                $imageFile = $form->get('image_path')->getData();
-
-                if ($imageFile) {
-                    $newFilename = uniqid() . '.' . $imageFile->guessExtension();
-                    $imageFile->move(
-                        $this->getParameter('kernel.project_dir') . '/public/uploads',
-                        $newFilename
-                    );
-                    $resource->setImagePath('uploads/' . $newFilename);
-                }
-
                 $entityManager->persist($resource);
                 $entityManager->flush();
 
+                $this->addFlash('success', 'Resource added successfully!');
                 return $this->redirectToRoute('app_resource_management_index');
-            }
-
-            // debug errors
-            foreach ($form->getErrors(true) as $error) {
-                dd($error->getMessage());
+            } else {
+                // Collect PHP validation errors
+                $errors = [];
+                foreach ($form->getErrors(true) as $error) {
+                    $errors[] = $error->getMessage();
+                }
+                $this->addFlash('danger', implode('<br>', $errors));
             }
         }
 
@@ -80,9 +83,9 @@ final class ResourceController extends AbstractController
         $form = $this->createForm(ResourceType::class, $resource);
         $form->handleRequest($request);
 
-        if ($form->isSubmitted() && $form->isValid()) {
+        if ($form->isSubmitted()) {
+            // Handle image upload
             $imageFile = $form->get('image_path')->getData();
-
             if ($imageFile) {
                 $newFilename = uniqid() . '.' . $imageFile->guessExtension();
                 $imageFile->move(
@@ -92,9 +95,22 @@ final class ResourceController extends AbstractController
                 $resource->setImagePath('uploads/' . $newFilename);
             }
 
-            $entityManager->flush();
+            if ($form->isValid()) {
+                // Update available quantity based on total_quantity
+                $resource->setAvailableQuantity($resource->getTotalQuantity() ?? $resource->getAvailableQuantity());
 
-            return $this->redirectToRoute('app_resource_management_index');
+                $entityManager->flush();
+
+                $this->addFlash('success', 'Resource updated successfully!');
+                return $this->redirectToRoute('app_resource_management_index');
+            } else {
+                // Collect PHP validation errors
+                $errors = [];
+                foreach ($form->getErrors(true) as $error) {
+                    $errors[] = $error->getMessage();
+                }
+                $this->addFlash('danger', implode('<br>', $errors));
+            }
         }
 
         return $this->render('resources-management/apps-resources-add.html.twig', [
@@ -110,9 +126,10 @@ final class ResourceController extends AbstractController
     #[Route('/{resource_id}', name: 'app_resources_management_resource_delete', methods: ['POST'])]
     public function delete(Request $request, Resource $resource, EntityManagerInterface $entityManager): Response
     {
-        if ($this->isCsrfTokenValid('delete'.$resource->getResourceId(), $request->request->get('_token'))) {
+        if ($this->isCsrfTokenValid('delete' . $resource->getResourceId(), $request->request->get('_token'))) {
             $entityManager->remove($resource);
             $entityManager->flush();
+            $this->addFlash('success', 'Resource deleted successfully!');
         }
 
         return $this->redirectToRoute('app_resource_management_index');

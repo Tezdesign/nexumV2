@@ -1,16 +1,15 @@
 {% extends 'layouts/vertical.html.twig' %}
 
-{% set title = 'Add New Resource' %}
+{% set title = is_edit is defined and is_edit ? 'Edit Resource' : 'Add New Resource' %}
 
 {% block content %}
 <div class="container-fluid">
 
     <!-- Page Title -->
-    <div class="row">
+    <div class="row mb-4">
         <div class="col-12">
-            <div class="page-title-box d-flex align-items-center justify-content-between">
-                <h4 class="mb-0">Add New Resource</h4>
-
+            <div class="d-flex align-items-center justify-content-between">
+                <h4 class="mb-0">{{ title }}</h4>
                 <a href="{{ path('app_resource_management_index') }}" class="btn btn-secondary btn-sm">
                     <i class="mdi mdi-arrow-left me-1"></i> Back to List
                 </a>
@@ -18,71 +17,68 @@
         </div>
     </div>
 
-    <!-- Form -->
+    <!-- Flash Messages -->
+    {% for label, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="alert alert-{{ label }} alert-dismissible fade show" role="alert">
+                {{ message|raw }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endfor %}
+
+    <!-- Form Card -->
     <div class="row justify-content-center">
         <div class="col-xl-8">
             <div class="card shadow-sm border-0">
                 <div class="card-body p-4">
+                    <h5 class="text-primary mb-4">Resource Information</h5>
 
-                    <h5 class="header-title mb-4 text-primary">Resource Information</h5>
-
-                    {{ form_errors(form) }}
-                    {{ form_start(form, {
-                        'attr': {'novalidate': 'novalidate'},
-                        'enctype': 'multipart/form-data'
-                    }) }}
+                    {{ form_start(form, {'attr': {'novalidate': 'novalidate'}, 'enctype': 'multipart/form-data'}) }}
 
                     <div class="row">
 
-                        <!-- Resource Name -->
                         <div class="col-md-8 mb-3">
-                            <label class="form-label fw-bold">Resource Name</label>
-                            {{ form_widget(form.resource_name, {'attr': {'class': 'form-control', 'placeholder': 'e.g. Dell Latitude 5400'}}) }}
+                            {{ form_label(form.resource_name, 'Resource Name', {'label_attr': {'class':'form-label fw-bold'}}) }}
+                            {{ form_widget(form.resource_name, {'attr': {'class':'form-control', 'placeholder':'e.g. Dell Latitude 5400'}}) }}
                             {{ form_errors(form.resource_name) }}
                         </div>
 
                         <div class="col-md-4 mb-3">
-                            <label class="form-label fw-bold">Resource Code</label>
-                            {{ form_widget(form.resource_code, {'attr': {'class': 'form-control', 'placeholder': 'e.g. RES-1001'}}) }}
+                            {{ form_label(form.resource_code, 'Resource Code', {'label_attr': {'class':'form-label fw-bold'}}) }}
+                            {{ form_widget(form.resource_code, {'attr': {'class':'form-control', 'placeholder':'e.g. RES-1001'}}) }}
                             {{ form_errors(form.resource_code) }}
                         </div>
 
-                        <!-- Resource Type -->
                         <div class="col-md-6 mb-3">
-                            <label class="form-label fw-bold">Resource Type</label>
-                            {{ form_widget(form.resource_type, {'attr': {'class': 'form-select'}}) }}
+                            {{ form_label(form.resource_type, 'Resource Type', {'label_attr': {'class':'form-label fw-bold'}}) }}
+                            {{ form_widget(form.resource_type, {'attr': {'class':'form-select'}}) }}
                             {{ form_errors(form.resource_type) }}
                         </div>
 
-                        <!-- Unit Cost -->
                         <div class="col-md-6 mb-3">
-                            <label class="form-label fw-bold">Unit Cost</label>
+                            {{ form_label(form.unit_cost, 'Unit Cost', {'label_attr': {'class':'form-label fw-bold'}}) }}
                             <div class="input-group">
                                 <span class="input-group-text">TND</span>
-                                {{ form_widget(form.unit_cost, {'attr': {'class': 'form-control', 'placeholder': '0.00'}}) }}
+                                {{ form_widget(form.unit_cost, {'attr': {'class':'form-control', 'placeholder':'0.00'}}) }}
                             </div>
                             {{ form_errors(form.unit_cost) }}
                         </div>
 
-                        <!-- Quantity -->
                         <div class="col-md-4 mb-3">
-                            <label class="form-label fw-bold">Initial Quantity</label>
-                            {{ form_widget(form.total_quantity, {'attr': {'class': 'form-control'}}) }}
+                            {{ form_label(form.total_quantity, 'Initial Quantity', {'label_attr': {'class':'form-label fw-bold'}}) }}
+                            {{ form_widget(form.total_quantity, {'attr': {'class':'form-control'}}) }}
                             {{ form_errors(form.total_quantity) }}
                         </div>
 
-                        <!-- Image Upload -->
                         <div class="col-md-8 mb-3">
-                            <label class="form-label fw-bold">Image</label>
-                            {{ form_widget(form.image_path, {'attr': {'class': 'form-control'}}) }}
+                            {{ form_label(form.image_path, 'Image', {'label_attr': {'class':'form-label fw-bold'}}) }}
+                            {{ form_widget(form.image_path, {'attr': {'class':'form-control'}}) }}
                             {{ form_errors(form.image_path) }}
 
-                            <!-- Preview uploaded image if editing -->
                             {% if form.vars.value.imagePath %}
                                 <div class="mt-2">
-                                    <img src="{{ asset(form.vars.value.imagePath) }}" 
-                                         alt="Resource Image" 
-                                         style="height:150px; object-fit:cover;">
+                                    <img src="{{ asset(form.vars.value.imagePath) }}" alt="Resource Image" style="height:150px; object-fit:cover;">
                                 </div>
                             {% endif %}
                         </div>
@@ -91,18 +87,18 @@
 
                     <hr class="my-4">
 
-                    <!-- Buttons -->
                     <div class="d-flex justify-content-end gap-2">
                         <button type="reset" class="btn btn-light px-4">Clear Form</button>
-                        <button type="submit" class="btn btn-primary px-5 shadow-sm">Save Resource</button>
+                        <button type="submit" class="btn btn-primary px-5 shadow-sm">
+                            {{ is_edit is defined and is_edit ? 'Update Resource' : 'Save Resource' }}
+                        </button>
                     </div>
 
                     {{ form_end(form) }}
-                    
+
                 </div>
             </div>
         </div>
     </div>
-
 </div>
 {% endblock %}
