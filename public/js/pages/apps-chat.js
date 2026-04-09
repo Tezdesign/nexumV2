@@ -80,6 +80,10 @@ class ChatApp {
         this.messageActionTarget = null
         this.messageActionMode = 'TEXT'
         this.messageActionsMenu = null
+        this.inlineEditNotice = null
+        this.inlineEditCancelButton = null
+        this.inlineEditMessageId = null
+        this.inlineEditMessageNode = null
         this.groupCreateModal = null
         this.groupNameInput = null
         this.groupTitleError = null
@@ -103,6 +107,7 @@ class ChatApp {
         this.chatForm = null
         this.chatInput = null
         this.chatSendButton = null
+        this.chatSendDefaultHtml = ''
         this.attachmentButton = null
         this.attachmentInput = null
         this.activeFetchController = null
@@ -199,6 +204,8 @@ class ChatApp {
         this.messageEditInput = document.querySelector('[data-apps-chat="message-edit-input"]')
         this.messageEditError = document.querySelector('[data-apps-chat="message-edit-error"]')
         this.messageEditSubmitButton = document.querySelector('[data-apps-chat="message-edit-submit"]')
+        this.inlineEditNotice = document.querySelector('[data-apps-chat="inline-edit-notice"]')
+        this.inlineEditCancelButton = document.querySelector('[data-apps-chat="inline-edit-cancel"]')
         this.groupCreateModal = document.getElementById('groupCreateModal')
         this.groupNameInput = document.querySelector('[data-apps-chat="group-name-input"]')
         this.groupTitleError = document.querySelector('[data-apps-chat="group-title-error"]')
@@ -214,6 +221,7 @@ class ChatApp {
         if (this.chatForm) {
             this.chatInput = this.chatForm.querySelector('[data-apps-chat="chat-input"]')
             this.chatSendButton = this.chatForm.querySelector('[data-apps-chat="chat-send"]')
+            this.chatSendDefaultHtml = this.chatSendButton?.innerHTML || ''
         }
         this.attachmentButton = document.querySelector('[data-apps-chat="attachment-button"]')
         this.attachmentInput = document.querySelector('[data-apps-chat="attachment-input"]')
@@ -828,6 +836,85 @@ class ChatApp {
         this.messageEditError.classList.toggle('d-none', text.length === 0)
     }
 
+    ensureInlineEditNotice = () => {
+        if (this.inlineEditNotice || !this.chatForm || !this.chatInput) {
+            return
+        }
+
+        const notice = document.createElement('div')
+        notice.className = 'd-none align-items-center justify-content-between gap-2 px-3 py-2 mb-1 rounded-3'
+        notice.setAttribute('data-apps-chat', 'inline-edit-notice')
+
+        const label = document.createElement('span')
+        label.setAttribute('data-apps-chat', 'inline-edit-title')
+        label.textContent = 'Edit message'
+
+        const cancelButton = document.createElement('button')
+        cancelButton.type = 'button'
+        cancelButton.className = 'btn btn-sm p-0'
+        cancelButton.setAttribute('data-apps-chat', 'inline-edit-cancel')
+        cancelButton.setAttribute('aria-label', 'Cancel edit')
+        cancelButton.innerHTML = '&times;'
+        cancelButton.addEventListener('click', () => {
+            this.clearInlineEditMode({ resetInput: true })
+        })
+
+        notice.appendChild(label)
+        notice.appendChild(cancelButton)
+
+        const inputColumn = this.chatInput.closest('[data-apps-chat="chat-input-column"]')
+        if (inputColumn) {
+            inputColumn.insertBefore(notice, this.chatInput)
+        } else {
+            this.chatInput.parentElement?.insertBefore(notice, this.chatInput)
+        }
+
+        this.inlineEditNotice = notice
+        this.inlineEditCancelButton = cancelButton
+    }
+
+    startInlineEditMode = (messageNode) => {
+        if (!messageNode || !this.chatInput) {
+            return
+        }
+
+        const messageId = String(messageNode.dataset.messageId || '')
+        if (!messageId) {
+            return
+        }
+
+        const bodyNode = messageNode.querySelector('[data-message-body]')
+        const currentText = String(bodyNode?.textContent || '').trim()
+
+        this.ensureInlineEditNotice()
+        this.inlineEditMessageId = messageId
+        this.inlineEditMessageNode = messageNode
+        this.inlineEditNotice?.classList.remove('d-none')
+        this.inlineEditNotice?.classList.add('d-flex')
+        this.chatForm?.classList.add('chat-form-editing')
+        if (this.chatSendButton) {
+            this.chatSendButton.innerHTML = '<i class="ti ti-check"></i>'
+        }
+        this.chatInput.value = currentText
+        this.chatInput.focus()
+        this.chatInput.select()
+    }
+
+    clearInlineEditMode = ({ resetInput = false } = {}) => {
+        this.inlineEditMessageId = null
+        this.inlineEditMessageNode = null
+        this.inlineEditNotice?.classList.add('d-none')
+        this.inlineEditNotice?.classList.remove('d-flex')
+        this.chatForm?.classList.remove('chat-form-editing')
+        if (this.chatSendButton && this.chatSendDefaultHtml) {
+            this.chatSendButton.innerHTML = this.chatSendDefaultHtml
+        }
+
+        if (resetInput && this.chatInput) {
+            this.chatInput.value = ''
+        }
+    }
+
     ensureMessageActionsMenu = () => {
         if (this.messageActionsMenu) {
             return
@@ -947,22 +1034,11 @@ class ChatApp {
             return
         }
 
-        const bodyNode = this.messageActionTarget.querySelector('[data-message-body]')
-        this.setMessageEditError('')
-        if (this.messageEditInput) {
-            this.messageEditInput.value = String(bodyNode?.textContent || '').trim()
-        }
-
-        this.getBootstrapModal(this.messageEditModal)?.show()
-
-        queueMicrotask(() => {
-            this.messageEditInput?.focus()
-            this.messageEditInput?.select()
-        })
+        this.startInlineEditMode(this.messageActionTarget)
     }
 
     closeMessageEditModal = () => {
-        this.getBootstrapModal(this.messageEditModal)?.hide()
+        this.clearInlineEditMode({ resetInput: false })
     }
 
     applyEditedBadge = (messageNode, isEdited) => {
@@ -991,18 +1067,18 @@ class ChatApp {
     }
 
     editSelectedMessage = async () => {
-        if (!this.messageActionTarget || !this.messageEditInput) {
+        if (!this.inlineEditMessageNode || !this.inlineEditMessageId || !this.chatInput) {
             return
         }
 
-        const messageId = this.messageActionTarget.dataset.messageId || ''
+        const messageId = this.inlineEditMessageId
         if (!messageId) {
             return
         }
 
-        const body = String(this.messageEditInput.value || '')
-        this.setMessageEditError('')
-        this.messageEditSubmitButton?.setAttribute('disabled', 'disabled')
+        const body = String(this.chatInput.value || '')
+        this.chatSendButton?.setAttribute('disabled', 'disabled')
+        this.attachmentButton?.setAttribute('disabled', 'disabled')
 
         try {
             const response = await fetch(this.buildMessageEditEndpoint(messageId), {
@@ -1016,17 +1092,27 @@ class ChatApp {
                 throw new Error(payload.error || 'Failed to edit message.')
             }
 
-            const bodyNode = this.messageActionTarget.querySelector('[data-message-body]')
+            const bodyNode = this.inlineEditMessageNode.querySelector('[data-message-body]')
             if (bodyNode) {
                 bodyNode.textContent = String(payload.message?.body || '')
             }
 
-            this.applyEditedBadge(this.messageActionTarget, !!payload.message?.isEdited)
-            this.closeMessageEditModal()
+            this.applyEditedBadge(this.inlineEditMessageNode, !!payload.message?.isEdited)
+
+            const lastMessageNode = this.messagesList?.lastElementChild
+            if (lastMessageNode === this.inlineEditMessageNode) {
+                this.syncConversationItemLastMessage(this.activeConversationItem, {
+                    body: String(payload.message?.body || ''),
+                    timeLabel: String(payload.message?.timeLabel || '--'),
+                })
+            }
+
+            this.clearInlineEditMode({ resetInput: true })
         } catch (error) {
-            this.setMessageEditError(error?.message || 'Failed to edit message.')
+            this.showBottomNotice(error?.message || 'Failed to edit message.')
         } finally {
-            this.messageEditSubmitButton?.removeAttribute('disabled')
+            this.chatSendButton?.removeAttribute('disabled')
+            this.attachmentButton?.removeAttribute('disabled')
         }
     }
 
@@ -1054,6 +1140,10 @@ class ChatApp {
             const payload = await response.json().catch(() => ({}))
             if (!response.ok || !payload.success) {
                 throw new Error(payload.error || 'Failed to delete message.')
+            }
+
+            if (String(this.inlineEditMessageId || '') === String(messageId)) {
+                this.clearInlineEditMode({ resetInput: true })
             }
 
             this.messageActionTarget.remove()
@@ -2508,6 +2598,10 @@ class ChatApp {
             return
         }
 
+        if (this.inlineEditMessageId) {
+            this.clearInlineEditMode({ resetInput: true })
+        }
+
         const rawConversationId = item.dataset.conversationId || ''
         const nextConversationId = rawConversationId !== '' ? rawConversationId : null
         const endpoint = this.buildMessagesEndpoint(item, rawConversationId)
@@ -2567,6 +2661,11 @@ class ChatApp {
             e.preventDefault();
 
             if (!this.activeConversationId || !this.chatInput) {
+                return
+            }
+
+            if (this.inlineEditMessageId) {
+                this.editSelectedMessage()
                 return
             }
 
@@ -2639,6 +2738,17 @@ class ChatApp {
 
         this.messageEditInput?.addEventListener('input', () => {
             this.setMessageEditError('')
+        })
+
+        this.chatInput?.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && this.inlineEditMessageId) {
+                event.preventDefault()
+                this.clearInlineEditMode({ resetInput: false })
+            }
+        })
+
+        this.inlineEditCancelButton?.addEventListener('click', () => {
+            this.clearInlineEditMode({ resetInput: true })
         })
 
         this.attachmentButton?.addEventListener('click', (event) => {
