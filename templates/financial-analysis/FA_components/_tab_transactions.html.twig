@@ -65,10 +65,6 @@
                     {% for transaction in transactions %}
                         {% include 'financial-analysis/FA_components/_transaction_list_row.html.twig' with {'transaction': transaction} %}
                     {% endfor %}
-
-                    <!-- Mock rows to demonstrate the UI (remove later when real data is piped in) -->
-                    {% include 'financial-analysis/FA_components/_transaction_list_row.html.twig' with {'transaction': {'reference': 'TX-100234', 'expenseCategory': 'HARDWARE', 'cost': '1250.00', 'dateStamp': '2026-04-10', 'description': 'Server racks purchase'}} %}
-                    {% include 'financial-analysis/FA_components/_transaction_list_row.html.twig' with {'transaction': {'reference': 'TX-100235', 'expenseCategory': 'SOFTWARE', 'cost': '299.99', 'dateStamp': '2026-04-11', 'description': 'Annual cloud hosting fee'}} %}
                 {% endif %}
                 
             </div>
