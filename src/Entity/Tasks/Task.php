@@ -2,14 +2,16 @@
 
 namespace App\Entity\Tasks;
 
-use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
-use Doctrine\Common\Collections\ArrayCollection;
-use Doctrine\Common\Collections\Collection;
 
 use App\Repository\Tasks\TaskRepository;
+use App\Support\PlainTextSanitizer;
+use Gedmo\Mapping\Annotation as Gedmo;
+use Symfony\Component\Validator\Constraints as Assert;
+use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 #[ORM\Entity(repositoryClass: TaskRepository::class)]
+#[Assert\Callback([self::class, 'validateDueOnOrAfterStart'])]
 #[ORM\Table(name: 'tasks')]
 #[ORM\Index(name: "fk_tasks_created_by", columns: ["created_by"])]
 #[ORM\Index(name: "idx_tasks_assigned_to", columns: ["assigned_to"])]
@@ -36,6 +38,8 @@ class Task
     }
 
     #[ORM\Column(type: 'string', nullable: false)]
+    #[Assert\NotBlank(message: 'Title is required.')]
+    #[Assert\Length(max: 255, maxMessage: 'Title cannot exceed {{ limit }} characters.')]
     private ?string $title = null;
 
     public function getTitle(): ?string
@@ -45,11 +49,12 @@ class Task
 
     public function setTitle(string $title): self
     {
-        $this->title = $title;
+        $this->title = PlainTextSanitizer::toLine($title);
         return $this;
     }
 
     #[ORM\Column(type: 'text', nullable: true)]
+    #[Assert\Length(max: 65535, maxMessage: 'Description is too long.')]
     private ?string $description = null;
 
     public function getDescription(): ?string
@@ -59,11 +64,13 @@ class Task
 
     public function setDescription(?string $description): self
     {
-        $this->description = $description;
+        $this->description = PlainTextSanitizer::toBlock($description);
         return $this;
     }
 
     #[ORM\Column(type: 'string', nullable: true)]
+    #[Assert\NotBlank(groups: ['task_quick_create'], message: 'Status is required.')]
+    #[Assert\Choice(choices: ['todo', 'in_progress', 'done'], message: 'Choose a valid status.')]
     private ?string $status = null;
 
     public function getStatus(): ?string
@@ -78,6 +85,8 @@ class Task
     }
 
     #[ORM\Column(type: 'string', nullable: true)]
+    #[Assert\NotBlank(groups: ['task_quick_create'], message: 'Priority is required.')]
+    #[Assert\Choice(choices: ['high', 'medium', 'low'], message: 'Choose a valid priority.')]
     private ?string $priority = null;
 
     public function getPriority(): ?string
@@ -92,6 +101,7 @@ class Task
     }
 
     #[ORM\Column(type: 'date', nullable: true)]
+    #[Assert\Type(\DateTimeInterface::class)]
     private ?\DateTimeInterface $start_date = null;
 
     public function getStart_date(): ?\DateTimeInterface
@@ -106,6 +116,8 @@ class Task
     }
 
     #[ORM\Column(type: 'date', nullable: true)]
+    #[Assert\NotNull(groups: ['task_quick_create'], message: 'Due date is required.')]
+    #[Assert\Type(\DateTimeInterface::class)]
     private ?\DateTimeInterface $due_date = null;
 
     public function getDue_date(): ?\DateTimeInterface
@@ -120,6 +132,7 @@ class Task
     }
 
     #[ORM\Column(type: 'integer', nullable: true)]
+    #[Assert\PositiveOrZero(message: 'Estimated time must be zero or positive.')]
     private ?int $estimated_time = null;
 
     public function getEstimated_time(): ?int
@@ -134,6 +147,7 @@ class Task
     }
 
     #[ORM\Column(type: 'integer', nullable: true)]
+    #[Assert\PositiveOrZero(message: 'Actual time must be zero or positive.')]
     private ?int $actual_time = null;
 
     public function getActual_time(): ?int
@@ -148,6 +162,8 @@ class Task
     }
 
     #[ORM\Column(type: 'datetime', nullable: true)]
+    #[Gedmo\Timestampable(on: 'create')]
+    #[Assert\Type(\DateTimeInterface::class)]
     private ?\DateTimeInterface $created_at = null;
 
     public function getCreated_at(): ?\DateTimeInterface
@@ -162,6 +178,8 @@ class Task
     }
 
     #[ORM\Column(type: 'datetime', nullable: true)]
+    #[Gedmo\Timestampable(on: 'update')]
+    #[Assert\Type(\DateTimeInterface::class)]
     private ?\DateTimeInterface $updated_at = null;
 
     public function getUpdated_at(): ?\DateTimeInterface
@@ -176,6 +194,7 @@ class Task
     }
 
     #[ORM\Column(type: 'integer', nullable: false)]
+    #[Assert\Positive(message: 'Project id must be a positive number.')]
     private ?int $project_id = null;
 
     public function getProject_id(): ?int
@@ -190,6 +209,7 @@ class Task
     }
 
     #[ORM\Column(type: 'integer', nullable: true)]
+    #[Assert\Positive(message: 'Assignee id must be a positive number.')]
     private ?int $assigned_to = null;
 
     public function getAssigned_to(): ?int
@@ -204,6 +224,7 @@ class Task
     }
 
     #[ORM\Column(type: 'integer', nullable: false)]
+    #[Assert\Positive(message: 'Creator id must be a positive number.')]
     private ?int $created_by = null;
 
     public function getCreated_by(): ?int
@@ -323,6 +344,23 @@ class Task
         $this->created_by = $created_by;
 
         return $this;
+    }
+
+    public static function validateDueOnOrAfterStart(self $task, ExecutionContextInterface $context): void
+    {
+        $start = $task->start_date;
+        $due = $task->due_date;
+        if ($start === null || $due === null) {
+            return;
+        }
+
+        $startDay = \DateTimeImmutable::createFromInterface($start)->setTime(0, 0);
+        $dueDay = \DateTimeImmutable::createFromInterface($due)->setTime(0, 0);
+        if ($dueDay < $startDay) {
+            $context->buildViolation('Due date must be on or after the start date.')
+                ->atPath('due_date')
+                ->addViolation();
+        }
     }
 
 }

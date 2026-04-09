@@ -1,111 +1,98 @@
 <!-- Topbar Start -->
 <header class="app-topbar" id="header">
     <div class="page-container topbar-menu">
-        <div class="d-flex align-items-center gap-2">
+        <style>
+            .nexum-topbar-wrap {
+                width: 100%;
+            }
 
-            <!-- Brand Logo -->
-            <a href="index" class="logo">
-                <span class="logo-light">
-                    <span class="logo-lg"><img src="/images/logo.png" alt="logo"></span>
-                    <span class="logo-sm"><img src="/images/logo-sm.png" alt="small logo"></span>
-                </span>
+            .nexum-topbar-search {
+                position: relative;
+                width: min(740px, 60vw);
+            }
 
-                <span class="logo-dark">
-                    <span class="logo-lg"><img src="/images/logo-dark.png" alt="dark logo"></span>
-                    <span class="logo-sm"><img src="/images/logo-sm.png" alt="small logo"></span>
-                </span>
-            </a>
+            .nexum-topbar-search input {
+                border-radius: 999px;
+                padding-left: 42px;
+                height: 42px;
+            }
+
+            .nexum-topbar-search .ri-search-line {
+                position: absolute;
+                left: 14px;
+                top: 50%;
+                transform: translateY(-50%);
+                color: #94a3b8;
+                font-size: 18px;
+            }
+
+            .nexum-user-pill {
+                display: inline-flex;
+                align-items: center;
+                gap: 10px;
+                text-decoration: none;
+            }
+
+            .nexum-user-meta {
+                line-height: 1.1;
+            }
+
+            .nexum-user-name {
+                font-size: 14px;
+                font-weight: 700;
+                margin: 0;
+            }
+
+            .nexum-user-role {
+                font-size: 12px;
+                color: #64748b;
+                margin: 0;
+                margin-top: 3px;
+                text-transform: capitalize;
+            }
+
+            .nexum-avatar {
+                width: 34px;
+                height: 34px;
+                border-radius: 999px;
+                overflow: hidden;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                font-weight: 800;
+                font-size: 13px;
+                border: 2px solid #fff;
+            }
+
+            .nexum-avatar img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                display: block;
+            }
+        </style>
+
+        {% set cu = current_user|default(null) %}
+        {% set cu_name = cu ? ((cu.prenom ~ ' ' ~ cu.nom)|trim|plain_text) : 'Guest' %}
+        {% set cu_role = cu ? (cu.role|default('')|plain_text) : '' %}
+        {% set cu_img = cu ? (cu.imagelink|default(null)) : null %}
+
+        <div class="d-flex align-items-center gap-2 nexum-topbar-wrap">
 
             <!-- Sidebar Menu Toggle Button -->
             <button class="sidenav-toggle-button px-2">
                 <i class="ri-menu-5-line fs-24"></i>
             </button>
 
-            <!-- Horizontal Menu Toggle Button -->
-            <button class="topnav-toggle-button px-2" data-bs-toggle="collapse" data-bs-target="#topnav-menu-content">
-                <i class="ri-menu-5-line fs-24"></i>
-            </button>
-
-            <!-- Topbar Page Title -->
-            <div class="topbar-item d-none d-md-flex px-2">
-                {% if title %}
-                <div>
-                    <h4 class="page-title fs-20 fw-semibold mb-0">{{ title }}</h4>
-
-                </div>
-                {% else %}
-                <div>
-                    <h4 class="page-title fs-20 fw-semibold mb-0">Welcome!</h4>
-                </div>
-              {% endif %}
-            </div>
-
-        </div>
-
-        <div class="d-flex align-items-center gap-2">
-
-            <!-- Search for small devices -->
-            <div class="topbar-item d-flex d-xl-none">
-                <button class="topbar-link" data-bs-toggle="modal" data-bs-target="#searchModal" type="button">
-                    <i class="ri-search-line fs-22"></i>
-                </button>
-            </div>
-
-            <!-- Button Trigger Search Modal -->
-            <div class="topbar-search text-muted d-none d-xl-flex gap-2 me-2 align-items-center" data-bs-toggle="modal"
-                data-bs-target="#searchModal" type="button">
-                <i class="ri-search-line fs-18"></i>
-                <span class="me-2">Search something..</span>
-            </div>
-
-            <!-- Language Dropdown -->
-            <div class="topbar-item">
-                <div class="dropdown">
-                    <button class="topbar-link" data-bs-toggle="dropdown" data-bs-offset="0,32" type="button"
-                        aria-haspopup="false" aria-expanded="false">
-                        <img src="/images/flags/us.svg" alt="user-image" class="w-100 rounded" height="18"
-                            id="selected-language-image">
-                    </button>
-
-                    <div class="dropdown-menu dropdown-menu-end">
-                        <!-- item-->
-                        <a href="javascript:void(0);" class="dropdown-item" data-translator-lang="en">
-                            <img src="/images/flags/us.svg" alt="user-image" class="me-1 rounded" height="18"
-                                data-translator-image> <span class="align-middle">English</span>
-                        </a>
-
-                        <!-- item-->
-                        <a href="javascript:void(0);" class="dropdown-item" data-translator-lang="hi">
-                            <img src="/images/flags/in.svg" alt="user-image" class="me-1 rounded" height="18"
-                                data-translator-image> <span class="align-middle">Hindi</span>
-                        </a>
-
-                        <!-- item-->
-                        <a href="javascript:void(0);" class="dropdown-item">
-                            <img src="/images/flags/de.svg" alt="user-image" class="me-1 rounded" height="18">
-                            <span class="align-middle">German</span>
-                        </a>
-
-                        <!-- item-->
-                        <a href="javascript:void(0);" class="dropdown-item">
-                            <img src="/images/flags/it.svg" alt="user-image" class="me-1 rounded" height="18">
-                            <span class="align-middle">Italian</span>
-                        </a>
-
-                        <!-- item-->
-                        <a href="javascript:void(0);" class="dropdown-item">
-                            <img src="/images/flags/es.svg" alt="user-image" class="me-1 rounded" height="18">
-                            <span class="align-middle">Spanish</span>
-                        </a>
-
-                        <!-- item-->
-                        <a href="javascript:void(0);" class="dropdown-item">
-                            <img src="/images/flags/ru.svg" alt="user-image" class="me-1 rounded" height="18">
-                            <span class="align-middle">Russian</span>
-                        </a>
-
-                    </div>
-                </div>
+            <div class="flex-grow-1 d-flex justify-content-center px-2">
+                <form class="nexum-topbar-search" method="get" action="{{ path('app_project_index') }}">
+                    <i class="ri-search-line"></i>
+                    <input class="form-control"
+                           type="search"
+                           name="q"
+                           placeholder="Search tasks, projects, or team members..."
+                           aria-label="Search">
+                </form>
             </div>
 
             <!-- Notification Dropdown -->
@@ -273,107 +260,25 @@
                 </div>
             </div>
 
-            <!-- Apps Dropdown -->
-            <div class="topbar-item d-none d-sm-flex">
-                <div class="dropdown">
-                    <button class="topbar-link dropdown-toggle drop-arrow-none" data-bs-toggle="dropdown"
-                        data-bs-offset="0,25" type="button" aria-haspopup="false" aria-expanded="false">
-                        <i class="ri-apps-2-add-line fs-22"></i>
-                    </button>
-                    <div class="dropdown-menu dropdown-menu-end dropdown-menu-lg p-0">
-                        <div class="p-2">
-                            <div class="row g-0">
-                                <div class="col">
-                                    <a class="dropdown-icon-item" href="#">
-                                        <img src="/images/brands/slack.svg" alt="slack">
-                                        <span>Slack</span>
-                                    </a>
-                                </div>
-                                <div class="col">
-                                    <a class="dropdown-icon-item" href="#">
-                                        <img src="/images/brands/gitlab.svg" alt="Github">
-                                        <span>Gitlab</span>
-                                    </a>
-                                </div>
-                                <div class="col">
-                                    <a class="dropdown-icon-item" href="#">
-                                        <img src="/images/brands/dribbble.svg" alt="dribbble">
-                                        <span>Dribbble</span>
-                                    </a>
-                                </div>
-                            </div>
-
-                            <div class="row g-0">
-                                <div class="col">
-                                    <a class="dropdown-icon-item" href="#">
-                                        <img src="/images/brands/bitbucket.svg" alt="bitbucket">
-                                        <span>Bitbucket</span>
-                                    </a>
-                                </div>
-                                <div class="col">
-                                    <a class="dropdown-icon-item" href="#">
-                                        <img src="/images/brands/dropbox.svg" alt="dropbox">
-                                        <span>Dropbox</span>
-                                    </a>
-                                </div>
-                                <div class="col">
-                                    <a class="dropdown-icon-item" href="#">
-                                        <img src="/images/brands/google-cloud.svg" alt="G Suite">
-                                        <span>G Cloud</span>
-                                    </a>
-                                </div>
-                            </div> <!-- end row-->
-
-                            <div class="row g-0">
-                                <div class="col">
-                                    <a class="dropdown-icon-item" href="#">
-                                        <img src="/images/brands/aws.svg" alt="bitbucket">
-                                        <span>AWS</span>
-                                    </a>
-                                </div>
-                                <div class="col">
-                                    <a class="dropdown-icon-item" href="#">
-                                        <img src="/images/brands/digital-ocean.svg" alt="dropbox">
-                                        <span>Server</span>
-                                    </a>
-                                </div>
-                                <div class="col">
-                                    <a class="dropdown-icon-item" href="#">
-                                        <img src="/images/brands/bootstrap.svg" alt="G Suite">
-                                        <span>Bootstrap</span>
-                                    </a>
-                                </div>
-                            </div> <!-- end row-->
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Button Trigger Customizer Offcanvas -->
-            <div class="topbar-item d-none d-sm-flex">
-                <button class="topbar-link" data-bs-toggle="offcanvas" data-bs-target="#theme-settings-offcanvas"
-                    type="button">
-                    <i class="ri-settings-4-line fs-22"></i>
-                </button>
-            </div>
-
-            <!-- Light/Dark Mode Button -->
-            <div class="topbar-item d-none d-sm-flex">
-                <button class="topbar-link" id="light-dark-mode" type="button">
-                    <i class="ri-moon-line light-mode-icon fs-22"></i>
-                    <i class="ri-sun-line dark-mode-icon fs-22"></i>
-                </button>
-            </div>
-
             <!-- User Dropdown -->
             <div class="topbar-item nav-user">
                 <div class="dropdown">
-                    <a class="topbar-link dropdown-toggle drop-arrow-none px-2" data-bs-toggle="dropdown"
+                    <a class="topbar-link dropdown-toggle drop-arrow-none px-2 nexum-user-pill" data-bs-toggle="dropdown"
                         data-bs-offset="0,25" type="button" aria-haspopup="false" aria-expanded="false">
-                        <img src="/images/users/avatar-1.jpg" width="32" class="rounded-circle me-lg-2 d-flex"
-                            alt="user-image">
-                        <span class="d-lg-flex flex-column gap-1 d-none">
-                            <h5 class="my-0">Nowak Helme</h5>
+                        {% if cu_img|default('') matches '/^(https?:\\/\\/|\\/|data:image\\/)/' %}
+                            <span class="nexum-avatar">
+                                <img src="{{ cu_img }}" alt="{{ cu_name }}">
+                            </span>
+                        {% else %}
+                            {% set ap = avatar_placeholder(cu_name) %}
+                            <span class="nexum-avatar" style="background: {{ ap.bg }}; color: {{ ap.fg }};">
+                                {{ ap.initial }}
+                            </span>
+                        {% endif %}
+
+                        <span class="d-lg-flex flex-column gap-1 d-none nexum-user-meta">
+                            <p class="nexum-user-name">{{ cu_name }}</p>
+                            <p class="nexum-user-role">{{ (cu_role ?: 'Manager')|plain_text }}</p>
                         </span>
                         <i class="ri-arrow-down-s-line d-none d-lg-block align-middle ms-1"></i>
                     </a>

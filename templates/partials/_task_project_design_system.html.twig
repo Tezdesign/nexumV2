@@ -1,0 +1,290 @@
+<style>
+    :root {
+        --nexum-violet-50: #f5f3ff;
+        --nexum-violet-100: #ede9fe;
+        --nexum-violet-200: #ddd6fe;
+        --nexum-violet-500: #8b5cf6;
+        --nexum-violet-600: #7c3aed;
+        --nexum-violet-700: #6d28d9;
+        --nexum-violet-900: #4c1d95;
+
+        --nexum-stone-50: #fafaf9;
+        --nexum-stone-100: #f5f5f4;
+        --nexum-stone-200: #e7e5e4;
+        --nexum-stone-300: #d6d3d1;
+        --nexum-stone-400: #a8a29e;
+        --nexum-stone-500: #78716c;
+        --nexum-stone-600: #57534e;
+        --nexum-stone-900: #1c1917;
+    }
+
+    .page-content {
+        background: #f8fafc;
+    }
+
+    .nexum-page-head {
+        margin-bottom: 18px;
+    }
+
+    .nexum-title {
+        font-size: 26px;
+        font-weight: 800;
+        margin: 0;
+        letter-spacing: -0.03em;
+        color: #0f172a;
+    }
+
+    .nexum-subtitle {
+        color: var(--nexum-stone-500);
+        margin-top: 4px;
+    }
+
+    .nexum-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .nexum-search {
+        width: 320px;
+        max-width: 60vw;
+        border-radius: 12px;
+        border-color: #e2e8f0;
+    }
+
+    .button,
+    .btn {
+        font-family: "Inter", "Segoe UI", sans-serif;
+        font-size: 14px;
+        padding: 10px 20px;
+        cursor: pointer;
+        border-radius: 8px;
+    }
+
+    .nexum-btn-primary {
+        background: var(--nexum-violet-600) !important;
+        border-color: var(--nexum-violet-600) !important;
+        box-shadow: 0 10px 18px rgba(124, 58, 237, 0.18);
+    }
+
+    .nexum-btn-primary:hover {
+        background: var(--nexum-violet-700) !important;
+        border-color: var(--nexum-violet-700) !important;
+    }
+
+    .btn.btn-primary {
+        background: var(--nexum-violet-600) !important;
+        border-color: var(--nexum-violet-600) !important;
+    }
+
+    .btn.btn-primary:hover {
+        background: var(--nexum-violet-700) !important;
+        border-color: var(--nexum-violet-700) !important;
+    }
+
+    .btn.btn-outline-secondary {
+        border-color: #e2e8f0;
+        background: #fff;
+        color: #334155;
+    }
+
+    .btn.btn-outline-secondary:hover {
+        border-color: #cbd5e1;
+        background: #fff;
+        color: #0f172a;
+    }
+
+    .nexum-card,
+    .nexum-shell-card,
+    .nexum-panel,
+    .nexum-group {
+        border-radius: 16px;
+        border: 1px solid #e7e5e4;
+        background: #fff;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+
+    .nexum-progress .progress {
+        height: 6px;
+        border-radius: 999px;
+    }
+
+    .nexum-progress .progress-bar {
+        background: linear-gradient(90deg, var(--nexum-violet-600), var(--nexum-violet-500));
+        border-radius: 999px;
+    }
+
+    .nexum-avatars {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .nexum-avatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        border: 2px solid #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        background: #f1f5f9;
+        color: #0f172a;
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1;
+        margin-left: -8px;
+        flex: 0 0 auto;
+    }
+
+    .nexum-avatar:first-child {
+        margin-left: 0;
+    }
+
+    .nexum-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+
+    .nexum-avatar--add {
+        background: #fff;
+        color: #64748b;
+        border: 1px solid #e2e8f0;
+        width: 30px;
+        height: 30px;
+    }
+
+    .nexum-icon-btn {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        border: 1px solid #e2e8f0;
+        background: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #64748b;
+        text-decoration: none;
+        flex: 0 0 auto;
+    }
+
+    .nexum-icon-btn:hover {
+        color: #0f172a;
+        border-color: #cbd5e1;
+    }
+
+    .nexum-icon-btn.is-disabled {
+        opacity: 0.45;
+        pointer-events: none;
+    }
+
+    .nexum-priority,
+    .nexum-status,
+    .nexum-tag {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: .04em;
+        line-height: 1;
+        padding: 5px 10px;
+        border: 1px solid transparent;
+        white-space: nowrap;
+    }
+
+    .nexum-priority.high,
+    .nexum-tag.critical {
+        background: #fff1f2;
+        color: #be123c;
+        border-color: #fecdd3;
+    }
+
+    .nexum-priority.medium,
+    .nexum-tag.warning {
+        background: #fffbeb;
+        color: #b45309;
+        border-color: #fde68a;
+    }
+
+    .nexum-priority.low,
+    .nexum-tag.success {
+        background: #ecfdf5;
+        color: #047857;
+        border-color: #bbf7d0;
+    }
+
+    .nexum-status.todo,
+    .nexum-tag.default {
+        background: #f8fafc;
+        color: #475569;
+        border-color: #e2e8f0;
+    }
+
+    .nexum-status.in_progress,
+    .nexum-tag.primary {
+        background: #eff6ff;
+        color: #2563eb;
+        border-color: #bfdbfe;
+    }
+
+    .nexum-status.done {
+        background: #ecfdf3;
+        color: #047857;
+        border-color: #bbf7d0;
+    }
+
+    .nexum-modal .modal-content {
+        border-radius: 16px;
+        border: 1px solid #eef2f7;
+    }
+
+    .nexum-modal .modal-header {
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .nexum-modal .modal-footer {
+        border-top: 1px solid #f1f5f9;
+    }
+
+    .nexum-modal .modal-title {
+        font-weight: 900;
+    }
+
+    .nexum-task-action {
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        border: 1px solid #e2e8f0;
+        background: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #94a3b8;
+        padding: 0;
+        line-height: 1;
+    }
+
+    .nexum-task-action:hover {
+        color: #0f172a;
+        border-color: #cbd5e1;
+    }
+
+    .nexum-task-action.is-done {
+        background: #10b981;
+        border-color: #10b981;
+        color: #fff;
+    }
+
+    .nexum-task-action.is-progress {
+        background: #2563eb;
+        border-color: #2563eb;
+        color: #fff;
+    }
+</style>

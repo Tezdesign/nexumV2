@@ -2,1628 +2,947 @@
 
 {% set title = 'Dashboard' %}
 
-{% block css %}{% endblock %}
+{% block css %}
+    {% include 'partials/_task_project_design_system.html.twig' %}
+    <style>
+        :root {
+            --nexum-violet-50: #f5f3ff;
+            --nexum-violet-100: #ede9fe;
+            --nexum-violet-500: #8b5cf6;
+            --nexum-violet-600: #7c3aed;
+            --nexum-violet-700: #6d28d9;
+        }
+
+        .nexum-dashboard {
+            padding-bottom: 8px;
+        }
+
+        .nexum-hero {
+            background:
+                radial-gradient(circle at top right, rgba(124, 58, 237, 0.12), transparent 30%),
+                linear-gradient(135deg, rgba(124, 58, 237, 0.04), rgba(24, 138, 226, 0.02));
+            border: 1px solid rgba(124, 58, 237, 0.08);
+            border-radius: 24px;
+            padding: 24px 28px;
+            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.04);
+        }
+
+        .nexum-title {
+            margin-bottom: 4px;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+        }
+
+        .nexum-subtitle {
+            color: #64748b;
+            margin-bottom: 0;
+        }
+
+        .nexum-btn-primary {
+            background: var(--nexum-violet-600) !important;
+            border-color: var(--nexum-violet-600) !important;
+            box-shadow: 0 10px 20px rgba(124, 58, 237, 0.2);
+        }
+
+        .nexum-btn-primary:hover {
+            background: var(--nexum-violet-700) !important;
+            border-color: var(--nexum-violet-700) !important;
+        }
+
+        .btn.btn-primary {
+            background: var(--nexum-violet-600) !important;
+            border-color: var(--nexum-violet-600) !important;
+        }
+
+        .btn.btn-primary:hover {
+            background: var(--nexum-violet-700) !important;
+            border-color: var(--nexum-violet-700) !important;
+        }
+
+        .nexum-metric-card,
+        .nexum-panel {
+            border-radius: 20px;
+            border: 1px solid #edf2f7;
+            box-shadow: 0 18px 36px rgba(15, 23, 42, 0.06);
+        }
+
+        .nexum-metric-card.is-danger {
+            border-color: #fecaca;
+        }
+
+        .nexum-metric-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .nexum-metric-value {
+            font-size: clamp(1.5rem, 3vw, 2.1rem);
+            font-weight: 900;
+            letter-spacing: -0.04em;
+            line-height: 1;
+        }
+
+        .nexum-muted-label {
+            color: #64748b;
+            font-weight: 600;
+        }
+
+        .nexum-project-card {
+            border-radius: 22px;
+        }
+
+        .nexum-project-row + .nexum-project-row {
+            border-top: 1px solid #eef2f7;
+        }
+
+        .nexum-progress {
+            height: 6px;
+            border-radius: 999px;
+        }
+
+        .nexum-progress .progress-bar {
+            border-radius: 999px;
+            background: linear-gradient(90deg, var(--nexum-violet-600), var(--nexum-violet-500));
+        }
+
+        .nexum-avatars {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .nexum-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 999px;
+            border: 2px solid #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background: #f1f5f9;
+            color: #0f172a;
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1;
+            margin-left: -8px;
+            flex: 0 0 auto;
+        }
+
+        .nexum-avatar:first-child {
+            margin-left: 0;
+        }
+
+        .nexum-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .nexum-avatar--add {
+            background: #fff;
+            color: #64748b;
+            border: 1px solid #e2e8f0;
+            width: 30px;
+            height: 30px;
+        }
+
+        .nexum-modal .modal-content {
+            border-radius: 16px;
+            border: 1px solid #eef2f7;
+        }
+
+        .nexum-modal .modal-header {
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .nexum-modal .modal-footer {
+            border-top: 1px solid #f1f5f9;
+        }
+
+        .nexum-assignee-btn {
+            border-radius: 12px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 0 12px;
+        }
+
+        .nexum-assignee-left {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .nexum-assignee-name {
+            font-weight: 700;
+            font-size: 13px;
+            color: #0f172a;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 320px;
+        }
+
+        .nexum-assignee-role {
+            font-size: 12px;
+            color: #64748b;
+            white-space: nowrap;
+        }
+
+        .nexum-assignee-avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 999px;
+            border: 1px solid #e2e8f0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            font-weight: 800;
+            font-size: 12px;
+            flex: 0 0 auto;
+        }
+
+        .nexum-assignee-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .nexum-assignee-menu {
+            width: 100%;
+            border-radius: 14px;
+            border: 1px solid #eef2f7;
+            padding: 10px;
+        }
+
+        .nexum-assignee-item {
+            border-radius: 12px;
+            padding: 8px 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .nexum-assignee-item:hover {
+            background: #f8fafc;
+        }
+
+        .nexum-assignee-item .meta {
+            min-width: 0;
+        }
+
+        .nexum-assignee-item .meta .name {
+            font-weight: 700;
+            font-size: 13px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .nexum-assignee-item .meta .role {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 2px;
+            text-transform: capitalize;
+        }
+
+        .nexum-assignee-check {
+            width: 18px;
+            height: 18px;
+            border-radius: 999px;
+            border: 2px solid #cbd5e1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            flex: 0 0 auto;
+        }
+
+        .nexum-task-card {
+            border-radius: 22px;
+        }
+
+        .nexum-task-list {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .nexum-task-item {
+            padding: 14px 0;
+        }
+
+        .nexum-task-item + .nexum-task-item {
+            border-top: 1px solid #eef2f7;
+        }
+
+        .nexum-task-actions {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            flex: 0 0 auto;
+        }
+
+        .nexum-task-actions form {
+            margin: 0;
+        }
+
+        .nexum-task-action {
+            width: 28px;
+            height: 28px;
+            border-radius: 999px;
+            border: 1px solid #e2e8f0;
+            background: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #94a3b8;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .nexum-task-action.is-done {
+            background: #10b981;
+            border-color: #10b981;
+            color: #fff;
+        }
+
+        .nexum-task-action.is-progress {
+            background: #ffedd5;
+            border-color: #fed7aa;
+            color: #c2410c;
+        }
+
+        .nexum-task-action.is-disabled {
+            opacity: 0.75;
+            pointer-events: none;
+        }
+
+        .nexum-priority {
+            font-size: 11px;
+            font-weight: 900;
+            border-radius: 999px;
+            padding: 4px 10px;
+            border: 1px solid transparent;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            letter-spacing: .04em;
+        }
+
+        .nexum-priority.high {
+            background: #ffe4e6;
+            color: #be123c;
+            border-color: #fecdd3;
+        }
+
+        .nexum-priority.medium {
+            background: #fef3c7;
+            color: #b45309;
+            border-color: #fde68a;
+        }
+
+        .nexum-priority.low {
+            background: #dbeafe;
+            color: #1d4ed8;
+            border-color: #bfdbfe;
+        }
+
+        .nexum-status {
+            font-size: 11px;
+            font-weight: 900;
+            border-radius: 999px;
+            padding: 4px 10px;
+            border: 1px solid transparent;
+            display: inline-flex;
+            align-items: center;
+            letter-spacing: .01em;
+        }
+
+        .nexum-status.todo {
+            background: #f1f5f9;
+            color: #64748b;
+            border-color: #e2e8f0;
+        }
+
+        .nexum-status.in_progress {
+            background: #ffedd5;
+            color: #c2410c;
+            border-color: #fed7aa;
+        }
+
+        .nexum-status.done {
+            background: #dcfce7;
+            color: #15803d;
+            border-color: #bbf7d0;
+        }
+
+        .nexum-task-title {
+            font-weight: 700;
+            color: #1c1917;
+            text-decoration: none;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 520px;
+            display: inline-block;
+        }
+
+        .nexum-task-title:hover {
+            text-decoration: underline;
+        }
+
+        .nexum-meta {
+            display: inline-flex;
+            align-items: center;
+            gap: 14px;
+            color: #64748b;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .nexum-badge {
+            font-size: 11px;
+            font-weight: 900;
+            border-radius: 999px;
+            padding: 4px 10px;
+            border: 1px solid transparent;
+            display: inline-flex;
+            align-items: center;
+            letter-spacing: .01em;
+        }
+
+        .nexum-empty {
+            border: 1px dashed #dbe4f0;
+            border-radius: 18px;
+            background: #fbfdff;
+            color: #64748b;
+            padding: 24px;
+            text-align: center;
+        }
+    </style>
+{% endblock %}
 
 {% block content %}
+    <div class="nexum-dashboard">
+        <div class="nexum-hero mb-4">
+            <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
+                <div>
+                    <p class="nexum-subtitle mb-1">Welcome back, {{ welcomeName|plain_text }}</p>
+                    <h2 class="nexum-title">Here's what's happening with your projects today.</h2>
+                    <p class="nexum-subtitle">Track project progress, deadlines, and your latest work in one place.</p>
+                </div>
 
-	<div class="row row-cols-xxl-4 row-cols-md-2 row-cols-1">
-		<div class="col">
-			<div class="card">
-				<div class="d-flex card-header justify-content-between align-items-center">
-					<div>
-						<h4 class="header-title">Total Orders</h4>
-					</div>
-					<div class="dropdown">
-						<a href="#" class="dropdown-toggle drop-arrow-none card-drop" data-bs-toggle="dropdown" aria-expanded="false">
-							<i class="ri-more-2-fill fs-18"></i>
-						</a>
-						<div
-							class="dropdown-menu dropdown-menu-end">
-							<!-- item-->
-							<a href="javascript:void(0);" class="dropdown-item">Sales Report</a>
-							<!-- item-->
-							<a href="javascript:void(0);" class="dropdown-item">Export Report</a>
-							<!-- item-->
-							<a href="javascript:void(0);" class="dropdown-item">Profit</a>
-							<!-- item-->
-							<a href="javascript:void(0);" class="dropdown-item">Action</a>
-						</div>
-					</div>
-				</div>
+                {% if isManager|default(false) %}
+                    <button type="button" class="btn btn-primary nexum-btn-primary text-white rounded-pill px-3 d-inline-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#createProjectModal">
+                        <i class="ti ti-plus me-1"></i>
+                        New Project
+                    </button>
+                {% endif %}
+            </div>
+        </div>
 
-				<div class="card-body pt-0">
-					<div class="d-flex align-items-end gap-2 justify-content-between">
-						<div class="text-end flex-shrink-0">
-							<div id="total-orders-chart" data-colors="#ff5b5b,#F6F7FB"></div>
-						</div>
-						<div class="text-end">
-							<h3 class="fw-semibold">687.3k</h3>
-							<p class="text-muted mb-0">Since last month</p>
-						</div>
-					</div>
-				</div>
-			</div>
-		</div>
-		<!-- end col -->
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-xl-5 g-3 mb-4">
+            {% for metric in metrics|default([]) %}
+                <div class="col">
+                    <div class="card h-100 nexum-metric-card {{ metric.danger ? 'is-danger' : '' }}">
+                        <div class="card-body">
+                            <div class="d-flex align-items-start justify-content-between gap-3">
+                                <div>
+                                    <div class="nexum-metric-icon mb-3 text-{{ metric.tone }} bg-{{ metric.tone }}-subtle">
+                                        <i class="{{ metric.icon }}"></i>
+                                    </div>
+                                    <div class="nexum-metric-value">{{ metric.value }}</div>
+                                    <div class="nexum-muted-label mt-2">{{ metric.label }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
 
-		<div class="col">
-			<div class="card">
-				<div class="d-flex card-header justify-content-between align-items-center">
-					<div>
-						<h4 class="header-title">Total Revenue</h4>
-					</div>
-					<div class="dropdown">
-						<a href="#" class="dropdown-toggle drop-arrow-none card-drop" data-bs-toggle="dropdown" aria-expanded="false">
-							<i class="ri-more-2-fill fs-18"></i>
-						</a>
-						<div
-							class="dropdown-menu dropdown-menu-end">
-							<!-- item-->
-							<a href="javascript:void(0);" class="dropdown-item">Sales Report</a>
-							<!-- item-->
-							<a href="javascript:void(0);" class="dropdown-item">Export Report</a>
-							<!-- item-->
-							<a href="javascript:void(0);" class="dropdown-item">Profit</a>
-							<!-- item-->
-							<a href="javascript:void(0);" class="dropdown-item">Action</a>
-						</div>
-					</div>
-				</div>
+        <div class="row g-3">
+            <div class="col-xxl-8">
+                <div class="card nexum-panel nexum-project-card h-100">
+                    <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0 d-flex align-items-center justify-content-between">
+                        <div>
+                            <h4 class="header-title mb-1">Recent Projects</h4>
+                            <p class="text-muted mb-0">Track active projects and progress</p>
+                        </div>
+                        <span class="badge bg-light text-muted border rounded-pill">
+                            {{ projectCount|default(0) }} total
+                        </span>
+                    </div>
 
-				<div class="card-body pt-0">
-					<div class="d-flex align-items-center gap-2 justify-content-between">
-						<span class="badge bg-success rounded-pill fs-13">32%
-							<i class="ti ti-trending-up"></i>
-						</span>
-						<div class="text-end">
-							<h3 class="fw-semibold">$5.42M</h3>
-							<p class="text-muted mb-0">Since last month</p>
-						</div>
-					</div>
+                    <div class="card-body px-4 pb-4 pt-3">
+                        {% if projectCards|default([]) is not empty %}
+                            <div class="d-grid gap-3">
+                                {% for project in projectCards %}
+                                    {% set memberIds = project.memberIds|default([]) %}
+                                    {% set shownMemberIds = memberIds|slice(0, 4) %}
+                                    {% set extraMembers = memberIds|length > 4 ? (memberIds|length - 4) : 0 %}
+                                    <a href="{{ project.url }}" class="text-decoration-none text-reset">
+                                        <div class="nexum-project-row p-3 rounded-4 border border-light-subtle bg-white">
+                                            <div class="d-flex align-items-start justify-content-between gap-3">
+                                                <div class="flex-grow-1 min-w-0">
+                                                    <div class="d-flex align-items-center justify-content-between gap-3">
+                                                        <h5 class="mb-0 text-capitalize text-truncate">{{ project.name|plain_text }}</h5>
+                                                        <span class="text-muted fw-semibold">{{ project.progress }}%</span>
+                                                    </div>
 
-					<div class="progress progress-soft progress-sm mt-3">
-						<div class="progress-bar bg-success" role="progressbar" style="width: 25%" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100"></div>
-					</div>
-				</div>
-			</div>
-		</div>
-		<!-- end col -->
+                                                    <div class="progress nexum-progress mt-2 mb-2">
+                                                        <div class="progress-bar" role="progressbar"
+                                                             style="width: {{ project.progress }}%;"
+                                                             aria-valuenow="{{ project.progress }}"
+                                                             aria-valuemin="0"
+                                                             aria-valuemax="100"></div>
+                                                    </div>
 
-		<div class="col">
-			<div class="card">
-				<div class="d-flex card-header justify-content-between align-items-center">
-					<div>
-						<h4 class="header-title">New Users</h4>
-					</div>
-					<div class="dropdown">
-						<a href="#" class="dropdown-toggle drop-arrow-none card-drop" data-bs-toggle="dropdown" aria-expanded="false">
-							<i class="ri-more-2-fill fs-18"></i>
-						</a>
-						<div
-							class="dropdown-menu dropdown-menu-end">
-							<!-- item-->
-							<a href="javascript:void(0);" class="dropdown-item">Sales Report</a>
-							<!-- item-->
-							<a href="javascript:void(0);" class="dropdown-item">Export Report</a>
-							<!-- item-->
-							<a href="javascript:void(0);" class="dropdown-item">Profit</a>
-							<!-- item-->
-							<a href="javascript:void(0);" class="dropdown-item">Action</a>
-						</div>
-					</div>
-				</div>
+                                                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                                                        <div class="nexum-avatars">
+                                                            {% for uid in shownMemberIds %}
+                                                                {% set user = usersById[uid] ?? null %}
+                                                                {% if user %}
+                                                                    {% set fullName = (user.prenom ~ ' ' ~ user.nom)|trim %}
+                                                                    {% set avatarUrl = avatarUrlById[user.id] ?? null %}
+                                                                    {% if avatarUrl %}
+                                                                        <span class="nexum-avatar" title="{{ fullName }}">
+                                                                            <img src="{{ avatarUrl }}" alt="{{ fullName }}">
+                                                                        </span>
+                                                                    {% else %}
+                                                                        {% set ap = avatar_placeholder(fullName) %}
+                                                                        <span class="nexum-avatar" title="{{ fullName }}" style="background: {{ ap.bg }}; color: {{ ap.fg }};">
+                                                                            {{ ap.initial }}
+                                                                        </span>
+                                                                    {% endif %}
+                                                                {% endif %}
+                                                            {% endfor %}
 
-				<div class="card-body pt-0">
-					<div class="d-flex align-items-end gap-2 justify-content-between">
-						<div class="text-end flex-shrink-0">
-							<div id="new-users-chart" data-colors="#f9c851,#F6F7FB"></div>
-						</div>
-						<div class="text-end">
-							<h3 class="fw-semibold">45.3k</h3>
-							<p class="text-muted mb-0">Since last month</p>
-						</div>
-					</div>
-				</div>
-			</div>
-		</div>
-		<!-- end col -->
+                                                            {% if extraMembers > 0 %}
+                                                                <span class="nexum-avatar nexum-avatar--add" title="+{{ extraMembers }} more">+{{ extraMembers }}</span>
+                                                            {% endif %}
+                                                        </div>
 
-		<div class="col">
-			<div class="card">
-				<div class="d-flex card-header justify-content-between align-items-center">
-					<div>
-						<h4 class="header-title">Customer Satisfaction</h4>
-					</div>
-					<div class="dropdown">
-						<a href="#" class="dropdown-toggle drop-arrow-none card-drop" data-bs-toggle="dropdown" aria-expanded="false">
-							<i class="ri-more-2-fill fs-18"></i>
-						</a>
-						<div
-							class="dropdown-menu dropdown-menu-end">
-							<!-- item-->
-							<a href="javascript:void(0);" class="dropdown-item">Sales Report</a>
-							<!-- item-->
-							<a href="javascript:void(0);" class="dropdown-item">Export Report</a>
-							<!-- item-->
-							<a href="javascript:void(0);" class="dropdown-item">Profit</a>
-							<!-- item-->
-							<a href="javascript:void(0);" class="dropdown-item">Action</a>
-						</div>
-					</div>
-				</div>
+                                                        <div class="text-muted small d-flex flex-wrap align-items-center gap-3">
+                                                            <span class="d-inline-flex align-items-center gap-1">
+                                                                <i class="ti ti-clock"></i>
+                                                                <span>Start {{ project.startLabel }}</span>
+                                                            </span>
+                                                            <span class="d-inline-flex align-items-center gap-1">
+                                                                <i class="ti ti-calendar"></i>
+                                                                <span>End {{ project.endLabel }}</span>
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </a>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="nexum-empty">
+                                No projects available for this account yet.
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
 
-				<div class="card-body pt-0">
-					<div class="d-flex align-items-center gap-2 justify-content-between">
-						<span class="badge bg-info rounded-pill fs-13">5.7%
-							<i class="ti ti-trending-down"></i>
-						</span>
-						<div class="text-end">
-							<h3 class="fw-semibold">94.3%</h3>
-							<p class="text-muted mb-0">Since last month</p>
-						</div>
-					</div>
+            <div class="col-xxl-4">
+                <div class="card nexum-panel nexum-task-card h-100">
+                    <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0 d-flex align-items-center justify-content-between">
+                        <div>
+                            <h4 class="header-title mb-1">Your Tasks</h4>
+                        </div>
 
-					<div class="progress progress-soft progress-sm mt-3">
-						<div class="progress-bar bg-info" role="progressbar" style="width: 94.3%" aria-valuenow="94.3" aria-valuemin="0" aria-valuemax="100"></div>
-					</div>
-				</div>
-			</div>
-		</div>
-		<!-- end col -->
+                        {% if canCreateTask|default(false) %}
+                            <button type="button"
+                                    class="btn btn-light border rounded-circle p-0 d-inline-flex align-items-center justify-content-center"
+                                    style="width: 34px; height: 34px;"
+                                    title="Create task"
+                                    aria-label="Create task"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#createTaskModal">
+                                <i class="ti ti-plus"></i>
+                            </button>
+                        {% endif %}
+                    </div>
 
-	</div>
-	<!-- end row -->
+                    <div class="card-body px-4 pb-4 pt-3">
+                        {% if taskCards|default([]) is not empty %}
+                            <div class="nexum-task-list">
+                                {% for task in taskCards %}
+                                    <div class="nexum-task-item d-flex align-items-center gap-3">
+                                        <div class="nexum-task-actions">
+                                            {% if (task.assignedTo|default(0)) == (currentUserId|default(0)) %}
+                                                <form method="post" action="{{ path('app_task_status', {id: task.id}) }}">
+                                                    <input type="hidden" name="_token" value="{{ csrf_token('task_status' ~ task.id) }}">
+                                                    <input type="hidden" name="status" value="{{ task.statusKey == 'done' ? 'todo' : 'done' }}">
+                                                    <input type="hidden" name="back" value="{{ path('dashboard') }}">
+                                                    <button type="submit"
+                                                            class="nexum-task-action {{ task.statusKey == 'done' ? 'is-done' : '' }}"
+                                                            title="{{ task.statusKey == 'done' ? 'Mark as To Do' : 'Mark as Done' }}"
+                                                            aria-label="{{ task.statusKey == 'done' ? 'Mark as To Do' : 'Mark as Done' }}">
+                                                        <i class="ri-check-line"></i>
+                                                    </button>
+                                                </form>
 
+                                                <form method="post" action="{{ path('app_task_status', {id: task.id}) }}">
+                                                    <input type="hidden" name="_token" value="{{ csrf_token('task_status' ~ task.id) }}">
+                                                    <input type="hidden" name="status" value="in_progress">
+                                                    <input type="hidden" name="back" value="{{ path('dashboard') }}">
+                                                    <button type="submit"
+                                                            class="nexum-task-action {{ task.statusKey == 'in_progress' ? 'is-progress' : '' }}"
+                                                            title="Mark as In Progress"
+                                                            aria-label="Mark as In Progress">
+                                                        <i class="ri-time-line"></i>
+                                                    </button>
+                                                </form>
+                                            {% else %}
+                                                <span class="nexum-task-action {{ task.statusKey == 'done' ? 'is-done' : '' }} is-disabled"
+                                                      title="Progress can be updated only by the assignee"
+                                                      aria-hidden="true">
+                                                    <i class="ri-check-line"></i>
+                                                </span>
+                                                <span class="nexum-task-action {{ task.statusKey == 'in_progress' ? 'is-progress' : '' }} is-disabled"
+                                                      title="Progress can be updated only by the assignee"
+                                                      aria-hidden="true">
+                                                    <i class="ri-time-line"></i>
+                                                </span>
+                                            {% endif %}
+                                        </div>
 
-	<div class="row">
-		<div class="col-xxl-4 col-xl-6">
-			<div class="card">
-				<div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2 border-bottom border-dashed">
-					<h4 class="header-title">Orders Statistics</h4>
+                                        <div class="flex-grow-1 min-w-0">
+                                            <div class="d-flex align-items-center justify-content-between gap-2">
+                                                <h6 class="mb-1 text-truncate">{{ task.title|plain_text }}</h6>
+                                                <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+                                                    <span class="nexum-priority {{ task.priorityKey }}">{{ task.priorityLabel }}</span>
+                                                    <span class="nexum-status {{ task.statusKey }}">{{ task.statusLabel }}</span>
+                                                </div>
+                                            </div>
 
-					<div class="d-flex gap-2 justify-content-end text-end">
-						<a href="javascript:void(0);" class="btn btn-sm btn-light">Refresh
-							<i class="ri-refresh-line ms-1"></i>
-						</a>
-					</div>
-				</div>
-				<div class="card-body pt-2">
-					<div dir="ltr">
-						<div id="data-visits-chart" class="apex-charts" data-colors="#5b69bc,#ff8acc,#10c469,#35b8e0"></div>
+                                            <div class="nexum-meta">
+                                                <span class="text-truncate">{{ task.projectName|plain_text }}</span>
+                                                <span class="d-inline-flex align-items-center gap-1">
+                                                    <i class="ri-calendar-line"></i>
+                                                    <span>{{ task.dueLabel }}</span>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="nexum-empty">
+                                No tasks available for this user yet.
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
 
-						<div class="row mt-3">
-							<div class="col">
-								<div class="d-flex justify-content-between align-items-center p-1">
-									<div>
-										<i class="ri-circle-fill fs-12 align-middle me-1 text-primary"></i>
-										<span class="align-middle fw-semibold">Direct</span>
-									</div>
-									<span class="fw-semibold text-muted float-end">
-										<i class="ri-arrow-down-s-fill text-danger"></i>
-										965</span>
-								</div>
+        {% if isManager|default(false) and createProjectForm is defined and createProjectForm is not null %}
+            <div class="modal fade nexum-modal" id="createProjectModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered modal-lg">
+                    {% include 'project/_create_modal_content.html.twig' with {
+                        createForm: createProjectForm,
+                        assignableUsers: assignableUsers,
+                        backUrl: path('dashboard')
+                    } %}
+                </div>
+            </div>
+        {% endif %}
 
-								<div class="d-flex justify-content-between align-items-center p-1">
-									<div>
-										<i class="ri-circle-fill fs-12 text-secondary align-middle me-1"></i>
-										<span class="align-middle fw-semibold">Social</span>
-									</div>
-									<span class="fw-semibold text-muted float-end">
-										<i class="ri-arrow-up-s-fill text-success"></i>
-										75</span>
-								</div>
-							</div>
-							<div class="col">
-								<div class="d-flex justify-content-between align-items-center p-1">
-									<div>
-										<i class="ri-circle-fill fs-12 text-success align-middle me-1"></i>
-										<span class="align-middle fw-semibold">
-											Marketing</span>
-									</div>
-									<span class="fw-semibold text-muted float-end">
-										<i class="ri-arrow-up-s-fill text-success"></i>
-										102</span>
-								</div>
-
-								<div class="d-flex justify-content-between align-items-center p-1">
-									<div>
-										<i class="ri-circle-fill fs-12 text-info align-middle me-1"></i>
-										<span class="align-middle fw-semibold">Affiliates</span>
-									</div>
-									<span class="fw-semibold text-muted float-end">
-										<i class="ri-arrow-down-s-fill text-danger"></i>
-										96</span>
-								</div>
-							</div>
-						</div>
-					</div>
-				</div>
-				<!-- end card-body-->
-			</div>
-			<!-- end card-->
-		</div>
-		<!-- end col-->
-		<div class="col-xxl-4 col-xl-6">
-			<div class="card">
-				<div class="d-flex card-header justify-content-between align-items-center border-bottom border-dashed">
-					<h4 class="header-title">Statistics</h4>
-					<div class="dropdown">
-						<a href="#" class="dropdown-toggle drop-arrow-none card-drop" data-bs-toggle="dropdown" aria-expanded="false">
-							<i class="ri-more-2-fill fs-18"></i>
-						</a>
-						<div
-							class="dropdown-menu dropdown-menu-end">
-							<!-- item-->
-							<a href="javascript:void(0);" class="dropdown-item">Sales Report</a>
-							<!-- item-->
-							<a href="javascript:void(0);" class="dropdown-item">Export Report</a>
-							<!-- item-->
-							<a href="javascript:void(0);" class="dropdown-item">Profit</a>
-							<!-- item-->
-							<a href="javascript:void(0);" class="dropdown-item">Action</a>
-						</div>
-					</div>
-				</div>
-
-				<div class="card-body p-0 pt-1">
-					<div dir="ltr" class="px-1">
-						<div id="statistics-chart" class="apex-charts" data-colors="#188ae2"></div>
-					</div>
-
-					<div class="border-top border-dashed mt-2">
-						<div class="row text-center align-items-center g-0">
-							<div class="col-md-4 col-6">
-								<p class="text-muted mt-3 mb-1">Revenue</p>
-								<h4 class="mb-3">
-									<span class="ri-arrow-left-down-box-line text-success me-1"></span>
-									<span>$29.5k</span>
-								</h4>
-							</div>
-							<div class="col-md-4 col-6 border-start border-end border-dashed">
-								<p class="text-muted mt-3 mb-1">Expenses</p>
-								<h4 class="mb-3">
-									<span class="ri-arrow-left-up-box-line text-danger me-1"></span>
-									<span>$15.07k</span>
-								</h4>
-							</div>
-							<div class="col-md-4 col">
-								<p class="text-muted mt-3 mb-1">Revenue</p>
-								<h4 class="mb-3">
-									<span class="ri-arrow-left-down-box-line text-success me-1"></span>
-									<span>$71.5k</span>
-								</h4>
-							</div>
-						</div>
-
-					</div>
-
-				</div>
-			</div>
-			<!-- end card-->
-		</div>
-		<!-- end col-->
-
-		<div class="col-xxl-4 col-xl-12">
-			<div class="card">
-				<div class="d-flex card-header justify-content-between align-items-center border-bottom border-dashed">
-					<h4 class="header-title">Total Revenue</h4>
-					<div class="dropdown">
-						<a href="#" class="dropdown-toggle drop-arrow-none card-drop" data-bs-toggle="dropdown" aria-expanded="false">
-							<i class="ri-more-2-fill fs-18"></i>
-						</a>
-						<div
-							class="dropdown-menu dropdown-menu-end">
-							<!-- item-->
-							<a href="javascript:void(0);" class="dropdown-item">Sales Report</a>
-							<!-- item-->
-							<a href="javascript:void(0);" class="dropdown-item">Export Report</a>
-							<!-- item-->
-							<a href="javascript:void(0);" class="dropdown-item">Profit</a>
-							<!-- item-->
-							<a href="javascript:void(0);" class="dropdown-item">Action</a>
-						</div>
-					</div>
-				</div>
-
-				<div class="card-body p-0 pt-1">
-					<div dir="ltr" class="px-2">
-						<div id="revenue-chart" class="apex-charts" data-colors="#10c469,#35b8e0"></div>
-					</div>
-
-					<div class="border-top border-dashed mt-2">
-						<div class="row text-center align-items-center g-0">
-							<div class="col-md-4 col-12">
-								<p class="text-muted mb-0">Payments</p>
-								<img src="/images/cards/american-express.svg" alt="user-card" height="36"/>
-								<img src="/images/cards/discover-card.svg" alt="user-card" height="36"/>
-								<img src="/images/cards/mastercard.svg" alt="user-card" height="36"/>
-							</div>
-							<div class="col-md-4 col-6 border-start border-end border-dashed">
-								<p class="text-muted mt-3 mb-1">Expenses</p>
-								<h4 class="mb-3">
-									<span class="ri-arrow-left-up-box-line text-danger me-1"></span>
-									<span>$15.07k</span>
-								</h4>
-							</div>
-							<div class="col-md-4 col">
-								<p class="text-muted mt-3 mb-1">Revenue</p>
-								<h4 class="mb-3">
-									<span class="ri-arrow-left-down-box-line text-success me-1"></span>
-									<span>$45.5k</span>
-								</h4>
-							</div>
-						</div>
-					</div>
-
-				</div>
-			</div>
-			<!-- end card-->
-		</div>
-		<!-- end col-->
-	</div>
-	<!-- end row-->
-
-	<div class="row row-cols-xxl-5 row-cols-md-2 row-cols-1">
-		<div class="col">
-			<div class="card">
-				<div class="card-body d-flex align-items-center gap-2">
-					<img src="/images/users/avatar-7.jpg" alt="team-member-image" class="me-1 avatar-xl img-thumbnail rounded-circle">
-					<div>
-						<h5>John Smith</h5>
-						<p class="text-muted">Project Manager</p>
-						<p class="m-0 fs-14">80+ Feedbacks
-							<a href="#!" class="link-reset fw-medium">
-								<i class="ti ti-arrow-right"></i>
-							</a>
-						</p>
-					</div>
-				</div>
-			</div>
-		</div>
-
-		<div class="col">
-			<div class="card">
-				<div class="card-body d-flex align-items-center gap-2">
-					<img src="/images/users/avatar-4.jpg" alt="team-member-image" class="me-1 avatar-xl img-thumbnail rounded-circle">
-					<div>
-						<h5>Jane Doe</h5>
-						<p class="text-muted">UI/UX Designer</p>
-						<p class="m-0 fs-14">90+ Feedbacks
-							<a href="#!" class="link-reset fw-medium">
-								<i class="ti ti-arrow-right"></i>
-							</a>
-						</p>
-					</div>
-				</div>
-			</div>
-		</div>
-
-		<div class="col">
-			<div class="card">
-				<div class="card-body d-flex align-items-center gap-2">
-					<img src="/images/users/avatar-5.jpg" alt="team-member-image" class="me-1 avatar-xl img-thumbnail rounded-circle">
-					<div>
-						<h5>Emily Brown</h5>
-						<p class="text-muted">Software Engineer</p>
-						<p class="m-0 fs-14">100+ Feedbacks
-							<a href="#!" class="link-reset fw-medium">
-								<i class="ti ti-arrow-right"></i>
-							</a>
-						</p>
-					</div>
-				</div>
-			</div>
-		</div>
-
-		<div class="col">
-			<div class="card">
-				<div class="card-body d-flex align-items-center gap-2">
-					<img src="/images/users/avatar-6.jpg" alt="team-member-image" class="me-1 avatar-xl img-thumbnail rounded-circle">
-					<div>
-						<h5>Mark Wilson</h5>
-						<p class="text-muted">Marketing Specialist</p>
-						<p class="m-0 fs-14">70+ Feedbacks
-							<a href="#!" class="link-reset fw-medium">
-								<i class="ti ti-arrow-right"></i>
-							</a>
-						</p>
-					</div>
-				</div>
-			</div>
-		</div>
-
-		<div class="col">
-			<div class="card">
-				<div class="card-body d-flex align-items-center gap-2">
-					<img src="/images/users/avatar-3.jpg" alt="team-member-image" class="me-1 avatar-xl img-thumbnail rounded-circle">
-					<div>
-						<h5>Sara Johnson</h5>
-						<p class="text-muted">Data Analyst</p>
-						<p class="m-0 fs-14">50+ Feedbacks
-							<a href="#!" class="link-reset fw-medium">
-								<i class="ti ti-arrow-right"></i>
-							</a>
-						</p>
-					</div>
-				</div>
-			</div>
-		</div>
-	</div>
-	<!-- end row-->
-
-	<div class="row">
-		<div class="col-xxl-6">
-			<div class="card">
-				<div class="d-flex card-header justify-content-between align-items-center">
-					<h4 class="header-title">Brands Listing</h4>
-					<a href="javascript:void(0);" class="btn btn-sm btn-light">Add Brand
-						<i class="ti ti-plus ms-1"></i>
-					</a>
-				</div>
-				<div class="card-body p-0">
-					<div class="bg-light bg-opacity-50 py-1 text-center">
-						<p class="m-0">
-							<b>75</b>
-							Active brands out of
-							<span class="fw-medium">120</span>
-						</p>
-					</div>
-					<div class="table-responsive">
-						<table class="table table-custom table-centered table-sm table-nowrap table-hover mb-0">
-							<tbody>
-								<tr>
-									<td>
-										<div class="d-flex align-items-center">
-											<div class="avatar-md flex-shrink-0 me-2">
-												<span class="avatar-title bg-primary-subtle rounded-circle">
-													<img src="/images/products/logo/logo-1.svg" alt="" height="22">
-												</span>
-											</div>
-											<div>
-												<span class="text-muted fs-12">Electronics</span>
-												<br/>
-												<h5 class="fs-14 mt-1">TechNova - Germany</h5>
-											</div>
-										</div>
-									</td>
-									<td>
-										<span class="text-muted fs-12">Established</span>
-										<h5 class="fs-14 mt-1 fw-normal">Since 2015</h5>
-									</td>
-									<td>
-										<span class="text-muted fs-12">Stores</span>
-										<br/>
-										<h5 class="fs-14 mt-1 fw-normal">1,200</h5>
-									</td>
-									<td>
-										<span class="text-muted fs-12">Products</span>
-										<h5 class="fs-14 mt-1 fw-normal">15,320</h5>
-									</td>
-									<td>
-										<span class="text-muted fs-12">Status</span>
-										<h5 class="fs-14 mt-1 fw-normal">
-											<i class="ti ti-circle-filled fs-12 text-success"></i>
-											Active
-										</h5>
-									</td>
-									<td style="width: 30px;">
-										<div class="dropdown">
-											<a href="#" class="dropdown-toggle text-muted drop-arrow-none card-drop p-0" data-bs-toggle="dropdown" aria-expanded="false">
-												<i class="ti ti-dots-vertical"></i>
-											</a>
-											<div class="dropdown-menu dropdown-menu-end">
-												<a href="javascript:void(0);" class="dropdown-item">Refresh
-													                                                                    Report</a>
-												<a href="javascript:void(0);" class="dropdown-item">Export
-													                                                                    Report</a>
-											</div>
-										</div>
-									</td>
-								</tr>
-
-								<tr>
-									<td>
-										<div class="d-flex align-items-center">
-											<div class="avatar-md flex-shrink-0 me-2">
-												<span class="avatar-title bg-info-subtle rounded-circle">
-													<img src="/images/products/logo/logo-2.svg" alt="" height="22">
-												</span>
-											</div>
-											<div>
-												<span class="text-muted fs-12">Home Decor</span>
-												<br/>
-												<h5 class="fs-14 mt-1">DecoLux - France</h5>
-											</div>
-										</div>
-									</td>
-									<td>
-										<span class="text-muted fs-12">Established</span>
-										<h5 class="fs-14 mt-1 fw-normal">Since 2000</h5>
-									</td>
-									<td>
-										<span class="text-muted fs-12">Stores</span>
-										<br/>
-										<h5 class="fs-14 mt-1 fw-normal">450</h5>
-									</td>
-									<td>
-										<span class="text-muted fs-12">Products</span>
-										<h5 class="fs-14 mt-1 fw-normal">6,800</h5>
-									</td>
-									<td>
-										<span class="text-muted fs-12">Status</span>
-										<h5 class="fs-14 mt-1 fw-normal">
-											<i class="ti ti-circle-filled fs-12 text-warning"></i>
-											Pending
-										</h5>
-									</td>
-									<td style="width: 30px;">
-										<div class="dropdown">
-											<a href="#" class="dropdown-toggle text-muted drop-arrow-none card-drop p-0" data-bs-toggle="dropdown" aria-expanded="false">
-												<i class="ti ti-dots-vertical"></i>
-											</a>
-											<div class="dropdown-menu dropdown-menu-end">
-												<a href="javascript:void(0);" class="dropdown-item">Refresh
-													                                                                    Report</a>
-												<a href="javascript:void(0);" class="dropdown-item">Export
-													                                                                    Report</a>
-											</div>
-										</div>
-									</td>
-								</tr>
-
-								<tr>
-									<td>
-										<div class="d-flex align-items-center">
-											<div class="avatar-md flex-shrink-0 me-2">
-												<span class="avatar-title bg-primary-subtle rounded-circle">
-													<img src="/images/products/logo/logo-3.svg" alt="" height="22">
-												</span>
-											</div>
-											<div>
-												<span class="text-muted fs-12">Technology</span>
-												<br/>
-												<h5 class="fs-14 mt-1">InnovTech - Japan</h5>
-											</div>
-										</div>
-									</td>
-									<td>
-										<span class="text-muted fs-12">Established</span>
-										<h5 class="fs-14 mt-1 fw-normal">Since 2012</h5>
-									</td>
-									<td>
-										<span class="text-muted fs-12">Stores</span>
-										<br/>
-										<h5 class="fs-14 mt-1 fw-normal">850</h5>
-									</td>
-									<td>
-										<span class="text-muted fs-12">Products</span>
-										<h5 class="fs-14 mt-1 fw-normal">12,500</h5>
-									</td>
-									<td>
-										<span class="text-muted fs-12">Status</span>
-										<h5 class="fs-14 mt-1 fw-normal">
-											<i class="ti ti-circle-filled fs-12 text-success"></i>
-											Active
-										</h5>
-									</td>
-									<td style="width: 30px;">
-										<div class="dropdown">
-											<a href="#" class="dropdown-toggle text-muted drop-arrow-none card-drop p-0" data-bs-toggle="dropdown" aria-expanded="false">
-												<i class="ti ti-dots-vertical"></i>
-											</a>
-											<div class="dropdown-menu dropdown-menu-end">
-												<a href="javascript:void(0);" class="dropdown-item">Refresh
-													                                                                    Report</a>
-												<a href="javascript:void(0);" class="dropdown-item">Export
-													                                                                    Report</a>
-											</div>
-										</div>
-									</td>
-								</tr>
-
-								<tr>
-									<td>
-										<div class="d-flex align-items-center">
-											<div class="avatar-md flex-shrink-0 me-2">
-												<span class="avatar-title bg-secondary-subtle rounded-circle">
-													<img src="/images/products/logo/logo-4.svg" alt="" height="22">
-												</span>
-											</div>
-											<div>
-												<span class="text-muted fs-12">Health</span>
-												<br/>
-												<h5 class="fs-14 mt-1">WellCare - UK</h5>
-											</div>
-										</div>
-									</td>
-									<td>
-										<span class="text-muted fs-12">Established</span>
-										<h5 class="fs-14 mt-1 fw-normal">Since 2008</h5>
-									</td>
-									<td>
-										<span class="text-muted fs-12">Stores</span>
-										<br/>
-										<h5 class="fs-14 mt-1 fw-normal">300</h5>
-									</td>
-									<td>
-										<span class="text-muted fs-12">Products</span>
-										<h5 class="fs-14 mt-1 fw-normal">4,200</h5>
-									</td>
-									<td>
-										<span class="text-muted fs-12">Status</span>
-										<h5 class="fs-14 mt-1 fw-normal">
-											<i class="ti ti-circle-filled fs-12 text-success"></i>
-											Active
-										</h5>
-									</td>
-									<td style="width: 30px;">
-										<div class="dropdown">
-											<a href="#" class="dropdown-toggle text-muted drop-arrow-none card-drop p-0" data-bs-toggle="dropdown" aria-expanded="false">
-												<i class="ti ti-dots-vertical"></i>
-											</a>
-											<div class="dropdown-menu dropdown-menu-end">
-												<a href="javascript:void(0);" class="dropdown-item">Refresh
-													                                                                    Report</a>
-												<a href="javascript:void(0);" class="dropdown-item">Export
-													                                                                    Report</a>
-											</div>
-										</div>
-									</td>
-								</tr>
-
-								<tr>
-									<td>
-										<div class="d-flex align-items-center">
-											<div class="avatar-md flex-shrink-0 me-2">
-												<span class="avatar-title bg-danger-subtle rounded-circle">
-													<img src="/images/products/logo/logo-5.svg" alt="" height="22">
-												</span>
-											</div>
-											<div>
-												<span class="text-muted fs-12">Automotive</span>
-												<br/>
-												<h5 class="fs-14 mt-1">AutoDrive - USA</h5>
-											</div>
-										</div>
-									</td>
-									<td>
-										<span class="text-muted fs-12">Established</span>
-										<h5 class="fs-14 mt-1 fw-normal">Since 1999</h5>
-									</td>
-									<td>
-										<span class="text-muted fs-12">Stores</span>
-										<br/>
-										<h5 class="fs-14 mt-1 fw-normal">600</h5>
-									</td>
-									<td>
-										<span class="text-muted fs-12">Products</span>
-										<h5 class="fs-14 mt-1 fw-normal">8,900</h5>
-									</td>
-									<td>
-										<span class="text-muted fs-12">Status</span>
-										<h5 class="fs-14 mt-1 fw-normal">
-											<i class="ti ti-circle-filled fs-12 text-danger"></i>
-											Inactive
-										</h5>
-									</td>
-									<td style="width: 30px;">
-										<div class="dropdown">
-											<a href="#" class="dropdown-toggle text-muted drop-arrow-none card-drop p-0" data-bs-toggle="dropdown" aria-expanded="false">
-												<i class="ti ti-dots-vertical"></i>
-											</a>
-											<div class="dropdown-menu dropdown-menu-end">
-												<a href="javascript:void(0);" class="dropdown-item">Refresh
-													                                                                    Report</a>
-												<a href="javascript:void(0);" class="dropdown-item">Export
-													                                                                    Report</a>
-											</div>
-										</div>
-									</td>
-								</tr>
-
-								<!-- Additional rows with new data -->
-							</tbody>
-						</table>
-					</div>
-					<!-- end table-responsive-->
-				</div>
-				<!-- end card-body-->
-
-				<div class="card-footer">
-					<div class="align-items-center justify-content-between row text-center text-sm-start">
-						<div class="col-sm">
-							<div class="text-muted">
-								Showing
-								<span class="fw-semibold">5</span>
-								of
-								<span class="fw-semibold">20</span>
-								Results
-							</div>
-						</div>
-						<div class="col-sm-auto mt-3 mt-sm-0">
-							<ul class="pagination pagination-boxed pagination-sm mb-0 justify-content-center">
-								<li class="page-item disabled">
-									<a href="#" class="page-link">
-										<i class="ti ti-chevron-left"></i>
-									</a>
-								</li>
-								<li class="page-item active">
-									<a href="#" class="page-link">1</a>
-								</li>
-								<li class="page-item">
-									<a href="#" class="page-link">2</a>
-								</li>
-								<li class="page-item">
-									<a href="#" class="page-link">3</a>
-								</li>
-								<li class="page-item">
-									<a href="#" class="page-link">
-										<i class="ti ti-chevron-right"></i>
-									</a>
-								</li>
-							</ul>
-						</div>
-					</div>
-					<!-- -->
-				</div>
-
-			</div>
-			<!-- end card-->
-		</div>
-		<!-- end col-->
-
-		<div class="col-xxl-6">
-			<div class="card card-h-100">
-				<div class="card-header d-flex flex-wrap align-items-center gap-2 border-bottom border-dashed">
-					<h4 class="header-title me-auto">Top Selling Products</h4>
-
-					<div class="d-flex gap-2 justify-content-end text-end">
-						<a href="javascript:void(0);" class="btn btn-sm btn-light">Import
-							<i class="ti ti-download ms-1"></i>
-						</a>
-						<a href="javascript:void(0);" class="btn btn-sm btn-primary">Export
-							<i class="ti ti-file-export ms-1"></i>
-						</a>
-					</div>
-				</div>
-
-				<div class="card-body p-0">
-					<div class="table-responsive">
-						<table class="table table-custom align-middle table-nowrap table-hover mb-0">
-							<tbody>
-								<tr>
-									<td style="width: 85px;">
-										<div class="avatar-lg border rounded">
-											<img src="/images/products/p-1.png" alt="Product-10" class="img-fluid rounded-2">
-										</div>
-									</td>
-									<td class="ps-0">
-										<h5 class="fs-14 my-1">
-											<a href="#!" class="link-reset">Modern Desk
-												                                                                Lamp</a>
-										</h5>
-										<span class="text-muted fs-12">15 April 2024</span>
-									</td>
-									<td>
-										<h5 class="fs-14 my-1">$45.99</h5>
-										<span class="text-muted fs-12">Price</span>
-									</td>
-									<td>
-										<h5 class="fs-14 my-1">120</h5>
-										<span class="text-muted fs-12">Quantity</span>
-									</td>
-									<td>
-										<div class="d-flex align-items-center justify-content-end">
-											<div class="me-2">
-												<h5 class="fs-14 my-1">$5,518.80</h5>
-												<span class="text-muted fs-12">Amount</span>
-											</div>
-										</div>
-									</td>
-								</tr>
-								<tr>
-									<td style="width: 85px;">
-										<div class="avatar-lg border rounded">
-											<img src="/images/products/p-2.png" alt="Product-11" class="img-fluid rounded-2">
-										</div>
-									</td>
-									<td class="ps-0">
-										<h5 class="fs-14 my-1">
-											<a href="#!" class="link-reset">Vintage
-												                                                                Wooden Chair</a>
-										</h5>
-										<span class="text-muted fs-12">10 April 2024</span>
-									</td>
-									<td>
-										<h5 class="fs-14 my-1">$99.00</h5>
-										<span class="text-muted fs-12">Price</span>
-									</td>
-									<td>
-										<h5 class="fs-14 my-1">80</h5>
-										<span class="text-muted fs-12">Quantity</span>
-									</td>
-									<td>
-										<div class="d-flex align-items-center justify-content-end">
-											<div class="me-2">
-												<h5 class="fs-14 my-1">$7,920.00</h5>
-												<span class="text-muted fs-12">Amount</span>
-											</div>
-										</div>
-									</td>
-								</tr>
-								<tr>
-									<td style="width: 85px;">
-										<div class="avatar-lg border rounded">
-											<img src="/images/products/p-3.png" alt="Product-12" class="img-fluid rounded-2">
-										</div>
-									</td>
-									<td class="ps-0">
-										<h5 class="fs-14 my-1">
-											<a href="#!" class="link-reset">Wireless
-												                                                                Keyboard</a>
-										</h5>
-										<span class="text-muted fs-12">05 April 2024</span>
-									</td>
-									<td>
-										<h5 class="fs-14 my-1">$29.99</h5>
-										<span class="text-muted fs-12">Price</span>
-									</td>
-									<td>
-										<h5 class="fs-14 my-1">150</h5>
-										<span class="text-muted fs-12">Quantity</span>
-									</td>
-									<td>
-										<div class="d-flex align-items-center justify-content-end">
-											<div class="me-2">
-												<h5 class="fs-14 my-1">$4,498.50</h5>
-												<span class="text-muted fs-12">Amount</span>
-											</div>
-										</div>
-									</td>
-								</tr>
-								<tr>
-									<td style="width: 85px;">
-										<div class="avatar-lg border rounded">
-											<img src="/images/products/p-4.png" alt="Product-13" class="img-fluid rounded-2">
-										</div>
-									</td>
-									<td class="ps-0">
-										<h5 class="fs-14 my-1">
-											<a href="#!" class="link-reset">Bluetooth
-												                                                                Speaker</a>
-										</h5>
-										<span class="text-muted fs-12">02 April 2024</span>
-									</td>
-									<td>
-										<h5 class="fs-14 my-1">$65.00</h5>
-										<span class="text-muted fs-12">Price</span>
-									</td>
-									<td>
-										<h5 class="fs-14 my-1">90</h5>
-										<span class="text-muted fs-12">Quantity</span>
-									</td>
-									<td>
-										<div class="d-flex align-items-center justify-content-end">
-											<div class="me-2">
-												<h5 class="fs-14 my-1">$5,850.00</h5>
-												<span class="text-muted fs-12">Amount</span>
-											</div>
-										</div>
-									</td>
-								</tr>
-								<tr>
-									<td style="width: 85px;">
-										<div class="avatar-lg border rounded">
-											<img src="/images/products/p-5.png" alt="Product-14" class="img-fluid rounded-2">
-										</div>
-									</td>
-									<td class="ps-0">
-										<h5 class="fs-14 my-1">
-											<a href="#!" class="link-reset">Classic Table
-												                                                                Lamp</a>
-										</h5>
-										<span class="text-muted fs-12">29 March 2024</span>
-									</td>
-									<td>
-										<h5 class="fs-14 my-1">$42.50</h5>
-										<span class="text-muted fs-12">Price</span>
-									</td>
-									<td>
-										<h5 class="fs-14 my-1">110</h5>
-										<span class="text-muted fs-12">Quantity</span>
-									</td>
-									<td>
-										<div class="d-flex align-items-center justify-content-end">
-											<div class="me-2">
-												<h5 class="fs-14 my-1">$4,675.00</h5>
-												<span class="text-muted fs-12">Amount</span>
-											</div>
-										</div>
-									</td>
-								</tr>
-							</tbody>
-
-						</table>
-					</div>
-					<!-- end table-responsive-->
-				</div>
-				<!-- end card-body-->
-
-				<div class="card-footer">
-					<div class="align-items-center justify-content-between row text-center text-sm-start">
-						<div class="col-sm">
-							<div class="text-muted">
-								Showing
-								<span class="fw-semibold">5</span>
-								of
-								<span class="fw-semibold">10</span>
-								Results
-							</div>
-						</div>
-						<div class="col-sm-auto mt-3 mt-sm-0">
-							<ul class="pagination pagination-boxed pagination-sm mb-0 justify-content-center">
-								<li class="page-item disabled">
-									<a href="#" class="page-link">
-										<i class="ti ti-chevron-left"></i>
-									</a>
-								</li>
-								<li class="page-item active">
-									<a href="#" class="page-link">1</a>
-								</li>
-								<li class="page-item">
-									<a href="#" class="page-link">2</a>
-								</li>
-								<li class="page-item">
-									<a href="#" class="page-link">
-										<i class="ti ti-chevron-right"></i>
-									</a>
-								</li>
-							</ul>
-						</div>
-					</div>
-					<!-- -->
-				</div>
-			</div>
-			<!-- end card-->
-		</div>
-		<!-- end col-->
-	</div>
-	<!-- end row-->
-
-	<div class="row row-cols-xxl-5 row-cols-md-2 row-cols-1">
-		<div class="col">
-			<div class="card">
-				<div class="card-body d-flex align-items-center gap-2">
-					<img src="/images/users/avatar-7.jpg" alt="team-member-image" class="me-1 avatar-xl img-thumbnail rounded-circle">
-					<div>
-						<h5>John Smith</h5>
-						<p class="text-muted">Project Manager</p>
-						<p class="m-0 fs-14">80+ Feedbacks
-							<a href="#!" class="link-reset fw-medium">
-								<i class="ti ti-arrow-right"></i>
-							</a>
-						</p>
-					</div>
-				</div>
-			</div>
-		</div>
-
-		<div class="col">
-			<div class="card">
-				<div class="card-body d-flex align-items-center gap-2">
-					<img src="/images/users/avatar-4.jpg" alt="team-member-image" class="me-1 avatar-xl img-thumbnail rounded-circle">
-					<div>
-						<h5>Jane Doe</h5>
-						<p class="text-muted">UI/UX Designer</p>
-						<p class="m-0 fs-14">90+ Feedbacks
-							<a href="#!" class="link-reset fw-medium">
-								<i class="ti ti-arrow-right"></i>
-							</a>
-						</p>
-					</div>
-				</div>
-			</div>
-		</div>
-
-		<div class="col">
-			<div class="card">
-				<div class="card-body d-flex align-items-center gap-2">
-					<img src="/images/users/avatar-5.jpg" alt="team-member-image" class="me-1 avatar-xl img-thumbnail rounded-circle">
-					<div>
-						<h5>Emily Brown</h5>
-						<p class="text-muted">Software Engineer</p>
-						<p class="m-0 fs-14">100+ Feedbacks
-							<a href="#!" class="link-reset fw-medium">
-								<i class="ti ti-arrow-right"></i>
-							</a>
-						</p>
-					</div>
-				</div>
-			</div>
-		</div>
-
-		<div class="col">
-			<div class="card">
-				<div class="card-body d-flex align-items-center gap-2">
-					<img src="/images/users/avatar-6.jpg" alt="team-member-image" class="me-1 avatar-xl img-thumbnail rounded-circle">
-					<div>
-						<h5>Mark Wilson</h5>
-						<p class="text-muted">Marketing Specialist</p>
-						<p class="m-0 fs-14">70+ Feedbacks
-							<a href="#!" class="link-reset fw-medium">
-								<i class="ti ti-arrow-right"></i>
-							</a>
-						</p>
-					</div>
-				</div>
-			</div>
-		</div>
-
-		<div class="col">
-			<div class="card">
-				<div class="card-body d-flex align-items-center gap-2">
-					<img src="/images/users/avatar-3.jpg" alt="team-member-image" class="me-1 avatar-xl img-thumbnail rounded-circle">
-					<div>
-						<h5>Sara Johnson</h5>
-						<p class="text-muted">Data Analyst</p>
-						<p class="m-0 fs-14">50+ Feedbacks
-							<a href="#!" class="link-reset fw-medium">
-								<i class="ti ti-arrow-right"></i>
-							</a>
-						</p>
-					</div>
-				</div>
-			</div>
-		</div>
-	</div>
-	<!-- end row-->
-
-	<div class="row">
-		<div class="col-xxl-6">
-			<div class="card">
-				<div class="d-flex card-header justify-content-between align-items-center">
-					<h4 class="header-title">Brands Listing</h4>
-					<a href="javascript:void(0);" class="btn btn-sm btn-light">Add Brand
-						<i class="ti ti-plus ms-1"></i>
-					</a>
-				</div>
-				<div class="card-body p-0">
-					<div class="bg-light bg-opacity-50 py-1 text-center">
-						<p class="m-0">
-							<b>75</b>
-							Active brands out of
-							<span class="fw-medium">120</span>
-						</p>
-					</div>
-					<div class="table-responsive">
-						<table class="table table-custom table-centered table-sm table-nowrap table-hover mb-0">
-							<tbody>
-								<tr>
-									<td>
-										<div class="d-flex align-items-center">
-											<div class="avatar-md flex-shrink-0 me-2">
-												<span class="avatar-title bg-primary-subtle rounded-circle">
-													<img src="/images/products/logo/logo-1.svg" alt="" height="22">
-												</span>
-											</div>
-											<div>
-												<span class="text-muted fs-12">Electronics</span>
-												<br/>
-												<h5 class="fs-14 mt-1">TechNova - Germany</h5>
-											</div>
-										</div>
-									</td>
-									<td>
-										<span class="text-muted fs-12">Established</span>
-										<h5 class="fs-14 mt-1 fw-normal">Since 2015</h5>
-									</td>
-									<td>
-										<span class="text-muted fs-12">Stores</span>
-										<br/>
-										<h5 class="fs-14 mt-1 fw-normal">1,200</h5>
-									</td>
-									<td>
-										<span class="text-muted fs-12">Products</span>
-										<h5 class="fs-14 mt-1 fw-normal">15,320</h5>
-									</td>
-									<td>
-										<span class="text-muted fs-12">Status</span>
-										<h5 class="fs-14 mt-1 fw-normal">
-											<i class="ti ti-circle-filled fs-12 text-success"></i>
-											Active
-										</h5>
-									</td>
-									<td style="width: 30px;">
-										<div class="dropdown">
-											<a href="#" class="dropdown-toggle text-muted drop-arrow-none card-drop p-0" data-bs-toggle="dropdown" aria-expanded="false">
-												<i class="ti ti-dots-vertical"></i>
-											</a>
-											<div class="dropdown-menu dropdown-menu-end">
-												<a href="javascript:void(0);" class="dropdown-item">Refresh
-													                                                                    Report</a>
-												<a href="javascript:void(0);" class="dropdown-item">Export
-													                                                                    Report</a>
-											</div>
-										</div>
-									</td>
-								</tr>
-
-								<tr>
-									<td>
-										<div class="d-flex align-items-center">
-											<div class="avatar-md flex-shrink-0 me-2">
-												<span class="avatar-title bg-info-subtle rounded-circle">
-													<img src="/images/products/logo/logo-2.svg" alt="" height="22">
-												</span>
-											</div>
-											<div>
-												<span class="text-muted fs-12">Home Decor</span>
-												<br/>
-												<h5 class="fs-14 mt-1">DecoLux - France</h5>
-											</div>
-										</div>
-									</td>
-									<td>
-										<span class="text-muted fs-12">Established</span>
-										<h5 class="fs-14 mt-1 fw-normal">Since 2000</h5>
-									</td>
-									<td>
-										<span class="text-muted fs-12">Stores</span>
-										<br/>
-										<h5 class="fs-14 mt-1 fw-normal">450</h5>
-									</td>
-									<td>
-										<span class="text-muted fs-12">Products</span>
-										<h5 class="fs-14 mt-1 fw-normal">6,800</h5>
-									</td>
-									<td>
-										<span class="text-muted fs-12">Status</span>
-										<h5 class="fs-14 mt-1 fw-normal">
-											<i class="ti ti-circle-filled fs-12 text-warning"></i>
-											Pending
-										</h5>
-									</td>
-									<td style="width: 30px;">
-										<div class="dropdown">
-											<a href="#" class="dropdown-toggle text-muted drop-arrow-none card-drop p-0" data-bs-toggle="dropdown" aria-expanded="false">
-												<i class="ti ti-dots-vertical"></i>
-											</a>
-											<div class="dropdown-menu dropdown-menu-end">
-												<a href="javascript:void(0);" class="dropdown-item">Refresh
-													                                                                    Report</a>
-												<a href="javascript:void(0);" class="dropdown-item">Export
-													                                                                    Report</a>
-											</div>
-										</div>
-									</td>
-								</tr>
-
-								<tr>
-									<td>
-										<div class="d-flex align-items-center">
-											<div class="avatar-md flex-shrink-0 me-2">
-												<span class="avatar-title bg-primary-subtle rounded-circle">
-													<img src="/images/products/logo/logo-3.svg" alt="" height="22">
-												</span>
-											</div>
-											<div>
-												<span class="text-muted fs-12">Technology</span>
-												<br/>
-												<h5 class="fs-14 mt-1">InnovTech - Japan</h5>
-											</div>
-										</div>
-									</td>
-									<td>
-										<span class="text-muted fs-12">Established</span>
-										<h5 class="fs-14 mt-1 fw-normal">Since 2012</h5>
-									</td>
-									<td>
-										<span class="text-muted fs-12">Stores</span>
-										<br/>
-										<h5 class="fs-14 mt-1 fw-normal">850</h5>
-									</td>
-									<td>
-										<span class="text-muted fs-12">Products</span>
-										<h5 class="fs-14 mt-1 fw-normal">12,500</h5>
-									</td>
-									<td>
-										<span class="text-muted fs-12">Status</span>
-										<h5 class="fs-14 mt-1 fw-normal">
-											<i class="ti ti-circle-filled fs-12 text-success"></i>
-											Active
-										</h5>
-									</td>
-									<td style="width: 30px;">
-										<div class="dropdown">
-											<a href="#" class="dropdown-toggle text-muted drop-arrow-none card-drop p-0" data-bs-toggle="dropdown" aria-expanded="false">
-												<i class="ti ti-dots-vertical"></i>
-											</a>
-											<div class="dropdown-menu dropdown-menu-end">
-												<a href="javascript:void(0);" class="dropdown-item">Refresh
-													                                                                    Report</a>
-												<a href="javascript:void(0);" class="dropdown-item">Export
-													                                                                    Report</a>
-											</div>
-										</div>
-									</td>
-								</tr>
-
-								<tr>
-									<td>
-										<div class="d-flex align-items-center">
-											<div class="avatar-md flex-shrink-0 me-2">
-												<span class="avatar-title bg-secondary-subtle rounded-circle">
-													<img src="/images/products/logo/logo-4.svg" alt="" height="22">
-												</span>
-											</div>
-											<div>
-												<span class="text-muted fs-12">Health</span>
-												<br/>
-												<h5 class="fs-14 mt-1">WellCare - UK</h5>
-											</div>
-										</div>
-									</td>
-									<td>
-										<span class="text-muted fs-12">Established</span>
-										<h5 class="fs-14 mt-1 fw-normal">Since 2008</h5>
-									</td>
-									<td>
-										<span class="text-muted fs-12">Stores</span>
-										<br/>
-										<h5 class="fs-14 mt-1 fw-normal">300</h5>
-									</td>
-									<td>
-										<span class="text-muted fs-12">Products</span>
-										<h5 class="fs-14 mt-1 fw-normal">4,200</h5>
-									</td>
-									<td>
-										<span class="text-muted fs-12">Status</span>
-										<h5 class="fs-14 mt-1 fw-normal">
-											<i class="ti ti-circle-filled fs-12 text-success"></i>
-											Active
-										</h5>
-									</td>
-									<td style="width: 30px;">
-										<div class="dropdown">
-											<a href="#" class="dropdown-toggle text-muted drop-arrow-none card-drop p-0" data-bs-toggle="dropdown" aria-expanded="false">
-												<i class="ti ti-dots-vertical"></i>
-											</a>
-											<div class="dropdown-menu dropdown-menu-end">
-												<a href="javascript:void(0);" class="dropdown-item">Refresh
-													                                                                    Report</a>
-												<a href="javascript:void(0);" class="dropdown-item">Export
-													                                                                    Report</a>
-											</div>
-										</div>
-									</td>
-								</tr>
-
-								<tr>
-									<td>
-										<div class="d-flex align-items-center">
-											<div class="avatar-md flex-shrink-0 me-2">
-												<span class="avatar-title bg-danger-subtle rounded-circle">
-													<img src="/images/products/logo/logo-5.svg" alt="" height="22">
-												</span>
-											</div>
-											<div>
-												<span class="text-muted fs-12">Automotive</span>
-												<br/>
-												<h5 class="fs-14 mt-1">AutoDrive - USA</h5>
-											</div>
-										</div>
-									</td>
-									<td>
-										<span class="text-muted fs-12">Established</span>
-										<h5 class="fs-14 mt-1 fw-normal">Since 1999</h5>
-									</td>
-									<td>
-										<span class="text-muted fs-12">Stores</span>
-										<br/>
-										<h5 class="fs-14 mt-1 fw-normal">600</h5>
-									</td>
-									<td>
-										<span class="text-muted fs-12">Products</span>
-										<h5 class="fs-14 mt-1 fw-normal">8,900</h5>
-									</td>
-									<td>
-										<span class="text-muted fs-12">Status</span>
-										<h5 class="fs-14 mt-1 fw-normal">
-											<i class="ti ti-circle-filled fs-12 text-danger"></i>
-											Inactive
-										</h5>
-									</td>
-									<td style="width: 30px;">
-										<div class="dropdown">
-											<a href="#" class="dropdown-toggle text-muted drop-arrow-none card-drop p-0" data-bs-toggle="dropdown" aria-expanded="false">
-												<i class="ti ti-dots-vertical"></i>
-											</a>
-											<div class="dropdown-menu dropdown-menu-end">
-												<a href="javascript:void(0);" class="dropdown-item">Refresh
-													                                                                    Report</a>
-												<a href="javascript:void(0);" class="dropdown-item">Export
-													                                                                    Report</a>
-											</div>
-										</div>
-									</td>
-								</tr>
-
-								<!-- Additional rows with new data -->
-							</tbody>
-						</table>
-					</div>
-					<!-- end table-responsive-->
-				</div>
-				<!-- end card-body-->
-
-				<div class="card-footer">
-					<div class="align-items-center justify-content-between row text-center text-sm-start">
-						<div class="col-sm">
-							<div class="text-muted">
-								Showing
-								<span class="fw-semibold">5</span>
-								of
-								<span class="fw-semibold">20</span>
-								Results
-							</div>
-						</div>
-						<div class="col-sm-auto mt-3 mt-sm-0">
-							<ul class="pagination pagination-boxed pagination-sm mb-0 justify-content-center">
-								<li class="page-item disabled">
-									<a href="#" class="page-link">
-										<i class="ti ti-chevron-left"></i>
-									</a>
-								</li>
-								<li class="page-item active">
-									<a href="#" class="page-link">1</a>
-								</li>
-								<li class="page-item">
-									<a href="#" class="page-link">2</a>
-								</li>
-								<li class="page-item">
-									<a href="#" class="page-link">3</a>
-								</li>
-								<li class="page-item">
-									<a href="#" class="page-link">
-										<i class="ti ti-chevron-right"></i>
-									</a>
-								</li>
-							</ul>
-						</div>
-					</div>
-					<!-- -->
-				</div>
-
-			</div>
-			<!-- end card-->
-		</div>
-		<!-- end col-->
-
-		<div class="col-xxl-6">
-			<div class="card card-h-100">
-				<div class="card-header d-flex flex-wrap align-items-center gap-2 border-bottom border-dashed">
-					<h4 class="header-title me-auto">Top Selling Products</h4>
-
-					<div class="d-flex gap-2 justify-content-end text-end">
-						<a href="javascript:void(0);" class="btn btn-sm btn-light">Import
-							<i class="ti ti-download ms-1"></i>
-						</a>
-						<a href="javascript:void(0);" class="btn btn-sm btn-primary">Export
-							<i class="ti ti-file-export ms-1"></i>
-						</a>
-					</div>
-				</div>
-
-				<div class="card-body p-0">
-					<div class="table-responsive">
-						<table class="table table-custom align-middle table-nowrap table-hover mb-0">
-							<tbody>
-								<tr>
-									<td style="width: 85px;">
-										<div class="avatar-lg border rounded">
-											<img src="/images/products/p-1.png" alt="Product-10" class="img-fluid rounded-2">
-										</div>
-									</td>
-									<td class="ps-0">
-										<h5 class="fs-14 my-1">
-											<a href="#!" class="link-reset">Modern Desk
-												                                                                Lamp</a>
-										</h5>
-										<span class="text-muted fs-12">15 April 2024</span>
-									</td>
-									<td>
-										<h5 class="fs-14 my-1">$45.99</h5>
-										<span class="text-muted fs-12">Price</span>
-									</td>
-									<td>
-										<h5 class="fs-14 my-1">120</h5>
-										<span class="text-muted fs-12">Quantity</span>
-									</td>
-									<td>
-										<div class="d-flex align-items-center justify-content-end">
-											<div class="me-2">
-												<h5 class="fs-14 my-1">$5,518.80</h5>
-												<span class="text-muted fs-12">Amount</span>
-											</div>
-										</div>
-									</td>
-								</tr>
-								<tr>
-									<td style="width: 85px;">
-										<div class="avatar-lg border rounded">
-											<img src="/images/products/p-2.png" alt="Product-11" class="img-fluid rounded-2">
-										</div>
-									</td>
-									<td class="ps-0">
-										<h5 class="fs-14 my-1">
-											<a href="#!" class="link-reset">Vintage
-												                                                                Wooden Chair</a>
-										</h5>
-										<span class="text-muted fs-12">10 April 2024</span>
-									</td>
-									<td>
-										<h5 class="fs-14 my-1">$99.00</h5>
-										<span class="text-muted fs-12">Price</span>
-									</td>
-									<td>
-										<h5 class="fs-14 my-1">80</h5>
-										<span class="text-muted fs-12">Quantity</span>
-									</td>
-									<td>
-										<div class="d-flex align-items-center justify-content-end">
-											<div class="me-2">
-												<h5 class="fs-14 my-1">$7,920.00</h5>
-												<span class="text-muted fs-12">Amount</span>
-											</div>
-										</div>
-									</td>
-								</tr>
-								<tr>
-									<td style="width: 85px;">
-										<div class="avatar-lg border rounded">
-											<img src="/images/products/p-3.png" alt="Product-12" class="img-fluid rounded-2">
-										</div>
-									</td>
-									<td class="ps-0">
-										<h5 class="fs-14 my-1">
-											<a href="#!" class="link-reset">Wireless
-												                                                                Keyboard</a>
-										</h5>
-										<span class="text-muted fs-12">05 April 2024</span>
-									</td>
-									<td>
-										<h5 class="fs-14 my-1">$29.99</h5>
-										<span class="text-muted fs-12">Price</span>
-									</td>
-									<td>
-										<h5 class="fs-14 my-1">150</h5>
-										<span class="text-muted fs-12">Quantity</span>
-									</td>
-									<td>
-										<div class="d-flex align-items-center justify-content-end">
-											<div class="me-2">
-												<h5 class="fs-14 my-1">$4,498.50</h5>
-												<span class="text-muted fs-12">Amount</span>
-											</div>
-										</div>
-									</td>
-								</tr>
-								<tr>
-									<td style="width: 85px;">
-										<div class="avatar-lg border rounded">
-											<img src="/images/products/p-4.png" alt="Product-13" class="img-fluid rounded-2">
-										</div>
-									</td>
-									<td class="ps-0">
-										<h5 class="fs-14 my-1">
-											<a href="#!" class="link-reset">Bluetooth
-												                                                                Speaker</a>
-										</h5>
-										<span class="text-muted fs-12">02 April 2024</span>
-									</td>
-									<td>
-										<h5 class="fs-14 my-1">$65.00</h5>
-										<span class="text-muted fs-12">Price</span>
-									</td>
-									<td>
-										<h5 class="fs-14 my-1">90</h5>
-										<span class="text-muted fs-12">Quantity</span>
-									</td>
-									<td>
-										<div class="d-flex align-items-center justify-content-end">
-											<div class="me-2">
-												<h5 class="fs-14 my-1">$5,850.00</h5>
-												<span class="text-muted fs-12">Amount</span>
-											</div>
-										</div>
-									</td>
-								</tr>
-								<tr>
-									<td style="width: 85px;">
-										<div class="avatar-lg border rounded">
-											<img src="/images/products/p-5.png" alt="Product-14" class="img-fluid rounded-2">
-										</div>
-									</td>
-									<td class="ps-0">
-										<h5 class="fs-14 my-1">
-											<a href="#!" class="link-reset">Classic Table
-												                                                                Lamp</a>
-										</h5>
-										<span class="text-muted fs-12">29 March 2024</span>
-									</td>
-									<td>
-										<h5 class="fs-14 my-1">$42.50</h5>
-										<span class="text-muted fs-12">Price</span>
-									</td>
-									<td>
-										<h5 class="fs-14 my-1">110</h5>
-										<span class="text-muted fs-12">Quantity</span>
-									</td>
-									<td>
-										<div class="d-flex align-items-center justify-content-end">
-											<div class="me-2">
-												<h5 class="fs-14 my-1">$4,675.00</h5>
-												<span class="text-muted fs-12">Amount</span>
-											</div>
-										</div>
-									</td>
-								</tr>
-							</tbody>
-
-						</table>
-					</div>
-					<!-- end table-responsive-->
-				</div>
-				<!-- end card-body-->
-
-				<div class="card-footer">
-					<div class="align-items-center justify-content-between row text-center text-sm-start">
-						<div class="col-sm">
-							<div class="text-muted">
-								Showing
-								<span class="fw-semibold">5</span>
-								of
-								<span class="fw-semibold">10</span>
-								Results
-							</div>
-						</div>
-						<div class="col-sm-auto mt-3 mt-sm-0">
-							<ul class="pagination pagination-boxed pagination-sm mb-0 justify-content-center">
-								<li class="page-item disabled">
-									<a href="#" class="page-link">
-										<i class="ti ti-chevron-left"></i>
-									</a>
-								</li>
-								<li class="page-item active">
-									<a href="#" class="page-link">1</a>
-								</li>
-								<li class="page-item">
-									<a href="#" class="page-link">2</a>
-								</li>
-								<li class="page-item">
-									<a href="#" class="page-link">
-										<i class="ti ti-chevron-right"></i>
-									</a>
-								</li>
-							</ul>
-						</div>
-					</div>
-					<!-- -->
-				</div>
-			</div>
-			<!-- end card-->
-		</div>
-		<!-- end col-->
-	</div>
-	<!-- end row-->
-
+        {% if canCreateTask|default(false) and createTaskForm is not null %}
+            <div class="modal fade nexum-modal" id="createTaskModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    {% include 'task/_create_modal_content.html.twig' with { createForm: createTaskForm, backUrl: path('dashboard') } %}
+                </div>
+            </div>
+        {% endif %}
+    </div>
 {% endblock %}
 
 {% block script %}
+    <script>
+        (function () {
+            const projectModal = document.getElementById('createProjectModal');
+            if (projectModal) {
+                const getState = function () {
+                    return {
+                        selectEl: projectModal.querySelector('select[data-assigned-select="1"]'),
+                        btnAvatars: projectModal.querySelector('[data-assignee-avatars]'),
+                        btnName: projectModal.querySelector('[data-assignee-name]'),
+                        btnRole: projectModal.querySelector('[data-assignee-role]'),
+                        searchEl: projectModal.querySelector('[data-assignee-search]'),
+                        items: Array.from(projectModal.querySelectorAll('[data-assignee-item]'))
+                    };
+                };
 
-	<!-- Apex Chart js -->
-	<script src="/vendor/apexcharts/apexcharts.min.js"></script>
+                const getSelectedIds = function () {
+                    const { selectEl } = getState();
+                    const ids = [];
+                    if (!selectEl) return ids;
+                    for (const opt of Array.from(selectEl.options)) {
+                        if (opt.selected && opt.value) ids.push(opt.value);
+                    }
+                    return ids;
+                };
 
-	<!-- Projects Analytics Dashboard App js -->
-	<script src="/js/pages/dashboard.js"></script>
+                const applySelectedIds = function (ids) {
+                    const { selectEl } = getState();
+                    if (!selectEl) return;
+                    const set = new Set((ids || []).map(String));
+                    for (const opt of Array.from(selectEl.options)) {
+                        opt.selected = opt.value ? set.has(String(opt.value)) : false;
+                    }
+                };
+
+                const renderButton = function () {
+                    const { btnAvatars, btnName, btnRole, items } = getState();
+                    const ids = getSelectedIds();
+                    const selectedItems = items.filter((it) => ids.includes(String(it.getAttribute('data-user-id') || '')));
+
+                    items.forEach((it) => {
+                        const id = String(it.getAttribute('data-user-id') || '');
+                        it.setAttribute('data-selected', ids.includes(id) ? '1' : '0');
+                    });
+
+                    if (btnAvatars) {
+                        btnAvatars.innerHTML = '';
+                        selectedItems.slice(0, 3).forEach((it) => {
+                            const srcAvatar = it.querySelector('.nexum-assignee-avatar');
+                            if (!srcAvatar) return;
+                            const span = document.createElement('span');
+                            span.className = 'nexum-assignee-avatar';
+                            const style = srcAvatar.getAttribute('style');
+                            if (style) span.setAttribute('style', style);
+                            span.innerHTML = srcAvatar.innerHTML;
+                            btnAvatars.appendChild(span);
+                        });
+                    }
+
+                    if (btnName) {
+                        if (ids.length === 0) {
+                            btnName.textContent = 'Select team members...';
+                            btnName.classList.add('text-muted');
+                        } else if (ids.length === 1) {
+                            const one = selectedItems[0];
+                            btnName.textContent = one ? (one.getAttribute('data-user-name') || 'User') : '1 selected';
+                            btnName.classList.remove('text-muted');
+                        } else {
+                            btnName.textContent = ids.length + ' selected';
+                            btnName.classList.remove('text-muted');
+                        }
+                    }
+
+                    if (btnRole) {
+                        btnRole.textContent = ids.length === 1 ? (selectedItems[0]?.getAttribute('data-user-role') || '') : '';
+                    }
+                };
+
+                if (getState().selectEl) {
+                    renderButton();
+                }
+
+                projectModal.addEventListener('click', function (e) {
+                    const it = e.target.closest('[data-assignee-item]');
+                    if (!it || !projectModal.contains(it)) return;
+                    const userId = it.getAttribute('data-user-id');
+                    if (!userId) return;
+
+                    const ids = getSelectedIds();
+                    const set = new Set(ids.map(String));
+                    if (set.has(String(userId))) set.delete(String(userId)); else set.add(String(userId));
+                    applySelectedIds(Array.from(set));
+                    renderButton();
+                });
+
+                projectModal.addEventListener('input', function (e) {
+                    const t = e.target;
+                    if (!t || !t.matches || !t.matches('[data-assignee-search]')) return;
+                    const q = (t.value || '').trim().toLowerCase();
+                    const { items } = getState();
+                    for (const it of items) {
+                        const name = (it.getAttribute('data-user-name') || '').toLowerCase();
+                        const role = (it.getAttribute('data-user-role') || '').toLowerCase();
+                        const show = q === '' || name.includes(q) || role.includes(q);
+                        it.style.display = show ? '' : 'none';
+                    }
+                });
+
+                projectModal.addEventListener('submit', async function (e) {
+                    const form = e.target;
+                    if (!form || form.id !== 'createProjectForm') return;
+                    e.preventDefault();
+
+                    try {
+                        const res = await fetch(form.action, {
+                            method: 'POST',
+                            body: new FormData(form),
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'Accept': 'application/json, text/html;q=0.9'
+                            }
+                        });
+
+                        const ct = (res.headers.get('Content-Type') || '');
+                        if (res.ok && ct.indexOf('application/json') !== -1) {
+                            const data = await res.json();
+                            if (data && data.location) {
+                                window.location.href = data.location;
+                            }
+                            return;
+                        }
+
+                        if (res.status === 422) {
+                            const html = await res.text();
+                            const wrap = document.getElementById('createProjectModalContent');
+                            if (wrap && html) {
+                                const doc = new DOMParser().parseFromString(html, 'text/html');
+                                const nextWrap = doc.getElementById('createProjectModalContent');
+                                if (nextWrap) {
+                                    wrap.outerHTML = nextWrap.outerHTML;
+                                    renderButton();
+                                } else {
+                                    window.location.reload();
+                                }
+                            }
+                            return;
+                        }
+
+                        if (res.status === 403) {
+                            window.location.reload();
+                            return;
+                        }
+
+                        window.location.reload();
+                    } catch (err) {
+                        window.location.reload();
+                    }
+                });
+            }
+
+            const taskModal = document.getElementById('createTaskModal');
+            if (!taskModal) return;
+
+            const assigneesEndpoint = {{ path('app_task_assignees')|json_encode|raw }};
+
+            async function refreshAssignees(projectId) {
+                const assigneeSelect = taskModal.querySelector('select[data-task-assignee="1"]');
+                if (!assigneeSelect) return;
+                const prev = assigneeSelect.value;
+                assigneeSelect.innerHTML = '<option value="">Loading...</option>';
+
+                const pid = parseInt(String(projectId || '0'), 10);
+                if (!pid) {
+                    assigneeSelect.innerHTML = '<option value="">Select team ...</option>';
+                    return;
+                }
+
+                try {
+                    const res = await fetch(assigneesEndpoint + '?project=' + encodeURIComponent(String(pid)), {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+                    const payload = await res.json();
+                    const users = (payload && payload.users) ? payload.users : [];
+
+                    let html = '<option value="">Select team ...</option>';
+                    for (const u of users) {
+                        const id = String(u.id);
+                        const name = String(u.name || 'Unknown user');
+                        html += '<option value="' + id.replace(/\"/g, '') + '">' + name.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</option>';
+                    }
+                    assigneeSelect.innerHTML = html;
+
+                    if (prev) {
+                        assigneeSelect.value = prev;
+                    }
+                } catch (e) {
+                    assigneeSelect.innerHTML = '<option value="">Select team ...</option>';
+                }
+            }
+
+            taskModal.addEventListener('change', function (e) {
+                const t = e.target;
+                if (t && t.matches && t.matches('select[data-task-project="1"]')) {
+                    refreshAssignees(t.value);
+                }
+            });
+
+            taskModal.addEventListener('submit', async function (e) {
+                const form = e.target;
+                if (!form || form.id !== 'createTaskForm') return;
+                e.preventDefault();
+                try {
+                    const res = await fetch(form.action, {
+                        method: 'POST',
+                        body: new FormData(form),
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json, text/html;q=0.9'
+                        }
+                    });
+                    const ct = (res.headers.get('Content-Type') || '');
+                    if (res.ok && ct.indexOf('application/json') !== -1) {
+                        const data = await res.json();
+                        if (data && data.location) {
+                            window.location.href = data.location;
+                        }
+                        return;
+                    }
+                    if (res.status === 422) {
+                        const html = await res.text();
+                        const wrap = document.getElementById('createTaskModalContent');
+                        if (wrap && html) {
+                            const doc = new DOMParser().parseFromString(html, 'text/html');
+                            const nextWrap = doc.getElementById('createTaskModalContent');
+                            if (nextWrap) {
+                                wrap.outerHTML = nextWrap.outerHTML;
+                            } else {
+                                window.location.reload();
+                            }
+                        }
+                        return;
+                    }
+                    if (res.status === 403) {
+                        window.location.reload();
+                        return;
+                    }
+                    window.location.reload();
+                } catch (err) {
+                    window.location.reload();
+                }
+            });
+
+            try {
+                const url = new URL(window.location.href);
+                const pid = url.searchParams.get('project');
+                if (pid) {
+                    refreshAssignees(pid);
+                }
+            } catch (e) {}
+
+            {% if createTaskForm is defined and createTaskForm.vars.submitted and not createTaskForm.vars.valid %}
+            if (window.bootstrap && bootstrap.Modal) {
+                new bootstrap.Modal(taskModal).show();
+            }
+            {% endif %}
+        })();
+    </script>
 {% endblock %}

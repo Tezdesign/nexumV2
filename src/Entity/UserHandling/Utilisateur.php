@@ -157,12 +157,25 @@ class Utilisateur
         return $this;
     }
 
-    #[ORM\Column(type: 'blob', nullable: true)]
-    private ?string $imagelink = null;
+    /**
+     * Stored as BLOB in the legacy DB. Doctrine hydrates BLOBs as stream resources,
+     * so this property can't be typed as string.
+     */
+    #[ORM\Column(type: Types::BLOB, nullable: true)]
+    private $imagelink = null;
 
     public function getImagelink(): ?string
     {
-        return $this->imagelink;
+        if ($this->imagelink === null) {
+            return null;
+        }
+
+        if (is_resource($this->imagelink)) {
+            $data = stream_get_contents($this->imagelink);
+            $this->imagelink = $data === false ? null : $data;
+        }
+
+        return is_string($this->imagelink) ? $this->imagelink : null;
     }
 
     public function setImagelink(?string $imagelink): self

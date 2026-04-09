@@ -1,0 +1,151 @@
+{% extends 'layouts/vertical.html.twig' %}
+
+{% set title = task.title|plain_text %}
+
+{% block css %}
+    <style>
+        :root {
+            --nexum-violet-600: #7c3aed;
+            --nexum-violet-700: #6d28d9;
+        }
+
+        .page-content {
+            background: #f8fafc;
+        }
+
+        .nexum-shell {
+            border: 1px solid #e7e5e4;
+            border-radius: 18px;
+            background: #fff;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+        }
+
+        .nexum-title {
+            font-size: 22px;
+            font-weight: 900;
+            margin: 0;
+            color: #0f172a;
+        }
+
+        .nexum-sub {
+            color: #64748b;
+            font-weight: 600;
+            font-size: 13px;
+            margin-top: 4px;
+        }
+
+        .nexum-btn-primary {
+            background: var(--nexum-violet-600) !important;
+            border-color: var(--nexum-violet-600) !important;
+            border-radius: 12px;
+            padding: 10px 16px;
+            font-weight: 900;
+        }
+
+        .nexum-btn-primary:hover {
+            background: var(--nexum-violet-700) !important;
+            border-color: var(--nexum-violet-700) !important;
+        }
+
+        .btn.btn-outline-secondary {
+            border-radius: 12px;
+            padding: 10px 16px;
+            font-weight: 900;
+            border-color: #e2e8f0;
+            background: #fff;
+            color: #334155;
+        }
+
+        .btn-danger {
+            border-radius: 12px;
+            padding: 10px 16px;
+            font-weight: 900;
+            background: #ef4444;
+            border-color: #ef4444;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+            border-color: #dc2626;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="nexum-shell">
+        <div class="p-4">
+            <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
+                <div class="min-w-0">
+                    <h2 class="nexum-title">{{ task.title|plain_text }}</h2>
+                    <div class="nexum-sub">Task details</div>
+                </div>
+                <div class="d-flex gap-2">
+                    <a class="btn btn-outline-secondary" href="{{ path('app_task_index') }}">Back</a>
+                    <a class="btn nexum-btn-primary text-white" href="{{ path('app_task_edit', {id: task.id, back: path('app_task_show', {id: task.id})}) }}">Edit</a>
+                    {% if canDeleteTask|default(false) %}
+                        <button class="btn btn-danger" type="button" data-bs-toggle="modal" data-bs-target="#deleteTaskModal">Delete</button>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="mt-3">
+                <div class="text-muted small mb-2">Description</div>
+                <div>{{ task.description ? task.description|plain_text : '—' }}</div>
+            </div>
+
+            <div class="row g-3 mt-2">
+                <div class="col-12 col-md-3">
+                    <div class="text-muted small mb-1">Status</div>
+                    <div>{{ task.status ? task.status|plain_text : '—' }}</div>
+                </div>
+                <div class="col-12 col-md-3">
+                    <div class="text-muted small mb-1">Priority</div>
+                    <div>{{ task.priority ? task.priority|plain_text : '—' }}</div>
+                </div>
+                <div class="col-12 col-md-3">
+                    <div class="text-muted small mb-1">Due Date</div>
+                    <div>{{ task.dueDate ? task.dueDate|date('Y-m-d') : '—' }}</div>
+                </div>
+                <div class="col-12 col-md-3">
+                    <div class="text-muted small mb-1">Project</div>
+                    <div>#{{ task.projectId }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if canDeleteTask|default(false) %}
+    <div class="modal fade nexum-modal nexum-danger" id="deleteTaskModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 720px;">
+            <div class="modal-content" style="border-radius: 18px; border: 1px solid #e7e5e4;">
+                <div class="modal-header border-0">
+                    <div class="d-flex align-items-start gap-2">
+                        <div style="width:42px;height:42px;border-radius:999px;background:#fee2e2;color:#dc2626;display:flex;align-items:center;justify-content:center;">
+                            <i class="ri-error-warning-line"></i>
+                        </div>
+                        <div>
+                            <h5 style="font-weight:900;font-size:22px;margin:0;color:#0f172a;">Delete Task?</h5>
+                            <div style="color:#64748b;font-size:13px;font-weight:600;margin-top:4px;">This action cannot be undone.</div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body pt-0">
+                    <div style="border:1px solid #e2e8f0;background:#f8fafc;border-radius:14px;padding:14px 16px;">
+                        <div>You are about to permanently delete:</div>
+                        <div style="font-weight:900;font-size:16px;margin-top:6px;color:#0f172a;">{{ task.title|plain_text }}</div>
+                        <div class="mt-1 text-muted">This task will be removed from your project.</div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <form method="post" action="{{ path('app_task_delete', {id: task.id}) }}" class="m-0">
+                        <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ task.id) }}">
+                        <button type="submit" class="btn btn-danger">Delete Task</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+{% endblock %}
