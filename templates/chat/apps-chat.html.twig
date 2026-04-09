@@ -48,6 +48,36 @@
         .chat .chat-list .chat-group:not(.odd) .chat-message {
             border-left: 3px solid rgba(111, 66, 193, 0.9);
         }
+        .chat .chat-list .odd .chat-message {
+            background-color: #6f42c1 !important;
+            border-color: #6f42c1 !important;
+        }
+        [data-chat-filter-check] {
+            color: #6f42c1 !important;
+        }
+        [data-apps-chat="add-members-list"] > div,
+        [data-apps-chat="group-candidates-list"] > div {
+            transition: all 0.2s ease;
+        }
+        [data-apps-chat="add-members-list"] > div:hover,
+        [data-apps-chat="group-candidates-list"] > div:hover {
+            background-color: rgba(111, 66, 193, 0.08) !important;
+            border-color: rgba(111, 66, 193, 0.28) !important;
+        }
+        [data-apps-chat="add-members-list"] [data-add-user-id],
+        [data-apps-chat="group-candidates-list"] [data-group-select-user-id],
+        [data-apps-chat="add-members-modal"] .btn-primary,
+        [data-apps-chat="group-create-modal"] .btn-primary {
+            background-color: #6f42c1 !important;
+            border-color: #6f42c1 !important;
+        }
+        [data-apps-chat="add-members-list"] [data-add-user-id]:hover,
+        [data-apps-chat="group-candidates-list"] [data-group-select-user-id]:hover,
+        [data-apps-chat="add-members-modal"] .btn-primary:hover,
+        [data-apps-chat="group-create-modal"] .btn-primary:hover {
+            background-color: #5b36a4 !important;
+            border-color: #5b36a4 !important;
+        }
         [data-dm-user-id] {
             transition: all 0.2s ease;
         }
