@@ -4,6 +4,7 @@ namespace App\Form\FinancialAnalysis;
 
 use App\Entity\FinancialAnalysis\ProjectBudget;
 use App\Entity\Projects\Project;
+use Doctrine\ORM\EntityRepository;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
@@ -24,8 +25,18 @@ class ProjectBudgetType extends AbstractType
             ])
             ->add('project', EntityType::class, [
                 'class' => Project::class,
-                'choice_label' => 'name', // Using the name property of Project
+                'choice_label' => 'name',
                 'placeholder' => 'Select a project...',
+                'query_builder' => function (EntityRepository $er) use ($options) {
+                    $qb = $er->createQueryBuilder('p');
+                    if ($options['fiscal_start'] && $options['fiscal_end']) {
+                        $qb->andWhere('p.end_date >= :fStart')
+                           ->andWhere('p.start_date <= :fEnd')
+                           ->setParameter('fStart', $options['fiscal_start']->format('Y-m-d'))
+                           ->setParameter('fEnd', $options['fiscal_end']->format('Y-m-d'));
+                    }
+                    return $qb->orderBy('p.name', 'ASC');
+                },
                 'attr' => ['class' => 'form-select select2', 'data-toggle' => 'select2'],
                 'label' => 'Linked Project'
             ])
@@ -60,6 +71,8 @@ class ProjectBudgetType extends AbstractType
     {
         $resolver->setDefaults([
             'data_class' => ProjectBudget::class,
+            'fiscal_start' => null,
+            'fiscal_end' => null,
         ]);
     }
 }

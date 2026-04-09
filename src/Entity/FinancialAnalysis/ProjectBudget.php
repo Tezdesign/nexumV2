@@ -94,7 +94,7 @@ class ProjectBudget
         return $this->dueDate;
     }
 
-    public function setDueDate(\DateTimeInterface $dueDate): self
+    public function setDueDate(?\DateTimeInterface $dueDate): self
     {
         $this->dueDate = $dueDate;
         return $this;
@@ -118,6 +118,22 @@ class ProjectBudget
 
     #[ORM\OneToMany(targetEntity: Transaction::class, mappedBy: 'projectBudget')]
     private Collection $transactions;
+
+    // Transient attributes for validation (not mapped to DB)
+    private ?\DateTimeInterface $transientFiscalStart = null;
+    private ?\DateTimeInterface $transientFiscalEnd = null;
+
+    public function setTransientFiscalStart(?\DateTimeInterface $start): self
+    {
+        $this->transientFiscalStart = $start;
+        return $this;
+    }
+
+    public function setTransientFiscalEnd(?\DateTimeInterface $end): self
+    {
+        $this->transientFiscalEnd = $end;
+        return $this;
+    }
 
     public function __construct()
     {
@@ -178,7 +194,18 @@ class ProjectBudget
                     ->addViolation();
             }
         }
-    }
 
+        if ($this->dueDate && $this->transientFiscalStart && $this->transientFiscalEnd) {
+            $budgetDate = $this->dueDate->format('Y-m-d');
+            $fStart = $this->transientFiscalStart->format('Y-m-d');
+            $fEnd = $this->transientFiscalEnd->format('Y-m-d');
+
+            if ($budgetDate < $fStart || $budgetDate > $fEnd) {
+                $context->buildViolation('The budget due date must fall within the Fiscal Year (' . $fStart . ' to ' . $fEnd . ').')
+                    ->atPath('dueDate')
+                    ->addViolation();
+            }
+        }
+    }
 }
 
