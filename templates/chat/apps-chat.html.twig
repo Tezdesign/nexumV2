@@ -4,12 +4,56 @@
 
 {% block css %}
     <style>
+        :root {
+            --ct-primary: #6f42c1;
+            --ct-primary-rgb: 111, 66, 193;
+            --bs-primary: #6f42c1;
+            --bs-primary-rgb: 111, 66, 193;
+        }
+        :root[data-menu-color="light"] {
+            --ct-menu-item-hover-color: #6f42c1;
+            --ct-menu-item-hover-bg: rgba(111, 66, 193, 0.1);
+            --ct-menu-item-active-color: #6f42c1;
+        }
+        .app-menu,
+        .app-menu .navbar-nav,
+        .app-menu .navbar-nav .nav-link {
+            --ct-menu-item-hover-color: #6f42c1;
+            --ct-menu-item-hover-bg: rgba(111, 66, 193, 0.1);
+            --ct-menu-item-active-color: #6f42c1;
+        }
+        .chat .users-list .chat-users:hover,
+        .chat .users-list .chat-users.active {
+            background-color: rgba(111, 66, 193, 0.08) !important;
+        }
+        .chat .btn-soft-primary,
+        .chat .btn-primary {
+            color: #6f42c1;
+            border-color: rgba(111, 66, 193, 0.28);
+            background-color: rgba(111, 66, 193, 0.1);
+        }
+        .chat .btn-soft-primary:hover,
+        .chat .btn-primary:hover,
+        .chat .btn-soft-primary:focus,
+        .chat .btn-primary:focus {
+            color: #fff;
+            border-color: #6f42c1;
+            background-color: #6f42c1;
+        }
+        .chat i.ti,
+        .chat iconify-icon,
+        .chat [class*="ti-"] {
+            color: inherit;
+        }
+        .chat .chat-list .chat-group:not(.odd) .chat-message {
+            border-left: 3px solid rgba(111, 66, 193, 0.9);
+        }
         [data-dm-user-id] {
             transition: all 0.2s ease;
         }
         [data-dm-user-id]:hover {
-            background-color: rgba(13, 110, 253, 0.08) !important;
-            border-color: rgba(13, 110, 253, 0.24) !important;
+            background-color: rgba(111, 66, 193, 0.08) !important;
+            border-color: rgba(111, 66, 193, 0.24) !important;
         }
         .max-height-400 {
             max-height: 400px;
@@ -18,16 +62,16 @@
             width: 88px;
             height: 88px;
             border-radius: 999px;
-            border: 2px dashed rgba(13, 110, 253, 0.35);
-            background: rgba(13, 110, 253, 0.06);
+            border: 2px dashed rgba(111, 66, 193, 0.35);
+            background: rgba(111, 66, 193, 0.06);
             position: relative;
             overflow: hidden;
             cursor: pointer;
             transition: all 0.2s ease;
         }
         .group-avatar-picker:hover {
-            border-color: rgba(13, 110, 253, 0.65);
-            background: rgba(13, 110, 253, 0.12);
+            border-color: rgba(111, 66, 193, 0.65);
+            background: rgba(111, 66, 193, 0.12);
         }
         .group-avatar-plus {
             position: absolute;
@@ -35,7 +79,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            color: rgba(13, 110, 253, 0.85);
+            color: rgba(111, 66, 193, 0.85);
             font-size: 30px;
             font-weight: 600;
             opacity: 0;
@@ -104,7 +148,7 @@
         }
         [data-apps-chat="conversation-item"][data-conversation-unread="1"] [data-apps-chat="conversation-last-time"],
         [data-apps-chat="conversation-item"][data-conversation-unread="1"] [data-apps-chat="conversation-last-preview"] {
-            color: var(--bs-primary) !important;
+            color: #6f42c1 !important;
             font-weight: 600;
         }
     </style>
