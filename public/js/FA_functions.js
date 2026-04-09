@@ -217,4 +217,123 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    /**
+     * ==========================================
+     * TRANSACTION DROPDOWN FILTER & NOUISLIDER
+     * ==========================================
+     */
+    const filterCategory = document.getElementById('filter-category');
+    const filterYear = document.getElementById('filter-date-year');
+    const filterMonth = document.getElementById('filter-date-month');
+    const filterDay = document.getElementById('filter-date-day');
+    const btnApplyFilters = document.getElementById('btn-apply-filters');
+    const btnClearFilters = document.getElementById('btn-clear-filters');
+    const sliderElement = document.getElementById('transaction-amount-slider');
+    
+    if (sliderElement && btnApplyFilters && btnClearFilters) {
+        
+        // 1. Initialize NoUiSlider with Tooltips
+        noUiSlider.create(sliderElement, {
+            start: [0, 10000], // Sensible defaults; could be dynamic based on dataset
+            connect: true,
+            tooltips: [true, true], // Show floating tooltips above handles
+            range: {
+                'min': 0,
+                'max': 10000
+            },
+            format: wNumb({
+                decimals: 0,
+                prefix: '$'
+            })
+        });
+
+        // 2. Apply Filters Logic
+        btnApplyFilters.addEventListener('click', function() {
+            const selectedCategory = filterCategory.value;
+            const selectedYear = filterYear.value;
+            const selectedMonth = filterMonth.value;
+            const selectedDay = filterDay.value;
+            
+            // Get raw slider values (remove the '$' prefix for math)
+            const sliderValues = sliderElement.noUiSlider.get();
+            const minAmount = parseFloat(sliderValues[0].replace('$', ''));
+            const maxAmount = parseFloat(sliderValues[1].replace('$', ''));
+
+            const allTxCards = document.querySelectorAll('.transaction-card');
+            let visibleCount = 0;
+
+            allTxCards.forEach(card => {
+                let showCard = true;
+
+                // Category Check
+                if (selectedCategory !== 'ALL') {
+                    const badge = card.querySelector('.badge');
+                    if (!badge || badge.textContent.trim().toUpperCase() !== selectedCategory) {
+                        showCard = false;
+                    }
+                }
+
+                // Date Check
+                const dateEl = card.querySelector('p.text-muted.mb-0.fs-12'); // The date paragraph
+                if (dateEl && showCard) {
+                    const dateText = dateEl.textContent.trim(); // Format: "2026-04-09"
+                    const parts = dateText.split('-');
+                    
+                    if (parts.length === 3) {
+                        const cardYear = parts[0];
+                        const cardMonth = parts[1];
+                        const cardDay = parts[2];
+
+                        if (selectedYear !== 'ALL' && cardYear !== selectedYear) showCard = false;
+                        if (selectedMonth !== 'ALL' && cardMonth !== selectedMonth) showCard = false;
+                        if (selectedDay !== 'ALL' && cardDay !== selectedDay) showCard = false;
+                    }
+                }
+
+                // Amount Check
+                if (showCard) {
+                    const costEl = card.querySelector('.text-danger');
+                    if (costEl) {
+                        // Extract just the number (e.g., "-$299.00" -> 299.00)
+                        const costText = costEl.textContent.replace(/[^0-9.]/g, ''); 
+                        const costValue = parseFloat(costText);
+                        
+                        if (!isNaN(costValue)) {
+                            if (costValue < minAmount || costValue > maxAmount) {
+                                showCard = false;
+                            }
+                        }
+                    }
+                }
+
+                // Toggle Visibility
+                if (showCard) {
+                    card.classList.remove('d-none');
+                    visibleCount++;
+                } else {
+                    card.classList.add('d-none');
+                }
+            });
+
+            // Close the dropdown after applying
+            const dropdownEl = document.getElementById('transactionFilterDropdown');
+            if (dropdownEl) {
+                const dropdownInstance = bootstrap.Dropdown.getInstance(dropdownEl);
+                if (dropdownInstance) dropdownInstance.hide();
+            }
+        });
+
+        // 3. Clear Filters Logic
+        btnClearFilters.addEventListener('click', function() {
+            filterCategory.value = 'ALL';
+            filterYear.value = 'ALL';
+            filterMonth.value = 'ALL';
+            filterDay.value = 'ALL';
+            sliderElement.noUiSlider.set([0, 10000]);
+
+            const allTxCards = document.querySelectorAll('.transaction-card');
+            allTxCards.forEach(card => card.classList.remove('d-none'));
+        });
+    }
+
 });
