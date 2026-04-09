@@ -59,6 +59,7 @@ class MessageController extends AbstractController
 		}
 
 		$usersById = $this->mapUsersById($messages, $utilisateurRepository);
+		$readReceipts = $this->buildReadReceipts($conversationId, $participantRepository, $utilisateurRepository);
 
 		$payload = array_map(function ($message) use ($usersById): array {
 			$senderId = $message->getSenderId();
@@ -85,6 +86,7 @@ class MessageController extends AbstractController
 		return $this->json([
 			'success' => true,
 			'messages' => $payload,
+			'readReceipts' => $readReceipts,
 		]);
 	}
 
@@ -443,6 +445,61 @@ class MessageController extends AbstractController
 		}
 
 		return $mapped;
+	}
+
+	/**
+	 * @return array<int, array{userId:int,lastReadMessageId:int,userName:string,userAvatarSrc:?string,userInitial:string}>
+	 */
+	private function buildReadReceipts(
+		int $conversationId,
+		ConversationParticipantRepository $participantRepository,
+		UtilisateurRepository $utilisateurRepository,
+	): array {
+		$participants = $participantRepository->findActiveByConversationId($conversationId);
+		$userIds = [];
+
+		foreach ($participants as $participant) {
+			$userId = $participant->getUserId();
+			if ($userId === null || $userId === ConversationController::SESSION_CURRENT_USER_ID) {
+				continue;
+			}
+
+			$userIds[$userId] = $userId;
+		}
+
+		$usersById = [];
+		if ($userIds !== []) {
+			$users = $utilisateurRepository->findBy(['id' => array_values($userIds)]);
+			foreach ($users as $user) {
+				$id = $user->getId();
+				if ($id !== null) {
+					$usersById[$id] = $user;
+				}
+			}
+		}
+
+		$receipts = [];
+		foreach ($participants as $participant) {
+			$userId = $participant->getUserId();
+			$lastReadMessageId = $participant->getLastReadMessageId();
+
+			if ($userId === null || $userId === ConversationController::SESSION_CURRENT_USER_ID || $lastReadMessageId === null) {
+				continue;
+			}
+
+			$user = $usersById[$userId] ?? null;
+			$userName = $this->buildUserName($user);
+
+			$receipts[] = [
+				'userId' => $userId,
+				'lastReadMessageId' => $lastReadMessageId,
+				'userName' => $userName,
+				'userAvatarSrc' => $user !== null ? $this->toDataUri($user->getImagelink(), 'image/jpeg') : null,
+				'userInitial' => strtoupper(substr(trim($userName), 0, 1)) ?: '?',
+			];
+		}
+
+		return $receipts;
 	}
 
 	private function buildUserName(?Utilisateur $user): string

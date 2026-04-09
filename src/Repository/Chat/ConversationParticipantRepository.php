@@ -119,6 +119,20 @@ class ConversationParticipantRepository extends ServiceEntityRepository
         $this->getEntityManager()->flush();
     }
 
+    /**
+     * @return ConversationParticipant[]
+     */
+    public function findActiveByConversationId(int $conversationId): array
+    {
+        return $this->createQueryBuilder('cp')
+            ->andWhere('cp.conversation_id = :conversationId')
+            ->andWhere('cp.left_at IS NULL')
+            ->setParameter('conversationId', $conversationId)
+            ->orderBy('cp.last_read_message_id', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
+
     //    /**
     //     * @return ConversationParticipant[] Returns an array of ConversationParticipant objects
     //     */

@@ -2531,7 +2531,83 @@ class ChatApp {
         return listItem
     }
 
-    renderMessages = (messages) => {
+    createReadReceiptCircle = (receipt) => {
+        const wrapper = document.createElement('span')
+        wrapper.className = 'd-inline-flex align-items-center justify-content-center rounded-circle border border-light bg-secondary-subtle text-secondary fw-semibold'
+        wrapper.style.width = '18px'
+        wrapper.style.height = '18px'
+        wrapper.style.fontSize = '10px'
+        wrapper.style.lineHeight = '18px'
+        wrapper.title = receipt?.userName || 'Seen'
+
+        const avatarSrc = receipt?.userAvatarSrc || ''
+        if (avatarSrc) {
+            const image = document.createElement('img')
+            image.src = avatarSrc
+            image.alt = receipt?.userName || 'Seen'
+            image.className = 'rounded-circle'
+            image.style.width = '16px'
+            image.style.height = '16px'
+            image.style.objectFit = 'cover'
+            wrapper.appendChild(image)
+            return wrapper
+        }
+
+        wrapper.textContent = (receipt?.userInitial || '?').slice(0, 1).toUpperCase()
+        return wrapper
+    }
+
+    renderReadReceipts = (messages, readReceipts) => {
+        if (!Array.isArray(messages) || !Array.isArray(readReceipts) || !this.messagesList) {
+            return
+        }
+
+        const existingRows = this.messagesList.querySelectorAll('[data-apps-chat="read-receipts-row"]')
+        existingRows.forEach((row) => row.remove())
+
+        const renderedMessageIds = new Set(
+            messages
+                .map((message) => String(message?.id || ''))
+                .filter((id) => id !== '')
+        )
+
+        const receiptsByMessageId = new Map()
+        readReceipts.forEach((receipt) => {
+            const messageId = String(receipt?.lastReadMessageId || '')
+            if (!messageId || !renderedMessageIds.has(messageId)) {
+                return
+            }
+
+            const current = receiptsByMessageId.get(messageId) || []
+            current.push(receipt)
+            receiptsByMessageId.set(messageId, current)
+        })
+
+        receiptsByMessageId.forEach((receipts, messageId) => {
+            const messageNode = this.messagesList.querySelector(`[data-message-id="${messageId}"]`)
+            if (!messageNode) {
+                return
+            }
+
+            const chatBody = messageNode.querySelector('.chat-body')
+            if (!chatBody) {
+                return
+            }
+
+            const row = document.createElement('div')
+            row.className = 'd-flex align-items-center flex-wrap gap-1 mt-1'
+            row.setAttribute('data-apps-chat', 'read-receipts-row')
+            row.style.marginInlineStart = '2px'
+
+            receipts.forEach((receipt) => {
+                row.appendChild(this.createReadReceiptCircle(receipt))
+            })
+
+            chatBody.appendChild(row)
+        })
+    }
+
+    renderMessages = (messages, readReceipts = []) => {
         this.clearMessages()
 
         if (!messages.length) {
@@ -2545,6 +2621,8 @@ class ChatApp {
             const node = this.createMessageNode(message, index)
             this.messagesList?.appendChild(node)
         })
+
+        this.renderReadReceipts(messages, readReceipts)
 
         this.scrollToBottom()
     }
@@ -2582,7 +2660,10 @@ class ChatApp {
                 throw new Error(payload.error || 'Failed to load messages')
             }
 
-            this.renderMessages(Array.isArray(payload.messages) ? payload.messages : [])
+            this.renderMessages(
+                Array.isArray(payload.messages) ? payload.messages : [],
+                Array.isArray(payload.readReceipts) ? payload.readReceipts : []
+            )
         } catch (error) {
             if (error?.name === 'AbortError') {
                 return
