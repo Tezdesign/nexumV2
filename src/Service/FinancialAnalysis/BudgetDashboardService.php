@@ -182,4 +182,22 @@ class BudgetDashboardService
             $this->budgetProfileRepository->updateTotalExpenseDql($profile, $totals['expenses']);
         }
     }
+
+    /**
+     * Handles the cascading deletion of a ProjectBudget and its transactions.
+     */
+    public function handleProjectBudgetDeletionCascade(ProjectBudget $budget, ?BudgetProfile $profile): void
+    {
+        // 1. Delete all associated transactions
+        $this->transactionRepository->deleteByProjectBudgetDql($budget->getId());
+
+        // 2. Delete the project budget itself
+        $this->projectBudgetRepository->deleteProjectBudgetDql($budget->getId());
+
+        // 3. Recalculate and update BudgetProfile via DQL if it exists
+        if ($profile) {
+            $totals = $this->projectBudgetRepository->getTotalsForFiscalYear($profile->getStartDate(), $profile->getEndDate());
+            $this->budgetProfileRepository->updateTotalExpenseDql($profile, $totals['expenses']);
+        }
+    }
 }

@@ -102,4 +102,14 @@ class ProjectBudgetRepository extends ServiceEntityRepository
             ->getQuery()
             ->execute();
     }
+
+    public function deleteProjectBudgetDql(int $id): void
+    {
+        $this->createQueryBuilder('pb')
+            ->delete()
+            ->where('pb.id = :id')
+            ->setParameter('id', $id)
+            ->getQuery()
+            ->execute();
+    }
 }

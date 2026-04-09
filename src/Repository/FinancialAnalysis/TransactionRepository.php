@@ -67,6 +67,16 @@ class TransactionRepository extends ServiceEntityRepository
             ->execute();
     }
 
+    public function deleteByProjectBudgetDql(int $pbId): void
+    {
+        $this->createQueryBuilder('t')
+            ->delete()
+            ->where('t.projectBudget = :pbId')
+            ->setParameter('pbId', $pbId)
+            ->getQuery()
+            ->execute();
+    }
+
     //    /**
     //     * @return Transaction[] Returns an array of Transaction objects
     //     */
