@@ -16,28 +16,38 @@ class ProjectBudgetRepository extends ServiceEntityRepository
         parent::__construct($registry, ProjectBudget::class);
     }
 
-    //    /**
-    //     * @return ProjectBudget[] Returns an array of ProjectBudget objects
-    //     */
-    //    public function findByExampleField($value): array
-    //    {
-    //        return $this->createQueryBuilder('p')
-    //            ->andWhere('p.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->orderBy('p.id', 'ASC')
-    //            ->setMaxResults(10)
-    //            ->getQuery()
-    //            ->getResult()
-    //        ;
-    //    }
+    /**
+     * @return ProjectBudget[] Returns an array of ProjectBudget objects within the FY scope
+     */
+    public function findByFiscalYearScope(\DateTimeInterface $startDate, \DateTimeInterface $endDate): array
+    {
+        return $this->createQueryBuilder('pb')
+            ->andWhere('pb.dueDate >= :start')
+            ->andWhere('pb.dueDate <= :end')
+            ->setParameter('start', $startDate->format('Y-m-d'))
+            ->setParameter('end', $endDate->format('Y-m-d'))
+            ->orderBy('pb.dueDate', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
 
-    //    public function findOneBySomeField($value): ?ProjectBudget
-    //    {
-    //        return $this->createQueryBuilder('p')
-    //            ->andWhere('p.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->getQuery()
-    //            ->getOneOrNullResult()
-    //        ;
-    //    }
+    /**
+     * Calculates the total allocated budgets and total expenses for all projects within a FY scope
+     */
+    public function getTotalsForFiscalYear(\DateTimeInterface $startDate, \DateTimeInterface $endDate): array
+    {
+        $result = $this->createQueryBuilder('pb')
+            ->select('SUM(pb.total_budget) as totalAllocated', 'SUM(pb.actualSpend) as totalExpenses')
+            ->andWhere('pb.dueDate >= :start')
+            ->andWhere('pb.dueDate <= :end')
+            ->setParameter('start', $startDate->format('Y-m-d'))
+            ->setParameter('end', $endDate->format('Y-m-d'))
+            ->getQuery()
+            ->getSingleResult();
+
+        return [
+            'allocated' => $result['totalAllocated'] ? (float) $result['totalAllocated'] : 0.0,
+            'expenses' => $result['totalExpenses'] ? (float) $result['totalExpenses'] : 0.0,
+        ];
+    }
 }

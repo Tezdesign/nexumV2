@@ -103,12 +103,7 @@ document.addEventListener('DOMContentLoaded', function () {
             modalElement.addEventListener('hidden.bs.modal', function () {
                 const form = document.getElementById(formId);
                 if (form) {
-                    if ($(form).find('.text-danger.mt-1').length > 0) {
-                        window.location.href = window.location.pathname;
-                        return;
-                    }
-
-                    // Otherwise, just do a normal visual reset for a clean form
+                    // Do a normal visual reset for a clean form
                     if (formId === 'createProfileForm') {
                         $(form).find('input[type="text"], input[type="number"], input[type="date"]').val('');
                         $(form).find('select').val('').trigger('change.select2');

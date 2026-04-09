@@ -72,6 +72,21 @@ class BudgetProfile
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2, nullable: true)]
     private ?string $total_expense = null;
 
+    private ?float $transientAllocatedBudgets = null;
+    private ?float $transientProjectExpenses = null;
+
+    public function setTransientAllocatedBudgets(?float $allocated): self
+    {
+        $this->transientAllocatedBudgets = $allocated;
+        return $this;
+    }
+
+    public function setTransientProjectExpenses(?float $expenses): self
+    {
+        $this->transientProjectExpenses = $expenses;
+        return $this;
+    }
+
     public function getTotal_expense(): ?string
     {
         return $this->total_expense;
@@ -244,6 +259,13 @@ class BudgetProfile
         }
 
         if ($this->start_date && $this->end_date) {
+            // Ensure the start date actually begins within the chosen fiscal year
+            if ($this->fiscal_year && $this->start_date->format('Y') !== $this->fiscal_year) {
+                $context->buildViolation('The custom start date must begin within the selected fiscal year (' . $this->fiscal_year . ').')
+                    ->atPath('start_date')
+                    ->addViolation();
+            }
+
             // Safely convert to a mutable DateTime to avoid DateTimeImmutable bugs
             $expectedEndDateMinusOneDay = new \DateTime($this->start_date->format('Y-m-d'));
             $expectedEndDateMinusOneDay->modify('+1 year')->modify('-1 day');
@@ -264,11 +286,26 @@ class BudgetProfile
     #[Assert\Callback]
     public function validateUpdateLogic(ExecutionContextInterface $context, mixed $payload): void
     {
-        // FUTURE IMPLEMENTATION: The 110 Rule
-        // If the new value of the budget_disposable is less than the sum of allocated project budgets
+        // The 110 Rule: If the new value of the budget_disposable is less than the sum of allocated project budgets
         // or the current expenses (sum of project budget expenses within the same fiscal year + 10%),
         // the update must be denied.
-        // This logic will be implemented later when the transactions section is built.
+        
+        $newBudget = (float) $this->budget_disposable;
+        
+        if ($this->transientAllocatedBudgets !== null && $newBudget < $this->transientAllocatedBudgets) {
+            $context->buildViolation('The new budget cannot be less than the total allocated project budgets ($' . number_format($this->transientAllocatedBudgets, 2) . ').')
+                ->atPath('budget_disposable')
+                ->addViolation();
+        }
+        
+        if ($this->transientProjectExpenses !== null) {
+            $minimumRequired = $this->transientProjectExpenses * 1.10; // Expenses + 10%
+            if ($newBudget < $minimumRequired) {
+                $context->buildViolation('The new budget cannot be less than current expenses plus 10% ($' . number_format($minimumRequired, 2) . ') due to the 110 Rule.')
+                    ->atPath('budget_disposable')
+                    ->addViolation();
+            }
+        }
     }
 }
 
