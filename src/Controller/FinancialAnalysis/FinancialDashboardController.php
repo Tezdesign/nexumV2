@@ -116,6 +116,7 @@ class FinancialDashboardController extends AbstractController
             'kpi_remaining_value' => number_format($remainingVal / 1000, 1) . 'k',
             'kpi_utilization_value' => $utilizationPercent . '%',
             'kpi_cashflow_value' => number_format(($budgetVal - $totals['allocated']) / 1000, 1) . 'k',
+            'currency_type' => $originalProfile->getBaseCurrency(),
         ]);
     }
 
