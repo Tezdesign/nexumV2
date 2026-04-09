@@ -2763,7 +2763,13 @@ class ChatApp {
                 return
             }
 
-            const body = String(this.chatInput.value || '')
+            const body = String(this.chatInput.value || '').trim()
+            if (body === '') {
+                this.showBottomNotice('Please fill out this field.')
+                this.chatInput.focus()
+                return
+            }
+
             this.chatSendButton?.setAttribute('disabled', 'disabled')
 
             fetch(this.buildConversationMessageStoreEndpoint(this.activeConversationId), {

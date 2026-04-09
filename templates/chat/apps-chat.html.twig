@@ -437,7 +437,7 @@
                             </div>
 
                             <div class="p-3 border-top position-sticky bottom-0 w-100 mb-0">
-                                <form class="d-flex align-items-end gap-1" name="chat-form" id="chat-form">
+                                <form class="d-flex align-items-end gap-1" name="chat-form" id="chat-form" novalidate>
 
                                     <div>
                                         <button type="button" class="btn btn-icon btn-soft-warning">
@@ -450,7 +450,7 @@
                                             <span data-apps-chat="inline-edit-title">Edit message</span>
                                             <button type="button" class="btn btn-sm p-0" data-apps-chat="inline-edit-cancel" aria-label="Cancel edit">&times;</button>
                                         </div>
-                                        <input type="text" name="message" class="form-control" placeholder="Type Message..." required data-apps-chat="chat-input" disabled>
+                                        <input type="text" name="message" class="form-control" placeholder="Type Message..." data-apps-chat="chat-input" disabled>
                                     </div>
 
                                     <div class="d-flex align-items-center gap-1">
@@ -737,5 +737,5 @@
 {% endblock %}
 
 {% block script %}
-    <script src="/js/pages/apps-chat.js?v=20260409h"></script>
+    <script src="/js/pages/apps-chat.js?v=20260409i"></script>
 {% endblock %}
