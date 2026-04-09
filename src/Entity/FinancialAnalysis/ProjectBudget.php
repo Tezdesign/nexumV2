@@ -15,6 +15,7 @@ use Symfony\Component\Validator\Context\ExecutionContextInterface;
 #[ORM\Entity(repositoryClass: ProjectBudgetRepository::class)]
 #[ORM\Table(name: 'project_budget')]
 #[ORM\Index(name: "fk_pro_id", columns: ["projectId"])]
+#[ORM\HasLifecycleCallbacks]
 class ProjectBudget
 {
     #[ORM\Id]
@@ -205,6 +206,42 @@ class ProjectBudget
                     ->atPath('dueDate')
                     ->addViolation();
             }
+        }
+    }
+
+    #[ORM\PrePersist]
+    #[ORM\PreUpdate]
+    public function calculateStatus(): void
+    {
+        $budget = (float) $this->total_budget;
+        $spend = (float) $this->actualSpend;
+        
+        if ($budget > 0) {
+            $utilization = $spend / $budget;
+            if ($utilization <= 0.70) {
+                $this->status = 'ON TRACK';
+            } elseif ($utilization <= 1.00) {
+                $this->status = 'AT RISK';
+            } else {
+                $this->status = 'OVER BUDGET';
+            }
+        } else {
+            $this->status = 'ON TRACK';
+        }
+    }
+
+    #[Assert\Callback]
+    public function validateBudgetUpdateLogic(ExecutionContextInterface $context, mixed $payload): void
+    {
+        $budget = (float) $this->total_budget;
+        $spend = (float) $this->actualSpend;
+        
+        $maxAllowedSpend = $budget * 1.10;
+        
+        if ($spend > $maxAllowedSpend) {
+            $context->buildViolation('The new budget is too low. The current actual spending ($' . number_format($spend, 2) . ') exceeds 110% of this proposed budget.')
+                ->atPath('total_budget')
+                ->addViolation();
         }
     }
 }

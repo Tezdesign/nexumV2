@@ -137,19 +137,56 @@ class FinancialDashboardController extends AbstractController
     }
 
     #[Route('/budget/{id}', name: 'apps-financial-analysis-budget-details')]
-    public function budgetDetails(ProjectBudget $projectBudget): Response
+    public function budgetDetails(ProjectBudget $projectBudget, Request $request, \App\Repository\FinancialAnalysis\BudgetProfileRepository $budgetProfileRepository, \App\Repository\FinancialAnalysis\ProjectBudgetRepository $projectBudgetRepository): Response
     {
-        $total = (float) $projectBudget->getTotalBudget();
-        $spend = (float) $projectBudget->getActualSpend();
+        $originalBudget = clone $projectBudget;
+
+        // Attempt to find the Fiscal Year Profile this budget falls into so we can enforce date rules during update
+        $profile = $budgetProfileRepository->createQueryBuilder('bp')
+            ->where('bp.start_date <= :date')
+            ->andWhere('bp.end_date >= :date')
+            ->setParameter('date', $projectBudget->getDueDate()->format('Y-m-d'))
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        $fStart = $profile ? $profile->getStartDate() : null;
+        $fEnd = $profile ? $profile->getEndDate() : null;
+
+        if ($fStart && $fEnd) {
+            $projectBudget->setTransientFiscalStart($fStart);
+            $projectBudget->setTransientFiscalEnd($fEnd);
+        }
+
+        $projectBudgetForm = $this->createForm(ProjectBudgetType::class, $projectBudget, [
+            'fiscal_start' => $fStart,
+            'fiscal_end' => $fEnd,
+        ]);
+        
+        $projectBudgetForm->handleRequest($request);
+
+        if ($projectBudgetForm->isSubmitted() && $projectBudgetForm->isValid()) {
+            // Automatically calculate the status based on the new total budget
+            $projectBudget->calculateStatus();
+            
+            // Execute the explicit DQL update query as requested
+            $projectBudgetRepository->updateBudgetDql($projectBudget);
+            
+            $this->addFlash('success', 'Project Budget updated successfully!');
+            return $this->redirectToRoute('apps-financial-analysis-budget-details', ['id' => $projectBudget->getId()]);
+        }
+
+        $total = (float) $originalBudget->getTotalBudget();
+        $spend = (float) $originalBudget->getActualSpend();
         $remaining = $total - $spend;
         $utilization = $total > 0 ? round(($spend / $total) * 100) : 0;
-        $dueDate = $projectBudget->getDueDate()->format('M d, Y');
-        $status = $projectBudget->getStatus();
+        $dueDate = $originalBudget->getDueDate()->format('M d, Y');
+        $status = $originalBudget->getStatus();
 
         $formattedBudget = [
-            'id' => $projectBudget->getId(),
-            'name' => $projectBudget->getName(),
-            'projectName' => $projectBudget->getProject() ? $projectBudget->getProject()->getName() : 'Unknown Project',
+            'id' => $originalBudget->getId(),
+            'name' => $originalBudget->getName(),
+            'projectName' => $originalBudget->getProject() ? $originalBudget->getProject()->getName() : 'Unknown Project',
             'totalBudget' => number_format($total / 1000, 1) . 'k',
             'actualSpend' => number_format($spend / 1000, 1) . 'k',
             'remaining' => number_format($remaining / 1000, 1) . 'k',
@@ -160,6 +197,8 @@ class FinancialDashboardController extends AbstractController
 
         return $this->render('financial-analysis/budget_details.html.twig', [
             'projectBudget' => $formattedBudget,
+            'projectBudgetEntity' => $originalBudget,
+            'projectBudgetForm' => $projectBudgetForm->createView(),
         ]);
     }
 

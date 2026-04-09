@@ -68,4 +68,24 @@ class ProjectBudgetRepository extends ServiceEntityRepository
             $this->getEntityManager()->flush();
         }
     }
+
+    public function updateBudgetDql(ProjectBudget $budget): void
+    {
+        $qb = $this->createQueryBuilder('pb');
+        $qb->update()
+            ->set('pb.name', ':name')
+            ->set('pb.project', ':project')
+            ->set('pb.total_budget', ':total_budget')
+            ->set('pb.status', ':status')
+            ->set('pb.dueDate', ':dueDate')
+            ->where('pb.id = :id')
+            ->setParameter('name', $budget->getName())
+            ->setParameter('project', $budget->getProject())
+            ->setParameter('total_budget', $budget->getTotalBudget())
+            ->setParameter('status', $budget->getStatus())
+            ->setParameter('dueDate', $budget->getDueDate() ? $budget->getDueDate()->format('Y-m-d') : null)
+            ->setParameter('id', $budget->getId())
+            ->getQuery()
+            ->execute();
+    }
 }

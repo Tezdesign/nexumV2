@@ -83,4 +83,17 @@
             </div>
         </div>
     </div>
+
+    {% include 'financial-analysis/FA_components/_update_project_budget_modal.html.twig' %}
+{% endblock %}
+
+{% block script %}
+    <!-- Flatpickr js -->
+    <script src="/vendor/flatpickr/flatpickr.min.js"></script>
+
+    <!-- Select2 js -->
+    <script src="/vendor/select2/js/select2.min.js"></script>
+
+    <!-- Custom FA JS Logic -->
+    <script src="/js/FA_custom.js?v={{ random() }}"></script>
 {% endblock %}
