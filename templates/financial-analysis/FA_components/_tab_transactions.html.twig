@@ -41,7 +41,7 @@
                     <button type="button" class="btn btn-legacy-purple btn-sm" data-bs-toggle="modal" data-bs-target="#createTransactionModal"><i class="ti ti-playlist-add fs-20"></i></button>
                 </div>
             </div>
-            <div class="card-body" id="transaction-list-container">
+            <div class="card-body" id="transaction-list-container" data-simplebar data-simplebar-primary style="max-height: 250px; padding-right: 10px;">
                 
                 {% if transactions is empty %}
                     <!-- Empty State: No Transactions Found -->
