@@ -4,9 +4,13 @@ namespace App\Controller\FinancialAnalysis;
 
 use App\Entity\FinancialAnalysis\BudgetProfile;
 use App\Entity\FinancialAnalysis\ProjectBudget;
+use App\Entity\FinancialAnalysis\Transaction;
 use App\Form\FinancialAnalysis\BudgetProfileType;
 use App\Form\FinancialAnalysis\ProjectBudgetType;
+use App\Form\FinancialAnalysis\TransactionType;
 use App\Repository\FinancialAnalysis\BudgetProfileRepository;
+use App\Repository\FinancialAnalysis\ProjectBudgetRepository;
+use App\Repository\FinancialAnalysis\TransactionRepository;
 use App\Service\FinancialAnalysis\BudgetDashboardService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -42,11 +46,13 @@ class FinancialDashboardController extends AbstractController
     }
 
     #[Route('/profile/{id}', name: 'apps-financial-analysis-profile')]
-    public function overview(BudgetProfile $budgetProfile, BudgetDashboardService $dashboardService, Request $request, EntityManagerInterface $entityManager, \App\Repository\FinancialAnalysis\ProjectBudgetRepository $projectBudgetRepository): Response
-    {
-        // Clone the original profile from the database before the form mutates it!
-        // This ensures if the user submits an invalid update, the background FY dashboard
-        // doesn't temporarily show their broken values.
+    public function overview(
+        BudgetProfile $budgetProfile, 
+        BudgetDashboardService $dashboardService, 
+        Request $request, 
+        EntityManagerInterface $entityManager, 
+        ProjectBudgetRepository $projectBudgetRepository
+    ): Response {
         $originalProfile = clone $budgetProfile;
 
         $form = $this->createForm(BudgetProfileType::class, $budgetProfile);
@@ -67,7 +73,6 @@ class FinancialDashboardController extends AbstractController
         }
 
         $projectBudget = new ProjectBudget();
-        
         if ($originalProfile->getStartDate() && $originalProfile->getEndDate()) {
             $projectBudget->setTransientFiscalStart($originalProfile->getStartDate());
             $projectBudget->setTransientFiscalEnd($originalProfile->getEndDate());
@@ -85,70 +90,44 @@ class FinancialDashboardController extends AbstractController
             return $this->redirectToRoute('apps-financial-analysis-profile', ['id' => $budgetProfile->getId()]);
         }
 
-        // Fetch projects falling within the scope of this Fiscal Year (using original dates)
         $projects = [];
         if ($originalProfile->getStartDate() && $originalProfile->getEndDate()) {
             $filteredBudgets = $projectBudgetRepository->findByFiscalYearScope($originalProfile->getStartDate(), $originalProfile->getEndDate());
-            
-            // Format the budgets for the view
             foreach ($filteredBudgets as $pb) {
-                $total = (float) $pb->getTotalBudget();
-                $spend = (float) $pb->getActualSpend();
-                $remaining = $total - $spend;
-                $utilization = $total > 0 ? round(($spend / $total) * 100) : 0;
-                $dueDate = $pb->getDueDate() ? $pb->getDueDate()->format('M d, Y') : 'N/A';
-                $status = $pb->getStatus();
-
-                $projects[] = [
-                    'id' => $pb->getId(),
-                    'name' => $pb->getName(),
-                    'projectName' => $pb->getProject() ? $pb->getProject()->getName() : 'Unknown Project',
-                    'totalBudget' => number_format($total / 1000, 1) . 'k',
-                    'actualSpend' => number_format($spend / 1000, 1) . 'k',
-                    'remaining' => number_format($remaining / 1000, 1) . 'k',
-                    'dueDate' => $dueDate,
-                    'utilization' => $utilization,
-                    'status' => $status,
-                ];
+                $projects[] = $dashboardService->formatBudgetDetails($pb);
             }
         }
         
-        // Let's set up the live KPI data using the original database values
         $budgetVal = (float) $originalProfile->getBudgetDisposable();
-        $allocatedVal = $originalProfile->getStartDate() && $originalProfile->getEndDate() ? $projectBudgetRepository->getTotalsForFiscalYear($originalProfile->getStartDate(), $originalProfile->getEndDate())['allocated'] : 0.0;
-        $expensesVal = $originalProfile->getStartDate() && $originalProfile->getEndDate() ? $projectBudgetRepository->getTotalsForFiscalYear($originalProfile->getStartDate(), $originalProfile->getEndDate())['expenses'] : 0.0;
+        $totals = $originalProfile->getStartDate() && $originalProfile->getEndDate() 
+            ? $projectBudgetRepository->getTotalsForFiscalYear($originalProfile->getStartDate(), $originalProfile->getEndDate()) 
+            : ['allocated' => 0.0, 'expenses' => 0.0];
         
-        $remainingVal = $budgetVal - $expensesVal;
-        $utilizationPercent = $budgetVal > 0 ? round(($expensesVal / $budgetVal) * 100, 1) : 0;
+        $remainingVal = $budgetVal - $totals['expenses'];
+        $utilizationPercent = $budgetVal > 0 ? round(($totals['expenses'] / $budgetVal) * 100, 1) : 0;
 
         return $this->render('financial-analysis/overview.html.twig', [
-            'budgetProfile' => $originalProfile, // Pass the original profile so breadcrumbs don't change
+            'budgetProfile' => $originalProfile,
             'projects' => $projects,
-            'form' => $form->createView(), // The form uses the mutated object, preserving the user's invalid input
+            'form' => $form->createView(),
             'projectBudgetForm' => $projectBudgetForm->createView(),
-            
-            // Live KPIs
             'kpi_budget_value' => number_format($budgetVal / 1000, 1) . 'k',
-            'kpi_spending_value' => number_format($expensesVal / 1000, 1) . 'k',
+            'kpi_spending_value' => number_format($totals['expenses'] / 1000, 1) . 'k',
             'kpi_remaining_value' => number_format($remainingVal / 1000, 1) . 'k',
             'kpi_utilization_value' => $utilizationPercent . '%',
-            'kpi_cashflow_value' => number_format(($budgetVal - $allocatedVal) / 1000, 1) . 'k',
+            'kpi_cashflow_value' => number_format(($budgetVal - $totals['allocated']) / 1000, 1) . 'k',
         ]);
     }
 
     #[Route('/budget/{id}', name: 'apps-financial-analysis-budget-details')]
-    public function budgetDetails(ProjectBudget $projectBudget, Request $request, \App\Repository\FinancialAnalysis\BudgetProfileRepository $budgetProfileRepository, \App\Repository\FinancialAnalysis\ProjectBudgetRepository $projectBudgetRepository): Response
-    {
+    public function budgetDetails(
+        ProjectBudget $projectBudget, 
+        Request $request, 
+        BudgetDashboardService $dashboardService,
+        ProjectBudgetRepository $projectBudgetRepository
+    ): Response {
         $originalBudget = clone $projectBudget;
-
-        // Attempt to find the Fiscal Year Profile this budget falls into so we can enforce date rules during update
-        $profile = $budgetProfileRepository->createQueryBuilder('bp')
-            ->where('bp.start_date <= :date')
-            ->andWhere('bp.end_date >= :date')
-            ->setParameter('date', $projectBudget->getDueDate()->format('Y-m-d'))
-            ->setMaxResults(1)
-            ->getQuery()
-            ->getOneOrNullResult();
+        $profile = $dashboardService->getFiscalProfileForBudget($projectBudget);
 
         $fStart = $profile ? $profile->getStartDate() : null;
         $fEnd = $profile ? $profile->getEndDate() : null;
@@ -162,62 +141,32 @@ class FinancialDashboardController extends AbstractController
             'fiscal_start' => $fStart,
             'fiscal_end' => $fEnd,
         ]);
-        
         $projectBudgetForm->handleRequest($request);
 
         if ($projectBudgetForm->isSubmitted() && $projectBudgetForm->isValid()) {
-            // Automatically calculate the status based on the new total budget
             $projectBudget->calculateStatus();
-            
-            // Execute the explicit DQL update query as requested
             $projectBudgetRepository->updateBudgetDql($projectBudget);
-            
             $this->addFlash('success', 'Project Budget updated successfully!');
             return $this->redirectToRoute('apps-financial-analysis-budget-details', ['id' => $projectBudget->getId()]);
         }
 
-        $total = (float) $originalBudget->getTotalBudget();
-        $spend = (float) $originalBudget->getActualSpend();
-        $remaining = $total - $spend;
-        $utilization = $total > 0 ? round(($spend / $total) * 100) : 0;
-        $dueDate = $originalBudget->getDueDate()->format('M d, Y');
-        $status = $originalBudget->getStatus();
+        $transaction = new Transaction();
+        $transactionForm = $this->createForm(TransactionType::class, $transaction);
+        $transactionForm->handleRequest($request);
 
-        $formattedBudget = [
-            'id' => $originalBudget->getId(),
-            'name' => $originalBudget->getName(),
-            'projectName' => $originalBudget->getProject() ? $originalBudget->getProject()->getName() : 'Unknown Project',
-            'totalBudget' => number_format($total / 1000, 1) . 'k',
-            'actualSpend' => number_format($spend / 1000, 1) . 'k',
-            'remaining' => number_format($remaining / 1000, 1) . 'k',
-            'utilization' => $utilization,
-            'dueDate' => $dueDate,
-            'status' => $status,
-        ];
+        if ($transactionForm->isSubmitted() && $transactionForm->isValid()) {
+            $transaction->setProjectBudget($projectBudget);
+            $dashboardService->handleTransactionCascade($projectBudget, $transaction, $profile);
+            $this->addFlash('success', 'Transaction added successfully! Spending updated.');
+            return $this->redirectToRoute('apps-financial-analysis-budget-details', ['id' => $projectBudget->getId()]);
+        }
 
         return $this->render('financial-analysis/budget_details.html.twig', [
-            'projectBudget' => $formattedBudget,
+            'projectBudget' => $dashboardService->formatBudgetDetails($originalBudget),
             'projectBudgetEntity' => $originalBudget,
             'projectBudgetForm' => $projectBudgetForm->createView(),
+            'transactionForm' => $transactionForm->createView(),
+            'transactions' => $dashboardService->formatTransactions($originalBudget),
         ]);
     }
-
-    //boilerplate code here not useful anymore
-
-//    #[Route('/test-form', name: 'apps-financial-analysis-test-form')]
-//    public function testForm(Request $request, EntityManagerInterface $entityManager): Response
-//    {
-//        $budgetProfile = new BudgetProfile();
-//        $form = $this->createForm(BudgetProfileType::class, $budgetProfile);
-//        $form->handleRequest($request);
-//
-//        if ($form->isSubmitted() && $form->isValid()) {
-//            $this->addFlash('success', 'Form is valid! But we wont save in this test.');
-//            return $this->redirectToRoute('apps-financial-analysis-test-form');
-//        }
-//
-//        return $this->render('financial-analysis/test_form.html.twig', [
-//            'form' => $form->createView(),
-//        ]);
-//    }
 }

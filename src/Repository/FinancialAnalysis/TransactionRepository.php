@@ -16,6 +16,27 @@ class TransactionRepository extends ServiceEntityRepository
         parent::__construct($registry, Transaction::class);
     }
 
+    public function save(Transaction $entity, bool $flush = false): void
+    {
+        $this->getEntityManager()->persist($entity);
+
+        if ($flush) {
+            $this->getEntityManager()->flush();
+        }
+    }
+
+    public function getTotalCostForProjectBudget(int $projectBudgetId): float
+    {
+        $result = $this->createQueryBuilder('t')
+            ->select('SUM(t.cost) as totalCost')
+            ->andWhere('t.projectBudget = :pbId')
+            ->setParameter('pbId', $projectBudgetId)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        return $result ? (float) $result : 0.0;
+    }
+
     //    /**
     //     * @return Transaction[] Returns an array of Transaction objects
     //     */

@@ -98,6 +98,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const createModalElement = document.getElementById('createProfileModal');
     const updateModalElement = document.getElementById('updateProfileModal');
     const createProjectBudgetModal = document.getElementById('createProjectBudgetModal');
+    const createTransactionModal = document.getElementById('createTransactionModal');
 
     function attachModalCloseListener(modalElement, formId) {
         if (modalElement) {
@@ -105,7 +106,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const form = document.getElementById(formId);
                 if (form) {
                     // Do a normal visual reset for a clean form
-                    if (formId === 'createProfileForm' || formId === 'createProjectBudgetForm') {
+                    if (formId === 'createProfileForm' || formId === 'createProjectBudgetForm' || formId === 'createTransactionForm') {
                         $(form).find('input[type="text"], input[type="number"], input[type="date"]').val('');
                         $(form).find('select').val('').trigger('change.select2');
 
@@ -127,4 +128,5 @@ document.addEventListener('DOMContentLoaded', function () {
     attachModalCloseListener(createModalElement, 'createProfileForm');
     attachModalCloseListener(updateModalElement, 'updateProfileForm');
     attachModalCloseListener(createProjectBudgetModal, 'createProjectBudgetForm');
+    attachModalCloseListener(createTransactionModal, 'createTransactionForm');
 });

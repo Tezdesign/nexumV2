@@ -38,14 +38,12 @@
                         <i class="ti ti-filter fs-16"></i> {{ 'Filter'|trans }}
                     </button>
                     
-                    <button type="button" class="btn btn-legacy-purple btn-sm"><i class="ti ti-playlist-add fs-20"></i></button>
+                    <button type="button" class="btn btn-legacy-purple btn-sm" data-bs-toggle="modal" data-bs-target="#createTransactionModal"><i class="ti ti-playlist-add fs-20"></i></button>
                 </div>
             </div>
             <div class="card-body" id="transaction-list-container">
                 
-                {% set transactions = [] %}
-                
-                {% if false %} {# Temporary mock condition: change back to 'transactions is empty' when real data is piped in #}
+                {% if transactions is empty %}
                     <!-- Empty State: No Transactions Found -->
                     <div class="row justify-content-center align-items-center mt-2">
                         <div class="col-md-10">

@@ -88,4 +88,18 @@ class ProjectBudgetRepository extends ServiceEntityRepository
             ->getQuery()
             ->execute();
     }
+
+    public function updateActualSpendAndStatusDql(ProjectBudget $budget): void
+    {
+        $qb = $this->createQueryBuilder('pb');
+        $qb->update()
+            ->set('pb.actualSpend', ':actualSpend')
+            ->set('pb.status', ':status')
+            ->where('pb.id = :id')
+            ->setParameter('actualSpend', $budget->getActualSpend())
+            ->setParameter('status', $budget->getStatus())
+            ->setParameter('id', $budget->getId())
+            ->getQuery()
+            ->execute();
+    }
 }

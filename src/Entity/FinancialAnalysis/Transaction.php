@@ -70,16 +70,18 @@ class Transaction
     #[Assert\LessThanOrEqual('today', message: "The transaction date cannot be in the future.")]
     private ?\DateTimeInterface $date_stamp = null;
 
-    public function getDate_stamp(): ?\DateTimeInterface
-    {
-        return $this->date_stamp;
-    }
+    //old code that confilect son terms of casing for the function
 
-    public function setDate_stamp(\DateTimeInterface $date_stamp): self
-    {
-        $this->date_stamp = $date_stamp;
-        return $this;
-    }
+//    public function getDate_stamp(): ?\DateTimeInterface
+//    {
+//        return $this->date_stamp;
+//    }
+//
+//    public function setDate_stamp(?\DateTimeInterface $date_stamp): self
+//    {
+//        $this->date_stamp = $date_stamp;
+//        return $this;
+//    }
 
     #[ORM\Column(type: 'string', nullable: true)]
     #[Assert\NotBlank(message: "Select a valid category.")]
@@ -111,15 +113,16 @@ class Transaction
         return $this;
     }
 
-    #[ORM\Column(type: 'integer', nullable: false)]
-    private ?int $description = null;
+    #[ORM\Column(type: 'string', length: 255, nullable: true)]
+    #[Assert\NotBlank(message: "A description is required.")]
+    private ?string $description = null;
 
-    public function getDescription(): ?int
+    public function getDescription(): ?string
     {
         return $this->description;
     }
 
-    public function setDescription(int $description): self
+    public function setDescription(?string $description): self
     {
         $this->description = $description;
         return $this;
@@ -130,7 +133,7 @@ class Transaction
         return $this->date_stamp;
     }
 
-    public function setDateStamp(\DateTime $date_stamp): static
+    public function setDateStamp(?\DateTime $date_stamp): static
     {
         $this->date_stamp = $date_stamp;
 
