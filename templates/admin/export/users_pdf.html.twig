@@ -27,7 +27,6 @@
     <table>
         <thead>
             <tr>
-                <th>ID</th>
                 <th>Name</th>
                 <th>Email</th>
                 <th>Phone</th>
@@ -40,7 +39,6 @@
         <tbody>
             {% for u in users %}
             <tr>
-                <td class="num">{{ u.id }}</td>
                 <td>{{ u.prenom }} {{ u.nom }}</td>
                 <td>{{ u.email }}</td>
                 <td>{{ u.telephone|default('—') }}</td>

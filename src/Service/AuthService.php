@@ -51,7 +51,7 @@ class AuthService
             // Définir la date d'inscription et le statut par défaut
             $utilisateur->setDateInscription(new \DateTime());
             if (!$utilisateur->getStatut()) {
-                $utilisateur->setStatut('Pending');
+                $utilisateur->setStatut('pending');
             }
             if ($utilisateur->getScore() === 0) {
                 $utilisateur->setScore(100);

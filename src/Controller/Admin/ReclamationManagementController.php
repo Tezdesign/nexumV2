@@ -80,7 +80,7 @@ class ReclamationManagementController extends AbstractController
             return $r;
         }
 
-        $sort = (string) $request->query->get('sort', 'idRec');
+        $sort = (string) $request->query->get('sort', 'date');
         $dir = strtoupper((string) $request->query->get('dir', 'DESC')) === 'ASC' ? 'ASC' : 'DESC';
 
         $chartStatuts = $this->reclamationRepository->getChartDataByStatut();
@@ -112,7 +112,7 @@ class ReclamationManagementController extends AbstractController
             return $r;
         }
 
-        $sort = (string) $request->query->get('sort', 'idRec');
+        $sort = (string) $request->query->get('sort', 'date');
         $dir = strtoupper((string) $request->query->get('dir', 'DESC')) === 'ASC' ? 'ASC' : 'DESC';
 
         $reclamations = $this->reclamationRepository->findForAdminListing($sort, $dir);
@@ -320,7 +320,7 @@ class ReclamationManagementController extends AbstractController
 
         if ($isExistingEntity && $rec->getIdRec() !== null) {
             $this->entityManager->getConnection()->executeStatement(
-                'UPDATE reclamation SET fichier = ? WHERE id_rec = ?',
+                'UPDATE reclamation SET fichier = ? WHERE idRec = ?',
                 [$binary, $rec->getIdRec()]
             );
         }

@@ -84,7 +84,7 @@ class UserManagementController extends AbstractController
             return $r;
         }
 
-        $sort = (string) $request->query->get('sort', 'id');
+        $sort = (string) $request->query->get('sort', 'nom');
         $dir = strtoupper((string) $request->query->get('dir', 'ASC')) === 'DESC' ? 'DESC' : 'ASC';
 
         $chartRoles = $this->utilisateurRepository->getChartDataByRole();
@@ -111,7 +111,7 @@ class UserManagementController extends AbstractController
             return $r;
         }
 
-        $sort = (string) $request->query->get('sort', 'id');
+        $sort = (string) $request->query->get('sort', 'nom');
         $dir = strtoupper((string) $request->query->get('dir', 'ASC')) === 'DESC' ? 'DESC' : 'ASC';
 
         return $pdfExport->renderTablePdf(

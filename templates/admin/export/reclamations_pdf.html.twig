@@ -28,7 +28,6 @@
     <table>
         <thead>
             <tr>
-                <th>ID</th>
                 <th>Title</th>
                 <th>Category</th>
                 <th>Project / details</th>
@@ -42,11 +41,10 @@
             {% for r in reclamations %}
             {% set uname = (r.user_prenom|default('') ~ ' ' ~ r.user_nom|default(''))|trim %}
             <tr>
-                <td class="num">{{ r.idRec }}</td>
                 <td class="wrap">{{ r.titre }}</td>
                 <td>{{ r.categorie|default('—') }}</td>
                 <td class="wrap">{{ r.projet|default('—') }}</td>
-                <td class="wrap">{% if uname != '' %}{{ uname }}{% if r.user_email|default('') %} ({{ r.user_email }}){% endif %}{% else %}#{{ r.id_user }}{% endif %}</td>
+                <td class="wrap">{% if uname != '' %}{{ uname }}{% if r.user_email|default('') %} ({{ r.user_email }}){% endif %}{% else %}Unknown user{% endif %}</td>
                 <td>{{ r.statut|default('—') }}</td>
                 <td>{{ r.date|default('—') }}</td>
                 <td>{{ r.has_fichier ? 'Yes' : '—' }}</td>

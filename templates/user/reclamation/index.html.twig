@@ -114,7 +114,6 @@
                     {{ ur.sort_link('Date', 'date', sort, dir) }}
                     {{ ur.sort_link('Titre', 'titre', sort, dir) }}
                     {{ ur.sort_link('Statut', 'statut', sort, dir) }}
-                    {{ ur.sort_link('ID', 'idRec', sort, dir) }}
                 </div>
             </div>
             <div class="card-body p-0">
@@ -122,7 +121,7 @@
                     {% for r in reclamations %}
                         {% set st = (r.statut|default(''))|lower %}
                         {% set border_class = st in ['resolved','traité','traite','closed','fermé','ferme','resolu','résolu'] ? 'border-success' : (st in ['in_progress','en_cours','processing'] ? 'border-info' : 'border-warning') %}
-                        {% set search_blob = (r.idRec ~ ' ' ~ r.titre ~ ' ' ~ (r.categorie|default('')) ~ ' ' ~ (r.projet|default('')) ~ ' ' ~ (r.statut|default('')) ~ ' ' ~ (r.date|default('')))|lower %}
+                        {% set search_blob = (r.titre ~ ' ' ~ (r.categorie|default('')) ~ ' ' ~ (r.projet|default('')) ~ ' ' ~ (r.statut|default('')) ~ ' ' ~ (r.date|default('')))|lower %}
                         <div class="user-rec-row rec-notify-bar nexum-rec-row card border shadow-none mb-0 border-start border-4 {{ border_class }}"
                              data-search="{{ search_blob|e('html_attr') }}"
                              data-has-file="{{ r.has_fichier ? '1' : '0' }}"
@@ -138,7 +137,6 @@
                                     <div class="flex-grow-1 min-w-0">
                                         <div class="d-flex flex-wrap align-items-start justify-content-between gap-2">
                                             <div class="min-w-0">
-                                                <span class="text-muted fs-12">#{{ r.idRec }}</span>
                                                 <h5 class="mb-1 fs-16 fw-semibold text-truncate">{{ r.titre }}</h5>
                                                 <p class="text-muted fs-13 mb-1">{{ r.projet|default('Pas de détail supplémentaire.') }}</p>
                                                 <div class="d-flex flex-wrap align-items-center gap-2 fs-12 text-muted">

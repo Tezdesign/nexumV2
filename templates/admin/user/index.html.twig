@@ -114,7 +114,7 @@
                         <div class="input-group input-group-sm flex-grow-1" style="max-width: 420px;">
                             <span class="input-group-text bg-light border-end-0"><i class="ri-search-line"></i></span>
                             <input type="search" id="adminUserSearch" class="form-control border-start-0"
-                                   placeholder="Filter by name, email, ID, role, status…"
+                                   placeholder="Filter by name, email, role, status…"
                                    autocomplete="off"
                                    aria-label="Filter users in real time">
                         </div>
@@ -136,7 +136,6 @@
                     <table class="table table-hover table-centered mb-0" id="adminUsersTable">
                         <thead class="table-light">
                             <tr>
-                                <th>{{ um.sort_link('ID', 'id', sort, dir) }}</th>
                                 <th>{{ um.sort_link('Name', 'nom', sort, dir) }}</th>
                                 <th>{{ um.sort_link('Email', 'email', sort, dir) }}</th>
                                 <th>Phone</th>
@@ -149,9 +148,8 @@
                         </thead>
                         <tbody>
                             {% for u in users %}
-                            {% set search_blob = (u.id ~ ' ' ~ u.prenom ~ ' ' ~ u.nom ~ ' ' ~ u.email ~ ' ' ~ (u.telephone|default('')) ~ ' ' ~ (u.departement|default('')) ~ ' ' ~ u.role ~ ' ' ~ u.statut)|lower %}
+                            {% set search_blob = (u.prenom ~ ' ' ~ u.nom ~ ' ' ~ u.email ~ ' ' ~ (u.telephone|default('')) ~ ' ' ~ (u.departement|default('')) ~ ' ' ~ u.role ~ ' ' ~ u.statut)|lower %}
                             <tr class="admin-user-row" data-search="{{ search_blob|e('html_attr') }}">
-                                <td>{{ u.id }}</td>
                                 <td class="fw-medium">{{ u.prenom }} {{ u.nom }}</td>
                                 <td>{{ u.email }}</td>
                                 <td>{{ u.telephone ?? '—' }}</td>
@@ -177,7 +175,7 @@
                                         </button>
                                     </form>
                                     {% endif %}
-                                    <button type="button" class="btn btn-sm btn-soft-primary btn-admin-user-edit" data-bs-toggle="modal" data-bs-target="#adminUserModal" data-fragment-url="{{ path('admin_users_edit', {id: u.id}) }}?fragment=1" data-user-id="{{ u.id }}">
+                                    <button type="button" class="btn btn-sm btn-soft-primary btn-admin-user-edit" data-bs-toggle="modal" data-bs-target="#adminUserModal" data-fragment-url="{{ path('admin_users_edit', {id: u.id}) }}?fragment=1">
                                         <i class="ri-pencil-line"></i>
                                     </button>
                                     {% if u.id != auth_service.getCurrentUserId() %}
@@ -193,11 +191,11 @@
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="9" class="text-center text-muted py-4">No users found.</td>
+                                <td colspan="8" class="text-center text-muted py-4">No users found.</td>
                             </tr>
                             {% endfor %}
                             <tr id="adminUserFilterEmpty" class="d-none">
-                                <td colspan="9" class="text-center text-muted py-4">No rows match your filter. Clear the search box to show everyone again.</td>
+                                <td colspan="8" class="text-center text-muted py-4">No rows match your filter. Clear the search box to show everyone again.</td>
                             </tr>
                         </tbody>
                     </table>
@@ -417,8 +415,7 @@
     document.querySelectorAll('.btn-admin-user-edit').forEach(function (btn) {
         btn.addEventListener('click', function () {
             var u = this.getAttribute('data-fragment-url');
-            var id = this.getAttribute('data-user-id') || '';
-            if (u) loadFragment(u, id ? 'Edit user #' + id : 'Edit user');
+            if (u) loadFragment(u, 'Edit user');
         });
     });
 
