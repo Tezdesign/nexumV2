@@ -200,4 +200,21 @@ class BudgetDashboardService
             $this->budgetProfileRepository->updateTotalExpenseDql($profile, $totals['expenses']);
         }
     }
+
+    /**
+     * Handles the full cascading deletion of a Fiscal Year Profile and all its children.
+     */
+    public function handleFullFiscalYearDeletionCascade(BudgetProfile $profile): void
+    {
+        if ($profile->getStartDate() && $profile->getEndDate()) {
+            // 1. Delete all Transactions belonging to projects in this FY scope
+            $this->transactionRepository->deleteByFiscalYearScopeDql($profile->getStartDate(), $profile->getEndDate());
+
+            // 2. Delete all ProjectBudgets in this FY scope
+            $this->projectBudgetRepository->deleteByFiscalYearScopeDql($profile->getStartDate(), $profile->getEndDate());
+        }
+
+        // 3. Finally delete the Profile itself
+        $this->budgetProfileRepository->deleteProfileDql($profile->getId());
+    }
 }

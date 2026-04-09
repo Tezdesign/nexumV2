@@ -112,4 +112,16 @@ class ProjectBudgetRepository extends ServiceEntityRepository
             ->getQuery()
             ->execute();
     }
+
+    public function deleteByFiscalYearScopeDql(\DateTimeInterface $start, \DateTimeInterface $end): void
+    {
+        $this->createQueryBuilder('pb')
+            ->delete()
+            ->where('pb.dueDate >= :start')
+            ->andWhere('pb.dueDate <= :end')
+            ->setParameter('start', $start->format('Y-m-d'))
+            ->setParameter('end', $end->format('Y-m-d'))
+            ->getQuery()
+            ->execute();
+    }
 }

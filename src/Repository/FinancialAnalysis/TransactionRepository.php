@@ -77,6 +77,20 @@ class TransactionRepository extends ServiceEntityRepository
             ->execute();
     }
 
+    public function deleteByFiscalYearScopeDql(\DateTimeInterface $start, \DateTimeInterface $end): void
+    {
+        $this->getEntityManager()->createQuery('
+            DELETE FROM App\Entity\FinancialAnalysis\Transaction t 
+            WHERE t.projectBudget IN (
+                SELECT pb.id FROM App\Entity\FinancialAnalysis\ProjectBudget pb 
+                WHERE pb.dueDate >= :start AND pb.dueDate <= :end
+            )
+        ')
+        ->setParameter('start', $start->format('Y-m-d'))
+        ->setParameter('end', $end->format('Y-m-d'))
+        ->execute();
+    }
+
     //    /**
     //     * @return Transaction[] Returns an array of Transaction objects
     //     */

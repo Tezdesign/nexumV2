@@ -28,6 +28,16 @@ class BudgetProfileRepository extends ServiceEntityRepository
             ->execute();
     }
 
+    public function deleteProfileDql(int $id): void
+    {
+        $this->createQueryBuilder('bp')
+            ->delete()
+            ->where('bp.id = :id')
+            ->setParameter('id', $id)
+            ->getQuery()
+            ->execute();
+    }
+
     //    /**
     //     * @return BudgetProfile[] Returns an array of BudgetProfile objects
     //     */

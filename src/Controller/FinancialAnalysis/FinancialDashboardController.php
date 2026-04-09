@@ -227,4 +227,14 @@ class FinancialDashboardController extends AbstractController
         
         return $this->redirectToRoute('apps-financial-analysis-landing');
     }
+
+    #[Route('/profile/{id}/delete', name: 'apps-financial-analysis-delete-profile', methods: ['POST'])]
+    public function deleteBudgetProfile(
+        BudgetProfile $budgetProfile,
+        BudgetDashboardService $dashboardService
+    ): Response {
+        $dashboardService->handleFullFiscalYearDeletionCascade($budgetProfile);
+        $this->addFlash('success', 'Fiscal Year Profile and all associated project budgets deleted successfully!');
+        return $this->redirectToRoute('apps-financial-analysis-landing');
+    }
 }

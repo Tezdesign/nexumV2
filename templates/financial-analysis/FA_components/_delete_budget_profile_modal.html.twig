@@ -1,0 +1,42 @@
+<!-- Delete Budget Profile Confirmation Modal -->
+<div class="modal fade" id="deleteBudgetProfileModal" tabindex="-1" aria-labelledby="deleteBudgetProfileModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-bottom border-dashed d-flex align-items-center">
+                <h4 class="modal-title" id="deleteBudgetProfileModalLabel">{{ 'Confirm Fiscal Year Deletion'|trans }}</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4 text-center">
+                <div class="mb-4">
+                    <i class="ti ti-trash-x text-danger opacity-75" style="font-size: 5rem;"></i>
+                </div>
+                <h4 class="fw-semibold text-danger">{{ 'CRITICAL DANGER ZONE'|trans }}</h4>
+                <p class="text-muted fs-15">
+                    {{ 'Are you sure you want to delete the entire'|trans }} 
+                    <span class="fw-bold text-dark">{{ 'Fiscal Year'|trans }} {{ budgetProfile.fiscalYear }}</span> 
+                    {{ 'profile?'|trans }}
+                </p>
+                <div class="alert alert-soft-danger d-flex align-items-center mt-3" role="alert">
+                    <i class="ti ti-alert-triangle fs-20 me-2"></i>
+                    <div class="text-start">
+                        {{ 'This will permanently delete:'|trans }}
+                        <ul class="mb-0 mt-1">
+                            <li>{{ 'The root Fiscal Year budget data.'|trans }}</li>
+                            <li><strong>{{ projects|length }}</strong> {{ 'Project Budgets associated with this year.'|trans }}</li>
+                            <li>{{ 'ALL related transactions across those projects.'|trans }}</li>
+                        </ul>
+                    </div>
+                </div>
+                <p class="text-danger fw-bold fs-13 mt-3">
+                    <i class="ti ti-info-circle me-1"></i> {{ 'This action is irreversible!'|trans }}
+                </p>
+            </div>
+            <div class="modal-footer">
+                <form action="{{ path('apps-financial-analysis-delete-profile', {id: budgetProfile.id}) }}" method="POST">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">{{ 'Cancel'|trans }}</button>
+                    <button type="submit" class="btn btn-danger px-4">{{ 'Delete Everything Permanently'|trans }}</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
