@@ -6,6 +6,7 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Gedmo\Mapping\Annotation as Gedmo;
 
 use App\Repository\Projects\ProjectRepository;
 use App\Support\PlainTextSanitizer;
@@ -119,6 +120,7 @@ class Project
     }
 
     #[ORM\Column(type: 'datetime', nullable: true)]
+    #[Gedmo\Timestampable(on: 'create')]
     private ?\DateTimeInterface $created_at = null;
 
     public function getCreated_at(): ?\DateTimeInterface
@@ -133,6 +135,7 @@ class Project
     }
 
     #[ORM\Column(type: 'datetime', nullable: true)]
+    #[Gedmo\Timestampable(on: 'update')]
     private ?\DateTimeInterface $updated_at = null;
 
     public function getUpdated_at(): ?\DateTimeInterface

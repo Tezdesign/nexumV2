@@ -4,6 +4,7 @@ namespace App\Form\Projects;
 
 use App\Entity\Projects\Project;
 use App\Entity\UserHandling\Utilisateur;
+use App\Support\UserDisplayName;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\DateType;
@@ -41,9 +42,9 @@ final class ProjectQuickCreateType extends AbstractType
                 'required' => false,
                 'class' => Utilisateur::class,
                 'choice_label' => static function (Utilisateur $u): string {
-                    $fullName = trim(($u->getPrenom() ?? '') . ' ' . ($u->getNom() ?? ''));
+                    $fullName = UserDisplayName::format($u, $u->getId());
                     $role = trim((string) ($u->getRole() ?? ''));
-                    $label = $fullName !== '' ? $fullName : ('User #' . $u->getId());
+                    $label = $fullName;
 
                     return $role !== '' ? ($role . ' · ' . $label) : $label;
                 },

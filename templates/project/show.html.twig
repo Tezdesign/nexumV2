@@ -148,6 +148,82 @@
             color: #be123c;
         }
 
+        .nexum-activity-list {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .nexum-activity-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 14px 0;
+            border-top: 1px solid #f1f5f9;
+        }
+
+        .nexum-activity-item:first-child {
+            border-top: 0;
+            padding-top: 0;
+        }
+
+        .nexum-activity-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 auto;
+            background: #f8fafc;
+            color: #334155;
+            border: 1px solid #e2e8f0;
+        }
+
+        .nexum-activity-icon.is-create {
+            background: #ecfdf5;
+            color: #047857;
+            border-color: #bbf7d0;
+        }
+
+        .nexum-activity-icon.is-update {
+            background: #eff6ff;
+            color: #2563eb;
+            border-color: #bfdbfe;
+        }
+
+        .nexum-activity-icon.is-delete {
+            background: #fff1f2;
+            color: #be123c;
+            border-color: #fecdd3;
+        }
+
+        .nexum-activity-icon.is-member {
+            background: #f5f3ff;
+            color: #7c3aed;
+            border-color: #ddd6fe;
+        }
+
+        .nexum-activity-main {
+            min-width: 0;
+            flex: 1 1 auto;
+        }
+
+        .nexum-activity-title {
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.35;
+        }
+
+        .nexum-activity-title .actor {
+            font-weight: 800;
+        }
+
+        .nexum-activity-meta {
+            color: #64748b;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+
         .nexum-icon-btn {
             width: 34px;
             height: 34px;
@@ -676,8 +752,37 @@
                         <h5 class="mb-0">Recent Activity</h5>
                     </div>
                     <div class="card-body pt-0">
-                        <div class="text-muted small">
-                            Recent activity is coming next (intentionally left blank for now).
+                        <div class="nexum-activity-list">
+                            {% for activity in recentActivities|default([]) %}
+                                {% set action = (activity.action ?? '')|lower %}
+                                {% set iconClass = action in ['task_created', 'project_created'] ? 'is-create'
+                                    : (action in ['task_deleted', 'project_deleted'] ? 'is-delete'
+                                    : (action in ['members_added'] ? 'is-member' : 'is-update')) %}
+                                {% set iconName = action in ['task_created', 'project_created']
+                                    ? 'ri-add-line'
+                                    : (action in ['task_deleted', 'project_deleted']
+                                    ? 'ri-delete-bin-6-line'
+                                    : (action in ['members_added']
+                                    ? 'ri-user-add-line'
+                                    : 'ri-edit-2-line')) %}
+
+                                <div class="nexum-activity-item">
+                                    <div class="nexum-activity-icon {{ iconClass }}">
+                                        <i class="{{ iconName }}"></i>
+                                    </div>
+                                    <div class="nexum-activity-main min-w-0">
+                                        <div class="nexum-activity-title">
+                                            <span class="actor">{{ activity.actorName|plain_text }}</span>
+                                            <span class="text-muted">{{ activity.message|plain_text }}</span>
+                                        </div>
+                                        <div class="nexum-activity-meta">
+                                            {{ activity.createdAt ? activity.createdAt|date('M d, Y H:i') : '' }}
+                                        </div>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="text-muted small">No recent activity yet.</div>
+                            {% endfor %}
                         </div>
                     </div>
                 </div>
@@ -951,7 +1056,7 @@
                                 {% for u in pickableUsers|default([]) %}
                                     {% set uid = u.id %}
                                     {% set already = uid in memberIds %}
-                                    {% set fullName = (u.name ?? ('User #' ~ uid))|plain_text %}
+                                    {% set fullName = (u.name ?? 'Unknown user')|plain_text %}
                                     {% set roleName = (u.role ?? '')|plain_text %}
 
                                     <div class="nexum-member-item {{ already ? 'is-disabled' : '' }}"
@@ -1083,7 +1188,7 @@
                     let html = '<option value="">Select team ...</option>';
                     for (const u of users) {
                         const id = String(u.id);
-                        const name = String(u.name || ('User #' + id));
+                        const name = String(u.name || 'Unknown user');
                         html += '<option value="' + id.replace(/\"/g, '') + '">' + name.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</option>';
                     }
                     assigneeSelect.innerHTML = html;

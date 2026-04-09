@@ -5,6 +5,7 @@ namespace App\Form\Tasks;
 use App\Entity\Tasks\Task;
 use App\Entity\UserHandling\Utilisateur;
 use App\Repository\UserHandling\UtilisateurRepository;
+use App\Support\UserDisplayName;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
@@ -61,7 +62,7 @@ final class TaskManagerUpdateType extends AbstractType
                 'class' => Utilisateur::class,
                 'placeholder' => 'Select team ...',
                 'label' => 'Assigned To',
-                'choice_label' => static fn (Utilisateur $u): string => trim(strip_tags((string) ($u->getPrenom().' '.$u->getNom()))),
+                'choice_label' => static fn (Utilisateur $u): string => UserDisplayName::format($u, $u->getId()),
                 'query_builder' => static function (UtilisateurRepository $repo) use ($memberIds): \Doctrine\ORM\QueryBuilder {
                     $qb = $repo->createQueryBuilder('u')
                         ->orderBy('u.prenom', 'ASC')

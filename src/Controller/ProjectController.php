@@ -17,6 +17,9 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use App\Service\ProjectActivityLogger;
+use App\Service\ProjectActivityFeed;
+use App\Support\UserDisplayName;
 
 #[Route('/project')]
 final class ProjectController extends AbstractController
@@ -28,6 +31,7 @@ final class ProjectController extends AbstractController
         ProjectAssignmentRepository $projectAssignmentRepository,
         TaskRepository $taskRepository,
         UtilisateurRepository $utilisateurRepository,
+        ProjectActivityLogger $activityLogger,
         EntityManagerInterface $entityManager
     ): Response
     {
@@ -91,6 +95,17 @@ final class ProjectController extends AbstractController
                     $pa->setUserId((int) $uid);
                     $entityManager->persist($pa);
                 }
+
+                $actorName = UserDisplayName::format($currentUser, (int) $currentUserId);
+                $memberCount = count($selectedUserIds);
+                $activityLogger->record(
+                    (int) $pid,
+                    $actorName,
+                    'project_created',
+                    $memberCount > 0
+                        ? sprintf('created project "%s" and assigned %d team member(s).', (string) $createProject->getName(), $memberCount)
+                        : sprintf('created project "%s".', (string) $createProject->getName())
+                );
                 $entityManager->flush();
             }
 
@@ -168,7 +183,7 @@ final class ProjectController extends AbstractController
             ->getResult();
 
         foreach ($users as $u) {
-            $fullName = trim(((string) $u->getPrenom()) . ' ' . ((string) $u->getNom()));
+            $fullName = UserDisplayName::format($u, $u->getId());
             $role = trim((string) $u->getRole());
             $img = null;
 
@@ -182,7 +197,7 @@ final class ProjectController extends AbstractController
 
             $assignableUsers[] = [
                 'id' => $u->getId(),
-                'name' => $fullName !== '' ? $fullName : ('User #' . $u->getId()),
+                'name' => $fullName,
                 'role' => $role,
                 'img' => $img,
             ];
@@ -233,6 +248,7 @@ final class ProjectController extends AbstractController
         Request $request,
         Project $project,
         ProjectAssignmentRepository $projectAssignmentRepository,
+        ProjectActivityFeed $activityFeed,
         UtilisateurRepository $utilisateurRepository,
         TaskRepository $taskRepository
     ): Response
@@ -309,6 +325,8 @@ final class ProjectController extends AbstractController
             $stats = $taskRepository->getStatsForProject((int) $pid);
         }
 
+        $recentActivities = $pid !== null ? $activityFeed->findRecentForProject((int) $pid, 6) : [];
+
         $tasks = [];
         $taskUserIds = [];
         if ($pid !== null && $tab === 'tasks') {
@@ -358,7 +376,7 @@ final class ProjectController extends AbstractController
             if ($id === null) {
                 continue;
             }
-            $fullName = trim(((string) $u->getPrenom()) . ' ' . ((string) $u->getNom()));
+            $fullName = UserDisplayName::format($u, $id);
             $roleName = trim((string) $u->getRole());
             $img = null;
 
@@ -372,7 +390,7 @@ final class ProjectController extends AbstractController
 
             $pickableUsers[] = [
                 'id' => $id,
-                'name' => $fullName !== '' ? $fullName : ('User #' . $id),
+                'name' => $fullName,
                 'role' => $roleName,
                 'img' => $img,
             ];
@@ -395,6 +413,7 @@ final class ProjectController extends AbstractController
             'canCreateTask' => $canCreateTask,
             'createTaskForm' => $createTaskForm ? $createTaskForm->createView() : null,
             'projectProgressPercent' => $projectProgressPercent,
+            'recentActivities' => $recentActivities,
         ]);
     }
 
@@ -404,6 +423,7 @@ final class ProjectController extends AbstractController
         Project $project,
         ProjectAssignmentRepository $projectAssignmentRepository,
         UtilisateurRepository $utilisateurRepository,
+        ProjectActivityLogger $activityLogger,
         EntityManagerInterface $entityManager
     ): Response
     {
@@ -471,6 +491,26 @@ final class ProjectController extends AbstractController
                 $entityManager->persist($pa);
             }
 
+            $addedNames = [];
+            foreach ($userIds as $uid) {
+                if (!isset($usersById[$uid])) {
+                    continue;
+                }
+                $addedNames[] = UserDisplayName::format($usersById[$uid], $uid);
+            }
+            $addedNames = array_values(array_unique($addedNames));
+            sort($addedNames, SORT_NATURAL | SORT_FLAG_CASE);
+
+            if ($addedNames !== []) {
+                $actorName = UserDisplayName::format($currentUser, (int) ($currentUser?->getId() ?? 0));
+                $activityLogger->record(
+                    (int) $pid,
+                    $actorName,
+                    'members_added',
+                    'added team member(s): ' . implode(', ', $addedNames) . '.'
+                );
+            }
+
             $entityManager->flush();
         }
 
@@ -478,7 +518,7 @@ final class ProjectController extends AbstractController
     }
 
     #[Route('/{id}/edit', name: 'app_project_edit', methods: ['GET', 'POST'])]
-    public function edit(Request $request, Project $project, UtilisateurRepository $utilisateurRepository, EntityManagerInterface $entityManager): Response
+    public function edit(Request $request, Project $project, UtilisateurRepository $utilisateurRepository, ProjectActivityLogger $activityLogger, EntityManagerInterface $entityManager): Response
     {
         $currentUser = $utilisateurRepository->findFirstManagerOrFirst();
         $role = strtolower((string) ($currentUser?->getRole() ?? ''));
@@ -492,6 +532,14 @@ final class ProjectController extends AbstractController
 
         if ($form->isSubmitted()) {
             if ($form->isValid()) {
+                $entityManager->flush();
+
+                $activityLogger->record(
+                    (int) $project->getId(),
+                    UserDisplayName::format($currentUser, (int) ($currentUser?->getId() ?? 0)),
+                    'project_updated',
+                    sprintf('updated project "%s".', (string) $project->getName())
+                );
                 $entityManager->flush();
 
                 if ($request->isXmlHttpRequest()) {
@@ -523,7 +571,7 @@ final class ProjectController extends AbstractController
     }
 
     #[Route('/{id}', name: 'app_project_delete', methods: ['POST'])]
-    public function delete(Request $request, Project $project, TaskRepository $taskRepository, UtilisateurRepository $utilisateurRepository, EntityManagerInterface $entityManager): Response
+    public function delete(Request $request, Project $project, TaskRepository $taskRepository, UtilisateurRepository $utilisateurRepository, ProjectActivityLogger $activityLogger, EntityManagerInterface $entityManager): Response
     {
         $currentUser = $utilisateurRepository->findFirstManagerOrFirst();
         $role = strtolower((string) ($currentUser?->getRole() ?? ''));
@@ -535,6 +583,13 @@ final class ProjectController extends AbstractController
         if ($this->isCsrfTokenValid('delete'.$project->getId(), (string) $request->request->get('_token', ''))) {
             $pid = $project->getId();
             if ($pid !== null) {
+                $activityLogger->record(
+                    (int) $pid,
+                    UserDisplayName::format($currentUser, (int) ($currentUser?->getId() ?? 0)),
+                    'project_deleted',
+                    sprintf('deleted project "%s".', (string) $project->getName())
+                );
+
                 // Ensure tasks are removed when their project is deleted.
                 $taskRepository->deleteByProjectId((int) $pid);
 

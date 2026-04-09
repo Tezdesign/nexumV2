@@ -6,6 +6,7 @@ use Doctrine\ORM\Mapping as ORM;
 
 use App\Repository\Tasks\TaskRepository;
 use App\Support\PlainTextSanitizer;
+use Gedmo\Mapping\Annotation as Gedmo;
 use Symfony\Component\Validator\Constraints as Assert;
 use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
@@ -161,6 +162,7 @@ class Task
     }
 
     #[ORM\Column(type: 'datetime', nullable: true)]
+    #[Gedmo\Timestampable(on: 'create')]
     #[Assert\Type(\DateTimeInterface::class)]
     private ?\DateTimeInterface $created_at = null;
 
@@ -176,6 +178,7 @@ class Task
     }
 
     #[ORM\Column(type: 'datetime', nullable: true)]
+    #[Gedmo\Timestampable(on: 'update')]
     #[Assert\Type(\DateTimeInterface::class)]
     private ?\DateTimeInterface $updated_at = null;
 

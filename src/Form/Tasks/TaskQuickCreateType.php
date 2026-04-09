@@ -7,6 +7,7 @@ use App\Entity\Tasks\Task;
 use App\Entity\UserHandling\Utilisateur;
 use App\Repository\Projects\ProjectRepository;
 use App\Repository\UserHandling\UtilisateurRepository;
+use App\Support\UserDisplayName;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
@@ -103,7 +104,7 @@ final class TaskQuickCreateType extends AbstractType
                 'placeholder' => 'Select team ...',
                 'label' => 'Assign User',
                 // Keep DB strings as plain text in option labels.
-                'choice_label' => static fn (Utilisateur $u): string => trim(strip_tags((string) ($u->getPrenom().' '.$u->getNom()))),
+                'choice_label' => static fn (Utilisateur $u): string => UserDisplayName::format($u, $u->getId()),
                 'query_builder' => static fn (UtilisateurRepository $repo) => $repo->createQueryBuilder('u')
                     ->orderBy('u.prenom', 'ASC')
                     ->addOrderBy('u.nom', 'ASC'),

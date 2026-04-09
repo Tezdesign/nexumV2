@@ -18,6 +18,8 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use App\Service\ProjectActivityLogger;
+use App\Support\UserDisplayName;
 
 #[Route('/task')]
 final class TaskController extends AbstractController
@@ -29,6 +31,7 @@ final class TaskController extends AbstractController
         ProjectRepository $projectRepository,
         ProjectAssignmentRepository $projectAssignmentRepository,
         UtilisateurRepository $utilisateurRepository,
+        ProjectActivityLogger $activityLogger,
         EntityManagerInterface $entityManager
     ): Response
     {
@@ -53,7 +56,7 @@ final class TaskController extends AbstractController
         $prefillProjectId = (int) $request->query->get('project', 0);
         $openCreate = (string) $request->query->get('create', '') === '1';
         $prefillProject = $prefillProjectId > 0 ? $projectRepository->find($prefillProjectId) : null;
-        $backUrl = (string) $request->request->get('back', '');
+        $backUrl = (string) $request->request->get('back', $request->query->get('back', ''));
         $backUrl = ($backUrl !== '' && str_starts_with($backUrl, '/')) ? $backUrl : '';
 
         // Modal "quick create" form.
@@ -126,9 +129,15 @@ final class TaskController extends AbstractController
                 $createTask->setProjectId((int) $project->getId());
                 $createTask->setAssignedTo($assignedUserId > 0 ? $assignedUserId : (int) $currentUserId);
                 $createTask->setCreatedBy((int) $currentUserId);
-                $createTask->setCreatedAt(new \DateTime());
-
                 $entityManager->persist($createTask);
+                $entityManager->flush();
+
+                $activityLogger->record(
+                    (int) $project->getId(),
+                    UserDisplayName::format($currentUser, (int) $currentUserId),
+                    'task_created',
+                    sprintf('created task "%s".', (string) $createTask->getTitle())
+                );
                 $entityManager->flush();
 
                 $back = (string) $request->request->get('back', '');
@@ -262,10 +271,10 @@ final class TaskController extends AbstractController
             if ($id === null) {
                 continue;
             }
-            $name = trim(((string) $u->getPrenom()) . ' ' . ((string) $u->getNom()));
+            $name = UserDisplayName::format($u, $id);
             $users[] = [
                 'id' => (int) $id,
-                'name' => $name !== '' ? $name : ('User #' . $id),
+                'name' => $name,
             ];
         }
 
@@ -275,7 +284,7 @@ final class TaskController extends AbstractController
     }
 
     #[Route('/new', name: 'app_task_new', methods: ['GET', 'POST'])]
-    public function new(Request $request, EntityManagerInterface $entityManager): Response
+    public function new(Request $request, UtilisateurRepository $utilisateurRepository, ProjectActivityLogger $activityLogger, EntityManagerInterface $entityManager): Response
     {
         $task = new Task();
         // Keep the legacy CRUD route around; UI uses the modal on /task.
@@ -283,8 +292,19 @@ final class TaskController extends AbstractController
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
+            $currentUser = $utilisateurRepository->findFirstManagerOrFirst();
             $entityManager->persist($task);
             $entityManager->flush();
+
+            if ($task->getProjectId() !== null) {
+                $activityLogger->record(
+                    (int) $task->getProjectId(),
+                    UserDisplayName::format($currentUser, (int) ($currentUser?->getId() ?? 0)),
+                    'task_created',
+                    sprintf('created task "%s".', (string) $task->getTitle())
+                );
+                $entityManager->flush();
+            }
 
             return $this->redirectToRoute('app_task_index', [], Response::HTTP_SEE_OTHER);
         }
@@ -304,7 +324,7 @@ final class TaskController extends AbstractController
     }
 
     #[Route('/{id}/status', name: 'app_task_status', methods: ['POST'])]
-    public function status(Request $request, Task $task, UtilisateurRepository $utilisateurRepository, EntityManagerInterface $entityManager): Response
+    public function status(Request $request, Task $task, UtilisateurRepository $utilisateurRepository, ProjectActivityLogger $activityLogger, EntityManagerInterface $entityManager): Response
     {
         $currentUser = $utilisateurRepository->findFirstManagerOrFirst();
         $currentUserId = (int) ($currentUser?->getId() ?? 0);
@@ -330,8 +350,23 @@ final class TaskController extends AbstractController
         }
 
         $task->setStatus($status);
-        $task->setUpdatedAt(new \DateTime());
         $entityManager->flush();
+
+        $projectId = (int) ($task->getProjectId() ?? 0);
+        if ($projectId > 0) {
+            $statusLabel = match ($status) {
+                'done' => 'done',
+                'in_progress' => 'in progress',
+                default => 'to do',
+            };
+            $activityLogger->record(
+                $projectId,
+                UserDisplayName::format($currentUser, $currentUserId),
+                'task_status_changed',
+                sprintf('changed task "%s" status to %s.', (string) $task->getTitle(), $statusLabel)
+            );
+            $entityManager->flush();
+        }
 
         // Prefer returning the user to where they clicked from (internal paths only).
         $back = (string) $request->request->get('back', '');
@@ -354,6 +389,7 @@ final class TaskController extends AbstractController
         ProjectRepository $projectRepository,
         ProjectAssignmentRepository $projectAssignmentRepository,
         UtilisateurRepository $utilisateurRepository,
+        ProjectActivityLogger $activityLogger,
         EntityManagerInterface $entityManager
     ): Response
     {
@@ -405,8 +441,18 @@ final class TaskController extends AbstractController
             /** @var \App\Entity\UserHandling\Utilisateur|null $assignedUser */
             $assignedUser = $form->get('assignedUser')->getData();
             $task->setAssignedTo($assignedUser?->getId());
-            $task->setUpdatedAt(new \DateTime());
             $entityManager->flush();
+
+            $projectId = (int) ($task->getProjectId() ?? 0);
+            if ($projectId > 0) {
+                $activityLogger->record(
+                    $projectId,
+                    UserDisplayName::format($currentUser, $currentUserId),
+                    'task_updated',
+                    sprintf('updated task "%s".', (string) $task->getTitle())
+                );
+                $entityManager->flush();
+            }
 
             if ($back !== '') {
                 return $this->redirect($back, Response::HTTP_SEE_OTHER);
@@ -429,6 +475,7 @@ final class TaskController extends AbstractController
         ProjectRepository $projectRepository,
         ProjectAssignmentRepository $projectAssignmentRepository,
         UtilisateurRepository $utilisateurRepository,
+        ProjectActivityLogger $activityLogger,
         EntityManagerInterface $entityManager
     ): Response
     {
@@ -479,8 +526,18 @@ final class TaskController extends AbstractController
                 /** @var \App\Entity\UserHandling\Utilisateur|null $assignedUser */
                 $assignedUser = $form->get('assignedUser')->getData();
                 $task->setAssignedTo($assignedUser?->getId());
-                $task->setUpdatedAt(new \DateTime());
                 $entityManager->flush();
+
+                $projectId = (int) ($task->getProjectId() ?? 0);
+                if ($projectId > 0) {
+                    $activityLogger->record(
+                        $projectId,
+                        UserDisplayName::format($currentUser, $currentUserId),
+                        'task_updated',
+                        sprintf('updated task "%s".', (string) $task->getTitle())
+                    );
+                    $entityManager->flush();
+                }
 
                 if ($request->isXmlHttpRequest()) {
                     return new Response('', Response::HTTP_NO_CONTENT);
@@ -503,9 +560,11 @@ final class TaskController extends AbstractController
     }
 
     #[Route('/{id}', name: 'app_task_delete', methods: ['POST'])]
-    public function delete(Request $request, Task $task, UtilisateurRepository $utilisateurRepository, EntityManagerInterface $entityManager): Response
+    public function delete(Request $request, Task $task, UtilisateurRepository $utilisateurRepository, ProjectActivityLogger $activityLogger, EntityManagerInterface $entityManager): Response
     {
         $currentUser = $utilisateurRepository->findFirstManagerOrFirst();
+        $currentUserId = (int) ($currentUser?->getId() ?? 0);
+
         $role = strtolower((string) ($currentUser?->getRole() ?? ''));
         $isManager = $role !== '' && str_contains($role, 'manager');
         if (!$isManager) {
@@ -513,6 +572,16 @@ final class TaskController extends AbstractController
         }
 
         if ($this->isCsrfTokenValid('delete'.$task->getId(), (string) $request->request->get('_token', ''))) {
+            if ($task->getProjectId() !== null) {
+                $activityLogger->record(
+                    (int) $task->getProjectId(),
+                    UserDisplayName::format($currentUser, $currentUserId),
+                    'task_deleted',
+                    sprintf('deleted task "%s".', (string) $task->getTitle())
+                );
+                $entityManager->flush();
+            }
+
             $entityManager->remove($task);
             $entityManager->flush();
         }

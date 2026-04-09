@@ -92,6 +92,70 @@ class TaskRepository extends ServiceEntityRepository
     }
 
     /**
+     * Tasks created by a given user, used for the dashboard "Your Tasks" card.
+     *
+     * @return Task[]
+     */
+    public function findCreatedByUser(int $userId, int $limit = 6): array
+    {
+        if ($userId <= 0) {
+            return [];
+        }
+
+        $qb = $this->createQueryBuilder('t')
+            ->andWhere('t.created_by = :uid')
+            ->setParameter('uid', $userId)
+            ->orderBy('t.created_at', 'DESC')
+            ->addOrderBy('t.id', 'DESC');
+
+        if ($limit > 0) {
+            $qb->setMaxResults($limit);
+        }
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * Dashboard scope for a non-manager: tasks they created, tasks assigned to them,
+     * and tasks belonging to projects they can access.
+     *
+     * @param int[] $projectIds
+     * @return Task[]
+     */
+    public function findForDashboardScope(int $userId, array $projectIds = []): array
+    {
+        if ($userId <= 0 && $projectIds === []) {
+            return [];
+        }
+
+        $qb = $this->createQueryBuilder('t')
+            ->orderBy('t.updated_at', 'DESC')
+            ->addOrderBy('t.id', 'DESC');
+
+        $parts = [];
+        if ($userId > 0) {
+            $parts[] = 't.created_by = :uid';
+            $parts[] = 't.assigned_to = :uid';
+            $qb->setParameter('uid', $userId);
+        }
+
+        $projectIds = array_values(array_unique(array_filter(
+            array_map('intval', $projectIds),
+            static fn (int $id): bool => $id > 0
+        )));
+        if ($projectIds !== []) {
+            $parts[] = 't.project_id IN (:projectIds)';
+            $qb->setParameter('projectIds', $projectIds);
+        }
+
+        if ($parts !== []) {
+            $qb->andWhere('(' . implode(' OR ', $parts) . ')');
+        }
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
      * @return Task[]
      */
     public function findForProject(int $projectId, int $limit = 0): array

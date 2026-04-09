@@ -1,4 +1,4 @@
-{% extends 'layouts/vertical.html.twig' %}
+ {% extends 'layouts/vertical.html.twig' %}
 
 {% set title = (isManager|default(false)) ? 'All Tasks' : 'My Tasks' %}
 {% set subtitle = (isManager|default(false)) ? 'Manage tasks across all projects' : 'Manage your work across all projects' %}
@@ -908,7 +908,7 @@
 		                    let html = '<option value="">Select team ...</option>';
 		                    for (const u of users) {
 		                        const id = String(u.id);
-		                        const name = String(u.name || ('User #' + id));
+	                        const name = String(u.name || 'Unknown user');
 		                        html += '<option value="' + id.replace(/\"/g, '') + '">' + name.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</option>';
 		                    }
 		                    assigneeSelect.innerHTML = html;
