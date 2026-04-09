@@ -7,6 +7,7 @@ use App\Entity\Projects\ProjectAssignment;
 use App\Entity\Tasks\Task;
 use App\Form\Tasks\TaskQuickCreateType;
 use App\Form\Projects\ProjectQuickCreateType;
+use App\Form\Projects\ProjectManagerUpdateType;
 use App\Form\Projects\ProjectType;
 use App\Repository\Projects\ProjectAssignmentRepository;
 use App\Repository\Projects\ProjectRepository;
@@ -41,6 +42,36 @@ final class ProjectController extends AbstractController
         $role = strtolower((string) ($currentUser?->getRole() ?? ''));
         $isManager = $role !== '' && str_contains($role, 'manager');
 
+        // Data for the styled "Assigned to" dropdown in the create modal.
+        $assignableUsers = [];
+        $users = $utilisateurRepository->createQueryBuilder('u')
+            ->orderBy('u.role', 'ASC')
+            ->addOrderBy('u.prenom', 'ASC')
+            ->addOrderBy('u.nom', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        foreach ($users as $u) {
+            $fullName = UserDisplayName::format($u, $u->getId());
+            $role = trim((string) $u->getRole());
+            $img = null;
+
+            $raw = $u->getImagelink();
+            if (is_string($raw)) {
+                $raw = trim($raw);
+                if ($raw !== '' && preg_match('~^(https?://|/|data:image/)~', $raw) === 1) {
+                    $img = $raw;
+                }
+            }
+
+            $assignableUsers[] = [
+                'id' => $u->getId(),
+                'name' => $fullName,
+                'role' => $role,
+                'img' => $img,
+            ];
+        }
+
         // Modal "quick create" form (same page, no navigation).
         $createProject = new Project();
         $createForm = $this->createForm(ProjectQuickCreateType::class, $createProject, [
@@ -48,6 +79,8 @@ final class ProjectController extends AbstractController
             'method' => 'POST',
         ]);
         $createForm->handleRequest($request);
+        $backUrl = (string) $request->request->get('back', $request->query->get('back', ''));
+        $backUrl = ($backUrl !== '' && str_starts_with($backUrl, '/')) ? $backUrl : '';
 
         if ($createForm->isSubmitted() && !$isManager) {
             throw $this->createAccessDeniedException();
@@ -109,7 +142,27 @@ final class ProjectController extends AbstractController
                 $entityManager->flush();
             }
 
+            if ($request->isXmlHttpRequest()) {
+                if ($backUrl !== '') {
+                    return $this->json(['location' => $backUrl]);
+                }
+
+                return $this->json(['location' => $this->generateUrl('app_project_index')]);
+            }
+
+            if ($backUrl !== '') {
+                return $this->redirect($backUrl, Response::HTTP_SEE_OTHER);
+            }
+
             return $this->redirectToRoute('app_project_index', [], Response::HTTP_SEE_OTHER);
+        }
+
+        if ($createForm->isSubmitted() && !$createForm->isValid() && $request->isXmlHttpRequest()) {
+            return $this->render('project/_create_modal_content.html.twig', [
+                'createForm' => $createForm->createView(),
+                'assignableUsers' => $assignableUsers,
+                'backUrl' => $backUrl !== '' ? $backUrl : $this->generateUrl('app_project_index'),
+            ], new Response('', Response::HTTP_UNPROCESSABLE_ENTITY));
         }
 
         $projects = $projectRepository->findForIndex($q);
@@ -173,36 +226,6 @@ final class ProjectController extends AbstractController
             }
         }
 
-        // Data for the styled "Assigned to" dropdown in the create modal.
-        $assignableUsers = [];
-        $users = $utilisateurRepository->createQueryBuilder('u')
-            ->orderBy('u.role', 'ASC')
-            ->addOrderBy('u.prenom', 'ASC')
-            ->addOrderBy('u.nom', 'ASC')
-            ->getQuery()
-            ->getResult();
-
-        foreach ($users as $u) {
-            $fullName = UserDisplayName::format($u, $u->getId());
-            $role = trim((string) $u->getRole());
-            $img = null;
-
-            $raw = $u->getImagelink();
-            if (is_string($raw)) {
-                $raw = trim($raw);
-                if ($raw !== '' && preg_match('~^(https?://|/|data:image/)~', $raw) === 1) {
-                    $img = $raw;
-                }
-            }
-
-            $assignableUsers[] = [
-                'id' => $u->getId(),
-                'name' => $fullName,
-                'role' => $role,
-                'img' => $img,
-            ];
-        }
-
         return $this->render('project/index.html.twig', [
             'projects' => $projects,
             'q' => $q,
@@ -227,7 +250,7 @@ final class ProjectController extends AbstractController
         }
 
         $project = new Project();
-        $form = $this->createForm(ProjectType::class, $project);
+        $form = $this->createForm(ProjectManagerUpdateType::class, $project);
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {

@@ -3,6 +3,8 @@
 namespace App\Controller;
 
 use App\Entity\Projects\Project;
+use App\Form\Projects\ProjectQuickCreateType;
+use App\Form\Tasks\TaskQuickCreateType;
 use App\Repository\Projects\ProjectAssignmentRepository;
 use App\Repository\Projects\ProjectRepository;
 use App\Repository\Tasks\TaskRepository;
@@ -30,6 +32,49 @@ class HomeController extends AbstractController
         $welcomeName = trim((string) ($currentUser?->getPrenom() ?? ''));
         if ($welcomeName === '') {
             $welcomeName = UserDisplayName::format($currentUser, $currentUserId);
+        }
+
+        $createProjectForm = null;
+        $assignableUsers = [];
+        if ($isManager) {
+            $createProject = new Project();
+            $createProjectForm = $this->createForm(ProjectQuickCreateType::class, $createProject, [
+                'action' => $this->generateUrl('app_project_index'),
+                'method' => 'POST',
+            ]);
+
+            $allUsers = $utilisateurRepository->createQueryBuilder('u')
+                ->orderBy('u.role', 'ASC')
+                ->addOrderBy('u.prenom', 'ASC')
+                ->addOrderBy('u.nom', 'ASC')
+                ->getQuery()
+                ->getResult();
+
+            foreach ($allUsers as $u) {
+                $id = $u->getId();
+                if ($id === null) {
+                    continue;
+                }
+
+                $fullName = UserDisplayName::format($u, $id);
+                $roleName = trim((string) $u->getRole());
+                $img = null;
+
+                $raw = $u->getImagelink();
+                if (is_string($raw)) {
+                    $raw = trim($raw);
+                    if ($raw !== '' && preg_match('~^(https?://|/|data:image/)~', $raw) === 1) {
+                        $img = $raw;
+                    }
+                }
+
+                $assignableUsers[] = [
+                    'id' => $id,
+                    'name' => $fullName,
+                    'role' => $roleName,
+                    'img' => $img,
+                ];
+            }
         }
 
         $relatedProjectIds = $isManager ? [] : array_values(array_unique(array_merge(
@@ -69,12 +114,50 @@ class HomeController extends AbstractController
         }
 
         $projectProgressById = $taskRepository->getProgressPercentByProjectIds($projectIds);
+        $projectMemberIdsByProjectId = $projectAssignmentRepository->getUserIdsByProjectIds($projectIds);
+
+        $projectUserIds = [];
+        foreach ($projects as $project) {
+            $pid = (int) ($project->getId() ?? 0);
+            if ($pid <= 0) {
+                continue;
+            }
+
+            $createdBy = (int) ($project->getCreatedBy() ?? 0);
+            if ($createdBy > 0) {
+                $projectUserIds[$createdBy] = true;
+            }
+
+            $assignedTo = (int) ($project->getAssignedTo() ?? 0);
+            if ($assignedTo > 0) {
+                $projectUserIds[$assignedTo] = true;
+            }
+
+            foreach (($projectMemberIdsByProjectId[$pid] ?? []) as $uid) {
+                $uid = (int) $uid;
+                if ($uid > 0) {
+                    $projectUserIds[$uid] = true;
+                }
+            }
+        }
+
+        $usersById = $utilisateurRepository->findIndexedByIds(array_keys($projectUserIds));
+        $avatarUrlById = [];
+        foreach ($usersById as $uid => $user) {
+            $raw = $user->getImagelink();
+            if (is_string($raw)) {
+                $raw = trim($raw);
+                if ($raw !== '' && preg_match('~^(https?://|/|data:image/)~', $raw) === 1) {
+                    $avatarUrlById[(int) $uid] = $raw;
+                }
+            }
+        }
 
         $dashboardTasks = $isManager
             ? $taskRepository->findForManager()
             : $taskRepository->findForDashboardScope($currentUserId, $relatedProjectIds);
 
-        $yourTasks = $taskRepository->findCreatedByUser($currentUserId, 6);
+        $yourTasks = array_slice($taskRepository->findForUser((int) $currentUserId), 0, 6);
 
         $taskProjectIds = [];
         foreach (array_merge($dashboardTasks, $yourTasks) as $task) {
@@ -88,6 +171,21 @@ class HomeController extends AbstractController
             $projectIds,
             array_keys($taskProjectIds)
         ))));
+
+        $createTaskForm = null;
+        if ($isManager || $relatedProjectIds !== []) {
+            $createTask = new \App\Entity\Tasks\Task();
+            $createTaskForm = $this->createForm(TaskQuickCreateType::class, $createTask, [
+                'action' => $this->generateUrl('app_task_index'),
+                'method' => 'POST',
+                'is_manager' => $isManager,
+                'allowed_project_ids' => $relatedProjectIds,
+            ]);
+
+            if ($isManager && $currentUser !== null && $createTaskForm->has('assignedUser')) {
+                $createTaskForm->get('assignedUser')->setData($currentUser);
+            }
+        }
 
         $today = new \DateTimeImmutable('today');
         $deadlineWindowEnd = $today->modify('+7 days');
@@ -104,13 +202,33 @@ class HomeController extends AbstractController
         $formatDate = static function (?\DateTimeInterface $date, string $fallback = '—'): string {
             return $date instanceof \DateTimeInterface ? $date->format('d M Y') : $fallback;
         };
-        $firstLetter = static function (string $value): string {
-            $value = trim($value);
-            if ($value === '') {
-                return '?';
+        $projectStatusForProgress = static function (int $progress): array {
+            return match (true) {
+                $progress >= 100 => ['done', 'Done'],
+                $progress > 0 => ['in_progress', 'In Progress'],
+                default => ['todo', 'To Do'],
+            };
+        };
+        $projectPriorityForDeadline = static function (?\DateTimeInterface $endDate) use ($today): array {
+            if (!$endDate instanceof \DateTimeInterface) {
+                return ['low', 'Low'];
             }
 
-            return strtoupper(substr($value, 0, 1));
+            $deadline = \DateTimeImmutable::createFromInterface($endDate)->setTime(0, 0);
+            if ($deadline < $today) {
+                return ['high', 'High'];
+            }
+
+            $daysRemaining = (int) $today->diff($deadline)->days;
+            if ($daysRemaining <= 3) {
+                return ['high', 'High'];
+            }
+
+            if ($daysRemaining <= 7) {
+                return ['medium', 'Medium'];
+            }
+
+            return ['low', 'Low'];
         };
 
         $tasksInProgress = 0;
@@ -165,16 +283,40 @@ class HomeController extends AbstractController
             $projectName = trim((string) $project->getName());
             $projectName = $projectName !== '' ? $projectName : ('Project #' . $pid);
             $progress = (int) ($projectProgressById[$pid] ?? 0);
-            $accentClass = $progress >= 75 ? 'success' : ($progress >= 35 ? 'primary' : 'secondary');
+            [$statusKey, $statusLabel] = $projectStatusForProgress($progress);
+            [$priorityKey, $priorityLabel] = $projectPriorityForDeadline($project->getEndDate());
+
+            $memberIds = [];
+            $createdBy = (int) ($project->getCreatedBy() ?? 0);
+            if ($createdBy > 0) {
+                $memberIds[$createdBy] = true;
+            }
+
+            $assignedTo = (int) ($project->getAssignedTo() ?? 0);
+            if ($assignedTo > 0) {
+                $memberIds[$assignedTo] = true;
+            }
+
+            foreach (($projectMemberIdsByProjectId[$pid] ?? []) as $uid) {
+                $uid = (int) $uid;
+                if ($uid > 0) {
+                    $memberIds[$uid] = true;
+                }
+            }
+
+            $memberIds = array_values(array_unique(array_map('intval', array_keys($memberIds))));
 
             $projectCards[] = [
                 'id' => $pid,
                 'name' => $projectName,
-                'initial' => $firstLetter($projectName),
                 'startLabel' => $formatDate($project->getStartDate()),
                 'endLabel' => $formatDate($project->getEndDate()),
                 'progress' => $progress,
-                'accentClass' => $accentClass,
+                'statusKey' => $statusKey,
+                'statusLabel' => $statusLabel,
+                'priorityKey' => $priorityKey,
+                'priorityLabel' => $priorityLabel,
+                'memberIds' => $memberIds,
                 'url' => $this->generateUrl('app_project_show', ['id' => $pid, 'tab' => 'overview']),
             ];
         }
@@ -194,34 +336,39 @@ class HomeController extends AbstractController
             }
 
             $status = $normalizeStatus($task->getStatus());
-            $statusLabel = match (true) {
-                $isCompleted($status) => 'Done',
-                $isInProgress($status) => 'In Progress',
-                default => 'To Do',
+            $statusKey = match (true) {
+                $isCompleted($status) => 'done',
+                $isInProgress($status) => 'in_progress',
+                default => 'todo',
             };
-            $statusClass = match (true) {
-                $isCompleted($status) => 'success',
-                $isInProgress($status) => 'primary',
-                default => 'secondary',
+            $statusLabel = match ($statusKey) {
+                'done' => 'Done',
+                'in_progress' => 'In Progress',
+                default => 'To Do',
             };
 
             $priority = $normalizeStatus($task->getPriority());
-            $priorityLabel = $priority !== '' ? strtoupper($priority) : 'NORMAL';
-            $priorityClass = match ($priority) {
-                'high' => 'danger',
-                'medium' => 'warning',
-                'low' => 'info',
-                default => 'secondary',
+            $priorityKey = match ($priority) {
+                'high', 'medium', 'low' => $priority,
+                default => 'low',
+            };
+            $priorityLabel = strtoupper($priorityKey);
+
+            $priorityClass = match ($priorityKey) {
+                'high' => 'high',
+                'medium' => 'medium',
+                'low' => 'low',
             };
 
             $taskCards[] = [
                 'id' => $tid,
                 'title' => trim((string) $task->getTitle()) ?: ('Task #' . $tid),
                 'projectName' => $projectName,
+                'assignedTo' => (int) ($task->getAssignedTo() ?? 0),
+                'statusKey' => $statusKey,
                 'statusLabel' => $statusLabel,
-                'statusClass' => $statusClass,
+                'priorityKey' => $priorityKey,
                 'priorityLabel' => $priorityLabel,
-                'priorityClass' => $priorityClass,
                 'dueLabel' => $formatDate($task->getDueDate(), 'No deadline'),
                 'completed' => $isCompleted($status),
                 'url' => $this->generateUrl('app_task_show', ['id' => $tid]),
@@ -272,6 +419,13 @@ class HomeController extends AbstractController
             'metrics' => $metrics,
             'projectCards' => $projectCards,
             'taskCards' => $taskCards,
+            'currentUserId' => $currentUserId,
+            'usersById' => $usersById,
+            'avatarUrlById' => $avatarUrlById,
+            'createProjectForm' => $createProjectForm ? $createProjectForm->createView() : null,
+            'assignableUsers' => $assignableUsers,
+            'createTaskForm' => $createTaskForm ? $createTaskForm->createView() : null,
+            'canCreateTask' => $createTaskForm !== null,
             'projectCount' => count($projects),
             'taskCount' => count($yourTasks),
         ]);

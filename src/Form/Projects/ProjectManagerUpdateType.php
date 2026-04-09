@@ -3,9 +3,6 @@
 namespace App\Form\Projects;
 
 use App\Entity\Projects\Project;
-use App\Entity\UserHandling\Utilisateur;
-use App\Support\UserDisplayName;
-use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\DateType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
@@ -14,7 +11,12 @@ use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints as Assert;
 
-final class ProjectQuickCreateType extends AbstractType
+/**
+ * Manager edit rules:
+ * - Keep the modal focused on the editable project metadata.
+ * - Team membership is handled separately in the add-members modal.
+ */
+final class ProjectManagerUpdateType extends AbstractType
 {
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
@@ -25,7 +27,7 @@ final class ProjectQuickCreateType extends AbstractType
             ->add('description', TextareaType::class, [
                 'required' => false,
                 'attr' => [
-                    'rows' => 3,
+                    'rows' => 4,
                 ],
             ])
             ->add('start_date', DateType::class, [
@@ -38,26 +40,11 @@ final class ProjectQuickCreateType extends AbstractType
                 'required' => true,
                 'label' => 'Due Date',
             ])
-            ->add('assignedUsers', EntityType::class, [
-                'mapped' => false,
-                'required' => true,
-                'class' => Utilisateur::class,
-                'choice_label' => static function (Utilisateur $u): string {
-                    $fullName = UserDisplayName::format($u, $u->getId());
-                    $role = trim((string) ($u->getRole() ?? ''));
-                    $label = $fullName;
-
-                    return $role !== '' ? ($role . ' · ' . $label) : $label;
-                },
-                'multiple' => true,
-                'expanded' => false,
-                'constraints' => [
-                    new Assert\Count(
-                        min: 1,
-                        minMessage: 'Select at least one team member.'
-                    ),
-                ],
-            ]);
+            ->add('budget', TextType::class, [
+                'required' => false,
+                'label' => 'Budget',
+            ])
+        ;
     }
 
     public function configureOptions(OptionsResolver $resolver): void

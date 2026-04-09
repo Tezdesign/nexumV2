@@ -410,118 +410,11 @@
     {% if isManager|default(false) and createForm is defined %}
         <div class="modal fade nexum-modal" id="createProjectModal" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered modal-lg">
-                <div class="modal-content">
-                    {{ form_start(createForm, { attr: { id: 'createProjectForm' } }) }}
-
-                    <div class="modal-header">
-                        <div>
-                            <h5 class="modal-title mb-1">Create New Project</h5>
-                            <div class="text-muted small">Start a new initiative for your team</div>
-                        </div>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            {{ form_label(createForm.name) }} <span class="text-danger">*</span>
-                            {{ form_widget(createForm.name, { attr: { class: 'form-control', placeholder: 'e.g. Q4 Marketing Campaign' } }) }}
-                            {{ form_errors(createForm.name) }}
-                        </div>
-
-                        <div class="mb-3">
-                            {{ form_label(createForm.description) }}
-                            {{ form_widget(createForm.description, { attr: { class: 'form-control', placeholder: 'Describe the goals and scope of this project...' } }) }}
-                            {{ form_errors(createForm.description) }}
-                        </div>
-
-                        <div class="row g-3">
-                            <div class="col-12 col-md-6">
-                                {{ form_label(createForm.start_date) }}
-                                {{ form_widget(createForm.start_date, { attr: { class: 'form-control' } }) }}
-                                {{ form_errors(createForm.start_date) }}
-                            </div>
-                            <div class="col-12 col-md-6">
-                                {{ form_label(createForm.end_date) }}
-                                {{ form_widget(createForm.end_date, { attr: { class: 'form-control' } }) }}
-                                {{ form_errors(createForm.end_date) }}
-                            </div>
-                        </div>
-
-                        <div class="mt-3">
-                            {{ form_label(createForm.assignedUsers, 'Assign Team') }}
-                            {# Keep the real Symfony field for submission/validation, but hide it. #}
-                            {{ form_widget(createForm.assignedUsers, { attr: { class: 'd-none', 'data-assigned-select': '1', multiple: 'multiple' } }) }}
-
-                            <div class="dropdown mt-2">
-                                <button class="btn btn-outline-secondary w-100 dropdown-toggle nexum-assignee-btn"
-                                        type="button"
-                                        data-bs-toggle="dropdown"
-                                        data-bs-auto-close="outside"
-                                        aria-expanded="false"
-                                        data-assignee-button>
-                                    <span class="nexum-assignee-left">
-                                        <span class="d-inline-flex align-items-center" style="gap: 6px;" data-assignee-avatars></span>
-                                        <span class="d-flex flex-column text-start min-w-0">
-                                            <span class="nexum-assignee-name text-muted" data-assignee-name>Select team members...</span>
-                                            <span class="nexum-assignee-role" data-assignee-role></span>
-                                        </span>
-                                    </span>
-                                </button>
-
-                                <div class="dropdown-menu nexum-assignee-menu">
-                                    <input type="search"
-                                           class="form-control mb-2"
-                                           placeholder="Search users..."
-                                           autocomplete="off"
-                                           data-assignee-search>
-
-                                    <div style="max-height: 260px; overflow: auto;" data-assignee-list>
-                                        {% for u in assignableUsers|default([]) %}
-                                            <button type="button"
-                                                    class="dropdown-item nexum-assignee-item"
-                                                    data-assignee-item
-                                                    data-user-id="{{ u.id }}"
-                                                    data-user-name="{{ u.name|plain_text|e }}"
-                                                    data-user-role="{{ u.role|plain_text|e }}"
-                                                    data-user-img="{{ u.img ? u.img|e : '' }}">
-                                                <span class="nexum-assignee-left">
-                                                    {% if u.img %}
-                                                        <span class="nexum-assignee-avatar">
-                                                            <img src="{{ u.img }}" alt="{{ u.name|plain_text }}">
-                                                        </span>
-                                                    {% else %}
-                                                        {% set ap = avatar_placeholder(u.name) %}
-                                                        <span class="nexum-assignee-avatar" style="background: {{ ap.bg }}; color: {{ ap.fg }};">
-                                                            {{ ap.initial }}
-                                                        </span>
-                                                    {% endif %}
-                                                    <span class="meta">
-                                                        <div class="name">{{ u.name|plain_text }}</div>
-                                                        <div class="role">{{ (u.role ?: 'User')|plain_text }}</div>
-                                                    </span>
-                                                </span>
-
-                                                <span class="nexum-assignee-check"></span>
-                                            </button>
-                                        {% else %}
-                                            <div class="text-muted small px-2 py-2">No users found.</div>
-                                        {% endfor %}
-                                    </div>
-                                </div>
-                            </div>
-                            {{ form_errors(createForm.assignedUsers) }}
-                        </div>
-                    </div>
-
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary nexum-btn-primary text-white">
-                            Create Project
-                        </button>
-                    </div>
-
-                    {{ form_end(createForm) }}
-                </div>
+                {% include 'project/_create_modal_content.html.twig' with {
+                    createForm: createForm,
+                    assignableUsers: assignableUsers,
+                    backUrl: path('app_project_index')
+                } %}
             </div>
         </div>
     {% endif %}
@@ -534,16 +427,21 @@
             const modalEl = document.getElementById('createProjectModal');
             if (!modalEl) return;
 
-            const selectEl = modalEl.querySelector('select[data-assigned-select="1"]');
-            const btnAvatars = modalEl.querySelector('[data-assignee-avatars]');
-            const btnName = modalEl.querySelector('[data-assignee-name]');
-            const btnRole = modalEl.querySelector('[data-assignee-role]');
-            const searchEl = modalEl.querySelector('[data-assignee-search]');
-            const items = Array.from(modalEl.querySelectorAll('[data-assignee-item]'));
+            const getState = function () {
+                return {
+                    selectEl: modalEl.querySelector('select[data-assigned-select="1"]'),
+                    btnAvatars: modalEl.querySelector('[data-assignee-avatars]'),
+                    btnName: modalEl.querySelector('[data-assignee-name]'),
+                    btnRole: modalEl.querySelector('[data-assignee-role]'),
+                    searchEl: modalEl.querySelector('[data-assignee-search]'),
+                    items: Array.from(modalEl.querySelectorAll('[data-assignee-item]'))
+                };
+            };
 
             const getSelectedIds = function () {
-                if (!selectEl) return;
+                const { selectEl } = getState();
                 const ids = [];
+                if (!selectEl) return ids;
                 for (const opt of Array.from(selectEl.options)) {
                     if (opt.selected && opt.value) ids.push(opt.value);
                 }
@@ -551,6 +449,7 @@
             };
 
             const applySelectedIds = function (ids) {
+                const { selectEl } = getState();
                 if (!selectEl) return;
                 const set = new Set((ids || []).map(String));
                 for (const opt of Array.from(selectEl.options)) {
@@ -559,6 +458,7 @@
             };
 
             const renderButton = function () {
+                const { btnAvatars, btnName, btnRole, items } = getState();
                 const ids = getSelectedIds() || [];
                 const selectedItems = items.filter((it) => ids.includes(String(it.getAttribute('data-user-id') || '')));
 
@@ -600,13 +500,13 @@
                 }
             };
 
-            if (selectEl) {
+            if (getState().selectEl) {
                 renderButton();
             }
 
             modalEl.addEventListener('click', function (e) {
                 const it = e.target.closest('[data-assignee-item]');
-                if (!it) return;
+                if (!it || !modalEl.contains(it)) return;
                 const userId = it.getAttribute('data-user-id');
                 if (!userId) return;
 
@@ -617,17 +517,70 @@
                 renderButton();
             });
 
-            if (searchEl) {
-                searchEl.addEventListener('input', function () {
-                    const q = (searchEl.value || '').trim().toLowerCase();
-                    for (const it of items) {
-                        const name = (it.getAttribute('data-user-name') || '').toLowerCase();
-                        const role = (it.getAttribute('data-user-role') || '').toLowerCase();
-                        const show = q === '' || name.includes(q) || role.includes(q);
-                        it.style.display = show ? '' : 'none';
+            modalEl.addEventListener('input', function (e) {
+                const t = e.target;
+                if (!t || !t.matches || !t.matches('[data-assignee-search]')) return;
+                const q = (t.value || '').trim().toLowerCase();
+                const { items } = getState();
+                for (const it of items) {
+                    const name = (it.getAttribute('data-user-name') || '').toLowerCase();
+                    const role = (it.getAttribute('data-user-role') || '').toLowerCase();
+                    const show = q === '' || name.includes(q) || role.includes(q);
+                    it.style.display = show ? '' : 'none';
+                }
+            });
+
+            modalEl.addEventListener('submit', async function (e) {
+                const form = e.target;
+                if (!form || form.id !== 'createProjectForm') return;
+                e.preventDefault();
+
+                try {
+                    const res = await fetch(form.action, {
+                        method: 'POST',
+                        body: new FormData(form),
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json, text/html;q=0.9'
+                        }
+                    });
+
+                    const ct = (res.headers.get('Content-Type') || '');
+                    if (res.ok && ct.indexOf('application/json') !== -1) {
+                        const data = await res.json();
+                        if (data && data.location) {
+                            window.location.href = data.location;
+                        }
+                        return;
                     }
-                });
-            }
+
+                    if (res.status === 422) {
+                        const html = await res.text();
+                        const wrap = document.getElementById('createProjectModalContent');
+                        if (wrap && html) {
+                            const doc = new DOMParser().parseFromString(html, 'text/html');
+                            const nextWrap = doc.getElementById('createProjectModalContent');
+                            if (nextWrap) {
+                                wrap.outerHTML = nextWrap.outerHTML;
+                                renderButton();
+                            } else {
+                                window.location.reload();
+                            }
+                        }
+                        return;
+                    }
+
+                    if (res.status === 403) {
+                        alert('Access denied.');
+                        return;
+                    }
+
+                    window.location.reload();
+                } catch (err) {
+                    console.error(err);
+                    window.location.reload();
+                }
+            });
 
             {% if createForm is defined and createForm.vars.submitted and not createForm.vars.valid %}
             // If validation failed, keep the modal open after re-render.
