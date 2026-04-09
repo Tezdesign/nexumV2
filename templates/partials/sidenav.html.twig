@@ -55,6 +55,12 @@
                     <span class="menu-text"> Projects </span>
                 </a>
             </li>
+            <li class="side-nav-item">
+                <a href="{{ path('app_resource_management_index') }}" class="side-nav-link{{ _ar is not null and _ar starts with 'app_resource_management' ? ' active' : '' }}">
+                    <span class="menu-icon"><i class="ti ti-box"></i></span>
+                    <span class="menu-text"> Resources Management </span>
+                </a>
+            </li>
             {% else %}
             {% set _ar = app.request.attributes.get('_route') %}
             <li class="side-nav-item">
@@ -86,6 +92,13 @@
             </li>
 
             <li class="side-nav-item">
+                <a href="{{ path('client_resources_view') }}" class="side-nav-link{{ _ar is not null and (_ar starts with 'client_resources' or _ar starts with 'request_resource' or _ar starts with 'manage_requests') ? ' active' : '' }}">
+                    <span class="menu-icon"><i class="ti ti-box"></i></span>
+                    <span class="menu-text"> Resources </span>
+                </a>
+            </li>
+
+            <li class="side-nav-item">
                 <a data-bs-toggle="collapse" href="#sidebarTasks" aria-expanded="false" aria-controls="sidebarTasks"
                     class="side-nav-link">
                     <span class="menu-icon"><i class="ti ti-layout-kanban"></i></span>
@@ -109,23 +122,16 @@
             </li>
 
             <li class="side-nav-item">
-                <a href="apps-training" class="side-nav-link">
+                <a href="/apps-training" class="side-nav-link">
                     <span class="menu-icon"><i class="ti ti-school"></i></span>
                     <span class="menu-text"> Training </span>
                 </a>
             </li>
 
             <li class="side-nav-item">
-                <a href="apps-financial-analysis" class="side-nav-link">
+                <a href="/apps-financial-analysis" class="side-nav-link">
                     <span class="menu-icon"><i class="ti ti-chart-infographic"></i></span>
                     <span class="menu-text"> Financial Analysis </span>
-                </a>
-            </li>
-
-            <li class="side-nav-item">
-                <a href="apps-resources-management" class="side-nav-link">
-                    <span class="menu-icon"><i class="ti ti-box"></i></span>
-                    <span class="menu-text"> Resources Management </span>
                 </a>
             </li>
             {% endif %}
