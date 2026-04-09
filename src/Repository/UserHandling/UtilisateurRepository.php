@@ -18,6 +18,18 @@ class UtilisateurRepository extends ServiceEntityRepository
 
     public function findFirstManagerOrFirst(): ?Utilisateur
     {
+        $employee = $this->createQueryBuilder('u')
+            ->andWhere('LOWER(u.role) LIKE :role')
+            ->setParameter('role', '%employ%')
+            ->orderBy('u.id', 'ASC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        if ($employee !== null) {
+            return $employee;
+        }
+
         $manager = $this->createQueryBuilder('u')
             ->andWhere('LOWER(u.role) LIKE :role')
             ->setParameter('role', '%manager%')

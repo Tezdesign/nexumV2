@@ -17,10 +17,7 @@ final class UserDisplayName
             return $fullName;
         }
 
-        $email = trim((string) $user->getEmail());
-        if ($email !== '') {
-            return $email;
-        }
+
 
         return 'Unknown user';
     }

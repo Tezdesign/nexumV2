@@ -9,7 +9,7 @@ use Twig\Extension\GlobalsInterface;
 /**
  * Temporary "current user" provider.
  *
- * Until real authentication is wired, we pick a user from the DB whose role contains "manager".
+ * Until real authentication is wired, we pick a user from the DB whose role contains "employee".
  */
 final class CurrentUserGlobals extends AbstractExtension implements GlobalsInterface
 {
