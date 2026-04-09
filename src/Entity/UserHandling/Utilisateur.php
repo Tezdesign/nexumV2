@@ -157,19 +157,19 @@ class Utilisateur
         return $this;
     }
 
-    #[ORM\Column(type: 'blob', nullable: true)]
-    private ?string $imagelink = null;
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+private ?string $imagelink = null;
 
-    public function getImagelink(): ?string
-    {
-        return $this->imagelink;
-    }
+public function getImagelink(): ?string
+{
+    return $this->imagelink;
+}
 
-    public function setImagelink(?string $imagelink): self
-    {
-        $this->imagelink = $imagelink;
-        return $this;
-    }
+public function setImagelink(?string $imagelink): self
+{
+    $this->imagelink = $imagelink;
+    return $this;
+}
 
     #[ORM\Column(type: 'string', nullable: true)]
     private ?string $face_id = null;

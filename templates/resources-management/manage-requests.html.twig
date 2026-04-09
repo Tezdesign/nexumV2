@@ -1,0 +1,83 @@
+{% extends 'layouts/vertical.html.twig' %}
+
+{% set title = 'Manage Requests' %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <h4 class="mb-4">Manage Resource Requests</h4>
+    <a href="javascript:history.back()" class="btn btn-secondary mb-3">
+    ← Back
+</a>
+
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th>Resource</th>
+                    <th>Project</th>
+                    <th>Quantity</th>
+                    <th>Total Cost</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for row in data %}
+                    <tr>
+                        <td>
+                            {{ row.resource.resourceName ?? 'N/A' }}
+                        </td>
+
+                        <td>
+                            {{ row.assignment.projectCode }}
+                        </td>
+
+                        <td>
+                            {{ row.assignment.quantity }}
+                        </td>
+
+                        <td>
+                            {{ row.assignment.totalCost }} TND
+                        </td>
+
+                        <td>
+                            <span class="badge 
+                                {% if row.assignment.status == 'PENDING' %}
+                                    bg-warning
+                                {% elseif row.assignment.status == 'ACCEPTED' %}
+                                    bg-success
+                                {% else %}
+                                    bg-danger
+                                {% endif %}
+                            ">
+                                {{ row.assignment.status }}
+                            </span>
+                        </td>
+
+                        <td>
+                            {% if row.assignment.status == 'PENDING' %}
+                                <a href="{{ path('accept_request', {'id': row.assignment.assignmentId}) }}"
+                                   class="btn btn-success btn-sm">
+                                    Accept
+                                </a>
+
+                                <a href="{{ path('decline_request', {'id': row.assignment.assignmentId}) }}"
+                                   class="btn btn-danger btn-sm">
+                                    Decline
+                                </a>
+                            {% else %}
+                                <span class="text-muted">No action</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center">No requests found</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
