@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: DejaVu Sans, sans-serif; font-size: 9px; color: #222; }
+        h1 { font-size: 16px; margin: 0 0 8px 0; }
+        .meta { font-size: 9px; color: #555; margin-bottom: 12px; }
+        .stats { margin-bottom: 12px; border: 1px solid #ccc; padding: 8px; }
+        .stats span { margin-right: 14px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #999; padding: 4px 5px; text-align: left; vertical-align: top; }
+        th { background: #eee; font-weight: bold; }
+        tr:nth-child(even) { background: #f9f9f9; }
+        .num { text-align: right; }
+        .wrap { word-wrap: break-word; max-width: 120px; }
+    </style>
+</head>
+<body>
+    <h1>Reclamations — export</h1>
+    <div class="meta">Generated: {{ generated_at|date('Y-m-d H:i') }} · Sort: {{ sort }} {{ dir }}</div>
+    <div class="stats">
+        <span><strong>Total</strong> {{ stats.total }}</span>
+        <span><strong>Awaiting</strong> {{ stats.pending }}</span>
+        <span><strong>In progress</strong> {{ stats.in_progress }}</span>
+        <span><strong>Resolved</strong> {{ stats.resolved }}</span>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Title</th>
+                <th>Category</th>
+                <th>Project / details</th>
+                <th>User</th>
+                <th>Status</th>
+                <th>Date</th>
+                <th>File</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in reclamations %}
+            {% set uname = (r.user_prenom|default('') ~ ' ' ~ r.user_nom|default(''))|trim %}
+            <tr>
+                <td class="num">{{ r.idRec }}</td>
+                <td class="wrap">{{ r.titre }}</td>
+                <td>{{ r.categorie|default('—') }}</td>
+                <td class="wrap">{{ r.projet|default('—') }}</td>
+                <td class="wrap">{% if uname != '' %}{{ uname }}{% if r.user_email|default('') %} ({{ r.user_email }}){% endif %}{% else %}#{{ r.id_user }}{% endif %}</td>
+                <td>{{ r.statut|default('—') }}</td>
+                <td>{{ r.date|default('—') }}</td>
+                <td>{{ r.has_fichier ? 'Yes' : '—' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

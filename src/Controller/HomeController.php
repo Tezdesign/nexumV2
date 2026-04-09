@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Service\AuthService;
 use App\Entity\Projects\Project;
 use App\Form\Projects\ProjectQuickCreateType;
 use App\Form\Tasks\TaskQuickCreateType;
@@ -16,6 +17,13 @@ use Symfony\Component\Routing\Annotation\Route;
 
 class HomeController extends AbstractController
 {
+    private AuthService $authService;
+
+    public function __construct(AuthService $authService)
+    {
+        $this->authService = $authService;
+    }
+
     #[Route('/', name: 'dashboard')]
     public function index(
         ProjectRepository $projectRepository,
@@ -24,10 +32,22 @@ class HomeController extends AbstractController
         UtilisateurRepository $utilisateurRepository
     ): Response
     {
-        $currentUser = $utilisateurRepository->findFirstManagerOrFirst();
-        $currentUserId = (int) ($currentUser?->getId() ?? 0);
-        $role = strtolower((string) ($currentUser?->getRole() ?? ''));
-        $isManager = $role !== '' && str_contains($role, 'manager');
+        // Check if user is authenticated with our custom session
+        if (!$this->authService->isLoggedIn()) {
+            return $this->redirectToRoute('welcome');
+        }
+
+        $currentUserId = (int) ($this->authService->getCurrentUserId() ?? 0);
+        $currentUser = $currentUserId > 0 ? $utilisateurRepository->find($currentUserId) : null;
+        $role = strtolower((string) ($this->authService->getCurrentUserRole() ?? ''));
+        $isManager = $this->authService->isManager();
+        $implicitManagerIds = [];
+        foreach ($utilisateurRepository->findManagerUsers() as $managerUser) {
+            $managerId = $managerUser->getId();
+            if ($managerId !== null) {
+                $implicitManagerIds[(int) $managerId] = true;
+            }
+        }
 
         $welcomeName = trim((string) ($currentUser?->getPrenom() ?? ''));
         if ($welcomeName === '') {
@@ -43,12 +63,7 @@ class HomeController extends AbstractController
                 'method' => 'POST',
             ]);
 
-            $allUsers = $utilisateurRepository->createQueryBuilder('u')
-                ->orderBy('u.role', 'ASC')
-                ->addOrderBy('u.prenom', 'ASC')
-                ->addOrderBy('u.nom', 'ASC')
-                ->getQuery()
-                ->getResult();
+            $allUsers = $utilisateurRepository->findNonAdminUsers();
 
             foreach ($allUsers as $u) {
                 $id = $u->getId();
@@ -141,7 +156,11 @@ class HomeController extends AbstractController
             }
         }
 
-        $usersById = $utilisateurRepository->findIndexedByIds(array_keys($projectUserIds));
+        foreach ($implicitManagerIds as $managerId => $_) {
+            $projectUserIds[(int) $managerId] = true;
+        }
+
+        $usersById = $utilisateurRepository->findNonAdminIndexedByIds(array_keys($projectUserIds));
         $avatarUrlById = [];
         foreach ($usersById as $uid => $user) {
             $raw = $user->getImagelink();
@@ -440,7 +459,6 @@ class HomeController extends AbstractController
     #[Route('/apps-projects', name: 'apps-projects')]
     public function projects(): Response
     {
-        // Point the existing sidebar entry to the real Projects CRUD list.
         return $this->redirectToRoute('app_project_index');
     }
 
@@ -453,8 +471,7 @@ class HomeController extends AbstractController
     #[Route('/apps-task-details', name: 'apps-task-details')]
     public function taskDetails(): Response
     {
-        // Point the existing sidebar entry to the real Tasks board.
-        return $this->redirectToRoute('app_task_index');
+        return $this->render('project-management/apps-task-details.html.twig');
     }
 
     #[Route('/apps-training', name: 'apps-training')]
@@ -483,10 +500,10 @@ class HomeController extends AbstractController
         UtilisateurRepository $utilisateurRepository
     ): Response
     {
-        $currentUser = $utilisateurRepository->findFirstManagerOrFirst();
-        $currentUserId = (int) ($currentUser?->getId() ?? 0);
-        $role = strtolower((string) ($currentUser?->getRole() ?? ''));
-        $isManager = $role !== '' && str_contains($role, 'manager');
+        $currentUserId = (int) ($this->authService->getCurrentUserId() ?? 0);
+        $currentUser = $currentUserId > 0 ? $utilisateurRepository->find($currentUserId) : null;
+        $role = strtolower((string) ($this->authService->getCurrentUserRole() ?? ''));
+        $isManager = $this->authService->isManager();
 
         $accessibleProjectIds = $isManager ? [] : array_values(array_unique(array_merge(
             $projectRepository->getProjectIdsForUser($currentUserId),
@@ -540,6 +557,10 @@ class HomeController extends AbstractController
                 $userIds[(int) $uid] = true;
             }
         }
+
+        foreach ($implicitManagerIds as $managerId => $_) {
+            $userIds[(int) $managerId] = true;
+        }
         foreach ($tasks as $task) {
             $assignedTo = $task->getAssignedTo();
             if ($assignedTo !== null) {
@@ -547,7 +568,7 @@ class HomeController extends AbstractController
             }
         }
 
-        $usersById = $utilisateurRepository->findIndexedByIds(array_keys($userIds));
+        $usersById = $utilisateurRepository->findNonAdminIndexedByIds(array_keys($userIds));
 
         $formatUserName = static function (int $uid) use ($usersById): string {
             return isset($usersById[$uid])
@@ -555,7 +576,7 @@ class HomeController extends AbstractController
                 : 'Unknown user';
         };
 
-        $formatProjectMembers = static function (Project $project) use ($projectMemberIdsByProjectId, $formatUserName): string {
+        $formatProjectMembers = static function (Project $project) use ($projectMemberIdsByProjectId, $formatUserName, $implicitManagerIds): string {
             $pid = (int) ($project->getId() ?? 0);
             if ($pid <= 0) {
                 return 'Unassigned';
@@ -574,6 +595,10 @@ class HomeController extends AbstractController
 
             foreach (($projectMemberIdsByProjectId[$pid] ?? []) as $uid) {
                 $memberIds[(int) $uid] = true;
+            }
+
+            foreach ($implicitManagerIds as $managerId => $_) {
+                $memberIds[(int) $managerId] = true;
             }
 
             $names = [];

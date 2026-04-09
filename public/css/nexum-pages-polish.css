@@ -1,0 +1,425 @@
+/**
+ * Nexum — polished UI for account, réclamations, and admin management pages.
+ * Uses theme primary + extra purple; animations are reduced when prefers-reduced-motion.
+ */
+
+:root {
+    --nexum-purple-600: #7c3aed;
+    --nexum-purple-700: #6d28d9;
+    --nexum-violet-glow: rgba(124, 58, 237, 0.35);
+    --nexum-indigo-glow: rgba(91, 105, 188, 0.3);
+}
+
+/* ---- Ambient page background (optional wrapper) ---- */
+.nexum-page-ambient {
+    position: relative;
+}
+
+.nexum-page-ambient::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.4;
+    background:
+        radial-gradient(ellipse 90% 55% at 8% -5%, var(--nexum-violet-glow), transparent 55%),
+        radial-gradient(ellipse 70% 45% at 92% 15%, var(--nexum-indigo-glow), transparent 50%),
+        radial-gradient(ellipse 50% 35% at 50% 100%, rgba(124, 58, 237, 0.06), transparent 60%);
+}
+
+/* Stack page rows above the ambient gradient — never target .modal: it must stay position:fixed for Bootstrap */
+.nexum-page-ambient > .row,
+.nexum-page-ambient > *:not(.modal) {
+    position: relative;
+    z-index: 1;
+}
+
+[data-bs-theme="dark"] .nexum-page-ambient::before {
+    opacity: 0.55;
+}
+
+/* ---- Purple-gradient primary buttons ---- */
+/* Solid fallback so label stays visible if gradient fails; load this file AFTER app.min.css */
+.nexum-btn-gradient {
+    --nexum-btn-fg: #fff;
+    background-color: var(--nexum-purple-700) !important;
+    background-image: linear-gradient(135deg, var(--bs-primary) 0%, #6366f1 38%, var(--nexum-purple-600) 72%, var(--nexum-purple-700) 100%) !important;
+    border: none !important;
+    color: var(--nexum-btn-fg) !important;
+    --bs-btn-color: var(--nexum-btn-fg);
+    --bs-btn-hover-color: var(--nexum-btn-fg);
+    --bs-btn-active-color: var(--nexum-btn-fg);
+    box-shadow: 0 4px 16px var(--nexum-violet-glow);
+    transition: transform 0.22s ease, box-shadow 0.28s ease, filter 0.2s ease;
+}
+
+.nexum-btn-gradient i,
+.nexum-btn-gradient .ri-save-3-line,
+.nexum-btn-gradient .ri-send-plane-fill,
+.nexum-btn-gradient .ri-save-line,
+.nexum-btn-gradient .ri-add-line,
+.nexum-btn-gradient .ri-user-add-line,
+.nexum-btn-gradient .ri-add-circle-line {
+    color: inherit !important;
+}
+
+.nexum-btn-gradient:hover,
+.nexum-btn-gradient:focus-visible {
+    color: var(--nexum-btn-fg) !important;
+    --bs-btn-hover-color: var(--nexum-btn-fg);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 28px rgba(124, 58, 237, 0.42);
+    filter: brightness(1.06);
+}
+
+.nexum-btn-gradient:active {
+    color: var(--nexum-btn-fg) !important;
+    --bs-btn-active-color: var(--nexum-btn-fg);
+    transform: translateY(0);
+    filter: brightness(0.98);
+}
+
+.nexum-btn-gradient.btn-sm {
+    box-shadow: 0 3px 12px rgba(124, 58, 237, 0.28);
+}
+
+.nexum-btn-gradient.btn-lg {
+    box-shadow: 0 6px 22px rgba(124, 58, 237, 0.4);
+}
+
+/* Soft purple outline / ghost */
+.nexum-btn-ghost-purple {
+    border: 1px solid color-mix(in srgb, var(--nexum-purple-600) 45%, transparent) !important;
+    background: color-mix(in srgb, var(--nexum-purple-600) 8%, transparent) !important;
+    color: var(--nexum-purple-700) !important;
+    transition: background 0.22s ease, border-color 0.22s ease, transform 0.2s ease, box-shadow 0.22s ease;
+}
+
+[data-bs-theme="dark"] .nexum-btn-ghost-purple {
+    color: #c4b5fd !important;
+    border-color: color-mix(in srgb, var(--nexum-purple-600) 55%, transparent) !important;
+    background: color-mix(in srgb, var(--nexum-purple-600) 14%, transparent) !important;
+}
+
+.nexum-btn-ghost-purple:hover {
+    background: color-mix(in srgb, var(--nexum-purple-600) 18%, var(--bs-body-bg)) !important;
+    border-color: color-mix(in srgb, var(--nexum-purple-600) 65%, transparent) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(124, 58, 237, 0.12);
+}
+
+@supports not (color: color-mix(in srgb, red, blue)) {
+    .nexum-btn-ghost-purple {
+        border-color: rgba(124, 58, 237, 0.35) !important;
+        background: rgba(124, 58, 237, 0.08) !important;
+        color: var(--nexum-purple-700) !important;
+    }
+    .nexum-btn-ghost-purple:hover {
+        background: rgba(124, 58, 237, 0.14) !important;
+    }
+}
+
+/* Purple-tinted soft secondary (for sort pills etc.) */
+.nexum-btn-soft-purple {
+    background: linear-gradient(180deg, color-mix(in srgb, var(--nexum-purple-600) 12%, var(--bs-body-bg)), color-mix(in srgb, var(--nexum-purple-600) 6%, var(--bs-body-bg))) !important;
+    border: 1px solid color-mix(in srgb, var(--nexum-purple-600) 22%, var(--bs-border-color)) !important;
+    color: var(--nexum-purple-700) !important;
+    transition: transform 0.18s ease, box-shadow 0.22s ease, border-color 0.2s ease;
+}
+
+[data-bs-theme="dark"] .nexum-btn-soft-purple {
+    color: #ddd6fe !important;
+}
+
+.nexum-btn-soft-purple:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.15);
+    border-color: color-mix(in srgb, var(--nexum-purple-600) 40%, var(--bs-border-color)) !important;
+}
+
+@supports not (color: color-mix(in srgb, red, blue)) {
+    .nexum-btn-soft-purple {
+        background: rgba(124, 58, 237, 0.08) !important;
+        border-color: rgba(124, 58, 237, 0.25) !important;
+    }
+}
+
+/* ---- Cards ---- */
+.nexum-card {
+    border-radius: 0.75rem !important;
+    transition: transform 0.28s cubic-bezier(0.34, 1.2, 0.64, 1), box-shadow 0.28s ease;
+    box-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.04) !important;
+}
+
+.nexum-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 0.75rem 2rem rgba(91, 105, 188, 0.12), 0 0.35rem 1.2rem rgba(124, 58, 237, 0.08) !important;
+}
+
+.nexum-card-static {
+    border-radius: 0.75rem !important;
+    box-shadow: 0 0.35rem 1.15rem rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Stat / KPI tiles */
+.nexum-stat-card {
+    border-radius: 0.75rem !important;
+    border: 1px solid transparent !important;
+    background: linear-gradient(var(--bs-body-bg), var(--bs-body-bg)) padding-box,
+        linear-gradient(135deg, color-mix(in srgb, var(--bs-primary) 35%, transparent), color-mix(in srgb, var(--nexum-purple-600) 30%, transparent)) border-box !important;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+@supports not (color: color-mix(in srgb, red, blue)) {
+    .nexum-stat-card {
+        border: 1px solid rgba(124, 58, 237, 0.15) !important;
+        background: var(--bs-body-bg) !important;
+    }
+}
+
+.nexum-stat-card:hover {
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: 0 0.65rem 1.75rem rgba(124, 58, 237, 0.12) !important;
+}
+
+/* Hero strip */
+.nexum-hero {
+    border-radius: 0.85rem !important;
+    overflow: hidden;
+    position: relative;
+    border: none !important;
+    box-shadow: 0 0.5rem 2rem rgba(91, 105, 188, 0.15) !important;
+}
+
+.nexum-hero::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg,
+        color-mix(in srgb, var(--bs-primary) 18%, transparent) 0%,
+        color-mix(in srgb, var(--nexum-purple-600) 12%, transparent) 45%,
+        color-mix(in srgb, var(--bs-success) 6%, transparent) 100%);
+    pointer-events: none;
+}
+
+.nexum-hero .card-body {
+    position: relative;
+    z-index: 1;
+}
+
+@supports not (color: color-mix(in srgb, red, blue)) {
+    .nexum-hero::after {
+        background: linear-gradient(135deg, rgba(91, 105, 188, 0.14) 0%, rgba(124, 58, 237, 0.1) 50%, rgba(16, 196, 105, 0.05) 100%);
+    }
+}
+
+/* User reclamation feed rows */
+.nexum-rec-row {
+    border-radius: 0.75rem !important;
+    transition: transform 0.22s ease, box-shadow 0.25s ease, border-color 0.2s ease;
+}
+
+.nexum-rec-row:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1.5rem rgba(54, 61, 79, 0.1), 0 0 0 1px color-mix(in srgb, var(--nexum-purple-600) 15%, transparent) !important;
+}
+
+.nexum-rec-row .avatar-sm {
+    transition: transform 0.25s ease, background 0.25s ease, color 0.25s ease;
+}
+
+.nexum-rec-row:hover .avatar-sm {
+    transform: scale(1.08);
+    background: color-mix(in srgb, var(--nexum-purple-600) 12%, var(--bs-light)) !important;
+    color: var(--nexum-purple-700) !important;
+}
+
+[data-bs-theme="dark"] .nexum-rec-row:hover .avatar-sm {
+    background: color-mix(in srgb, var(--nexum-purple-600) 22%, var(--bs-dark)) !important;
+    color: #c4b5fd !important;
+}
+
+/* Table column sort links (admin) */
+a.nexum-sort-link {
+    transition: color 0.2s ease, background-color 0.2s ease;
+    border-radius: 0.35rem;
+    padding: 0.2rem 0.4rem;
+    margin: -0.2rem -0.4rem;
+}
+
+a.nexum-sort-link:hover {
+    color: var(--nexum-purple-700) !important;
+    background-color: rgba(124, 58, 237, 0.08);
+}
+
+[data-bs-theme="dark"] a.nexum-sort-link:hover {
+    color: #c4b5fd !important;
+    background-color: rgba(124, 58, 237, 0.12);
+}
+
+.nexum-label-upper {
+    letter-spacing: 0.06em;
+}
+
+/* Chart cards (admin dashboards) */
+.nexum-chart-card {
+    border-radius: 0.75rem !important;
+    transition: box-shadow 0.28s ease, transform 0.28s ease;
+}
+
+.nexum-chart-card:hover {
+    box-shadow: 0 0.55rem 1.65rem rgba(124, 58, 237, 0.12) !important;
+    transform: translateY(-3px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .nexum-chart-card {
+        transition: none;
+    }
+    .nexum-chart-card:hover {
+        transform: none;
+    }
+}
+
+/* Admin table toolbar */
+.nexum-admin-toolbar {
+    border-radius: 0.75rem 0.75rem 0 0 !important;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--nexum-purple-600) 6%, var(--bs-body-bg)) 0%, var(--bs-body-bg) 100%) !important;
+}
+
+@supports not (color: color-mix(in srgb, red, blue)) {
+    .nexum-admin-toolbar {
+        background: linear-gradient(180deg, rgba(124, 58, 237, 0.06) 0%, var(--bs-body-bg) 100%) !important;
+    }
+}
+
+/* Modals */
+.nexum-modal .modal-content {
+    border-radius: 0.85rem !important;
+    overflow: hidden;
+    border: none !important;
+    box-shadow: 0 1.25rem 3rem rgba(30, 27, 75, 0.18) !important;
+}
+
+.nexum-modal .modal-header {
+    background: linear-gradient(135deg, color-mix(in srgb, var(--bs-primary) 10%, var(--bs-body-bg)), color-mix(in srgb, var(--nexum-purple-600) 8%, var(--bs-body-bg))) !important;
+    border-bottom: 1px dashed color-mix(in srgb, var(--nexum-purple-600) 20%, var(--bs-border-color)) !important;
+}
+
+@supports not (color: color-mix(in srgb, red, blue)) {
+    .nexum-modal .modal-header {
+        background: linear-gradient(135deg, rgba(91, 105, 188, 0.08), rgba(124, 58, 237, 0.06)) !important;
+    }
+}
+
+/* ---- Entrance animations ---- */
+@keyframes nexum-fade-up {
+    from {
+        transform: translateY(12px);
+    }
+    to {
+        transform: translateY(0);
+    }
+}
+
+@keyframes nexum-scale-in {
+    from {
+        opacity: 0;
+        transform: scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.nexum-reveal {
+    opacity: 1;
+    animation: nexum-fade-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.nexum-reveal-delay-1 { animation-delay: 0.06s; }
+.nexum-reveal-delay-2 { animation-delay: 0.12s; }
+.nexum-reveal-delay-3 { animation-delay: 0.18s; }
+.nexum-reveal-delay-4 { animation-delay: 0.24s; }
+.nexum-reveal-delay-5 { animation-delay: 0.3s; }
+
+.nexum-stagger > .nexum-reveal-item {
+    opacity: 1;
+    animation: nexum-fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.nexum-stagger > .nexum-reveal-item:nth-child(1) { animation-delay: 0.05s; }
+.nexum-stagger > .nexum-reveal-item:nth-child(2) { animation-delay: 0.1s; }
+.nexum-stagger > .nexum-reveal-item:nth-child(3) { animation-delay: 0.15s; }
+.nexum-stagger > .nexum-reveal-item:nth-child(4) { animation-delay: 0.2s; }
+.nexum-stagger > .nexum-reveal-item:nth-child(5) { animation-delay: 0.25s; }
+.nexum-stagger > .nexum-reveal-item:nth-child(6) { animation-delay: 0.3s; }
+.nexum-stagger > .nexum-reveal-item:nth-child(7) { animation-delay: 0.35s; }
+.nexum-stagger > .nexum-reveal-item:nth-child(8) { animation-delay: 0.4s; }
+
+/* Profile cover shimmer */
+@keyframes nexum-shimmer {
+    0% { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
+}
+
+.nexum-profile-cover {
+    background: linear-gradient(125deg,
+        var(--bs-primary) 0%,
+        #6366f1 25%,
+        var(--nexum-purple-600) 55%,
+        var(--nexum-purple-700) 85%,
+        color-mix(in srgb, var(--bs-primary) 70%, var(--nexum-purple-600)) 100%);
+    background-size: 200% 200%;
+    animation: nexum-shimmer 8s ease-in-out infinite alternate;
+}
+
+@supports not (color: color-mix(in srgb, red, blue)) {
+    .nexum-profile-cover {
+        background: linear-gradient(125deg, var(--bs-primary) 0%, #6366f1 40%, #7c3aed 100%);
+    }
+}
+
+/* Inputs focus ring (purple tint) */
+.nexum-page-ambient .form-control:focus,
+.nexum-page-ambient .form-select:focus {
+    border-color: color-mix(in srgb, var(--nexum-purple-600) 45%, var(--bs-primary));
+    box-shadow: 0 0 0 0.2rem rgba(124, 58, 237, 0.18);
+}
+
+@supports not (color: color-mix(in srgb, red, blue)) {
+    .nexum-page-ambient .form-control:focus,
+    .nexum-page-ambient .form-select:focus {
+        border-color: #8b5cf6;
+        box-shadow: 0 0 0 0.2rem rgba(124, 58, 237, 0.2);
+    }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .nexum-btn-gradient,
+    .nexum-btn-ghost-purple,
+    .nexum-btn-soft-purple,
+    .nexum-card,
+    .nexum-stat-card,
+    .nexum-rec-row,
+    .nexum-rec-row .avatar-sm {
+        transition: none !important;
+    }
+    .nexum-btn-gradient:hover,
+    .nexum-stat-card:hover,
+    .nexum-card:hover,
+    .nexum-rec-row:hover {
+        transform: none !important;
+    }
+    .nexum-reveal,
+    .nexum-stagger > .nexum-reveal-item {
+        animation: none !important;
+        opacity: 1 !important;
+    }
+    .nexum-profile-cover {
+        animation: none !important;
+    }
+}

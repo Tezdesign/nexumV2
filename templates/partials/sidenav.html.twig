@@ -32,12 +32,42 @@
     <div data-simplebar>
 
         <!--- Sidenav Menu -->
+        {% set is_admin_layout = is_admin_layout|default(false) %}
         <ul class="side-nav">
+            {% if is_admin_layout %}
+            {% set _ar = app.request.attributes.get('_route') %}
+            <li class="side-nav-title mt-2">Administration</li>
             <li class="side-nav-item">
-                <a href="/" class="side-nav-link">
+                <a href="{{ path('admin_users_index') }}" class="side-nav-link{{ _ar is not null and _ar starts with 'admin_users' ? ' active' : '' }}">
+                    <span class="menu-icon"><i class="ti ti-users"></i></span>
+                    <span class="menu-text"> User management </span>
+                </a>
+            </li>
+            <li class="side-nav-item">
+                <a href="{{ path('admin_reclamations_index') }}" class="side-nav-link{{ _ar is not null and _ar starts with 'admin_reclamations' ? ' active' : '' }}">
+                    <span class="menu-icon"><i class="ti ti-alert-circle"></i></span>
+                    <span class="menu-text"> Reclamations </span>
+                </a>
+            </li>
+            <li class="side-nav-item">
+                <a href="{{ path('app_project_index') }}" class="side-nav-link{{ _ar is not null and _ar starts with 'app_project' ? ' active' : '' }}">
+                    <span class="menu-icon"><i class="ti ti-briefcase"></i></span>
+                    <span class="menu-text"> Projects </span>
+                </a>
+            </li>
+            {% else %}
+            {% set _ar = app.request.attributes.get('_route') %}
+            <li class="side-nav-item">
+                <a href="{{ path('dashboard') }}" class="side-nav-link{{ _ar == 'dashboard' ? ' active' : '' }}">
                     <span class="menu-icon"><i class="ti ti-dashboard"></i></span>
                     <span class="menu-text"> Dashboard </span>
                     <span class="badge bg-danger rounded-pill">9+</span>
+                </a>
+            </li>
+            <li class="side-nav-item">
+                <a href="{{ path('mes_reclamations_index') }}" class="side-nav-link{{ _ar is not null and _ar starts with 'mes_reclamations' ? ' active' : '' }}">
+                    <span class="menu-icon"><i class="ti ti-message-report"></i></span>
+                    <span class="menu-text"> Complaints </span>
                 </a>
             </li>
 
@@ -49,7 +79,7 @@
             </li>
 
             <li class="side-nav-item">
-                <a href="{{ path('apps-projects') }}" class="side-nav-link">
+                <a href="{{ path('app_project_index') }}" class="side-nav-link">
                     <span class="menu-icon"><i class="ti ti-briefcase"></i></span>
                     <span class="menu-text"> Projects </span>
                 </a>
@@ -98,6 +128,7 @@
                     <span class="menu-text"> Resources Management </span>
                 </a>
             </li>
+            {% endif %}
 
         </ul>
 

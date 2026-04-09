@@ -65,6 +65,8 @@ final class TaskManagerUpdateType extends AbstractType
                 'choice_label' => static fn (Utilisateur $u): string => UserDisplayName::format($u, $u->getId()),
                 'query_builder' => static function (UtilisateurRepository $repo) use ($memberIds): \Doctrine\ORM\QueryBuilder {
                     $qb = $repo->createQueryBuilder('u')
+                        ->andWhere('LOWER(u.role) NOT LIKE :adminRole')
+                        ->setParameter('adminRole', '%admin%')
                         ->orderBy('u.prenom', 'ASC')
                         ->addOrderBy('u.nom', 'ASC');
 

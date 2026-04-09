@@ -18,6 +18,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use App\Service\AuthService;
 use App\Service\ProjectActivityLogger;
 use App\Service\ProjectActivityFeed;
 use App\Support\UserDisplayName;
@@ -32,24 +33,26 @@ final class ProjectController extends AbstractController
         ProjectAssignmentRepository $projectAssignmentRepository,
         TaskRepository $taskRepository,
         UtilisateurRepository $utilisateurRepository,
+        AuthService $authService,
         ProjectActivityLogger $activityLogger,
         EntityManagerInterface $entityManager
     ): Response
     {
         $q = trim((string) $request->query->get('q', ''));
-        $currentUser = $utilisateurRepository->findFirstManagerOrFirst();
-        $currentUserId = $currentUser?->getId() ?? 1;
-        $role = strtolower((string) ($currentUser?->getRole() ?? ''));
-        $isManager = $role !== '' && str_contains($role, 'manager');
+        $currentUserId = (int) ($authService->getCurrentUserId() ?? 0);
+        $currentUser = $currentUserId > 0 ? $utilisateurRepository->find($currentUserId) : null;
+        $isManager = $authService->isManager();
+        $implicitManagerIds = [];
+        foreach ($utilisateurRepository->findManagerUsers() as $managerUser) {
+            $managerId = $managerUser->getId();
+            if ($managerId !== null) {
+                $implicitManagerIds[(int) $managerId] = true;
+            }
+        }
 
         // Data for the styled "Assigned to" dropdown in the create modal.
         $assignableUsers = [];
-        $users = $utilisateurRepository->createQueryBuilder('u')
-            ->orderBy('u.role', 'ASC')
-            ->addOrderBy('u.prenom', 'ASC')
-            ->addOrderBy('u.nom', 'ASC')
-            ->getQuery()
-            ->getResult();
+        $users = $utilisateurRepository->findNonAdminUsers();
 
         foreach ($users as $u) {
             $fullName = UserDisplayName::format($u, $u->getId());
@@ -220,13 +223,18 @@ final class ProjectController extends AbstractController
             }
 
             $memberIdsByProjectId[$pid] = array_map('intval', array_keys($members));
+            foreach ($implicitManagerIds as $managerId => $_) {
+                $memberIdsByProjectId[$pid][] = (int) $managerId;
+                $members[(int) $managerId] = true;
+            }
+            $memberIdsByProjectId[$pid] = array_values(array_unique(array_map('intval', $memberIdsByProjectId[$pid])));
 
             foreach ($memberIdsByProjectId[$pid] as $uid) {
                 $userIds[$uid] = true;
             }
         }
 
-        $usersById = $utilisateurRepository->findIndexedByIds(array_keys($userIds));
+        $usersById = $utilisateurRepository->findNonAdminIndexedByIds(array_keys($userIds));
 
         $avatarUrlById = [];
         foreach ($usersById as $uid => $user) {
@@ -253,11 +261,11 @@ final class ProjectController extends AbstractController
     }
 
     #[Route('/new', name: 'app_project_new', methods: ['GET', 'POST'])]
-    public function new(Request $request, UtilisateurRepository $utilisateurRepository, EntityManagerInterface $entityManager): Response
+    public function new(Request $request, UtilisateurRepository $utilisateurRepository, AuthService $authService, EntityManagerInterface $entityManager): Response
     {
-        $currentUser = $utilisateurRepository->findFirstManagerOrFirst();
-        $role = strtolower((string) ($currentUser?->getRole() ?? ''));
-        $isManager = $role !== '' && str_contains($role, 'manager');
+        $currentUserId = (int) ($authService->getCurrentUserId() ?? 0);
+        $currentUser = $currentUserId > 0 ? $utilisateurRepository->find($currentUserId) : null;
+        $isManager = $authService->isManager();
         if (!$isManager) {
             throw $this->createAccessDeniedException();
         }
@@ -287,15 +295,15 @@ final class ProjectController extends AbstractController
         ProjectAssignmentRepository $projectAssignmentRepository,
         ProjectActivityFeed $activityFeed,
         UtilisateurRepository $utilisateurRepository,
+        AuthService $authService,
         TaskRepository $taskRepository
     ): Response
     {
         $pid = $project->getId();
 
-        $currentUser = $utilisateurRepository->findFirstManagerOrFirst();
-        $currentUserId = $currentUser?->getId() ?? 1;
-        $role = strtolower((string) ($currentUser?->getRole() ?? ''));
-        $isManager = $role !== '' && str_contains($role, 'manager');
+        $currentUserId = (int) ($authService->getCurrentUserId() ?? 0);
+        $currentUser = $currentUserId > 0 ? $utilisateurRepository->find($currentUserId) : null;
+        $isManager = $authService->isManager();
         if (!$isManager) {
             $visibleProjectIds = array_fill_keys(
                 $this->getVisibleProjectIdsForUser(
@@ -317,6 +325,12 @@ final class ProjectController extends AbstractController
         }
 
         $teamMemberIds = [];
+        foreach ($utilisateurRepository->findManagerUsers() as $managerUser) {
+            $managerId = $managerUser->getId();
+            if ($managerId !== null) {
+                $teamMemberIds[(int) $managerId] = true;
+            }
+        }
         $createdBy = $project->getCreatedBy();
         if ($createdBy !== null) {
             $teamMemberIds[$createdBy] = true;
@@ -347,6 +361,7 @@ final class ProjectController extends AbstractController
                 'method' => 'POST',
                 'is_manager' => $isManager,
                 'allowed_project_ids' => $isManager ? [] : [$pid !== null ? (int) $pid : 0],
+                'member_ids' => array_keys($teamMemberIds),
             ]);
 
             if ($pid !== null && $createTaskForm->has('project')) {
@@ -397,7 +412,7 @@ final class ProjectController extends AbstractController
         $memberIds = array_map('intval', array_keys($teamMemberIds));
         $allUserIds = array_map('intval', array_keys($teamMemberIds + $taskUserIds));
 
-        $membersById = $utilisateurRepository->findIndexedByIds($allUserIds);
+        $membersById = $utilisateurRepository->findNonAdminIndexedByIds($allUserIds);
         $visibleMemberIds = array_values(array_filter(
             $memberIds,
             static fn (int $uid): bool => isset($membersById[$uid])
@@ -414,12 +429,7 @@ final class ProjectController extends AbstractController
         }
 
         // Data for the "add members" modal.
-        $allUsers = $utilisateurRepository->createQueryBuilder('u')
-            ->orderBy('u.role', 'ASC')
-            ->addOrderBy('u.prenom', 'ASC')
-            ->addOrderBy('u.nom', 'ASC')
-            ->getQuery()
-            ->getResult();
+        $allUsers = $utilisateurRepository->findNonAdminUsers();
 
         $pickableUsers = [];
         foreach ($allUsers as $u) {
@@ -475,6 +485,7 @@ final class ProjectController extends AbstractController
         Project $project,
         ProjectAssignmentRepository $projectAssignmentRepository,
         UtilisateurRepository $utilisateurRepository,
+        AuthService $authService,
         ProjectActivityLogger $activityLogger,
         EntityManagerInterface $entityManager
     ): Response
@@ -484,9 +495,9 @@ final class ProjectController extends AbstractController
             return $this->redirectToRoute('app_project_index', [], Response::HTTP_SEE_OTHER);
         }
 
-        $currentUser = $utilisateurRepository->findFirstManagerOrFirst();
-        $role = strtolower((string) ($currentUser?->getRole() ?? ''));
-        $isManager = $role !== '' && str_contains($role, 'manager');
+        $currentUserId = (int) ($authService->getCurrentUserId() ?? 0);
+        $currentUser = $currentUserId > 0 ? $utilisateurRepository->find($currentUserId) : null;
+        $isManager = $authService->isManager();
         if (!$isManager) {
             throw $this->createAccessDeniedException();
         }
@@ -514,6 +525,12 @@ final class ProjectController extends AbstractController
         if ($userIds !== []) {
             // Existing members (including legacy columns).
             $existing = [];
+            foreach ($utilisateurRepository->findManagerUsers() as $managerUser) {
+                $managerId = $managerUser->getId();
+                if ($managerId !== null) {
+                    $existing[(int) $managerId] = true;
+                }
+            }
             $createdBy = $project->getCreatedBy();
             if ($createdBy !== null) {
                 $existing[(int) $createdBy] = true;
@@ -527,7 +544,7 @@ final class ProjectController extends AbstractController
             }
 
             // Ensure we only insert assignments for users that exist.
-            $usersById = $utilisateurRepository->findIndexedByIds($userIds);
+            $usersById = $utilisateurRepository->findNonAdminIndexedByIds($userIds);
 
             foreach ($userIds as $uid) {
                 if (isset($existing[$uid])) {
@@ -570,11 +587,11 @@ final class ProjectController extends AbstractController
     }
 
     #[Route('/{id}/edit', name: 'app_project_edit', methods: ['GET', 'POST'])]
-    public function edit(Request $request, Project $project, UtilisateurRepository $utilisateurRepository, ProjectActivityLogger $activityLogger, EntityManagerInterface $entityManager): Response
+    public function edit(Request $request, Project $project, UtilisateurRepository $utilisateurRepository, AuthService $authService, ProjectActivityLogger $activityLogger, EntityManagerInterface $entityManager): Response
     {
-        $currentUser = $utilisateurRepository->findFirstManagerOrFirst();
-        $role = strtolower((string) ($currentUser?->getRole() ?? ''));
-        $isManager = $role !== '' && str_contains($role, 'manager');
+        $currentUserId = (int) ($authService->getCurrentUserId() ?? 0);
+        $currentUser = $currentUserId > 0 ? $utilisateurRepository->find($currentUserId) : null;
+        $isManager = $authService->isManager();
         if (!$isManager) {
             throw $this->createAccessDeniedException();
         }
@@ -623,11 +640,11 @@ final class ProjectController extends AbstractController
     }
 
     #[Route('/{id}', name: 'app_project_delete', methods: ['POST'])]
-    public function delete(Request $request, Project $project, TaskRepository $taskRepository, UtilisateurRepository $utilisateurRepository, ProjectActivityLogger $activityLogger, EntityManagerInterface $entityManager): Response
+    public function delete(Request $request, Project $project, TaskRepository $taskRepository, UtilisateurRepository $utilisateurRepository, AuthService $authService, ProjectActivityLogger $activityLogger, EntityManagerInterface $entityManager): Response
     {
-        $currentUser = $utilisateurRepository->findFirstManagerOrFirst();
-        $role = strtolower((string) ($currentUser?->getRole() ?? ''));
-        $isManager = $role !== '' && str_contains($role, 'manager');
+        $currentUserId = (int) ($authService->getCurrentUserId() ?? 0);
+        $currentUser = $currentUserId > 0 ? $utilisateurRepository->find($currentUserId) : null;
+        $isManager = $authService->isManager();
         if (!$isManager) {
             throw $this->createAccessDeniedException();
         }

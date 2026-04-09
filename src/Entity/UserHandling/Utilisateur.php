@@ -157,6 +157,20 @@ class Utilisateur
         return $this;
     }
 
+    #[ORM\Column(type: 'integer', options: ['default' => 100], nullable: false)]
+    private int $score = 100;
+
+    public function getScore(): int
+    {
+        return $this->score;
+    }
+
+    public function setScore(int $score): self
+    {
+        $this->score = $score;
+        return $this;
+    }
+
     /**
      * Stored as BLOB in the legacy DB. Doctrine hydrates BLOBs as stream resources,
      * so this property can't be typed as string.
@@ -164,7 +178,8 @@ class Utilisateur
     #[ORM\Column(type: Types::BLOB, nullable: true)]
     private $imagelink = null;
 
-    public function getImagelink(): ?string
+
+    public function getImagelink()
     {
         if ($this->imagelink === null) {
             return null;
@@ -178,7 +193,7 @@ class Utilisateur
         return is_string($this->imagelink) ? $this->imagelink : null;
     }
 
-    public function setImagelink(?string $imagelink): self
+    public function setImagelink($imagelink): self
     {
         $this->imagelink = $imagelink;
         return $this;
@@ -198,19 +213,6 @@ class Utilisateur
         return $this;
     }
 
-    #[ORM\Column(type: 'integer', nullable: false)]
-    private ?int $score = null;
-
-    public function getScore(): ?int
-    {
-        return $this->score;
-    }
-
-    public function setScore(int $score): self
-    {
-        $this->score = $score;
-        return $this;
-    }
 
     #[ORM\OneToMany(targetEntity: ResourceAssignment::class, mappedBy: 'utilisateur')]
     private Collection $resourceAssignments;

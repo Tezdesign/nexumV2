@@ -49,6 +49,8 @@ final class TaskUpdateType extends AbstractType
                 'label' => 'Assigned To',
                 'choice_label' => static fn (Utilisateur $u): string => trim(strip_tags((string) ($u->getPrenom().' '.$u->getNom()))),
                 'query_builder' => static fn (UtilisateurRepository $repo) => $repo->createQueryBuilder('u')
+                    ->andWhere('LOWER(u.role) NOT LIKE :adminRole')
+                    ->setParameter('adminRole', '%admin%')
                     ->orderBy('u.prenom', 'ASC')
                     ->addOrderBy('u.nom', 'ASC'),
             ])
@@ -71,4 +73,3 @@ final class TaskUpdateType extends AbstractType
         ]);
     }
 }
-

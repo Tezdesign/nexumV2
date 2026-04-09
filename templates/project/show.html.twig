@@ -1002,6 +1002,17 @@
         </div>
     {% endif %}
 
+    {# Edit task popup (shared with Tasks page) #}
+    {% if isManager|default(false) %}
+        <div class="modal fade nexum-modal nexum-edit" id="editTaskModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content" id="editTaskModalContent">
+                    <div class="modal-body text-muted small p-4">Loading...</div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
     {# Add members popup (Bootstrap modal) #}
     {% if canEditProject|default(false) %}
         <div class="modal fade nexum-member-modal" id="addMembersModal" tabindex="-1" aria-hidden="true">
@@ -1344,6 +1355,58 @@
             if (projectSelect && projectSelect.value) {
                 refreshAssignees(projectSelect.value);
             }
+        })();
+
+        (function () {
+            const editModal = document.getElementById('editTaskModal');
+            const editContent = document.getElementById('editTaskModalContent');
+            if (!editModal || !editContent) return;
+
+            const wireEditForm = function () {
+                const form = editContent.querySelector('form');
+                if (!form) return;
+
+                form.addEventListener('submit', async function (e) {
+                    e.preventDefault();
+                    try {
+                        const res = await fetch(form.action, {
+                            method: form.method || 'POST',
+                            body: new FormData(form),
+                            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                        });
+
+                        if (res.status === 204) {
+                            if (window.bootstrap && bootstrap.Modal) {
+                                bootstrap.Modal.getInstance(editModal)?.hide();
+                            }
+                            window.location.reload();
+                            return;
+                        }
+
+                        const html = await res.text();
+                        editContent.innerHTML = html;
+                        wireEditForm();
+                    } catch (err) {
+                        editContent.innerHTML = '<div class="modal-body p-4 text-danger small">Failed to load the edit form.</div>';
+                    }
+                }, { once: true });
+            };
+
+            editModal.addEventListener('show.bs.modal', async function (ev) {
+                const btn = ev.relatedTarget;
+                const url = btn ? (btn.getAttribute('data-edit-url') || '') : '';
+                editContent.innerHTML = '<div class="modal-body text-muted small p-4">Loading...</div>';
+                if (!url) return;
+
+                try {
+                    const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                    const html = await res.text();
+                    editContent.innerHTML = html;
+                    wireEditForm();
+                } catch (err) {
+                    editContent.innerHTML = '<div class="modal-body p-4 text-danger small">Failed to load the edit form.</div>';
+                }
+            });
         })();
 
         (function () {

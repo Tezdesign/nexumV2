@@ -22,12 +22,13 @@ use Doctrine\ORM\QueryBuilder;
 final class TaskQuickCreateType extends AbstractType
 {
     /**
-     * @param array{is_manager?: bool, allowed_project_ids?: int[]} $options
+     * @param array{is_manager?: bool, allowed_project_ids?: int[], member_ids?: int[]} $options
      */
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $isManager = (bool) ($options['is_manager'] ?? false);
         $allowedProjectIds = array_values(array_unique(array_map('intval', $options['allowed_project_ids'] ?? [])));
+        $memberIds = array_values(array_unique(array_map('intval', $options['member_ids'] ?? [])));
 
         $builder
             ->add('title', TextType::class, [
@@ -105,9 +106,23 @@ final class TaskQuickCreateType extends AbstractType
                 'label' => 'Assign User',
                 // Keep DB strings as plain text in option labels.
                 'choice_label' => static fn (Utilisateur $u): string => UserDisplayName::format($u, $u->getId()),
-                'query_builder' => static fn (UtilisateurRepository $repo) => $repo->createQueryBuilder('u')
-                    ->orderBy('u.prenom', 'ASC')
-                    ->addOrderBy('u.nom', 'ASC'),
+                'query_builder' => static function (UtilisateurRepository $repo) use ($memberIds) {
+                    $qb = $repo->createQueryBuilder('u')
+                        ->andWhere('LOWER(u.role) NOT LIKE :adminRole')
+                        ->setParameter('adminRole', '%admin%')
+                        ->orderBy('u.prenom', 'ASC')
+                        ->addOrderBy('u.nom', 'ASC');
+
+                    if ($memberIds === []) {
+                        $qb->andWhere('1 = 0');
+                    } else {
+                        $qb
+                            ->andWhere('u.id IN (:ids)')
+                            ->setParameter('ids', $memberIds);
+                    }
+
+                    return $qb;
+                },
             ]);
         }
     }
@@ -119,8 +134,10 @@ final class TaskQuickCreateType extends AbstractType
             'validation_groups' => ['Default', 'task_quick_create'],
             'is_manager' => false,
             'allowed_project_ids' => [],
+            'member_ids' => [],
         ]);
         $resolver->setAllowedTypes('is_manager', 'bool');
         $resolver->setAllowedTypes('allowed_project_ids', 'array');
+        $resolver->setAllowedTypes('member_ids', 'array');
     }
 }

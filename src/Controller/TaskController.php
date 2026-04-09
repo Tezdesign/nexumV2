@@ -18,6 +18,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use App\Service\AuthService;
 use App\Service\ProjectActivityLogger;
 use App\Support\UserDisplayName;
 
@@ -31,6 +32,7 @@ final class TaskController extends AbstractController
         ProjectRepository $projectRepository,
         ProjectAssignmentRepository $projectAssignmentRepository,
         UtilisateurRepository $utilisateurRepository,
+        AuthService $authService,
         ProjectActivityLogger $activityLogger,
         EntityManagerInterface $entityManager
     ): Response
@@ -41,10 +43,16 @@ final class TaskController extends AbstractController
         $statusFilter = in_array($statusFilter, ['todo', 'in_progress', 'done'], true) ? $statusFilter : '';
         $priorityFilter = in_array($priorityFilter, ['high', 'medium', 'low'], true) ? $priorityFilter : '';
 
-        $currentUser = $utilisateurRepository->findFirstManagerOrFirst();
-        $currentUserId = $currentUser?->getId() ?? 1;
-        $role = strtolower((string) ($currentUser?->getRole() ?? ''));
-        $isManager = $role !== '' && str_contains($role, 'manager');
+        $currentUserId = (int) ($authService->getCurrentUserId() ?? 0);
+        $currentUser = $currentUserId > 0 ? $utilisateurRepository->find($currentUserId) : null;
+        $isManager = $authService->isManager();
+        $implicitManagerIds = [];
+        foreach ($utilisateurRepository->findManagerUsers() as $managerUser) {
+            $managerId = $managerUser->getId();
+            if ($managerId !== null) {
+                $implicitManagerIds[(int) $managerId] = true;
+            }
+        }
         $allowedProjectIds = $isManager
             ? []
             : array_values(array_unique(array_merge(
@@ -59,6 +67,39 @@ final class TaskController extends AbstractController
         $backUrl = (string) $request->request->get('back', $request->query->get('back', ''));
         $backUrl = ($backUrl !== '' && str_starts_with($backUrl, '/')) ? $backUrl : '';
 
+        $createTaskMemberIds = [];
+        $projectContext = $prefillProject;
+        if ($projectContext === null) {
+            foreach ($request->request->all() as $payload) {
+                if (is_array($payload) && array_key_exists('project', $payload)) {
+                    $submittedProjectId = (int) ($payload['project'] ?? 0);
+                    if ($submittedProjectId > 0) {
+                        $projectContext = $projectRepository->find($submittedProjectId);
+                    }
+                    break;
+                }
+            }
+        }
+
+        if ($projectContext !== null && $projectContext->getId() !== null) {
+            $projectMemberIds = [];
+            foreach ($implicitManagerIds as $managerId => $_) {
+                $projectMemberIds[(int) $managerId] = true;
+            }
+            $createdBy = $projectContext->getCreatedBy();
+            if ($createdBy !== null) {
+                $projectMemberIds[(int) $createdBy] = true;
+            }
+            $assignedTo = $projectContext->getAssignedTo();
+            if ($assignedTo !== null) {
+                $projectMemberIds[(int) $assignedTo] = true;
+            }
+            foreach ($projectAssignmentRepository->getUserIdsByProjectId((int) $projectContext->getId()) as $uid) {
+                $projectMemberIds[(int) $uid] = true;
+            }
+            $createTaskMemberIds = array_keys($projectMemberIds);
+        }
+
         // Modal "quick create" form.
         $createTask = new Task();
         $createForm = $this->createForm(TaskQuickCreateType::class, $createTask, [
@@ -66,6 +107,7 @@ final class TaskController extends AbstractController
             'method' => 'POST',
             'is_manager' => $isManager,
             'allowed_project_ids' => $allowedProjectIds,
+            'member_ids' => $createTaskMemberIds,
         ]);
 
         // Preselect project when arriving from a per-project "+" button.
@@ -188,7 +230,7 @@ final class TaskController extends AbstractController
         }
 
         $projectsById = $projectRepository->findIndexedByIds(array_keys($projectIds));
-        $usersById = $utilisateurRepository->findIndexedByIds(array_keys($userIds));
+        $usersById = $utilisateurRepository->findNonAdminIndexedByIds(array_keys($userIds));
  
         // Hide orphan tasks (tasks whose project was deleted without cascading).
         $tasks = array_values(array_filter(
@@ -238,9 +280,11 @@ final class TaskController extends AbstractController
         Request $request,
         ProjectRepository $projectRepository,
         ProjectAssignmentRepository $projectAssignmentRepository,
-        UtilisateurRepository $utilisateurRepository
+        UtilisateurRepository $utilisateurRepository,
+        AuthService $authService
     ): JsonResponse
     {
+        $currentUserId = (int) ($authService->getCurrentUserId() ?? 0);
         $pid = (int) $request->query->get('project', 0);
         if ($pid <= 0) {
             return $this->json(['users' => []]);
@@ -264,7 +308,14 @@ final class TaskController extends AbstractController
             $memberIds[(int) $uid] = true;
         }
 
-        $usersById = $utilisateurRepository->findIndexedByIds(array_keys($memberIds));
+        foreach ($utilisateurRepository->findManagerUsers() as $managerUser) {
+            $managerId = $managerUser->getId();
+            if ($managerId !== null) {
+                $memberIds[(int) $managerId] = true;
+            }
+        }
+
+        $usersById = $utilisateurRepository->findNonAdminIndexedByIds(array_keys($memberIds));
         $users = [];
         foreach ($usersById as $u) {
             $id = $u->getId();
@@ -284,7 +335,7 @@ final class TaskController extends AbstractController
     }
 
     #[Route('/new', name: 'app_task_new', methods: ['GET', 'POST'])]
-    public function new(Request $request, UtilisateurRepository $utilisateurRepository, ProjectActivityLogger $activityLogger, EntityManagerInterface $entityManager): Response
+    public function new(Request $request, UtilisateurRepository $utilisateurRepository, AuthService $authService, ProjectActivityLogger $activityLogger, EntityManagerInterface $entityManager): Response
     {
         $task = new Task();
         // Keep the legacy CRUD route around; UI uses the modal on /task.
@@ -292,7 +343,8 @@ final class TaskController extends AbstractController
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
-            $currentUser = $utilisateurRepository->findFirstManagerOrFirst();
+            $currentUserId = (int) ($authService->getCurrentUserId() ?? 0);
+            $currentUser = $currentUserId > 0 ? $utilisateurRepository->find($currentUserId) : null;
             $entityManager->persist($task);
             $entityManager->flush();
 
@@ -316,12 +368,11 @@ final class TaskController extends AbstractController
     }
 
     #[Route('/{id}', name: 'app_task_show', methods: ['GET'])]
-    public function show(Task $task, UtilisateurRepository $utilisateurRepository): Response
+    public function show(Task $task, UtilisateurRepository $utilisateurRepository, AuthService $authService): Response
     {
-        $currentUser = $utilisateurRepository->findFirstManagerOrFirst();
-        $currentUserId = (int) ($currentUser?->getId() ?? 0);
-        $role = strtolower((string) ($currentUser?->getRole() ?? ''));
-        $isManager = $role !== '' && str_contains($role, 'manager');
+        $currentUserId = (int) ($authService->getCurrentUserId() ?? 0);
+        $currentUser = $currentUserId > 0 ? $utilisateurRepository->find($currentUserId) : null;
+        $isManager = $authService->isManager();
 
         return $this->render('task/show.html.twig', [
             'task' => $task,
@@ -332,12 +383,10 @@ final class TaskController extends AbstractController
     }
 
     #[Route('/{id}/status', name: 'app_task_status', methods: ['POST'])]
-    public function status(Request $request, Task $task, UtilisateurRepository $utilisateurRepository, ProjectActivityLogger $activityLogger, EntityManagerInterface $entityManager): Response
+    public function status(Request $request, Task $task, UtilisateurRepository $utilisateurRepository, AuthService $authService, ProjectActivityLogger $activityLogger, EntityManagerInterface $entityManager): Response
     {
-        $currentUser = $utilisateurRepository->findFirstManagerOrFirst();
-        $currentUserId = (int) ($currentUser?->getId() ?? 0);
-        $role = strtolower((string) ($currentUser?->getRole() ?? ''));
-        $isManager = $role !== '' && str_contains($role, 'manager');
+        $currentUserId = (int) ($authService->getCurrentUserId() ?? 0);
+        $currentUser = $currentUserId > 0 ? $utilisateurRepository->find($currentUserId) : null;
         $isSelfTask = $task->getAssignedTo() !== null && (int) $task->getAssignedTo() === $currentUserId;
 
         // Employees can update progress only for tasks assigned to them.
@@ -397,14 +446,21 @@ final class TaskController extends AbstractController
         ProjectRepository $projectRepository,
         ProjectAssignmentRepository $projectAssignmentRepository,
         UtilisateurRepository $utilisateurRepository,
+        AuthService $authService,
         ProjectActivityLogger $activityLogger,
         EntityManagerInterface $entityManager
     ): Response
     {
-        $currentUser = $utilisateurRepository->findFirstManagerOrFirst();
-        $currentUserId = (int) ($currentUser?->getId() ?? 0);
-        $role = strtolower((string) ($currentUser?->getRole() ?? ''));
-        $isManager = $role !== '' && str_contains($role, 'manager');
+        $currentUserId = (int) ($authService->getCurrentUserId() ?? 0);
+        $currentUser = $currentUserId > 0 ? $utilisateurRepository->find($currentUserId) : null;
+        $isManager = $authService->isManager();
+        $implicitManagerIds = [];
+        foreach ($utilisateurRepository->findManagerUsers() as $managerUser) {
+            $managerId = $managerUser->getId();
+            if ($managerId !== null) {
+                $implicitManagerIds[(int) $managerId] = true;
+            }
+        }
         if (!$isManager) {
             throw $this->createAccessDeniedException();
         }
@@ -413,6 +469,9 @@ final class TaskController extends AbstractController
         $back = ($back !== '' && str_starts_with($back, '/')) ? $back : '';
 
         $memberIds = [];
+        foreach ($implicitManagerIds as $managerId => $_) {
+            $memberIds[(int) $managerId] = true;
+        }
         $pid = (int) ($task->getProjectId() ?? 0);
         if ($pid > 0) {
             $project = $projectRepository->find($pid);
@@ -483,19 +542,29 @@ final class TaskController extends AbstractController
         ProjectRepository $projectRepository,
         ProjectAssignmentRepository $projectAssignmentRepository,
         UtilisateurRepository $utilisateurRepository,
+        AuthService $authService,
         ProjectActivityLogger $activityLogger,
         EntityManagerInterface $entityManager
     ): Response
     {
-        $currentUser = $utilisateurRepository->findFirstManagerOrFirst();
-        $currentUserId = (int) ($currentUser?->getId() ?? 0);
-        $role = strtolower((string) ($currentUser?->getRole() ?? ''));
-        $isManager = $role !== '' && str_contains($role, 'manager');
+        $currentUserId = (int) ($authService->getCurrentUserId() ?? 0);
+        $currentUser = $currentUserId > 0 ? $utilisateurRepository->find($currentUserId) : null;
+        $isManager = $authService->isManager();
+        $implicitManagerIds = [];
+        foreach ($utilisateurRepository->findManagerUsers() as $managerUser) {
+            $managerId = $managerUser->getId();
+            if ($managerId !== null) {
+                $implicitManagerIds[(int) $managerId] = true;
+            }
+        }
         if (!$isManager) {
             throw $this->createAccessDeniedException();
         }
 
         $memberIds = [];
+        foreach ($implicitManagerIds as $managerId => $_) {
+            $memberIds[(int) $managerId] = true;
+        }
         $pid = (int) ($task->getProjectId() ?? 0);
         if ($pid > 0) {
             $project = $projectRepository->find($pid);
@@ -568,12 +637,11 @@ final class TaskController extends AbstractController
     }
 
     #[Route('/{id}', name: 'app_task_delete', methods: ['POST'])]
-    public function delete(Request $request, Task $task, UtilisateurRepository $utilisateurRepository, ProjectActivityLogger $activityLogger, EntityManagerInterface $entityManager): Response
+    public function delete(Request $request, Task $task, UtilisateurRepository $utilisateurRepository, AuthService $authService, ProjectActivityLogger $activityLogger, EntityManagerInterface $entityManager): Response
     {
-        $currentUser = $utilisateurRepository->findFirstManagerOrFirst();
-        $currentUserId = (int) ($currentUser?->getId() ?? 0);
-        $role = strtolower((string) ($currentUser?->getRole() ?? ''));
-        $isManager = $role !== '' && str_contains($role, 'manager');
+        $currentUserId = (int) ($authService->getCurrentUserId() ?? 0);
+        $currentUser = $currentUserId > 0 ? $utilisateurRepository->find($currentUserId) : null;
+        $isManager = $authService->isManager();
 
         $canDelete = $isManager || ($task->getCreatedBy() !== null && (int) $task->getCreatedBy() === $currentUserId);
 

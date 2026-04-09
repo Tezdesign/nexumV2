@@ -4,6 +4,7 @@ namespace App\Form\Projects;
 
 use App\Entity\Projects\Project;
 use App\Entity\UserHandling\Utilisateur;
+use App\Repository\UserHandling\UtilisateurRepository;
 use App\Support\UserDisplayName;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
@@ -48,6 +49,14 @@ final class ProjectQuickCreateType extends AbstractType
                     $label = $fullName;
 
                     return $role !== '' ? ($role . ' · ' . $label) : $label;
+                },
+                'query_builder' => static function (UtilisateurRepository $repo) {
+                    return $repo->createQueryBuilder('u')
+                        ->andWhere('LOWER(u.role) NOT LIKE :adminRole')
+                        ->setParameter('adminRole', '%admin%')
+                        ->orderBy('u.role', 'ASC')
+                        ->addOrderBy('u.prenom', 'ASC')
+                        ->addOrderBy('u.nom', 'ASC');
                 },
                 'multiple' => true,
                 'expanded' => false,

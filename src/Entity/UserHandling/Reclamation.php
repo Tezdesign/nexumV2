@@ -4,6 +4,7 @@ namespace App\Entity\UserHandling;
 
 use App\Repository\UserHandling\ReclamationRepository;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: ReclamationRepository::class)]
 #[ORM\Table(name: 'reclamation')]
@@ -12,7 +13,7 @@ class Reclamation
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
-    #[ORM\Column(type: 'integer')]
+    #[ORM\Column(name: 'id_rec', type: 'integer')]
     private ?int $idRec = null;
 
     public function getIdRec(): ?int
@@ -26,6 +27,8 @@ class Reclamation
         return $this;
     }
 
+    #[Assert\NotBlank(groups: ['reclamation_user', 'reclamation_admin'], message: 'Title is required.')]
+    #[Assert\Length(max: 255, groups: ['reclamation_user', 'reclamation_admin'])]
     #[ORM\Column(type: 'string', nullable: false)]
     private ?string $titre = null;
 
@@ -40,6 +43,7 @@ class Reclamation
         return $this;
     }
 
+    #[Assert\Length(max: 255, groups: ['reclamation_user', 'reclamation_admin'])]
     #[ORM\Column(type: 'string', nullable: true)]
     private ?string $categorie = null;
 
@@ -54,6 +58,7 @@ class Reclamation
         return $this;
     }
 
+    #[Assert\Length(max: 2000, groups: ['reclamation_user', 'reclamation_admin'])]
     #[ORM\Column(type: 'string', nullable: true)]
     private ?string $projet = null;
 
@@ -96,6 +101,8 @@ class Reclamation
         return $this;
     }
 
+    #[Assert\NotNull(message: 'Please select a user.', groups: ['reclamation_admin'])]
+    #[Assert\Positive(message: 'Please select a user.', groups: ['reclamation_admin'])]
     #[ORM\Column(type: 'integer', nullable: false)]
     private ?int $id_user = null;
 
@@ -110,17 +117,33 @@ class Reclamation
         return $this;
     }
 
+    /**
+     * PDO may hydrate BLOB as a stream (resource); keep untyped so Doctrine can assign it.
+     *
+     * @var resource|string|null
+     */
     #[ORM\Column(type: 'blob', nullable: true)]
-    private ?string $fichier = null;
+    private $fichier = null;
 
     public function getFichier(): ?string
     {
-        return $this->fichier;
+        if ($this->fichier === null) {
+            return null;
+        }
+        if (\is_resource($this->fichier)) {
+            $data = stream_get_contents($this->fichier);
+            $this->fichier = ($data !== false && $data !== '') ? $data : null;
+
+            return $this->fichier;
+        }
+
+        return \is_string($this->fichier) ? $this->fichier : null;
     }
 
     public function setFichier(?string $fichier): self
     {
         $this->fichier = $fichier;
+
         return $this;
     }
 

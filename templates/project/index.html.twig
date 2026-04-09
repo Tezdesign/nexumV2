@@ -315,16 +315,16 @@
                 {% set extraCount = memberIds|length > 3 ? (memberIds|length - 3) : 0 %}
 
                 <div class="card h-100 nexum-card position-relative">
+                    {% if project.id is not null %}
+                        <a class="stretched-link"
+                           href="{{ path('app_project_show', {id: project.id}) }}"
+                           aria-label="Open project {{ project.name|plain_text }}"></a>
+                    {% endif %}
                     <div class="card-body">
                         <div class="d-flex align-items-start justify-content-between gap-2">
                             <div class="min-w-0">
                                 <h5 class="mb-1 text-truncate">
                                     {{ project.name|plain_text }}
-                                    {% if project.id is not null %}
-                                        <a class="stretched-link"
-                                           href="{{ path('app_project_show', {id: project.id}) }}"
-                                           aria-label="Open project {{ project.name|plain_text }}"></a>
-                                    {% endif %}
                                 </h5>
                             </div>
                             <a class="nexum-ellipsis" href="javascript:void(0)" aria-label="More">⋯</a>

@@ -1,0 +1,284 @@
+{% extends 'layouts/vertical.html.twig' %}
+
+{% macro sort_link(label, column, current_sort, current_dir) %}
+    {% set next_dir = current_sort == column ? (current_dir == 'ASC' ? 'DESC' : 'ASC') : 'ASC' %}
+    <a href="{{ path('mes_reclamations_index', {sort: column, dir: next_dir}) }}" class="btn btn-sm rounded-pill px-3 nexum-btn-soft-purple">
+        {{ label }}
+        {% if current_sort == column %}
+            <i class="ri-arrow-{{ current_dir == 'ASC' ? 'up' : 'down' }}-s-line ms-1"></i>
+        {% endif %}
+    </a>
+{% endmacro %}
+
+{% import _self as ur %}
+
+{% set title = 'Mes réclamations' %}
+
+{% block css %}
+<link href="{{ asset('css/nexum-pages-polish.css') }}" rel="stylesheet">
+<style>
+    .rec-notify-bar[data-has-file="1"] { cursor: pointer; }
+    .rec-notify-bar .rec-actions { cursor: default; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="nexum-page-ambient">
+
+<div class="row mb-3">
+    <div class="col-12">
+        {% for label, messages in app.flashes %}
+            {% for message in messages %}
+                <div class="alert alert-{{ label == 'error' ? 'danger' : label }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endfor %}
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm overflow-hidden nexum-hero nexum-reveal">
+            <div class="card-body p-4 position-relative">
+                <div class="row align-items-center">
+                    <div class="col-lg-8">
+                        <p class="text-muted text-uppercase fw-semibold fs-12 mb-1 nexum-label-upper">Notifications</p>
+                        <h3 class="header-title mb-2">Mes réclamations</h3>
+                        <p class="text-muted mb-0 small">Chaque ligne ressemble à une notification. <strong>Double-cliquez</strong> sur une carte qui affiche une pièce jointe pour l’ouvrir dans un nouvel onglet.</p>
+                    </div>
+                    <div class="col-lg-4 mt-3 mt-lg-0 text-lg-end">
+                        <button type="button" class="btn btn-lg px-4 nexum-btn-gradient" data-bs-toggle="modal" data-bs-target="#modalNouvelleReclamation">
+                            <i class="ri-add-circle-line me-2"></i> Nouvelle réclamation
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-3 nexum-stagger">
+    <div class="col-6 col-md-3 nexum-reveal-item">
+        <div class="card border-0 shadow-sm h-100 nexum-stat-card">
+            <div class="card-body py-3 text-center">
+                <p class="text-muted fs-12 mb-1">Total</p>
+                <h4 class="mb-0 fw-semibold text-primary">{{ stats.total }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3 nexum-reveal-item">
+        <div class="card border-0 shadow-sm h-100 nexum-stat-card">
+            <div class="card-body py-3 text-center">
+                <p class="text-muted fs-12 mb-1">En attente</p>
+                <h4 class="mb-0 fw-semibold text-warning">{{ stats.pending }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3 nexum-reveal-item">
+        <div class="card border-0 shadow-sm h-100 nexum-stat-card">
+            <div class="card-body py-3 text-center">
+                <p class="text-muted fs-12 mb-1">En cours</p>
+                <h4 class="mb-0 fw-semibold text-info">{{ stats.in_progress }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3 nexum-reveal-item">
+        <div class="card border-0 shadow-sm h-100 nexum-stat-card">
+            <div class="card-body py-3 text-center">
+                <p class="text-muted fs-12 mb-1">Résolues</p>
+                <h4 class="mb-0 fw-semibold text-success">{{ stats.resolved }}</h4>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row nexum-reveal nexum-reveal-delay-3">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm nexum-card-static">
+            <div class="card-header border-bottom border-dashed nexum-admin-toolbar">
+                <div class="d-flex flex-column flex-md-row flex-wrap align-items-md-center justify-content-md-between gap-3">
+                    <div>
+                        <h4 class="header-title mb-1">Fil</h4>
+                        <p class="text-muted fs-13 mb-0">Recherche instantanée · <strong id="userRecVisibleCount">{{ reclamations|length }}</strong> élément(s)</p>
+                    </div>
+                    <div class="input-group input-group-sm" style="max-width: 320px;">
+                        <span class="input-group-text bg-light border-end-0"><i class="ri-search-line"></i></span>
+                        <input type="search" id="userRecSearch" class="form-control border-start-0" placeholder="Filtrer…" autocomplete="off">
+                    </div>
+                </div>
+                <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+                    <span class="text-muted fs-12 me-1">Trier :</span>
+                    {{ ur.sort_link('Date', 'date', sort, dir) }}
+                    {{ ur.sort_link('Titre', 'titre', sort, dir) }}
+                    {{ ur.sort_link('Statut', 'statut', sort, dir) }}
+                    {{ ur.sort_link('ID', 'idRec', sort, dir) }}
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div id="userRecList" class="vstack gap-2 p-3">
+                    {% for r in reclamations %}
+                        {% set st = (r.statut|default(''))|lower %}
+                        {% set border_class = st in ['resolved','traité','traite','closed','fermé','ferme','resolu','résolu'] ? 'border-success' : (st in ['in_progress','en_cours','processing'] ? 'border-info' : 'border-warning') %}
+                        {% set search_blob = (r.idRec ~ ' ' ~ r.titre ~ ' ' ~ (r.categorie|default('')) ~ ' ' ~ (r.projet|default('')) ~ ' ' ~ (r.statut|default('')) ~ ' ' ~ (r.date|default('')))|lower %}
+                        <div class="user-rec-row rec-notify-bar nexum-rec-row card border shadow-none mb-0 border-start border-4 {{ border_class }}"
+                             data-search="{{ search_blob|e('html_attr') }}"
+                             data-has-file="{{ r.has_fichier ? '1' : '0' }}"
+                             data-file-url="{{ r.has_fichier ? path('mes_reclamations_fichier', {id: r.idRec}) : '' }}"
+                             {% if r.has_fichier %}title="Double-clic pour ouvrir la pièce jointe"{% endif %}>
+                            <div class="card-body py-3">
+                                <div class="d-flex gap-3">
+                                    <div class="flex-shrink-0">
+                                        <div class="avatar-sm rounded-circle bg-light d-flex align-items-center justify-content-center text-muted">
+                                            <i class="ri-notification-3-line fs-18"></i>
+                                        </div>
+                                    </div>
+                                    <div class="flex-grow-1 min-w-0">
+                                        <div class="d-flex flex-wrap align-items-start justify-content-between gap-2">
+                                            <div class="min-w-0">
+                                                <span class="text-muted fs-12">#{{ r.idRec }}</span>
+                                                <h5 class="mb-1 fs-16 fw-semibold text-truncate">{{ r.titre }}</h5>
+                                                <p class="text-muted fs-13 mb-1">{{ r.projet|default('Pas de détail supplémentaire.') }}</p>
+                                                <div class="d-flex flex-wrap align-items-center gap-2 fs-12 text-muted">
+                                                    {% if r.categorie %}<span><i class="ri-price-tag-3-line"></i> {{ r.categorie }}</span>{% endif %}
+                                                    {% if r.date %}<span><i class="ri-time-line"></i> {{ r.date }}</span>{% endif %}
+                                                </div>
+                                            </div>
+                                            <div class="rec-actions text-end flex-shrink-0" onclick="event.stopPropagation();">
+                                                <span class="badge {{ st in ['resolved','traité','traite','closed','fermé','ferme','resolu','résolu'] ? 'bg-success-subtle text-success' : (st in ['in_progress','en_cours','processing'] ? 'bg-info-subtle text-info' : 'bg-warning-subtle text-warning') }} mb-2 d-inline-block">
+                                                    {{ r.statut ?? 'pending' }}
+                                                </span>
+                                                {% if r.has_fichier %}
+                                                    <span class="d-block fs-11 text-primary"><i class="ri-attachment-2"></i> Pièce jointe</span>
+                                                {% endif %}
+                                                <form method="post" action="{{ path('mes_reclamations_delete', {id: r.idRec}) }}" class="mt-2" onsubmit="return confirm('Supprimer cette réclamation ?');">
+                                                    <button type="submit" class="btn btn-sm btn-soft-danger"><i class="ri-delete-bin-line"></i></button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="text-center text-muted py-5">
+                            <i class="ri-inbox-line fs-40 d-block mb-2"></i>
+                            Aucune réclamation. Utilisez « Nouvelle réclamation ».
+                        </div>
+                    {% endfor %}
+                    <div id="userRecFilterEmpty" class="d-none text-center text-muted py-4 border rounded border-dashed">
+                        Aucun résultat pour cette recherche.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade nexum-modal" id="modalNouvelleReclamation" tabindex="-1" aria-labelledby="modalNouvelleReclamationLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-bottom border-dashed">
+                <div>
+                    <h5 class="modal-title" id="modalNouvelleReclamationLabel">Nouvelle réclamation</h5>
+                    <p class="text-muted fs-13 mb-0">Décrivez votre demande.</p>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <form id="user-reclamation-form" method="post" action="{{ path('mes_reclamations_create') }}" enctype="multipart/form-data" novalidate>
+                <div class="modal-body">
+                    <div class="js-validation-summary alert alert-danger py-2 small d-none mb-3" role="alert"></div>
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">Titre <span class="text-danger">*</span></label>
+                            <input type="text" name="titre" class="form-control form-control-lg" placeholder="Objet de la demande">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Catégorie</label>
+                            <input type="text" name="categorie" class="form-control" list="userRecCategories" placeholder="Choisir ou saisir">
+                            <datalist id="userRecCategories">
+                                <option value="Technique">
+                                <option value="RH">
+                                <option value="Facturation">
+                                <option value="Projet">
+                                <option value="Autre">
+                            </datalist>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Pièce jointe</label>
+                            <input type="file" name="fichier" class="form-control" accept="image/*,.pdf,.doc,.docx,.txt">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Projet / détails</label>
+                            <textarea name="projet" class="form-control" rows="4" placeholder="Contexte, messages d’erreur…"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top border-dashed bg-transparent">
+                    <button type="button" class="btn nexum-btn-ghost-purple" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn px-4 nexum-btn-gradient"><i class="ri-send-plane-fill me-1"></i> Envoyer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+</div>
+
+{% endblock %}
+
+{% block script %}
+<script src="{{ asset('js/nexum-validation.js') }}"></script>
+<script>
+(function () {
+    var recForm = document.getElementById('user-reclamation-form');
+    if (recForm && window.NexumValidate) {
+        recForm.addEventListener('submit', function (e) {
+            if (NexumValidate.userReclamationForm(recForm).length) e.preventDefault();
+        });
+    }
+})();
+(function () {
+    var list = document.getElementById('userRecList');
+    var input = document.getElementById('userRecSearch');
+    var countEl = document.getElementById('userRecVisibleCount');
+    var emptyEl = document.getElementById('userRecFilterEmpty');
+    if (!list || !input) return;
+
+    var rows = list.querySelectorAll('.user-rec-row');
+    var total = rows.length;
+    var debounce;
+
+    rows.forEach(function (bar) {
+        bar.addEventListener('dblclick', function () {
+            if (bar.getAttribute('data-has-file') !== '1') return;
+            var url = bar.getAttribute('data-file-url');
+            if (url) window.open(url, '_blank', 'noopener');
+        });
+    });
+
+    function applyFilter() {
+        var q = input.value.toLowerCase().trim();
+        var n = 0;
+        rows.forEach(function (el) {
+            var hay = el.getAttribute('data-search') || '';
+            var show = !q || hay.indexOf(q) !== -1;
+            el.classList.toggle('d-none', !show);
+            if (show) n++;
+        });
+        if (countEl) countEl.textContent = String(n);
+        if (emptyEl) {
+            emptyEl.classList.toggle('d-none', !(q.length > 0 && n === 0 && total > 0));
+        }
+    }
+
+    input.addEventListener('input', function () {
+        clearTimeout(debounce);
+        debounce = setTimeout(applyFilter, 80);
+    });
+    applyFilter();
+})();
+</script>
+{% endblock %}

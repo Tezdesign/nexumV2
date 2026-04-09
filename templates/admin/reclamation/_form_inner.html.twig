@@ -1,0 +1,80 @@
+{# Shared by full-page form and modal. When modal is true, show flashes here and add hidden _modal for AJAX submit. #}
+{% if modal|default(false) %}
+<div class="mb-3">
+    {% for label, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="alert alert-{{ label == 'error' ? 'danger' : label }} alert-dismissible fade show py-2 small" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endfor %}
+</div>
+{% endif %}
+<form id="admin-reclamation-form" method="post" enctype="multipart/form-data" novalidate action="{{ mode == 'create' ? path('admin_reclamations_new') : path('admin_reclamations_edit', {id: reclamation.idRec}) }}">
+    {% if modal|default(false) %}
+        <input type="hidden" name="_modal" value="1">
+    {% endif %}
+    <div class="js-validation-summary alert alert-danger py-2 small d-none mb-3" role="alert"></div>
+    <div class="row g-3">
+        <div class="col-12">
+            <label class="form-label">Title <span class="text-danger">*</span></label>
+            <input type="text" name="titre" class="form-control"
+                   value="{{ reclamation is not null ? reclamation.titre : '' }}">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Category</label>
+            <input type="text" name="categorie" class="form-control" list="recCategories"
+                   value="{{ reclamation is not null ? (reclamation.categorie ?? '') : '' }}">
+            <datalist id="recCategories">
+                <option value="Technical">
+                <option value="HR">
+                <option value="Billing">
+                <option value="Project">
+                <option value="Other">
+            </datalist>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">User <span class="text-danger">*</span></label>
+            <select name="id_user" class="form-select">
+                <option value="">— Select —</option>
+                {% for u in users %}
+                    <option value="{{ u.id }}" {{ reclamation is not null and reclamation.idUser == u.id ? 'selected' : '' }}>
+                        {{ u.prenom }} {{ u.nom }} ({{ u.email }})
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-12">
+            <label class="form-label">Project / description</label>
+            <textarea name="projet" class="form-control" rows="3" placeholder="Context, project code, or details">{{ reclamation is not null ? (reclamation.projet ?? '') : '' }}</textarea>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Status</label>
+            {% set s = reclamation is not null ? (reclamation.statut|default('pending')|lower) : 'pending' %}
+            <select name="statut" class="form-select">
+                <option value="pending" {{ s == 'pending' ? 'selected' }}>Pending</option>
+                <option value="in_progress" {{ s == 'in_progress' ? 'selected' }}>In progress</option>
+                <option value="en_cours" {{ s == 'en_cours' ? 'selected' }}>En cours</option>
+                <option value="resolved" {{ s == 'resolved' ? 'selected' }}>Resolved</option>
+                <option value="closed" {{ s == 'closed' ? 'selected' }}>Closed</option>
+                <option value="rejected" {{ s == 'rejected' ? 'selected' }}>Rejected</option>
+            </select>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Attachment</label>
+            <input type="file" name="fichier" class="form-control" accept="image/*,.pdf,.doc,.docx,.txt">
+            {% if mode == 'edit' %}
+                <p class="text-muted fs-12 mb-0 mt-1"><i class="ri-attachment-2"></i> Upload a new file only if you want to replace the current attachment.</p>
+            {% endif %}
+        </div>
+        <div class="col-12 d-flex flex-wrap gap-2 justify-content-end pt-2">
+            {% if modal|default(false) %}
+                <button type="button" class="btn nexum-btn-ghost-purple" data-bs-dismiss="modal">Cancel</button>
+            {% endif %}
+            <button type="submit" class="btn nexum-btn-gradient">
+                <i class="ri-save-line me-1"></i> {{ mode == 'create' ? 'Create' : 'Save changes' }}
+            </button>
+        </div>
+    </div>
+</form>
