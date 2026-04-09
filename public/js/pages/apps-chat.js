@@ -1056,12 +1056,13 @@ class ChatApp {
 
         if (!badge) {
             badge = document.createElement('span')
-            badge.className = 'text-muted small ms-1'
+            badge.className = 'text-muted ms-1'
+            badge.style.fontSize = '11px'
             badge.setAttribute('data-message-edited-badge', '1')
             badge.textContent = '(edited)'
-            const messageContainer = messageNode.querySelector('.chat-message')
-            if (messageContainer) {
-                messageContainer.appendChild(badge)
+            const titleWrapper = messageNode.querySelector('[data-message-meta]')
+            if (titleWrapper) {
+                titleWrapper.appendChild(badge)
             }
         }
     }
@@ -2472,6 +2473,7 @@ class ChatApp {
         chatBody.className = 'chat-body'
 
         const titleWrapper = document.createElement('div')
+        titleWrapper.setAttribute('data-message-meta', '1')
         const sender = document.createElement('h6')
         sender.className = 'd-inline-flex'
         sender.textContent = displayName
