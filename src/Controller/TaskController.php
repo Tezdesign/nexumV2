@@ -316,10 +316,18 @@ final class TaskController extends AbstractController
     }
 
     #[Route('/{id}', name: 'app_task_show', methods: ['GET'])]
-    public function show(Task $task): Response
+    public function show(Task $task, UtilisateurRepository $utilisateurRepository): Response
     {
+        $currentUser = $utilisateurRepository->findFirstManagerOrFirst();
+        $currentUserId = (int) ($currentUser?->getId() ?? 0);
+        $role = strtolower((string) ($currentUser?->getRole() ?? ''));
+        $isManager = $role !== '' && str_contains($role, 'manager');
+
         return $this->render('task/show.html.twig', [
             'task' => $task,
+            'currentUserId' => $currentUserId,
+            'isManager' => $isManager,
+            'canDeleteTask' => $isManager || ($task->getCreatedBy() !== null && (int) $task->getCreatedBy() === $currentUserId),
         ]);
     }
 
@@ -564,11 +572,18 @@ final class TaskController extends AbstractController
     {
         $currentUser = $utilisateurRepository->findFirstManagerOrFirst();
         $currentUserId = (int) ($currentUser?->getId() ?? 0);
-
         $role = strtolower((string) ($currentUser?->getRole() ?? ''));
         $isManager = $role !== '' && str_contains($role, 'manager');
-        if (!$isManager) {
-            throw $this->createAccessDeniedException();
+
+        $canDelete = $isManager || ($task->getCreatedBy() !== null && (int) $task->getCreatedBy() === $currentUserId);
+
+        if (!$canDelete) {
+            $back = (string) $request->request->get('back', '');
+            if ($back !== '' && str_starts_with($back, '/')) {
+                return $this->redirect($back, Response::HTTP_SEE_OTHER);
+            }
+
+            return $this->redirectToRoute('app_task_index', [], Response::HTTP_SEE_OTHER);
         }
 
         if ($this->isCsrfTokenValid('delete'.$task->getId(), (string) $request->request->get('_token', ''))) {
@@ -584,6 +599,11 @@ final class TaskController extends AbstractController
 
             $entityManager->remove($task);
             $entityManager->flush();
+        }
+
+        $back = (string) $request->request->get('back', '');
+        if ($back !== '' && str_starts_with($back, '/')) {
+            return $this->redirect($back, Response::HTTP_SEE_OTHER);
         }
 
         return $this->redirectToRoute('app_task_index', [], Response::HTTP_SEE_OTHER);

@@ -3,6 +3,7 @@
 {% set title = 'Dashboard' %}
 
 {% block css %}
+    {% include 'partials/_task_project_design_system.html.twig' %}
     <style>
         :root {
             --nexum-violet-50: #f5f3ff;
@@ -647,7 +648,7 @@
                             </div>
                         {% else %}
                             <div class="nexum-empty">
-                                No tasks created by this user yet.
+                                No tasks available for this user yet.
                             </div>
                         {% endif %}
                     </div>

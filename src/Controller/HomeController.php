@@ -157,7 +157,7 @@ class HomeController extends AbstractController
             ? $taskRepository->findForManager()
             : $taskRepository->findForDashboardScope($currentUserId, $relatedProjectIds);
 
-        $yourTasks = array_slice($taskRepository->findForUser((int) $currentUserId), 0, 6);
+        $yourTasks = array_slice($taskRepository->findForDashboardUser((int) $currentUserId), 0, 6);
 
         $taskProjectIds = [];
         foreach (array_merge($dashboardTasks, $yourTasks) as $task) {

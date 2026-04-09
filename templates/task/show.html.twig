@@ -82,7 +82,9 @@
                 <div class="d-flex gap-2">
                     <a class="btn btn-outline-secondary" href="{{ path('app_task_index') }}">Back</a>
                     <a class="btn nexum-btn-primary text-white" href="{{ path('app_task_edit', {id: task.id, back: path('app_task_show', {id: task.id})}) }}">Edit</a>
-                    <button class="btn btn-danger" type="button" data-bs-toggle="modal" data-bs-target="#deleteTaskModal">Delete</button>
+                    {% if canDeleteTask|default(false) %}
+                        <button class="btn btn-danger" type="button" data-bs-toggle="modal" data-bs-target="#deleteTaskModal">Delete</button>
+                    {% endif %}
                 </div>
             </div>
 
@@ -112,6 +114,7 @@
         </div>
     </div>
 
+    {% if canDeleteTask|default(false) %}
     <div class="modal fade nexum-modal nexum-danger" id="deleteTaskModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered" style="max-width: 720px;">
             <div class="modal-content" style="border-radius: 18px; border: 1px solid #e7e5e4;">
@@ -144,4 +147,5 @@
             </div>
         </div>
     </div>
+    {% endif %}
 {% endblock %}

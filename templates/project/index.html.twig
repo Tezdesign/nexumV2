@@ -4,6 +4,7 @@
 {% set subtitle = "Manage and track your team's projects" %}
 
 {% block css %}
+    {% include 'partials/_task_project_design_system.html.twig' %}
     <style>
         :root {
             --nexum-accent: #7c3aed;
@@ -291,7 +292,7 @@
                 <i class="ri-filter-2-line me-1"></i> Filter
             </button>
 
-            <a class="btn btn-outline-secondary" href="{{ path('apps-calendar') }}" title="Calendar" aria-label="Calendar">
+            <a class="nexum-icon-btn" href="{{ path('apps-calendar') }}" title="Calendar" aria-label="Calendar">
                 <i class="ri-calendar-line"></i>
             </a>
 
@@ -340,7 +341,6 @@
 
                         {% set pctRaw = projectProgressById[project.id] ?? 0 %}
                         {% set pct = pctRaw < 0 ? 0 : (pctRaw > 100 ? 100 : pctRaw) %}
-
                         <div class="nexum-progress">
                             <div class="d-flex justify-content-between text-muted small mb-2">
                                 <div>Progress</div>

@@ -75,6 +75,26 @@ class TaskRepository extends ServiceEntityRepository
     }
 
     /**
+     * Tasks created by or assigned to a given user.
+     *
+     * @return Task[]
+     */
+    public function findForDashboardUser(int $userId): array
+    {
+        if ($userId <= 0) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('t')
+            ->andWhere('t.created_by = :uid OR t.assigned_to = :uid')
+            ->setParameter('uid', $userId)
+            ->orderBy('t.updated_at', 'DESC')
+            ->addOrderBy('t.id', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * "All Tasks" list for managers, optionally filtered by query.
      *
      * @return Task[]

@@ -166,6 +166,19 @@ final class ProjectController extends AbstractController
         }
 
         $projects = $projectRepository->findForIndex($q);
+        if (!$isManager) {
+            $visibleProjectIds = $this->getVisibleProjectIdsForUser(
+                (int) $currentUserId,
+                $projectRepository,
+                $projectAssignmentRepository
+            );
+            $visibleProjectIds = array_fill_keys($visibleProjectIds, true);
+
+            $projects = array_values(array_filter(
+                $projects,
+                static fn (Project $project): bool => $project->getId() !== null && isset($visibleProjectIds[(int) $project->getId()])
+            ));
+        }
 
         $projectIds = [];
         foreach ($projects as $project) {
@@ -270,6 +283,7 @@ final class ProjectController extends AbstractController
     public function show(
         Request $request,
         Project $project,
+        ProjectRepository $projectRepository,
         ProjectAssignmentRepository $projectAssignmentRepository,
         ProjectActivityFeed $activityFeed,
         UtilisateurRepository $utilisateurRepository,
@@ -282,6 +296,19 @@ final class ProjectController extends AbstractController
         $currentUserId = $currentUser?->getId() ?? 1;
         $role = strtolower((string) ($currentUser?->getRole() ?? ''));
         $isManager = $role !== '' && str_contains($role, 'manager');
+        if (!$isManager) {
+            $visibleProjectIds = array_fill_keys(
+                $this->getVisibleProjectIdsForUser(
+                    (int) $currentUserId,
+                    $projectRepository,
+                    $projectAssignmentRepository
+                ),
+                true
+            );
+            if ($project->getId() === null || !isset($visibleProjectIds[(int) $project->getId()])) {
+                throw $this->createNotFoundException();
+            }
+        }
 
         $tab = strtolower(trim((string) $request->query->get('tab', 'overview')));
         $allowedTabs = ['overview', 'tasks', 'kanban', 'discussion', 'files', 'activity', 'settings'];
@@ -308,6 +335,7 @@ final class ProjectController extends AbstractController
 
         $canEditProject = $isManager;
         $canDeleteProject = $isManager;
+        $canDeleteTask = $isManager;
         $canCreateTask = $isManager || isset($teamMemberIds[(int) $currentUserId]);
 
         $createTask = null;
@@ -433,6 +461,7 @@ final class ProjectController extends AbstractController
             'activeTab' => $tab,
             'canEditProject' => $canEditProject,
             'canDeleteProject' => $canDeleteProject,
+            'canDeleteTask' => $canDeleteTask,
             'canCreateTask' => $canCreateTask,
             'createTaskForm' => $createTaskForm ? $createTaskForm->createView() : null,
             'projectProgressPercent' => $projectProgressPercent,
@@ -630,5 +659,23 @@ final class ProjectController extends AbstractController
         }
 
         return $this->redirectToRoute('app_project_index', [], Response::HTTP_SEE_OTHER);
+    }
+
+    /**
+     * @return int[]
+     */
+    private function getVisibleProjectIdsForUser(
+        int $userId,
+        ProjectRepository $projectRepository,
+        ProjectAssignmentRepository $projectAssignmentRepository
+    ): array {
+        if ($userId <= 0) {
+            return [];
+        }
+
+        return array_values(array_unique(array_merge(
+            $projectRepository->getProjectIdsForUser($userId),
+            $projectAssignmentRepository->getProjectIdsByUserId($userId),
+        )));
     }
 }

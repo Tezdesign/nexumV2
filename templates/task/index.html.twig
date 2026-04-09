@@ -4,6 +4,7 @@
 {% set subtitle = (isManager|default(false)) ? 'Manage tasks across all projects' : 'Manage your work across all projects' %}
 
 {% block css %}
+    {% include 'partials/_task_project_design_system.html.twig' %}
     <style>
         :root {
             --nexum-violet-50: #f5f3ff;
@@ -314,6 +315,11 @@
             border-color: #e2e8f0;
             background: #fff;
             color: #0f172a;
+        }
+
+        .nexum-icon-btn.is-disabled {
+            opacity: 0.45;
+            pointer-events: none;
         }
 
         .nexum-priority {
@@ -737,6 +743,8 @@
 	                                <span class="nexum-assignee is-empty">Unassigned</span>
 	                            {% endif %}
 
+	                            {% set createdBy = task.createdBy ?? null %}
+	                            {% set canDeleteTask = (isManager|default(false)) or (createdBy is not null and createdBy == (currentUserId|default(0))) %}
 	                            {% if isManager|default(false) %}
 	                                <button type="button"
 	                                        class="nexum-icon-btn"
@@ -747,7 +755,9 @@
 	                                        data-edit-url="{{ path('app_task_edit_modal', {id: task.id}) }}">
 	                                    <i class="ri-pencil-line"></i>
 	                                </button>
+	                            {% endif %}
 
+	                            {% if canDeleteTask %}
 	                                <button type="button"
 	                                        class="nexum-icon-btn"
 	                                        title="Delete"
@@ -759,6 +769,12 @@
 	                                        data-task-title="{{ task.title|plain_text }}">
 	                                    <i class="ri-delete-bin-line"></i>
 	                                </button>
+	                            {% else %}
+	                                <span class="nexum-icon-btn is-disabled"
+	                                      title="Delete is available for managers or the task creator"
+	                                      aria-hidden="true">
+	                                    <i class="ri-delete-bin-line"></i>
+	                                </span>
 	                            {% endif %}
 	                        </div>
 	                    </div>
