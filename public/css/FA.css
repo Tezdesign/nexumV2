@@ -107,3 +107,48 @@
     color: #7F22FE !important;
     border-bottom-color: #7F22FE !important;
 }
+
+/* Multi-Delete Transition Classes for Transactions */
+.transaction-row-content {
+    transition: transform 0.3s ease-in-out;
+}
+.show-checkboxes .transaction-row-content {
+    transform: translateX(40px);
+}
+.transaction-checkbox-wrapper {
+    position: absolute;
+    left: -40px;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out, left 0.3s ease-in-out;
+    pointer-events: none;
+    z-index: 10;
+}
+.transaction-checkbox-wrapper .form-check-input {
+    margin-top: 0; /* Override bootstrap default margin for perfect alignment */
+}
+.show-checkboxes .transaction-checkbox-wrapper {
+    left: 15px;
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Confirm Delete Button Animation */
+.confirm-delete-wrapper {
+    max-width: 0;
+    width: 0;
+    padding: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: max-width 0.3s ease-in-out, opacity 0.3s ease-in-out, margin 0.3s ease-in-out, width 0.3s ease-in-out;
+    white-space: nowrap;
+}
+.show-checkboxes-mode .confirm-delete-wrapper {
+    max-width: 200px;
+    width: auto;
+    opacity: 1;
+    margin-right: 0.5rem;
+}

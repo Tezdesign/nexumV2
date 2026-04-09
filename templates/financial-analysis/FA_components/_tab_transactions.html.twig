@@ -3,28 +3,76 @@
     <div class="col-lg-7">
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h4 class="header-title m-0">{{ 'Transactions'|trans }}</h4>
-                <div class="d-flex flex-wrap gap-2 align-items-center p-2 rounded" style="background-color: var(--ct-secondary-bg-subtle, rgba(91, 105, 188, 0.1));">
+                <h4 class="header-title m-0 text-nowrap">{{ 'Transactions'|trans }}</h4>
+                <div class="d-flex align-items-center gap-2 py-1 px-2 rounded" style="background-color: var(--ct-secondary-bg-subtle, rgba(91, 105, 188, 0.1));">
+
+                    <!-- Multi-Delete Actions -->
+                    <div class="d-flex align-items-center" id="multiDeleteContainer">
+                        <div class="confirm-delete-wrapper">
+                            <button type="button" class="btn btn-danger btn-sm rounded-pill" id="confirmDeleteBtn">
+                                {{ 'Confirm Delete'|trans }} <span id="deleteCountBadge" class="badge bg-white text-danger ms-1">0</span>
+                            </button>
+                        </div>
+                        <button type="button" class="btn btn-outline-danger btn-sm rounded-pill" id="multiDeleteToggleBtn" title="{{ 'Multi-Delete'|trans }}">
+                            <i class="ti ti-trash fs-16"></i>
+                        </button>
+                    </div>
+
                     <!-- Search Bar -->
-                    <div class="app-search d-none d-sm-block me-auto">
-                        <form>
+                    <div class="app-search d-none d-sm-block">
+                        <form class="mb-0">
                             <div class="position-relative">
                                 <input type="search" class="form-control border-0" style="background-color: var(--ct-body-bg, #fff); border-radius: 20px; padding-left: 35px; box-shadow: none; min-width: 150px;" placeholder="{{ 'Search...'|trans }}">
                                 <i class="ri-search-line fs-18 position-absolute text-muted" style="left: 10px; top: 50%; transform: translateY(-50%);"></i>
                             </div>
                         </form>
                     </div>
-                    <div class="d-flex align-items-center gap-2">
-                        <button type="button" class="btn btn-outline-primary btn-sm rounded-pill d-flex align-items-center gap-1">
-                            <i class="ti ti-filter fs-16"></i> {{ 'Filter'|trans }}
-                        </button>
-                        <button type="button" class="btn btn-legacy-purple btn-sm"><i class="ti ti-playlist-add fs-20"></i></button>
-                    </div>
+
+                    <!-- Filter Parameters Button -->
+                    <button type="button" class="btn btn-link text-muted p-1 text-decoration-none" title="{{ 'Filter Parameters'|trans }}">
+                        <i class="ti ti-adjustments-horizontal fs-20"></i>
+                    </button>
+
+                    <!-- Right Side Actions -->
+                    <button type="button" class="btn btn-outline-primary btn-sm rounded-pill d-flex align-items-center gap-1">
+                        <i class="ti ti-filter fs-16"></i> {{ 'Filter'|trans }}
+                    </button>
+                    
+                    <button type="button" class="btn btn-legacy-purple btn-sm"><i class="ti ti-playlist-add fs-20"></i></button>
                 </div>
             </div>
-            <div class="card-body">
-                <p class="text-muted">{{ 'Transaction list will populate here.'|trans }}</p>
-                <!-- Transaction items go here -->
+            <div class="card-body" id="transaction-list-container">
+                
+                {% set transactions = [] %}
+                
+                {% if false %} {# Temporary mock condition: change back to 'transactions is empty' when real data is piped in #}
+                    <!-- Empty State: No Transactions Found -->
+                    <div class="row justify-content-center align-items-center mt-2">
+                        <div class="col-md-10">
+                            <div class="card text-center bg-transparent shadow-none">
+                                <div class="card-body p-4">
+                                    <div class="mb-3">
+                                        <i class="ti ti-receipt-off text-muted opacity-50" style="font-size: 4rem;"></i>
+                                    </div>
+                                    <h5 class="mt-2 mb-1 fw-semibold">{{ 'No Transactions Found'|trans }}</h5>
+                                    <p class="text-muted mb-0 fs-13">
+                                        {{ 'There are no transactions recorded for this budget yet.'|trans }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% else %}
+                    <!-- Transaction items go here -->
+                    {% for transaction in transactions %}
+                        {% include 'financial-analysis/FA_components/_transaction_list_row.html.twig' with {'transaction': transaction} %}
+                    {% endfor %}
+
+                    <!-- Mock rows to demonstrate the UI (remove later when real data is piped in) -->
+                    {% include 'financial-analysis/FA_components/_transaction_list_row.html.twig' with {'transaction': {'reference': 'TX-100234', 'expenseCategory': 'HARDWARE', 'cost': '1250.00', 'dateStamp': '2026-04-10', 'description': 'Server racks purchase'}} %}
+                    {% include 'financial-analysis/FA_components/_transaction_list_row.html.twig' with {'transaction': {'reference': 'TX-100235', 'expenseCategory': 'SOFTWARE', 'cost': '299.99', 'dateStamp': '2026-04-11', 'description': 'Annual cloud hosting fee'}} %}
+                {% endif %}
+                
             </div>
         </div>
     </div>
@@ -60,3 +108,39 @@
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const toggleBtn = document.getElementById('multiDeleteToggleBtn');
+        const listContainer = document.getElementById('transaction-list-container');
+        const multiDeleteContainer = document.getElementById('multiDeleteContainer');
+        const deleteCountBadge = document.getElementById('deleteCountBadge');
+        
+        if (toggleBtn && listContainer && multiDeleteContainer) {
+            toggleBtn.addEventListener('click', function() {
+                listContainer.classList.toggle('show-checkboxes');
+                multiDeleteContainer.classList.toggle('show-checkboxes-mode');
+                
+                if (listContainer.classList.contains('show-checkboxes')) {
+                    toggleBtn.classList.replace('btn-outline-danger', 'btn-danger');
+                } else {
+                    toggleBtn.classList.replace('btn-danger', 'btn-outline-danger');
+                    // Uncheck all boxes when closing multi-delete mode
+                    const checkboxes = listContainer.querySelectorAll('.transaction-checkbox');
+                    checkboxes.forEach(cb => cb.checked = false);
+                    if (deleteCountBadge) deleteCountBadge.textContent = '0';
+                }
+            });
+
+            // Listen to checkbox changes to update count
+            listContainer.addEventListener('change', function(e) {
+                if (e.target.classList.contains('transaction-checkbox')) {
+                    const checkedCount = listContainer.querySelectorAll('.transaction-checkbox:checked').length;
+                    if (deleteCountBadge) {
+                        deleteCountBadge.textContent = checkedCount;
+                    }
+                }
+            });
+        }
+    });
+</script>
