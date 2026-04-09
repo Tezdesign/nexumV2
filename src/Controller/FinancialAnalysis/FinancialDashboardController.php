@@ -108,7 +108,7 @@ class FinancialDashboardController extends AbstractController
 
         return $this->render('financial-analysis/overview.html.twig', [
             'budgetProfile' => $originalProfile,
-            'projects' => $projects,
+            'projects' => array_slice($projects, 0, 6), // Show only top 6 on dashboard
             'form' => $form->createView(),
             'projectBudgetForm' => $projectBudgetForm->createView(),
             'kpi_budget_value' => number_format($budgetVal / 1000, 1) . 'k',
@@ -116,6 +116,46 @@ class FinancialDashboardController extends AbstractController
             'kpi_remaining_value' => number_format($remainingVal / 1000, 1) . 'k',
             'kpi_utilization_value' => $utilizationPercent . '%',
             'kpi_cashflow_value' => number_format(($budgetVal - $totals['allocated']) / 1000, 1) . 'k',
+        ]);
+    }
+
+    #[Route('/profile/{id}/projects', name: 'apps-financial-analysis-profile-projects')]
+    public function allProjects(
+        BudgetProfile $budgetProfile, 
+        BudgetDashboardService $dashboardService, 
+        Request $request, 
+        ProjectBudgetRepository $projectBudgetRepository
+    ): Response {
+        $projectBudget = new ProjectBudget();
+        if ($budgetProfile->getStartDate() && $budgetProfile->getEndDate()) {
+            $projectBudget->setTransientFiscalStart($budgetProfile->getStartDate());
+            $projectBudget->setTransientFiscalEnd($budgetProfile->getEndDate());
+        }
+
+        $projectBudgetForm = $this->createForm(ProjectBudgetType::class, $projectBudget, [
+            'fiscal_start' => $budgetProfile->getStartDate(),
+            'fiscal_end' => $budgetProfile->getEndDate(),
+        ]);
+        $projectBudgetForm->handleRequest($request);
+
+        if ($projectBudgetForm->isSubmitted() && $projectBudgetForm->isValid()) {
+            $projectBudgetRepository->save($projectBudget, true);
+            $this->addFlash('success', 'Project Budget created successfully!');
+            return $this->redirectToRoute('apps-financial-analysis-profile-projects', ['id' => $budgetProfile->getId()]);
+        }
+
+        $projects = [];
+        if ($budgetProfile->getStartDate() && $budgetProfile->getEndDate()) {
+            $filteredBudgets = $projectBudgetRepository->findByFiscalYearScope($budgetProfile->getStartDate(), $budgetProfile->getEndDate());
+            foreach ($filteredBudgets as $pb) {
+                $projects[] = $dashboardService->formatBudgetDetails($pb);
+            }
+        }
+
+        return $this->render('financial-analysis/all_projects.html.twig', [
+            'budgetProfile' => $budgetProfile,
+            'projects' => $projects,
+            'projectBudgetForm' => $projectBudgetForm->createView(),
         ]);
     }
 

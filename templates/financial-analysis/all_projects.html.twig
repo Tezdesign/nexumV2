@@ -1,0 +1,129 @@
+{% extends 'layouts/vertical.html.twig' %}
+
+{% set title = 'All Project Budgets'|trans %}
+
+{% block css %}
+    <!-- Tabler Icons Webfont (CDN) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+    
+    <!-- Flatpickr css -->
+    <link rel="stylesheet" href="/vendor/flatpickr/flatpickr.min.css">
+    
+    <!-- Select2 css -->
+    <link href="/vendor/select2/css/select2.min.css" rel="stylesheet" type="text/css" />
+    
+    <!-- Custom FA css -->
+    <link href="/css/FA.css?v={{ random() }}" rel="stylesheet" type="text/css" />
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid pt-4">
+        <!-- Breadcrumb -->
+        <div class="row align-items-center mb-4">
+            <div class="col-12">
+                <div class="page-title-box mb-0">
+                    <h4 class="page-title m-0">
+                        <nav aria-label="breadcrumb" class="d-inline-block">
+                            <ol class="breadcrumb m-0 p-0 bg-transparent align-items-center">
+                                <li class="breadcrumb-item">
+                                    <a href="{{ path('apps-financial-analysis-landing') }}" class="text-dark text-decoration-none">
+                                        <i class="ti ti-smart-home fs-16 me-1"></i>{{ 'Fiscal Budget Profiles'|trans }}
+                                    </a>
+                                </li>
+                                <li class="breadcrumb-item">
+                                    <a href="{{ path('apps-financial-analysis-profile', {id: budgetProfile.id}) }}" class="text-dark text-decoration-none">
+                                        {{ 'FY'|trans }} {{ budgetProfile.fiscalYear }} {{ 'Dashboard'|trans }}
+                                    </a>
+                                </li>
+                                <li class="breadcrumb-item active text-muted" aria-current="page">{{ 'All Project Budgets'|trans }}</li>
+                            </ol>
+                        </nav>
+                    </h4>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Bar (Wider version using col-12) -->
+        <div class="row mb-4">
+            <div class="col-12">
+                {% include 'financial-analysis/FA_components/_project_budget_action_bar.html.twig' with {
+                    'title': 'Project Budgets List'|trans,
+                    'show_all_button': false
+                } %}
+            </div>
+        </div>
+
+        <!-- Project Budgets Display -->
+        <div class="row">
+            <div class="col-12">
+                {% if projects is empty %}
+                    <!-- Empty State -->
+                    <div class="card text-center bg-transparent shadow-none mt-5">
+                        <div class="card-body p-5">
+                            <div class="mb-4">
+                                <i class="ti ti-calendar-off text-muted opacity-50" style="font-size: 5rem;"></i>
+                            </div>
+                            <h4 class="mt-3 mb-2 fw-semibold">{{ 'No Project Budgets Found'|trans }}</h4>
+                            <p class="text-muted mb-4 fs-14">
+                                {{ 'There are no active project budgets that fall within the scope of this Fiscal Year.'|trans }}
+                            </p>
+                        </div>
+                    </div>
+                {% else %}
+                    <!-- Grid View Container -->
+                    <div id="project-grid-view" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xxl-4 g-3">
+                        {% for project in projects %}
+                            <div class="col">
+                                {% include 'financial-analysis/FA_components/_project_budget_card.html.twig' with {'project': project} %}
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- List View Container (Hidden by default) -->
+                    <div id="project-list-view" class="d-none">
+                        {% for project in projects %}
+                            {% include 'financial-analysis/FA_components/_project_budget_list_row.html.twig' with {'project': project} %}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% include 'financial-analysis/FA_components/_create_project_budget_modal.html.twig' %}
+{% endblock %}
+
+{% block script %}
+    <!-- Flatpickr js -->
+    <script src="/vendor/flatpickr/flatpickr.min.js"></script>
+
+    <!-- Select2 js -->
+    <script src="/vendor/select2/js/select2.min.js"></script>
+
+    <!-- Custom FA JS Logic -->
+    <script src="/js/FA_custom.js?v={{ random() }}"></script>
+
+    <script>
+        $(document).ready(function() {
+            // Grid/List View Toggle Logic
+            const activeStyle = 'background-color: rgba(91, 105, 188, 0.15); color: var(--ct-secondary, #5b69bc); border-color: transparent;';
+            const inactiveStyle = 'background-color: transparent; color: var(--ct-secondary, #5b69bc); border-color: rgba(91, 105, 188, 0.15);';
+
+            $('#btn-grid-view').on('click', function() {
+                $(this).attr('style', activeStyle);
+                $('#btn-list-view').attr('style', inactiveStyle);
+                $('#project-grid-view').removeClass('d-none');
+                $('#project-list-view').addClass('d-none');
+            });
+
+            $('#btn-list-view').on('click', function() {
+                $(this).attr('style', activeStyle);
+                $('#btn-grid-view').attr('style', inactiveStyle);
+                $('#project-list-view').removeClass('d-none');
+                $('#project-grid-view').addClass('d-none');
+            });
+        });
+    </script>
+{% endblock %}
+
+{% block footer %}{% endblock %}
