@@ -112,4 +112,109 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    /**
+     * ==========================================
+     * PROJECT BUDGETS VIEW TOGGLE & SEARCH
+     * ==========================================
+     */
+    const btnGridView = document.getElementById('btn-grid-view');
+    const btnListView = document.getElementById('btn-list-view');
+    const gridViewContainer = document.getElementById('project-grid-view');
+    const listViewContainer = document.getElementById('project-list-view');
+
+    // 1. Grid/List View Toggling (Vanilla JS)
+    if (btnGridView && btnListView && gridViewContainer && listViewContainer) {
+        const activeStyle = 'background-color: rgba(91, 105, 188, 0.15); color: var(--ct-secondary, #5b69bc); border-color: transparent;';
+        const inactiveStyle = 'background-color: transparent; color: var(--ct-secondary, #5b69bc); border-color: rgba(91, 105, 188, 0.15);';
+
+        btnGridView.addEventListener('click', function() {
+            btnGridView.setAttribute('style', activeStyle);
+            btnListView.setAttribute('style', inactiveStyle);
+            gridViewContainer.classList.remove('d-none');
+            listViewContainer.classList.add('d-none');
+        });
+
+        btnListView.addEventListener('click', function() {
+            btnListView.setAttribute('style', activeStyle);
+            btnGridView.setAttribute('style', inactiveStyle);
+            listViewContainer.classList.remove('d-none');
+            gridViewContainer.classList.add('d-none');
+        });
+    }
+
+    // 2. Pure Vanilla JS Live Search (No AJAX required for projects)
+    const projectSearchInput = document.getElementById('project-search-input');
+    const projectEmptyState = document.getElementById('project-search-empty-state');
+
+    if (projectSearchInput && (gridViewContainer || listViewContainer)) {
+        projectSearchInput.addEventListener('input', function(e) {
+            const term = e.target.value.toLowerCase().trim();
+            const allCards = document.querySelectorAll('.project-card');
+            let visibleCount = 0;
+            
+            allCards.forEach(card => {
+                // Determine if we are filtering the grid column wrapper or the list card itself
+                const elementToHide = card.closest('.col') ? card.closest('.col') : card;
+                
+                const text = card.textContent.toLowerCase();
+                if (text.includes(term)) {
+                    elementToHide.classList.remove('d-none');
+                    visibleCount++;
+                } else {
+                    elementToHide.classList.add('d-none');
+                }
+            });
+
+            // Handle "No results found" dynamic state safely
+            if (projectEmptyState) {
+                if (visibleCount === 0 && allCards.length > 0) {
+                    projectEmptyState.classList.remove('d-none');
+                } else {
+                    projectEmptyState.classList.add('d-none');
+                }
+            }
+        });
+    }
+
+    /**
+     * ==========================================
+     * FISCAL BUDGET PROFILES LIVE SEARCH
+     * ==========================================
+     */
+    const profileSearchInput = document.getElementById('profile-search-input');
+    const profileGridContainer = document.getElementById('profile-grid-container');
+    const profileEmptyState = document.getElementById('profile-search-empty-state');
+
+    if (profileSearchInput && profileGridContainer) {
+        profileSearchInput.addEventListener('input', function(e) {
+            const term = e.target.value.toLowerCase().trim();
+            const allCards = profileGridContainer.querySelectorAll('.profile-card');
+            let visibleCount = 0;
+            
+            allCards.forEach(card => {
+                const elementToHide = card.closest('.col') ? card.closest('.col') : card;
+                
+                // Only search within the title (h4) of the profile card
+                const titleElement = card.querySelector('h4');
+                const text = titleElement ? titleElement.textContent.toLowerCase() : '';
+                
+                if (text.includes(term)) {
+                    elementToHide.classList.remove('d-none');
+                    visibleCount++;
+                } else {
+                    elementToHide.classList.add('d-none');
+                }
+            });
+
+            // Handle "No results found" dynamic state safely
+            if (profileEmptyState) {
+                if (visibleCount === 0 && allCards.length > 0) {
+                    profileEmptyState.classList.remove('d-none');
+                } else {
+                    profileEmptyState.classList.add('d-none');
+                }
+            }
+        });
+    }
+
 });

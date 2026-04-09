@@ -86,7 +86,7 @@
                     <div class="app-search d-none d-sm-block me-auto">
                         <form>
                             <div class="position-relative">
-                                <input type="search" class="form-control border-0" style="background-color: var(--ct-body-bg, #fff); border-radius: 20px; padding-left: 35px; box-shadow: none; min-width: 200px;" placeholder="{{ 'Search Profiles...'|trans }}" id="top-search">
+                                <input type="search" class="form-control border-0" style="background-color: var(--ct-body-bg, #fff); border-radius: 20px; padding-left: 35px; box-shadow: none; min-width: 200px;" placeholder="{{ 'Search Profiles...'|trans }}" id="profile-search-input">
                                 <i class="ri-search-line fs-18 position-absolute text-muted" style="left: 10px; top: 50%; transform: translateY(-50%);"></i>
                             </div>
                         </form>
@@ -101,12 +101,29 @@
         </div>
 
         <!-- Grid View Container -->
-        <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3">
+        <div id="profile-grid-container" class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3">
             {% for profile in budgetProfiles %}
                 <div class="col">
                     {% include 'financial-analysis/FA_components/_budget_profile_card.html.twig' with {'profile': profile} %}
                 </div>
             {% endfor %}
+        </div>
+
+        <!-- Live Search Empty State (Hidden by default) -->
+        <div id="profile-search-empty-state" class="row justify-content-center align-items-center mt-2 d-none">
+            <div class="col-md-10">
+                <div class="card text-center bg-transparent shadow-none">
+                    <div class="card-body p-4">
+                        <div class="mb-3">
+                            <i class="ti ti-search text-muted opacity-50" style="font-size: 4rem;"></i>
+                        </div>
+                        <h5 class="mt-2 mb-1 fw-semibold">{{ 'No matches found'|trans }}</h5>
+                        <p class="text-muted mb-0 fs-13">
+                            {{ 'Try adjusting your search term.'|trans }}
+                        </p>
+                    </div>
+                </div>
+            </div>
         </div>
         {% endif %}
 
@@ -124,6 +141,7 @@
 
     <!-- Custom FA JS Logic -->
     <script src="/js/FA_custom.js?v={{ random() }}"></script>
+    <script src="/js/FA_functions.js?v={{ random() }}"></script>
 {% endblock %}
 
 {% block footer %}{% endblock %}

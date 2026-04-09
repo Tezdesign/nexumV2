@@ -273,6 +273,23 @@
                             {% include 'financial-analysis/FA_components/_project_budget_list_row.html.twig' with {'project': project} %}
                         {% endfor %}
                     </div>
+
+                    <!-- Live Search Empty State (Hidden by default) -->
+                    <div id="project-search-empty-state" class="row justify-content-center align-items-center mt-2 d-none">
+                        <div class="col-md-10">
+                            <div class="card text-center bg-transparent shadow-none">
+                                <div class="card-body p-4">
+                                    <div class="mb-3">
+                                        <i class="ti ti-search text-muted opacity-50" style="font-size: 4rem;"></i>
+                                    </div>
+                                    <h5 class="mt-2 mb-1 fw-semibold">{{ 'No matches found'|trans }}</h5>
+                                    <p class="text-muted mb-0 fs-13">
+                                        {{ 'Try adjusting your search term.'|trans }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 {% endif %}
                 
                 <!-- End Project Budgets Section -->
@@ -301,6 +318,7 @@
 
     <!-- Custom FA JS Logic -->
     <script src="/js/FA_custom.js?v={{ random() }}"></script>
+    <script src="/js/FA_functions.js?v={{ random() }}"></script>
 
     <script>
         $(document).ready(function() {
@@ -308,24 +326,6 @@
             if ($('[data-toggle="select2"]').length) {
                 $('[data-toggle="select2"]').select2();
             }
-
-            // Grid/List View Toggle Logic
-            const activeStyle = 'background-color: rgba(91, 105, 188, 0.15); color: var(--ct-secondary, #5b69bc); border-color: transparent;';
-            const inactiveStyle = 'background-color: transparent; color: var(--ct-secondary, #5b69bc); border-color: rgba(91, 105, 188, 0.15);';
-
-            $('#btn-grid-view').on('click', function() {
-                $(this).attr('style', activeStyle);
-                $('#btn-list-view').attr('style', inactiveStyle);
-                $('#project-grid-view').removeClass('d-none');
-                $('#project-list-view').addClass('d-none');
-            });
-
-            $('#btn-list-view').on('click', function() {
-                $(this).attr('style', activeStyle);
-                $('#btn-grid-view').attr('style', inactiveStyle);
-                $('#project-list-view').removeClass('d-none');
-                $('#project-grid-view').addClass('d-none');
-            });
         });
     </script>
 {% endblock %}
