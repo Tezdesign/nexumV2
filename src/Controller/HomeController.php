@@ -51,14 +51,5 @@ class HomeController extends AbstractController
         return $this->render('financial-analysis/apps-financial-analysis.html.twig');
     }
 
-    #[Route('/apps-resources-management', name: 'apps-resources-management')]
-    public function resourcesManagement(): Response
-    {
-        return $this->render('resources-management/apps-resources-management.html.twig');
-    }
-    #[Route('/admin/resources/add', name: 'apps-resources-add')]
-    public function addResource()
-    {
-        return $this->render('resources-management/apps-resources-add.html.twig');
-    }
+    
 }

@@ -1,0 +1,41 @@
+{% extends 'layouts/vertical.html.twig' %}
+
+{% set title = 'My Resource Assignments' %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between mb-4">
+        <h4>My Resource Assignments</h4>
+<a href="{{ path('client_resources_view') }}" class="btn btn-primary">Front Page</a>    </div>
+
+    <div class="row">
+        {% for item in resourceData %}
+            {% set assignment = item.assignment %}
+            {% set resource = item.resource %}
+
+            <div class="col-md-4 mb-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ resource.resourceName }} ({{ resource.resourceCode }})</h5>
+                        <p class="mb-1"><strong>Type:</strong> {{ resource.resourceType }}</p>
+                        <p class="mb-1"><strong>Quantity:</strong> {{ assignment.quantity }}</p>
+                        <p class="mb-1"><strong>Status:</strong> 
+                            {% if assignment.status == 'accepted' %}
+                                <span class="badge bg-success">Accepted</span>
+                            {% elseif assignment.status == 'declined' %}
+                                <span class="badge bg-danger">Declined</span>
+                            {% else %}
+                                <span class="badge bg-warning text-dark">Pending</span>
+                            {% endif %}
+                        </p>
+                        <p class="mb-1"><strong>Return Date:</strong> {{ assignment.returnDate ? assignment.returnDate|date('Y-m-d') : 'N/A' }}</p>
+                        <p class="mb-1"><strong>Total Cost:</strong> ${{ assignment.totalCost ?: '0.00' }}</p>
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            <p>No assignments found for this client.</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
