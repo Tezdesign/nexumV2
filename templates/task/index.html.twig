@@ -745,7 +745,8 @@
 
 	                            {% set createdBy = task.createdBy ?? null %}
 	                            {% set canDeleteTask = (isManager|default(false)) or (createdBy is not null and createdBy == (currentUserId|default(0))) %}
-	                            {% if isManager|default(false) %}
+	                            {% set canEditTask = createdBy is not null and createdBy == (currentUserId|default(0)) %}
+	                            {% if canEditTask %}
 	                                <button type="button"
 	                                        class="nexum-icon-btn"
 	                                        title="Edit"
@@ -884,7 +885,7 @@
 	    </div>
 
 	    {# Edit modal (content is fetched per task) #}
-	    <div class="modal fade nexum-modal nexum-edit" id="editTaskModal" tabindex="-1" aria-hidden="true">
+	    <div class="modal fade nexum-modal" id="editTaskModal" tabindex="-1" aria-hidden="true">
 	        <div class="modal-dialog modal-dialog-centered">
 	            <div class="modal-content" id="editTaskModalContent">
 	                <div class="modal-body text-muted small p-4">Loading...</div>

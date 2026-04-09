@@ -1,114 +1,61 @@
-<div class="modal-content" id="createProjectModalContent">
-    {{ form_start(createForm, { attr: { id: 'createProjectForm', novalidate: 'novalidate' } }) }}
+{% set projectForm = projectForm|default(createForm|default(null)) %}
+{% set contentId = contentId|default('createProjectModalContent') %}
+{% set formId = formId|default('createProjectForm') %}
+{% set submitLabel = submitLabel|default('Create Project') %}
+{% set headingTitle = headingTitle|default('Create New Project') %}
+{% set headingSubtitle = headingSubtitle|default('Start a new initiative for your team') %}
+
+<div class="modal-content" id="{{ contentId }}">
+    {{ form_start(projectForm, { attr: { id: formId, novalidate: 'novalidate' } }) }}
     <input type="hidden" name="back" value="{{ backUrl|default('') }}">
 
     <div class="modal-header">
         <div>
-            <h5 class="modal-title mb-1">Create New Project</h5>
-            <div class="text-muted small">Start a new initiative for your team</div>
+            <h5 class="modal-title mb-1">{{ headingTitle }}</h5>
+            <div class="text-muted small">{{ headingSubtitle }}</div>
         </div>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
     </div>
 
     <div class="modal-body">
-        {{ form_errors(createForm) }}
+        {{ form_errors(projectForm) }}
 
         <div class="mb-3">
-            {{ form_label(createForm.name) }} <span class="text-danger">*</span>
-            {{ form_widget(createForm.name, { attr: { class: 'form-control', placeholder: 'e.g. Q4 Marketing Campaign' } }) }}
-            {{ form_errors(createForm.name) }}
+            {{ form_label(projectForm.name) }} <span class="text-danger">*</span>
+            {{ form_widget(projectForm.name, { attr: { class: 'form-control', placeholder: 'e.g. Q4 Marketing Campaign' } }) }}
+            {{ form_errors(projectForm.name) }}
         </div>
 
         <div class="mb-3">
-            {{ form_label(createForm.description) }}
-            {{ form_widget(createForm.description, { attr: { class: 'form-control', placeholder: 'Describe the goals and scope of this project...' } }) }}
-            {{ form_errors(createForm.description) }}
+            {{ form_label(projectForm.description) }}
+            {{ form_widget(projectForm.description, { attr: { class: 'form-control', placeholder: 'Describe the goals and scope of this project...' } }) }}
+            {{ form_errors(projectForm.description) }}
         </div>
 
         <div class="row g-3">
             <div class="col-12 col-md-6">
-                {{ form_label(createForm.start_date) }} <span class="text-danger">*</span>
-                {{ form_widget(createForm.start_date, { attr: { class: 'form-control' } }) }}
-                {{ form_errors(createForm.start_date) }}
+                {{ form_label(projectForm.start_date) }} <span class="text-danger">*</span>
+                {{ form_widget(projectForm.start_date, { attr: { class: 'form-control' } }) }}
+                {{ form_errors(projectForm.start_date) }}
             </div>
             <div class="col-12 col-md-6">
-                {{ form_label(createForm.end_date) }} <span class="text-danger">*</span>
-                {{ form_widget(createForm.end_date, { attr: { class: 'form-control' } }) }}
-                {{ form_errors(createForm.end_date) }}
+                {{ form_label(projectForm.end_date) }} <span class="text-danger">*</span>
+                {{ form_widget(projectForm.end_date, { attr: { class: 'form-control' } }) }}
+                {{ form_errors(projectForm.end_date) }}
             </div>
         </div>
 
-        <div class="mt-3">
-            {{ form_label(createForm.assignedUsers, 'Assign Team') }} <span class="text-danger">*</span>
-            {{ form_widget(createForm.assignedUsers, { attr: { class: 'd-none', 'data-assigned-select': '1', multiple: 'multiple' } }) }}
-
-            <div class="dropdown mt-2">
-                <button class="btn btn-outline-secondary w-100 dropdown-toggle nexum-assignee-btn"
-                        type="button"
-                        data-bs-toggle="dropdown"
-                        data-bs-auto-close="outside"
-                        aria-expanded="false"
-                        data-assignee-button>
-                    <span class="nexum-assignee-left">
-                        <span class="d-inline-flex align-items-center" style="gap: 6px;" data-assignee-avatars></span>
-                        <span class="d-flex flex-column text-start min-w-0">
-                            <span class="nexum-assignee-name text-muted" data-assignee-name>Select team members...</span>
-                            <span class="nexum-assignee-role" data-assignee-role></span>
-                        </span>
-                    </span>
-                </button>
-
-                <div class="dropdown-menu nexum-assignee-menu">
-                    <input type="search"
-                           class="form-control mb-2"
-                           placeholder="Search users..."
-                           autocomplete="off"
-                           data-assignee-search>
-
-                    <div style="max-height: 260px; overflow: auto;" data-assignee-list>
-                        {% for u in assignableUsers|default([]) %}
-                            <button type="button"
-                                    class="dropdown-item nexum-assignee-item"
-                                    data-assignee-item
-                                    data-user-id="{{ u.id }}"
-                                    data-user-name="{{ u.name|plain_text|e }}"
-                                    data-user-role="{{ u.role|plain_text|e }}"
-                                    data-user-img="{{ u.img ? u.img|e : '' }}">
-                                <span class="nexum-assignee-left">
-                                    {% if u.img %}
-                                        <span class="nexum-assignee-avatar">
-                                            <img src="{{ u.img }}" alt="{{ u.name|plain_text }}">
-                                        </span>
-                                    {% else %}
-                                        {% set ap = avatar_placeholder(u.name) %}
-                                        <span class="nexum-assignee-avatar" style="background: {{ ap.bg }}; color: {{ ap.fg }};">
-                                            {{ ap.initial }}
-                                        </span>
-                                    {% endif %}
-                                    <span class="meta">
-                                        <div class="name">{{ u.name|plain_text }}</div>
-                                        <div class="role">{{ (u.role ?: 'User')|plain_text }}</div>
-                                    </span>
-                                </span>
-
-                                <span class="nexum-assignee-check"></span>
-                            </button>
-                        {% else %}
-                            <div class="text-muted small px-2 py-2">No users found.</div>
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
-            {{ form_errors(createForm.assignedUsers) }}
-        </div>
+        {% include 'project/_team_dropdown.html.twig' with {
+            teamForm: projectForm,
+            teamUsers: assignableUsers|default([]),
+            teamLabel: 'Assign Team'
+        } %}
     </div>
 
     <div class="modal-footer">
         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="submit" class="btn btn-primary nexum-btn-primary text-white">
-            Create Project
-        </button>
+        <button type="submit" class="btn btn-primary nexum-btn-primary text-white">{{ submitLabel }}</button>
     </div>
 
-    {{ form_end(createForm) }}
+    {{ form_end(projectForm) }}
 </div>

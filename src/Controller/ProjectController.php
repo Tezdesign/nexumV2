@@ -587,7 +587,7 @@ final class ProjectController extends AbstractController
     }
 
     #[Route('/{id}/edit', name: 'app_project_edit', methods: ['GET', 'POST'])]
-    public function edit(Request $request, Project $project, UtilisateurRepository $utilisateurRepository, AuthService $authService, ProjectActivityLogger $activityLogger, EntityManagerInterface $entityManager): Response
+    public function edit(Request $request, Project $project, ProjectAssignmentRepository $projectAssignmentRepository, UtilisateurRepository $utilisateurRepository, AuthService $authService, ProjectActivityLogger $activityLogger, EntityManagerInterface $entityManager): Response
     {
         $currentUserId = (int) ($authService->getCurrentUserId() ?? 0);
         $currentUser = $currentUserId > 0 ? $utilisateurRepository->find($currentUserId) : null;
@@ -596,11 +596,94 @@ final class ProjectController extends AbstractController
             throw $this->createAccessDeniedException();
         }
 
-        $form = $this->createForm(ProjectType::class, $project);
+        $assignableUsers = [];
+        $assignableUserIds = [];
+        foreach ($utilisateurRepository->findNonAdminUsers() as $user) {
+            if ($user->getId() === null) {
+                continue;
+            }
+
+            $assignableUserIds[] = (int) $user->getId();
+
+            $raw = $user->getImagelink();
+            $img = null;
+            if (is_string($raw)) {
+                $raw = trim($raw);
+                if ($raw !== '' && preg_match('~^(https?://|/|data:image/)~', $raw) === 1) {
+                    $img = $raw;
+                }
+            }
+
+            $assignableUsers[] = [
+                'id' => (int) $user->getId(),
+                'name' => UserDisplayName::format($user, (int) $user->getId()),
+                'role' => trim((string) $user->getRole()),
+                'img' => $img,
+            ];
+        }
+
+        $form = $this->createForm(ProjectManagerUpdateType::class, $project, [
+            'assignable_users' => $assignableUserIds,
+        ]);
+
+        $prefillMemberIds = [];
+        $createdBy = $project->getCreatedBy();
+        if ($createdBy !== null) {
+            $prefillMemberIds[(int) $createdBy] = true;
+        }
+        $assignedTo = $project->getAssignedTo();
+        if ($assignedTo !== null) {
+            $prefillMemberIds[(int) $assignedTo] = true;
+        }
+        foreach ($projectAssignmentRepository->getUserIdsByProjectId((int) $project->getId()) as $uid) {
+            $prefillMemberIds[(int) $uid] = true;
+        }
+        if ($createdBy !== null) {
+            unset($prefillMemberIds[(int) $createdBy]);
+        }
+
+        if ($form->has('assignedUsers') && $prefillMemberIds !== []) {
+            $prefillUsers = $utilisateurRepository->findIndexedByIds(array_keys($prefillMemberIds));
+            $form->get('assignedUsers')->setData(array_values($prefillUsers));
+        }
+
         $form->handleRequest($request);
 
         if ($form->isSubmitted()) {
             if ($form->isValid()) {
+                /** @var iterable<\App\Entity\UserHandling\Utilisateur> $selectedUsers */
+                $selectedUsers = $form->get('assignedUsers')->getData();
+                $selectedUserIds = [];
+                foreach ($selectedUsers as $u) {
+                    if ($u->getId() !== null) {
+                        $selectedUserIds[] = (int) $u->getId();
+                    }
+                }
+
+                $project->setAssignedTo($selectedUserIds !== [] ? $selectedUserIds[0] : null);
+
+                $entityManager->createQueryBuilder()
+                    ->delete(ProjectAssignment::class, 'pa')
+                    ->andWhere('pa.project_id = :pid')
+                    ->setParameter('pid', (int) $project->getId())
+                    ->getQuery()
+                    ->execute();
+
+                $keepIds = [];
+                if ($project->getCreatedBy() !== null) {
+                    $keepIds[(int) $project->getCreatedBy()] = true;
+                }
+                foreach ($selectedUserIds as $uid) {
+                    $keepIds[(int) $uid] = true;
+                }
+
+                foreach (array_keys($keepIds) as $uid) {
+                    $pa = new ProjectAssignment();
+                    $pa->setProject_id((int) $project->getId());
+                    $pa->setUserId((int) $uid);
+                    $entityManager->persist($pa);
+                }
+
                 $entityManager->flush();
 
                 $activityLogger->record(
@@ -622,6 +705,7 @@ final class ProjectController extends AbstractController
                 return $this->render('project/_edit_modal_content.html.twig', [
                     'project' => $project,
                     'form' => $form->createView(),
+                    'assignableUsers' => $assignableUsers,
                 ], new Response('', Response::HTTP_UNPROCESSABLE_ENTITY));
             }
         }
@@ -630,6 +714,7 @@ final class ProjectController extends AbstractController
             return $this->render('project/_edit_modal_content.html.twig', [
                 'project' => $project,
                 'form' => $form->createView(),
+                'assignableUsers' => $assignableUsers,
             ]);
         }
 
