@@ -139,16 +139,20 @@
 /* Confirm Delete Button Animation */
 .confirm-delete-wrapper {
     max-width: 0;
-    width: 0;
-    padding: 0;
+    padding: 0 !important;
+    margin-right: 0 !important;
     opacity: 0;
     overflow: hidden;
-    transition: max-width 0.3s ease-in-out, opacity 0.3s ease-in-out, margin 0.3s ease-in-out, width 0.3s ease-in-out;
+    transition: max-width 0.3s ease-in-out, opacity 0.3s ease-in-out, margin-right 0.3s ease-in-out;
     white-space: nowrap;
 }
 .show-checkboxes-mode .confirm-delete-wrapper {
     max-width: 200px;
-    width: auto;
     opacity: 1;
-    margin-right: 0.5rem;
+    margin-right: 0.5rem !important;
+}
+
+#confirmDeleteBtn:hover #deleteCountBadge {
+    background-color: #fff !important;
+    color: #dc3545 !important;
 }
