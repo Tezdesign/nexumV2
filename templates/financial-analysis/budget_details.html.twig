@@ -1,0 +1,116 @@
+{% extends 'layouts/vertical.html.twig' %}
+
+{% set title = 'Budget Details'|trans %}
+
+{% block css %}
+    <!-- Tabler Icons Webfont (CDN) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+    
+    <!-- NoUiSlider css -->
+    <link rel="stylesheet" href="/vendor/nouislider/nouislider.min.css">
+    
+    <!-- Custom FA css -->
+    <link href="/css/FA.css?v={{ random() }}" rel="stylesheet" type="text/css" />
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid pt-4">
+        <!-- Breadcrumb (Backstep logic) -->
+        <div class="row align-items-center mb-3">
+            <div class="col-12">
+                <div class="page-title-box mb-0">
+                    <h4 class="page-title m-0">
+                        <nav aria-label="breadcrumb" class="d-inline-block">
+                            <ol class="breadcrumb m-0 p-0 bg-transparent align-items-center">
+                                <li class="breadcrumb-item">
+                                    <a href="{{ path('apps-financial-analysis-landing') }}" class="text-dark text-decoration-none">
+                                        <i class="ti ti-smart-home fs-16 me-1"></i>{{ 'Fiscal Budget Profiles'|trans }}
+                                    </a>
+                                </li>
+                                <li class="breadcrumb-item">
+                                    {% if budgetProfile %}
+                                        <a href="{{ path('apps-financial-analysis-profile', {id: budgetProfile.id}) }}" class="text-dark text-decoration-none">
+                                            {{ 'FY'|trans }} {{ budgetProfile.fiscalYear }} {{ 'Dashboard'|trans }}
+                                        </a>
+                                    {% else %}
+                                        <a href="{{ path('apps-financial-analysis-landing') }}" class="text-dark text-decoration-none">
+                                            {{ 'Dashboard'|trans }}
+                                        </a>
+                                    {% endif %}
+                                </li>
+                                <li class="breadcrumb-item active text-muted" aria-current="page">{{ projectBudget.name|trans }}</li>
+                            </ol>
+                        </nav>
+                    </h4>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                {% include 'financial-analysis/FA_components/_budget_hero_card.html.twig' %}
+            </div>
+        </div>
+
+        <div class="row mt-3">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body p-0">
+                        <ul class="nav nav-tabs nav-bordered mb-0">
+                            <li class="nav-item">
+                                <a href="#overview-tab" data-bs-toggle="tab" aria-expanded="true" class="nav-link active py-3">
+                                    <i class="ti ti-chart-pie fs-18 me-md-1"></i>
+                                    <span class="d-none d-md-inline-block">{{ 'Overview'|trans }}</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="#transactions-tab" data-bs-toggle="tab" aria-expanded="false" class="nav-link py-3">
+                                    <i class="ti ti-receipt fs-18 me-md-1"></i>
+                                    <span class="d-none d-md-inline-block">{{ 'Transactions'|trans }}</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="#analysis-tab" data-bs-toggle="tab" aria-expanded="false" class="nav-link py-3">
+                                    <i class="ti ti-report-analytics fs-18 me-md-1"></i>
+                                    <span class="d-none d-md-inline-block">{{ 'Analysis'|trans }}</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="tab-content pt-3">
+                    <div class="tab-pane show active" id="overview-tab">
+                        {% include 'financial-analysis/FA_components/_tab_overview.html.twig' %}
+                    </div>
+                    <div class="tab-pane" id="transactions-tab">
+                        {% include 'financial-analysis/FA_components/_tab_transactions.html.twig' %}
+                    </div>
+                    <div class="tab-pane" id="analysis-tab">
+                        {% include 'financial-analysis/FA_components/_tab_analysis.html.twig' %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% include 'financial-analysis/FA_components/_update_project_budget_modal.html.twig' %}
+    {% include 'financial-analysis/FA_components/_create_transaction_modal.html.twig' %}
+    {% include 'financial-analysis/FA_components/_delete_project_budget_modal.html.twig' %}
+{% endblock %}
+
+{% block script %}
+    <!-- Flatpickr js -->
+    <script src="/vendor/flatpickr/flatpickr.min.js"></script>
+
+    <!-- Select2 js -->
+    <script src="/vendor/select2/js/select2.min.js"></script>
+
+    <!-- NoUiSlider js -->
+    <script src="/vendor/nouislider/nouislider.min.js"></script>
+    <script src="/vendor/wnumb/wNumb.min.js"></script>
+
+    <!-- Custom FA JS Logic -->
+    <script src="/js/FA_custom.js?v={{ random() }}"></script>
+    <script src="/js/FA_functions.js?v={{ random() }}"></script>
+{% endblock %}

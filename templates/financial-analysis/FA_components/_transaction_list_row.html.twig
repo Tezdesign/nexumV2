@@ -1,0 +1,47 @@
+<div class="card mb-2 position-relative overflow-hidden transaction-card">
+    <div class="transaction-checkbox-wrapper">
+        <input class="form-check-input transaction-checkbox fs-18" type="checkbox" value="{{ transaction.id|default('') }}">
+    </div>
+    <div class="card-body p-2 transaction-row-content">
+        <div class="row align-items-center">
+            <!-- Reference & Date -->
+            <div class="col-md-3 col-lg-3">
+                <div class="d-flex align-items-center">
+                    <i class="ti ti-receipt fs-20 me-2 text-primary"></i>
+                    <div>
+                        <h5 class="m-0 fs-14">
+                            <a href="#" class="text-dark">{{ transaction.reference|default('TX-000000')|trans }}</a>
+                        </h5>
+                        <p class="text-muted mb-0 fs-12">{{ transaction.dateStamp|default('2026-04-09')|trans }}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Category Badge -->
+            <div class="col-md-2 col-lg-2 text-center mt-2 mt-md-0">
+                <span class="badge bg-dark rounded-pill fs-11 px-2 py-1">{{ transaction.expenseCategory|default('SOFTWARE')|trans }}</span>
+            </div>
+            
+            <!-- Description -->
+            <div class="col-md-3 col-lg-4 text-center text-md-start mt-2 mt-md-0">
+                <p class="text-muted mb-0 fs-13 text-truncate" title="{{ transaction.description|default('Subscription renewal')|trans }}">
+                    {{ transaction.description|default('Subscription renewal')|trans }}
+                </p>
+            </div>
+            
+            <!-- Cost -->
+            <div class="col-md-2 col-lg-2 text-end mt-2 mt-md-0">
+                <h5 class="fw-semibold text-danger m-0 fs-14">-{{ currency_symbol|default('$') }}{{ transaction.cost|default('299.00') }}</h5>
+            </div>
+            
+            <!-- Actions -->
+            <div class="col-md-2 col-lg-1 text-end mt-2 mt-md-0 pe-3">
+                <button type="button" class="btn btn-sm btn-link text-muted p-0" title="{{ 'Edit'|trans }}" data-bs-toggle="modal" data-bs-target="#updateTransactionModal_{{ transaction.id }}">
+                    <i class="ti ti-pencil fs-18"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% include 'financial-analysis/FA_components/_update_transaction_modal.html.twig' %}

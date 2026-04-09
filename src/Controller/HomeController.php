@@ -475,12 +475,6 @@ class HomeController extends AbstractController
         return $this->render('training/apps-training.html.twig');
     }
 
-    #[Route('/apps-financial-analysis', name: 'apps-financial-analysis')]
-    public function financialAnalysis(): Response
-    {
-        return $this->render('financial-analysis/apps-financial-analysis.html.twig');
-    }
-
     #[Route('/apps-resources-management', name: 'apps-resources-management')]
     public function resourcesManagement(): Response
     {

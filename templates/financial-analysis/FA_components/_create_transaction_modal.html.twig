@@ -1,0 +1,116 @@
+<!-- Create Transaction Modal -->
+<div class="modal fade" id="createTransactionModal" tabindex="-1" aria-labelledby="createTransactionModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header border-bottom border-dashed d-flex align-items-center">
+                <h4 class="modal-title" id="createTransactionModalLabel">{{ 'Add Transaction'|trans }}</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            
+            {{ form_start(transactionForm, {'attr': {'id': 'createTransactionForm', 'novalidate': 'novalidate'}}) }}
+            <div class="modal-body p-4">
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        {{ form_label(transactionForm.reference, 'Reference'|trans, {'label_attr': {'class': 'form-label'}}) }}
+                        {{ form_widget(transactionForm.reference, {'attr': {
+                            'class': 'form-control ' ~ (transactionForm.reference.vars.valid ? '' : 'is-invalid')
+                        }}) }}
+                        {% if not transactionForm.reference.vars.valid %}
+                            <div class="text-danger mt-1" style="font-size: 0.875em; display: block;">
+                                {% for error in transactionForm.reference.vars.errors %}
+                                    <span class="d-block">{{ error.message }}</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        {{ form_label(transactionForm.expense_category, 'Expense Category'|trans, {'label_attr': {'class': 'form-label'}}) }}
+                        {{ form_widget(transactionForm.expense_category, {'attr': {
+                            'class': 'form-select ' ~ (transactionForm.expense_category.vars.valid ? '' : 'is-invalid'),
+                            'data-toggle': 'select2'
+                        }}) }}
+                        {% if not transactionForm.expense_category.vars.valid %}
+                            <div class="text-danger mt-1" style="font-size: 0.875em; display: block;">
+                                {% for error in transactionForm.expense_category.vars.errors %}
+                                    <span class="d-block">{{ error.message }}</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        {{ form_label(transactionForm.cost, 'Cost'|trans, {'label_attr': {'class': 'form-label'}}) }}
+                        <div class="input-group">
+                            <span class="input-group-text" id="tx-cost-addon">{{ currency_symbol|default('$') }}</span>
+                            {{ form_widget(transactionForm.cost, {'attr': {
+                                'class': 'form-control ' ~ (transactionForm.cost.vars.valid ? '' : 'is-invalid'),
+                                'aria-describedby': 'tx-cost-addon'
+                            }}) }}
+                        </div>
+                        {% if not transactionForm.cost.vars.valid %}
+                            <div class="text-danger mt-1" style="font-size: 0.875em; display: block;">
+                                {% for error in transactionForm.cost.vars.errors %}
+                                    <span class="d-block">{{ error.message }}</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        {{ form_label(transactionForm.date_stamp, 'Transaction Date'|trans, {'label_attr': {'class': 'form-label'}}) }}
+                        {{ form_widget(transactionForm.date_stamp, {'attr': {
+                            'class': 'form-control ' ~ (transactionForm.date_stamp.vars.valid ? '' : 'is-invalid'),
+                            'data-provider': 'flatpickr',
+                            'data-date-format': 'Y-m-d'
+                        }}) }}
+                        {% if not transactionForm.date_stamp.vars.valid %}
+                            <div class="text-danger mt-1" style="font-size: 0.875em; display: block;">
+                                {% for error in transactionForm.date_stamp.vars.errors %}
+                                    <span class="d-block">{{ error.message }}</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-12 mb-3">
+                        {{ form_label(transactionForm.description, 'Description'|trans, {'label_attr': {'class': 'form-label'}}) }}
+                        {{ form_widget(transactionForm.description, {'attr': {
+                            'class': 'form-control ' ~ (transactionForm.description.vars.valid ? '' : 'is-invalid')
+                        }}) }}
+                        {% if not transactionForm.description.vars.valid %}
+                            <div class="text-danger mt-1" style="font-size: 0.875em; display: block;">
+                                {% for error in transactionForm.description.vars.errors %}
+                                    <span class="d-block">{{ error.message }}</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">{{ 'Cancel'|trans }}</button>
+                <button type="submit" class="btn btn-legacy-purple">{{ 'Add Transaction'|trans }}</button>
+            </div>
+            {{ form_end(transactionForm) }}
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const modalEl = document.getElementById('createTransactionModal');
+        if (modalEl) {
+            {% if transactionForm is defined and transactionForm.vars.submitted and not transactionForm.vars.valid %}
+                const myModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                myModal.show();
+            {% endif %}
+        }
+    });
+</script>

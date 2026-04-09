@@ -1,0 +1,39 @@
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="header-title m-0">{{ title|default('Project Budgets'|trans) }}</h4>
+    <div class="d-flex flex-wrap gap-2 align-items-center p-2 rounded" style="background-color: var(--ct-secondary-bg-subtle, rgba(91, 105, 188, 0.1));">
+        <!-- Search Bar (Styled like topbar) -->
+        <div class="app-search d-none d-sm-block me-auto">
+            <form>
+                <div class="position-relative">
+                    <input type="search" class="form-control border-0" id="project-search-input" style="background-color: var(--ct-body-bg, #fff); border-radius: 20px; padding-left: 35px; box-shadow: none; min-width: 200px;" placeholder="{{ 'Search...'|trans }}">
+                    <i class="ri-search-line fs-18 position-absolute text-muted" style="left: 10px; top: 50%; transform: translateY(-50%);"></i>
+                </div>
+            </form>
+        </div>
+        
+        <div class="d-flex align-items-center gap-2">
+            <!-- Action Buttons -->
+            {% if show_all_button|default(true) and app.request.attributes.get('_route') != 'apps-financial-analysis-profile-projects' %}
+                <a href="{{ path('apps-financial-analysis-profile-projects', {id: budgetProfile.id}) }}" class="btn btn-outline-primary btn-sm text-nowrap">
+                    {{ 'Show All Projects'|trans }}
+                </a>
+            {% endif %}
+
+            {% include 'financial-analysis/FA_components/_project_budget_filter_dropdown.html.twig' %}
+            
+            <button type="button" class="btn btn-primary btn-legacy-purple btn-sm" data-bs-toggle="modal" data-bs-target="#createProjectBudgetModal">
+                <i class="ti ti-layout-grid-add fs-20"></i>
+            </button>
+
+            <!-- Toggle Buttons (Smaller, Light Purple) -->
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-sm" style="background-color: rgba(91, 105, 188, 0.15); color: var(--ct-secondary, #7F22FE); border-color: transparent;" id="btn-grid-view">
+                    <i class="ri-grid-fill fs-16"></i>
+                </button>
+                <button type="button" class="btn btn-sm" style="background-color: transparent; color: var(--ct-secondary, #7F22FE); border-color: rgba(91, 105, 188, 0.15);" id="btn-list-view">
+                    <i class="ri-list-check fs-16"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

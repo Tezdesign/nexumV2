@@ -19,3 +19,9 @@
 
 # Gemini Context
 /GEMINI.md
+/.agents/
+/.gemini/
+/skills-lock.json
+
+# IDEs
+/.idea/

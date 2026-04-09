@@ -1,0 +1,32 @@
+<!-- Delete Transactions Confirmation Modal -->
+<div class="modal fade" id="deleteTransactionsModal" tabindex="-1" aria-labelledby="deleteTransactionsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-bottom border-dashed d-flex align-items-center">
+                <h4 class="modal-title" id="deleteTransactionsModalLabel">{{ 'Confirm Deletion'|trans }}</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4 text-center">
+                <div class="mb-4">
+                    <i class="ti ti-trash-x text-danger opacity-75" style="font-size: 5rem;"></i>
+                </div>
+                <h4 class="fw-semibold">{{ 'Are you sure?'|trans }}</h4>
+                <p class="text-muted fs-15">
+                    {{ 'You are about to permanently delete'|trans }} 
+                    <span id="modalDeleteCount" class="fw-bold text-danger">0</span> 
+                    {{ 'transactions. This action cannot be undone.'|trans }}
+                </p>
+                <p class="text-muted fs-13 mt-2">
+                    {{ 'All totals for this project and the fiscal year will be recalculated automatically.'|trans }}
+                </p>
+            </div>
+            <div class="modal-footer">
+                <form id="bulkDeleteForm" action="{{ path('apps-financial-analysis-bulk-delete-transactions', {id: projectBudgetEntity.id}) }}" method="POST">
+                    <input type="hidden" name="transaction_ids" id="bulkDeleteInput">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">{{ 'Cancel'|trans }}</button>
+                    <button type="submit" class="btn btn-danger">{{ 'Delete Transactions'|trans }}</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

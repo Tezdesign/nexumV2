@@ -1,0 +1,60 @@
+<!-- Filter Dropdown Component -->
+<div class="dropdown d-inline-block">
+    <button class="btn btn-link text-muted p-1 text-decoration-none dropdown-toggle drop-arrow-none" type="button" id="transactionFilterDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="{{ 'Filter Parameters'|trans }}" data-bs-auto-close="outside">
+        <i class="ti ti-adjustments-horizontal fs-20"></i>
+    </button>
+    <div class="dropdown-menu dropdown-menu-end p-3 shadow-lg border-0" aria-labelledby="transactionFilterDropdown" style="width: 320px;">
+        <h5 class="dropdown-header text-uppercase fs-13 px-0 pb-2 mb-2 border-bottom border-dashed">{{ 'Filter Transactions'|trans }}</h5>
+        
+        <!-- Category Filter -->
+        <div class="mb-3">
+            <label class="form-label fs-12">{{ 'Category'|trans }}</label>
+            <select class="form-select form-select-sm" id="filter-category">
+                <option value="ALL">{{ 'All Categories'|trans }}</option>
+                <option value="HARDWARE">{{ 'Hardware'|trans }}</option>
+                <option value="SOFTWARE">{{ 'Software'|trans }}</option>
+                <option value="SERVICES">{{ 'Services'|trans }}</option>
+                <option value="TRAVEL">{{ 'Travel'|trans }}</option>
+                <option value="MARKETING">{{ 'Marketing'|trans }}</option>
+                <option value="OTHER">{{ 'Other'|trans }}</option>
+            </select>
+        </div>
+
+        <!-- Date Filter -->
+        <div class="mb-4">
+            <label class="form-label fs-12">{{ 'Exact Date'|trans }}</label>
+            <div class="d-flex gap-1">
+                <select class="form-select form-select-sm" id="filter-date-year">
+                    <option value="ALL">{{ 'YYYY'|trans }}</option>
+                    {% for year in 2020..2030 %}
+                        <option value="{{ year }}">{{ year }}</option>
+                    {% endfor %}
+                </select>
+                <select class="form-select form-select-sm" id="filter-date-month">
+                    <option value="ALL">{{ 'MM'|trans }}</option>
+                    {% for i in 1..12 %}
+                        <option value="{{ '%02d'|format(i) }}">{{ '%02d'|format(i) }}</option>
+                    {% endfor %}
+                </select>
+                <select class="form-select form-select-sm" id="filter-date-day">
+                    <option value="ALL">{{ 'DD'|trans }}</option>
+                    {% for i in 1..31 %}
+                        <option value="{{ '%02d'|format(i) }}">{{ '%02d'|format(i) }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <!-- Amount Range Slider -->
+        <div class="mb-4 pb-4">
+            <label class="form-label fs-12 mb-3">{{ 'Amount Range'|trans }}</label>
+            <div id="transaction-amount-slider"></div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="d-flex justify-content-between mt-3 pt-2 border-top border-dashed">
+            <button type="button" class="btn btn-sm btn-light" id="btn-clear-filters">{{ 'Clear'|trans }}</button>
+            <button type="button" class="btn btn-sm btn-primary" id="btn-apply-filters">{{ 'Apply Filters'|trans }}</button>
+        </div>
+    </div>
+</div>
