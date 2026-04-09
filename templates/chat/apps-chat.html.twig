@@ -96,6 +96,27 @@
             background-color: #6f42c1 !important;
             border-color: #6f42c1 !important;
         }
+        #groupCreateModal .btn-primary,
+        #groupCreateModal .btn-primary:focus,
+        #groupCreateModal .btn-primary:active,
+        #groupCreateModal .btn-primary.active,
+        #groupCreateModal .btn-check:checked + .btn-primary,
+        #groupCreateModal .btn-primary.dropdown-toggle.show {
+            background-color: #6f42c1 !important;
+            border-color: #6f42c1 !important;
+            box-shadow: 0 0 0 0.2rem rgba(111, 66, 193, 0.25) !important;
+        }
+        #groupCreateModal .form-check-input {
+            accent-color: #6f42c1;
+        }
+        #groupCreateModal .form-check-input:checked {
+            background-color: #6f42c1 !important;
+            border-color: #6f42c1 !important;
+        }
+        #groupCreateModal .form-check-input:focus {
+            border-color: #6f42c1 !important;
+            box-shadow: 0 0 0 0.2rem rgba(111, 66, 193, 0.25) !important;
+        }
         [data-apps-chat="add-members-list"] [data-add-user-id]:hover,
         [data-apps-chat="group-candidates-list"] [data-group-select-user-id]:hover,
         [data-apps-chat="add-members-modal"] .btn-primary:hover,
@@ -716,5 +737,5 @@
 {% endblock %}
 
 {% block script %}
-    <script src="/js/pages/apps-chat.js?v=20260409g"></script>
+    <script src="/js/pages/apps-chat.js?v=20260409h"></script>
 {% endblock %}
