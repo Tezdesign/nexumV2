@@ -5,11 +5,11 @@
 {% block css %}
     <!-- Tabler Icons Webfont (CDN) -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
-    
-    <!-- Select2 css -->
+
     <link href="/vendor/select2/css/select2.min.css" rel="stylesheet" type="text/css" />
-    
-    <!-- Custom FA css -->
+
+    <link href="/vendor/nouislider/nouislider.min.css" rel="stylesheet" type="text/css" />
+
     <link href="/css/FA.css" rel="stylesheet" type="text/css" />
 {% endblock %}
 
@@ -316,9 +316,14 @@
     <!-- Widgets js -->
     <script src="/js/pages/widgets.js"></script>
 
+    <!-- NoUiSlider js -->
+    <script src="/vendor/nouislider/nouislider.min.js"></script>
+    <script src="/vendor/wnumb/wNumb.min.js"></script>
+
     <!-- Custom FA JS Logic -->
     <script src="/js/FA_custom.js?v={{ random() }}"></script>
     <script src="/js/FA_functions.js?v={{ random() }}"></script>
+    <script src="/js/FA_PBfunctions.js?v={{ random() }}"></script>
 
     <script>
         $(document).ready(function() {
