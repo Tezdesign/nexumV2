@@ -24,9 +24,15 @@
                                     </a>
                                 </li>
                                 <li class="breadcrumb-item">
-                                    <a href="javascript:history.back()" class="text-dark text-decoration-none">
-                                        {{ 'FY'|trans }} {{ projectBudget.fiscalYear|default('2026') }} {{ 'Dashboard'|trans }}
-                                    </a>
+                                    {% if budgetProfile %}
+                                        <a href="{{ path('apps-financial-analysis-profile', {id: budgetProfile.id}) }}" class="text-dark text-decoration-none">
+                                            {{ 'FY'|trans }} {{ budgetProfile.fiscalYear }} {{ 'Dashboard'|trans }}
+                                        </a>
+                                    {% else %}
+                                        <a href="{{ path('apps-financial-analysis-landing') }}" class="text-dark text-decoration-none">
+                                            {{ 'Dashboard'|trans }}
+                                        </a>
+                                    {% endif %}
                                 </li>
                                 <li class="breadcrumb-item active text-muted" aria-current="page">{{ projectBudget.name|trans }}</li>
                             </ol>

@@ -37,6 +37,26 @@ class TransactionRepository extends ServiceEntityRepository
         return $result ? (float) $result : 0.0;
     }
 
+    public function updateTransactionDql(Transaction $transaction): void
+    {
+        $this->createQueryBuilder('t')
+            ->update()
+            ->set('t.reference', ':ref')
+            ->set('t.cost', ':cost')
+            ->set('t.date_stamp', ':date')
+            ->set('t.expense_category', ':cat')
+            ->set('t.description', ':desc')
+            ->where('t.id = :id')
+            ->setParameter('ref', $transaction->getReference())
+            ->setParameter('cost', $transaction->getCost())
+            ->setParameter('date', $transaction->getDateStamp() ? $transaction->getDateStamp()->format('Y-m-d') : null)
+            ->setParameter('cat', $transaction->getExpenseCategory())
+            ->setParameter('desc', $transaction->getDescription())
+            ->setParameter('id', $transaction->getId())
+            ->getQuery()
+            ->execute();
+    }
+
     //    /**
     //     * @return Transaction[] Returns an array of Transaction objects
     //     */

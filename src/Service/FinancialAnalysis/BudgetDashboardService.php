@@ -132,4 +132,29 @@ class BudgetDashboardService
             $this->budgetProfileRepository->updateTotalExpenseDql($profile, $totals['expenses']);
         }
     }
+
+    /**
+     * Handles the cascading updates when an existing transaction is updated via DQL.
+     */
+    public function handleTransactionUpdateCascade(ProjectBudget $projectBudget, Transaction $transaction, ?BudgetProfile $profile): void
+    {
+        // 1. Execute the transaction update via DQL
+        $this->transactionRepository->updateTransactionDql($transaction);
+        
+        // 2. Recalculate ProjectBudget actualSpend
+        $totalCost = $this->transactionRepository->getTotalCostForProjectBudget($projectBudget->getId());
+        $projectBudget->setActualSpend((string) $totalCost);
+        
+        // 3. Recalculate ProjectBudget status
+        $projectBudget->calculateStatus();
+        
+        // 4. Update ProjectBudget via DQL
+        $this->projectBudgetRepository->updateActualSpendAndStatusDql($projectBudget);
+        
+        // 5. Recalculate and update BudgetProfile via DQL if it exists
+        if ($profile) {
+            $totals = $this->projectBudgetRepository->getTotalsForFiscalYear($profile->getStartDate(), $profile->getEndDate());
+            $this->budgetProfileRepository->updateTotalExpenseDql($profile, $totals['expenses']);
+        }
+    }
 }

@@ -36,10 +36,12 @@
             
             <!-- Actions -->
             <div class="col-md-2 col-lg-1 text-end mt-2 mt-md-0 pe-3">
-                <button type="button" class="btn btn-sm btn-link text-muted p-0" title="{{ 'Edit'|trans }}">
+                <button type="button" class="btn btn-sm btn-link text-muted p-0" title="{{ 'Edit'|trans }}" data-bs-toggle="modal" data-bs-target="#updateTransactionModal_{{ transaction.id }}">
                     <i class="ti ti-pencil fs-18"></i>
                 </button>
             </div>
         </div>
     </div>
 </div>
+
+{% include 'financial-analysis/FA_components/_update_transaction_modal.html.twig' %}

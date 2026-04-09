@@ -164,9 +164,32 @@ class FinancialDashboardController extends AbstractController
         return $this->render('financial-analysis/budget_details.html.twig', [
             'projectBudget' => $dashboardService->formatBudgetDetails($originalBudget),
             'projectBudgetEntity' => $originalBudget,
+            'budgetProfile' => $profile, // Pass the Profile object for breadcrumbs
             'projectBudgetForm' => $projectBudgetForm->createView(),
             'transactionForm' => $transactionForm->createView(),
             'transactions' => $dashboardService->formatTransactions($originalBudget),
         ]);
+    }
+
+    #[Route('/transaction/{id}/update', name: 'apps-financial-analysis-update-transaction', methods: ['POST'])]
+    public function updateTransaction(
+        Transaction $transaction, 
+        Request $request, 
+        BudgetDashboardService $dashboardService
+    ): Response {
+        $projectBudget = $transaction->getProjectBudget();
+        $profile = $dashboardService->getFiscalProfileForBudget($projectBudget);
+        
+        $form = $this->createForm(TransactionType::class, $transaction);
+        $form->handleRequest($request);
+
+        if ($form->isSubmitted() && $form->isValid()) {
+            $dashboardService->handleTransactionUpdateCascade($projectBudget, $transaction, $profile);
+            $this->addFlash('success', 'Transaction updated successfully!');
+        } else {
+            $this->addFlash('danger', 'Failed to update transaction. Please check errors.');
+        }
+
+        return $this->redirectToRoute('apps-financial-analysis-budget-details', ['id' => $projectBudget->getId()]);
     }
 }
