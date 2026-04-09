@@ -6,6 +6,7 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use InvalidArgumentException;
 
 use App\Repository\Chat\ConversationRepository;
 
@@ -16,6 +17,10 @@ use App\Repository\Chat\ConversationRepository;
 #[ORM\UniqueConstraint(name: "uq_conversations_dm_key", columns: ["dm_key"])]
 class Conversation
 {
+    public const MAX_AVATAR_BLOB_BYTES = 2097152;
+    public const GROUP_NAME_MIN_LENGTH = 4;
+    public const GROUP_NAME_MAX_LENGTH = 7;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: 'integer')]
@@ -56,20 +61,160 @@ class Conversation
 
     public function setTitle(?string $title): self
     {
-        $this->title = $title;
+        $normalizedTitle = $title !== null ? trim($title) : null;
+        if ($normalizedTitle === '') {
+            throw new InvalidArgumentException('Chat name cannot be empty.');
+        }
+
+        if ($normalizedTitle !== null) {
+            $length = mb_strlen($normalizedTitle);
+            if ($length < self::GROUP_NAME_MIN_LENGTH || $length > self::GROUP_NAME_MAX_LENGTH) {
+                throw new InvalidArgumentException('Chat name must be between 4 and 7 letters.');
+            }
+
+            if (!preg_match('/^[A-Za-z]+$/', $normalizedTitle)) {
+                throw new InvalidArgumentException('Chat name can contain letters only.');
+            }
+        }
+
+        $this->title = $normalizedTitle;
         return $this;
     }
 
+    /**
+     * @param int[] $memberUserIds Users to invite (excluding creator).
+     *
+     * @return int[] Normalized unique invited user IDs.
+     */
+    public function initializeGroupConversation(int $creatorUserId, string $title, array $memberUserIds): array
+    {
+        if ($creatorUserId <= 0) {
+            throw new InvalidArgumentException('Invalid creator id.');
+        }
+
+        $normalizedMemberIds = [];
+        foreach ($memberUserIds as $memberUserId) {
+            $id = (int) $memberUserId;
+            if ($id <= 0 || $id === $creatorUserId) {
+                continue;
+            }
+
+            $normalizedMemberIds[$id] = $id;
+        }
+
+        if (count($normalizedMemberIds) < 2) {
+            throw new InvalidArgumentException('A group conversation must include at least 3 people.');
+        }
+
+        $this->setType('GROUP');
+        $this->setDmKey(null);
+        $this->setTitle($title);
+        $this->setCreatedBy($creatorUserId);
+        $this->setCreatedAt(new \DateTime());
+        $this->setLastMessageId(null);
+        $this->setLastMessageAt(null);
+
+        return array_values($normalizedMemberIds);
+    }
+
+    public function renameBy(int $userId, string $title): self
+    {
+        $this->assertCanBeCustomizedBy($userId);
+        $this->setTitle($title);
+
+        return $this;
+    }
+
+    public function updateAvatarBy(int $userId, string $avatar, string $mimeType): self
+    {
+        $this->assertCanBeCustomizedBy($userId);
+        $this->setAvatar($avatar);
+        $this->setAvatarMime($mimeType);
+
+        return $this;
+    }
+
+    public function assertCanBeCustomizedBy(int $userId): void
+    {
+        if (!$this->isGroupConversation()) {
+            throw new InvalidArgumentException('Only group chats can be customized.');
+        }
+
+        if ((int) $this->getCreatedBy() !== $userId) {
+            throw new InvalidArgumentException('Only the chat owner can modify this discussion.');
+        }
+    }
+
+    public function assertGroupConversation(): void
+    {
+        if (!$this->isGroupConversation()) {
+            throw new InvalidArgumentException('Only group chats support this action.');
+        }
+    }
+
+    public function isGroupConversation(): bool
+    {
+        return !$this->isDirectConversation();
+    }
+
+    public function isAdminUser(int $userId): bool
+    {
+        return (int) $this->getCreatedBy() === $userId;
+    }
+
+    public function assertCanKickParticipant(int $actorUserId, int $targetUserId, bool $actorHasAdminPrivileges = false): void
+    {
+        $this->assertGroupConversation();
+
+        if (!$this->isAdminUser($actorUserId) && !$actorHasAdminPrivileges) {
+            throw new InvalidArgumentException('Only the group admin can kick members.');
+        }
+
+        if ($actorUserId === $targetUserId) {
+            throw new InvalidArgumentException('You cannot kick yourself.');
+        }
+    }
+
+    public function assertCanRenameParticipant(int $actorUserId, int $targetUserId): void
+    {
+        if ($actorUserId <= 0 || $targetUserId <= 0) {
+            throw new InvalidArgumentException('Invalid participant id.');
+        }
+    }
+
+    private function isDirectConversation(): bool
+    {
+        $type = $this->getType();
+        if ($type !== null && strcasecmp($type, 'dm') === 0) {
+            return true;
+        }
+
+        return $this->getDmKey() !== null;
+    }
+
     #[ORM\Column(type: 'blob', nullable: true)]
-    private ?string $avatar = null;
+    private $avatar = null;
 
     public function getAvatar(): ?string
     {
-        return $this->avatar;
+        if ($this->avatar === null) {
+            return null;
+        }
+
+        if (is_resource($this->avatar)) {
+            $value = stream_get_contents($this->avatar);
+            return $value === false ? null : $value;
+        }
+
+        return is_string($this->avatar) ? $this->avatar : null;
     }
 
     public function setAvatar(?string $avatar): self
     {
+        if ($avatar !== null && strlen($avatar) > self::MAX_AVATAR_BLOB_BYTES) {
+            throw new InvalidArgumentException('Chat image is too large. Maximum size is 2 MB.');
+        }
+
         $this->avatar = $avatar;
         return $this;
     }
@@ -165,6 +310,10 @@ class Conversation
 
     public function setAvatarMime(?string $avatar_mime): static
     {
+        if ($avatar_mime !== null && $avatar_mime !== '' && !str_starts_with($avatar_mime, 'image/')) {
+            throw new InvalidArgumentException('Only image files are allowed.');
+        }
+
         $this->avatar_mime = $avatar_mime;
 
         return $this;

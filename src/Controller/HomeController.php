@@ -450,12 +450,6 @@ class HomeController extends AbstractController
         ]);
     }
 
-    #[Route('/apps-chat', name: 'apps-chat')]
-    public function chat(): Response
-    {
-        return $this->render('chat/apps-chat.html.twig');
-    }
-
     #[Route('/apps-projects', name: 'apps-projects')]
     public function projects(): Response
     {
@@ -504,6 +498,13 @@ class HomeController extends AbstractController
         $currentUser = $currentUserId > 0 ? $utilisateurRepository->find($currentUserId) : null;
         $role = strtolower((string) ($this->authService->getCurrentUserRole() ?? ''));
         $isManager = $this->authService->isManager();
+        $implicitManagerIds = [];
+        foreach ($utilisateurRepository->findManagerUsers() as $managerUser) {
+            $managerId = $managerUser->getId();
+            if ($managerId !== null) {
+                $implicitManagerIds[(int) $managerId] = true;
+            }
+        }
 
         $accessibleProjectIds = $isManager ? [] : array_values(array_unique(array_merge(
             $projectRepository->getProjectIdsForUser($currentUserId),

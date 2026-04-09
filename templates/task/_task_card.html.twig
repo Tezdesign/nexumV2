@@ -14,6 +14,7 @@
 {% set canUpdateProgress = (au is not null) and (au == (currentUserId|default(0))) %}
 {% set createdBy = task.createdBy ?? null %}
 {% set canDeleteTask = (isManager|default(false)) or (createdBy is not null and createdBy == (currentUserId|default(0))) %}
+{% set canEditTask = createdBy is not null and createdBy == (currentUserId|default(0)) %}
 
 <div class="nexum-row">
     <div class="nexum-row-left">
@@ -99,7 +100,7 @@
             <span class="nexum-assignee is-empty">Unassigned</span>
         {% endif %}
 
-        {% if isManager|default(false) %}
+        {% if canEditTask %}
             <button type="button"
                     class="nexum-icon-btn"
                     title="Edit"

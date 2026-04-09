@@ -373,11 +373,13 @@ final class TaskController extends AbstractController
         $currentUserId = (int) ($authService->getCurrentUserId() ?? 0);
         $currentUser = $currentUserId > 0 ? $utilisateurRepository->find($currentUserId) : null;
         $isManager = $authService->isManager();
+        $canEditTask = (int) ($task->getCreatedBy() ?? 0) === $currentUserId;
 
         return $this->render('task/show.html.twig', [
             'task' => $task,
             'currentUserId' => $currentUserId,
             'isManager' => $isManager,
+            'canEditTask' => $canEditTask,
             'canDeleteTask' => $isManager || ($task->getCreatedBy() !== null && (int) $task->getCreatedBy() === $currentUserId),
         ]);
     }
@@ -454,15 +456,16 @@ final class TaskController extends AbstractController
         $currentUserId = (int) ($authService->getCurrentUserId() ?? 0);
         $currentUser = $currentUserId > 0 ? $utilisateurRepository->find($currentUserId) : null;
         $isManager = $authService->isManager();
+        $canEditOwnTask = (int) ($task->getCreatedBy() ?? 0) === $currentUserId;
+        if (!$canEditOwnTask) {
+            throw $this->createNotFoundException();
+        }
         $implicitManagerIds = [];
         foreach ($utilisateurRepository->findManagerUsers() as $managerUser) {
             $managerId = $managerUser->getId();
             if ($managerId !== null) {
                 $implicitManagerIds[(int) $managerId] = true;
             }
-        }
-        if (!$isManager) {
-            throw $this->createAccessDeniedException();
         }
 
         $back = (string) $request->query->get('back', '');
@@ -490,24 +493,34 @@ final class TaskController extends AbstractController
             }
         }
 
-        $form = $this->createForm(TaskManagerUpdateType::class, $task, [
-            'member_ids' => array_keys($memberIds),
-            'allow_status' => ($task->getAssignedTo() !== null && (int) $task->getAssignedTo() === $currentUserId),
-        ]);
+        $form = $this->createForm(
+            $isManager ? TaskManagerUpdateType::class : TaskUpdateType::class,
+            $task,
+            $isManager
+                ? [
+                    'member_ids' => array_keys($memberIds),
+                    'allow_status' => ($task->getAssignedTo() !== null && (int) $task->getAssignedTo() === $currentUserId),
+                ]
+                : []
+        );
 
-        $assignedId = $task->getAssignedTo();
-        if ($assignedId !== null) {
-            $assignedUser = $utilisateurRepository->find((int) $assignedId);
-            if ($assignedUser !== null) {
-                $form->get('assignedUser')->setData($assignedUser);
+        if ($isManager) {
+            $assignedId = $task->getAssignedTo();
+            if ($assignedId !== null) {
+                $assignedUser = $utilisateurRepository->find((int) $assignedId);
+                if ($assignedUser !== null && $form->has('assignedUser')) {
+                    $form->get('assignedUser')->setData($assignedUser);
+                }
             }
         }
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
-            /** @var \App\Entity\UserHandling\Utilisateur|null $assignedUser */
-            $assignedUser = $form->get('assignedUser')->getData();
-            $task->setAssignedTo($assignedUser?->getId());
+            if ($isManager) {
+                /** @var \App\Entity\UserHandling\Utilisateur|null $assignedUser */
+                $assignedUser = $form->get('assignedUser')->getData();
+                $task->setAssignedTo($assignedUser?->getId());
+            }
             $entityManager->flush();
 
             $projectId = (int) ($task->getProjectId() ?? 0);
@@ -550,15 +563,16 @@ final class TaskController extends AbstractController
         $currentUserId = (int) ($authService->getCurrentUserId() ?? 0);
         $currentUser = $currentUserId > 0 ? $utilisateurRepository->find($currentUserId) : null;
         $isManager = $authService->isManager();
+        $canEditOwnTask = (int) ($task->getCreatedBy() ?? 0) === $currentUserId;
+        if (!$canEditOwnTask) {
+            throw $this->createNotFoundException();
+        }
         $implicitManagerIds = [];
         foreach ($utilisateurRepository->findManagerUsers() as $managerUser) {
             $managerId = $managerUser->getId();
             if ($managerId !== null) {
                 $implicitManagerIds[(int) $managerId] = true;
             }
-        }
-        if (!$isManager) {
-            throw $this->createAccessDeniedException();
         }
 
         $memberIds = [];
@@ -583,16 +597,24 @@ final class TaskController extends AbstractController
             }
         }
 
-        $form = $this->createForm(TaskManagerUpdateType::class, $task, [
-            'member_ids' => array_keys($memberIds),
-            'allow_status' => ($task->getAssignedTo() !== null && (int) $task->getAssignedTo() === $currentUserId),
-        ]);
+        $form = $this->createForm(
+            $isManager ? TaskManagerUpdateType::class : TaskUpdateType::class,
+            $task,
+            $isManager
+                ? [
+                    'member_ids' => array_keys($memberIds),
+                    'allow_status' => ($task->getAssignedTo() !== null && (int) $task->getAssignedTo() === $currentUserId),
+                ]
+                : []
+        );
 
-        $assignedId = $task->getAssignedTo();
-        if ($assignedId !== null) {
-            $assignedUser = $utilisateurRepository->find((int) $assignedId);
-            if ($assignedUser !== null) {
-                $form->get('assignedUser')->setData($assignedUser);
+        if ($isManager) {
+            $assignedId = $task->getAssignedTo();
+            if ($assignedId !== null) {
+                $assignedUser = $utilisateurRepository->find((int) $assignedId);
+                if ($assignedUser !== null && $form->has('assignedUser')) {
+                    $form->get('assignedUser')->setData($assignedUser);
+                }
             }
         }
 
@@ -601,8 +623,10 @@ final class TaskController extends AbstractController
         if ($form->isSubmitted()) {
             if ($form->isValid()) {
                 /** @var \App\Entity\UserHandling\Utilisateur|null $assignedUser */
-                $assignedUser = $form->get('assignedUser')->getData();
-                $task->setAssignedTo($assignedUser?->getId());
+                if ($isManager) {
+                    $assignedUser = $form->get('assignedUser')->getData();
+                    $task->setAssignedTo($assignedUser?->getId());
+                }
                 $entityManager->flush();
 
                 $projectId = (int) ($task->getProjectId() ?? 0);

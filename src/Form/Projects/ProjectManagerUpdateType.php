@@ -3,6 +3,10 @@
 namespace App\Form\Projects;
 
 use App\Entity\Projects\Project;
+use App\Entity\UserHandling\Utilisateur;
+use App\Repository\UserHandling\UtilisateurRepository;
+use App\Support\UserDisplayName;
+use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\DateType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
@@ -18,8 +22,14 @@ use Symfony\Component\Validator\Constraints as Assert;
  */
 final class ProjectManagerUpdateType extends AbstractType
 {
+    /**
+     * @param array{assignable_users?: int[]} $options
+     */
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
+        /** @var int[] $assignableUsers */
+        $assignableUsers = array_values(array_unique(array_map('intval', $options['assignable_users'] ?? [])));
+
         $builder
             ->add('name', TextType::class, [
                 'label' => 'Project Name',
@@ -40,9 +50,41 @@ final class ProjectManagerUpdateType extends AbstractType
                 'required' => true,
                 'label' => 'Due Date',
             ])
-            ->add('budget', TextType::class, [
-                'required' => false,
-                'label' => 'Budget',
+            ->add('assignedUsers', EntityType::class, [
+                'mapped' => false,
+                'required' => true,
+                'class' => Utilisateur::class,
+                'choice_label' => static function (Utilisateur $u): string {
+                    $fullName = UserDisplayName::format($u, $u->getId());
+                    $role = trim((string) ($u->getRole() ?? ''));
+                    return $role !== '' ? ($role . ' · ' . $fullName) : $fullName;
+                },
+                'query_builder' => static function (UtilisateurRepository $repo) use ($assignableUsers) {
+                    $qb = $repo->createQueryBuilder('u')
+                        ->andWhere('LOWER(u.role) NOT LIKE :adminRole')
+                        ->setParameter('adminRole', '%admin%')
+                        ->orderBy('u.role', 'ASC')
+                        ->addOrderBy('u.prenom', 'ASC')
+                        ->addOrderBy('u.nom', 'ASC');
+
+                    if ($assignableUsers !== []) {
+                        $qb
+                            ->andWhere('u.id IN (:ids)')
+                            ->setParameter('ids', $assignableUsers);
+                    } else {
+                        $qb->andWhere('1 = 0');
+                    }
+
+                    return $qb;
+                },
+                'multiple' => true,
+                'expanded' => false,
+                'constraints' => [
+                    new Assert\Count(
+                        min: 1,
+                        minMessage: 'Select at least one team member.'
+                    ),
+                ],
             ])
         ;
     }
@@ -51,6 +93,8 @@ final class ProjectManagerUpdateType extends AbstractType
     {
         $resolver->setDefaults([
             'data_class' => Project::class,
+            'assignable_users' => [],
         ]);
+        $resolver->setAllowedTypes('assignable_users', 'array');
     }
 }

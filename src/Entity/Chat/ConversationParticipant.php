@@ -5,6 +5,7 @@ namespace App\Entity\Chat;
 use Doctrine\ORM\Mapping as ORM;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use InvalidArgumentException;
 
 use App\Repository\Chat\ConversationParticipantRepository;
 
@@ -54,6 +55,13 @@ class ConversationParticipant
         return $this->role;
     }
 
+    public function hasAdminPrivileges(): bool
+    {
+        $role = strtolower((string) ($this->role ?? ''));
+
+        return in_array($role, ['admin', 'owner'], true);
+    }
+
     public function setRole(string $role): self
     {
         $this->role = $role;
@@ -70,7 +78,46 @@ class ConversationParticipant
 
     public function setNickname(?string $nickname): self
     {
-        $this->nickname = $nickname;
+        if ($nickname === null) {
+            $this->nickname = null;
+            return $this;
+        }
+
+        $normalizedNickname = trim($nickname);
+        if ($normalizedNickname === '') {
+            throw new InvalidArgumentException('Nickname cannot be empty.');
+        }
+
+        $length = mb_strlen($normalizedNickname);
+        if ($length < 3) {
+            throw new InvalidArgumentException('Nickname must contain at least 3 characters.');
+        }
+
+        if ($length > 8) {
+            throw new InvalidArgumentException('Nickname must not exceed 8 characters.');
+        }
+
+        if (!preg_match('/[A-Za-z]/', $normalizedNickname)) {
+            throw new InvalidArgumentException('Nickname cannot be numbers or special characters only.');
+        }
+
+        if (!preg_match('/^[A-Za-z0-9]+$/', $normalizedNickname)) {
+            throw new InvalidArgumentException('Nickname can only contain letters and numbers.');
+        }
+
+        $this->nickname = $normalizedNickname;
+        return $this;
+    }
+
+    public function renameTo(string $nickname): self
+    {
+        return $this->setNickname($nickname);
+    }
+
+    public function leaveConversation(): self
+    {
+        $this->left_at = new \DateTime();
+
         return $this;
     }
 
