@@ -97,6 +97,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // 5. Clean Modal on Close
     const createModalElement = document.getElementById('createProfileModal');
     const updateModalElement = document.getElementById('updateProfileModal');
+    const createProjectBudgetModal = document.getElementById('createProjectBudgetModal');
 
     function attachModalCloseListener(modalElement, formId) {
         if (modalElement) {
@@ -104,7 +105,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const form = document.getElementById(formId);
                 if (form) {
                     // Do a normal visual reset for a clean form
-                    if (formId === 'createProfileForm') {
+                    if (formId === 'createProfileForm' || formId === 'createProjectBudgetForm') {
                         $(form).find('input[type="text"], input[type="number"], input[type="date"]').val('');
                         $(form).find('select').val('').trigger('change.select2');
 
@@ -125,4 +126,5 @@ document.addEventListener('DOMContentLoaded', function () {
 
     attachModalCloseListener(createModalElement, 'createProfileForm');
     attachModalCloseListener(updateModalElement, 'updateProfileForm');
+    attachModalCloseListener(createProjectBudgetModal, 'createProjectBudgetForm');
 });

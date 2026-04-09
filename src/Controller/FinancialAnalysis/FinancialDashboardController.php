@@ -5,6 +5,7 @@ namespace App\Controller\FinancialAnalysis;
 use App\Entity\FinancialAnalysis\BudgetProfile;
 use App\Entity\FinancialAnalysis\ProjectBudget;
 use App\Form\FinancialAnalysis\BudgetProfileType;
+use App\Form\FinancialAnalysis\ProjectBudgetType;
 use App\Repository\FinancialAnalysis\BudgetProfileRepository;
 use App\Service\FinancialAnalysis\BudgetDashboardService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -65,6 +66,16 @@ class FinancialDashboardController extends AbstractController
             }
         }
 
+        $projectBudget = new ProjectBudget();
+        $projectBudgetForm = $this->createForm(ProjectBudgetType::class, $projectBudget);
+        $projectBudgetForm->handleRequest($request);
+
+        if ($projectBudgetForm->isSubmitted() && $projectBudgetForm->isValid()) {
+            $projectBudgetRepository->save($projectBudget, true);
+            $this->addFlash('success', 'Project Budget created successfully!');
+            return $this->redirectToRoute('apps-financial-analysis-profile', ['id' => $budgetProfile->getId()]);
+        }
+
         // Fetch projects falling within the scope of this Fiscal Year (using original dates)
         $projects = [];
         if ($originalProfile->getStartDate() && $originalProfile->getEndDate()) {
@@ -101,6 +112,7 @@ class FinancialDashboardController extends AbstractController
             'budgetProfile' => $originalProfile, // Pass the original profile so breadcrumbs don't change
             'projects' => $projects,
             'form' => $form->createView(), // The form uses the mutated object, preserving the user's invalid input
+            'projectBudgetForm' => $projectBudgetForm->createView(),
             
             // Live KPIs
             'kpi_budget_value' => number_format($budgetVal / 1000, 1) . 'k',

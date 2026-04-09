@@ -1,0 +1,117 @@
+<!-- Create Project Budget Modal -->
+<div class="modal fade" id="createProjectBudgetModal" tabindex="-1" aria-labelledby="createProjectBudgetModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header border-bottom border-dashed d-flex align-items-center">
+                <h4 class="modal-title" id="createProjectBudgetModalLabel">{{ 'Create Project Budget'|trans }}</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            
+            {{ form_start(projectBudgetForm, {'attr': {'id': 'createProjectBudgetForm', 'novalidate': 'novalidate'}}) }}
+            <div class="modal-body p-4">
+
+                <div class="row">
+                    <div class="col-md-12 mb-3">
+                        {{ form_label(projectBudgetForm.name, 'Budget Name'|trans, {'label_attr': {'class': 'form-label'}}) }}
+                        {{ form_widget(projectBudgetForm.name, {'attr': {
+                            'class': 'form-control ' ~ (projectBudgetForm.name.vars.valid ? '' : 'is-invalid')
+                        }}) }}
+                        {% if not projectBudgetForm.name.vars.valid %}
+                            <div class="text-danger mt-1" style="font-size: 0.875em; display: block;">
+                                {% for error in projectBudgetForm.name.vars.errors %}
+                                    <span class="d-block">{{ error.message }}</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        {{ form_label(projectBudgetForm.project, 'Linked Project'|trans, {'label_attr': {'class': 'form-label'}}) }}
+                        {{ form_widget(projectBudgetForm.project, {'attr': {
+                            'class': 'form-select ' ~ (projectBudgetForm.project.vars.valid ? '' : 'is-invalid'),
+                            'data-toggle': 'select2'
+                        }}) }}
+                        {% if not projectBudgetForm.project.vars.valid %}
+                            <div class="text-danger mt-1" style="font-size: 0.875em; display: block;">
+                                {% for error in projectBudgetForm.project.vars.errors %}
+                                    <span class="d-block">{{ error.message }}</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        {{ form_label(projectBudgetForm.total_budget, 'Total Budget'|trans, {'label_attr': {'class': 'form-label'}}) }}
+                        <div class="input-group">
+                            <span class="input-group-text" id="pb-budget-addon">{{ currency_symbol|default('$') }}</span>
+                            {{ form_widget(projectBudgetForm.total_budget, {'attr': {
+                                'class': 'form-control ' ~ (projectBudgetForm.total_budget.vars.valid ? '' : 'is-invalid'),
+                                'aria-describedby': 'pb-budget-addon'
+                            }}) }}
+                        </div>
+                        {% if not projectBudgetForm.total_budget.vars.valid %}
+                            <div class="text-danger mt-1" style="font-size: 0.875em; display: block;">
+                                {% for error in projectBudgetForm.total_budget.vars.errors %}
+                                    <span class="d-block">{{ error.message }}</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        {{ form_label(projectBudgetForm.dueDate, 'Due Date'|trans, {'label_attr': {'class': 'form-label'}}) }}
+                        {{ form_widget(projectBudgetForm.dueDate, {'attr': {
+                            'class': 'form-control ' ~ (projectBudgetForm.dueDate.vars.valid ? '' : 'is-invalid'),
+                            'data-provider': 'flatpickr',
+                            'data-date-format': 'Y-m-d'
+                        }}) }}
+                        {% if not projectBudgetForm.dueDate.vars.valid %}
+                            <div class="text-danger mt-1" style="font-size: 0.875em; display: block;">
+                                {% for error in projectBudgetForm.dueDate.vars.errors %}
+                                    <span class="d-block">{{ error.message }}</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        {{ form_label(projectBudgetForm.status, 'Budget Status'|trans, {'label_attr': {'class': 'form-label'}}) }}
+                        {{ form_widget(projectBudgetForm.status, {'attr': {
+                            'class': 'form-select ' ~ (projectBudgetForm.status.vars.valid ? '' : 'is-invalid'),
+                            'data-toggle': 'select2'
+                        }}) }}
+                        {% if not projectBudgetForm.status.vars.valid %}
+                            <div class="text-danger mt-1" style="font-size: 0.875em; display: block;">
+                                {% for error in projectBudgetForm.status.vars.errors %}
+                                    <span class="d-block">{{ error.message }}</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">{{ 'Cancel'|trans }}</button>
+                <button type="submit" class="btn btn-legacy-purple">{{ 'Create Budget'|trans }}</button>
+            </div>
+            {{ form_end(projectBudgetForm) }}
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const modalEl = document.getElementById('createProjectBudgetModal');
+        if (modalEl) {
+            {% if projectBudgetForm is defined and projectBudgetForm.vars.submitted and not projectBudgetForm.vars.valid %}
+                const myModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                myModal.show();
+            {% endif %}
+        }
+    });
+</script>
