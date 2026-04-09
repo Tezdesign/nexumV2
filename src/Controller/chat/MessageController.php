@@ -8,6 +8,7 @@ use App\Entity\UserHandling\Utilisateur;
 use App\Repository\Chat\ConversationParticipantRepository;
 use App\Repository\Chat\ConversationRepository;
 use App\Repository\Chat\MessageRepository;
+use App\Repository\Chat\MessageAttachmentRepository;
 use App\Repository\UserHandling\UtilisateurRepository;
 use DateTimeImmutable;
 use DateTimeInterface;
@@ -56,6 +57,7 @@ class MessageController extends AbstractController
 			$senderId = $message->getSenderId();
 			$sender = $senderId !== null ? ($usersById[$senderId] ?? null) : null;
 			$createdAt = $message->getCreatedAt();
+			$editedAt = $message->getEditedAt();
 			$messageId = $message->getId();
 
 			return [
@@ -67,6 +69,8 @@ class MessageController extends AbstractController
 				'senderAvatarSrc' => $sender !== null ? $this->toDataUri($sender->getImagelink(), 'image/jpeg') : null,
 				'isOwn' => $senderId === ConversationController::SESSION_CURRENT_USER_ID,
 				'createdAt' => $createdAt?->format(DATE_ATOM),
+				'editedAt' => $editedAt?->format(DATE_ATOM),
+				'isEdited' => $editedAt !== null,
 				'timeLabel' => $this->formatMessageTimeLabel($createdAt),
 			];
 		}, $messages);
@@ -143,8 +147,126 @@ class MessageController extends AbstractController
 				'senderAvatarSrc' => $sender !== null ? $this->toDataUri($sender->getImagelink(), 'image/jpeg') : null,
 				'isOwn' => true,
 				'createdAt' => $message->getCreatedAt()?->format(DATE_ATOM),
+				'editedAt' => null,
+				'isEdited' => false,
 				'timeLabel' => $this->formatMessageTimeLabel($message->getCreatedAt()),
 			],
+		]);
+	}
+
+	#[Route('/apps-chat/messages/{messageId}/edit', name: 'apps-chat-message-edit', methods: ['POST'])]
+	public function edit(
+		int $messageId,
+		Request $request,
+		MessageRepository $messageRepository,
+		ConversationParticipantRepository $participantRepository,
+		EntityManagerInterface $entityManager,
+	): JsonResponse {
+		$message = $messageRepository->find($messageId);
+		if (!$message instanceof Message) {
+			return $this->json([
+				'success' => false,
+				'error' => 'Message not found.',
+			], 404);
+		}
+
+		$conversationId = (int) ($message->getConversationId() ?? 0);
+		if ($conversationId <= 0 || !$participantRepository->isActiveParticipant($conversationId, ConversationController::SESSION_CURRENT_USER_ID)) {
+			return $this->json([
+				'success' => false,
+				'error' => 'Access denied.',
+			], 403);
+		}
+
+		if ((int) ($message->getSenderId() ?? 0) !== ConversationController::SESSION_CURRENT_USER_ID) {
+			return $this->json([
+				'success' => false,
+				'error' => 'You can edit only your own messages.',
+			], 403);
+		}
+
+		if (strtoupper((string) $message->getKind()) !== 'TEXT') {
+			return $this->json([
+				'success' => false,
+				'error' => 'Only text messages can be edited.',
+			], 422);
+		}
+
+		$body = (string) $request->request->get('body', '');
+		try {
+			$message->setBody($body);
+			$message->setEditedAt(new \DateTime());
+		} catch (InvalidArgumentException $exception) {
+			return $this->json([
+				'success' => false,
+				'error' => $exception->getMessage(),
+			], 422);
+		}
+
+		$entityManager->flush();
+
+		return $this->json([
+			'success' => true,
+			'message' => [
+				'id' => $message->getId(),
+				'body' => $message->getBody() ?? '',
+				'editedAt' => $message->getEditedAt()?->format(DATE_ATOM),
+				'isEdited' => $message->getEditedAt() !== null,
+			],
+		]);
+	}
+
+	#[Route('/apps-chat/messages/{messageId}/delete', name: 'apps-chat-message-delete', methods: ['POST'])]
+	public function delete(
+		int $messageId,
+		MessageRepository $messageRepository,
+		MessageAttachmentRepository $messageAttachmentRepository,
+		ConversationRepository $conversationRepository,
+		ConversationParticipantRepository $participantRepository,
+		EntityManagerInterface $entityManager,
+	): JsonResponse {
+		$message = $messageRepository->find($messageId);
+		if (!$message instanceof Message) {
+			return $this->json([
+				'success' => false,
+				'error' => 'Message not found.',
+			], 404);
+		}
+
+		$conversationId = (int) ($message->getConversationId() ?? 0);
+		if ($conversationId <= 0 || !$participantRepository->isActiveParticipant($conversationId, ConversationController::SESSION_CURRENT_USER_ID)) {
+			return $this->json([
+				'success' => false,
+				'error' => 'Access denied.',
+			], 403);
+		}
+
+		if ((int) ($message->getSenderId() ?? 0) !== ConversationController::SESSION_CURRENT_USER_ID) {
+			return $this->json([
+				'success' => false,
+				'error' => 'You can delete only your own messages.',
+			], 403);
+		}
+
+		$attachments = $messageAttachmentRepository->findByMessageId((int) ($message->getId() ?? 0));
+		foreach ($attachments as $attachment) {
+			$entityManager->remove($attachment);
+		}
+
+		$entityManager->remove($message);
+		$entityManager->flush();
+
+		$conversation = $conversationRepository->find($conversationId);
+		if ($conversation instanceof Conversation) {
+			$latest = $messageRepository->findLatestMessageByConversationId($conversationId);
+			$conversation->setLastMessageId($latest?->getId());
+			$conversation->setLastMessageAt($latest?->getCreatedAt());
+			$entityManager->flush();
+		}
+
+		return $this->json([
+			'success' => true,
+			'messageId' => $messageId,
 		]);
 	}
 

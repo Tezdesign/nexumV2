@@ -69,6 +69,17 @@ class ChatApp {
         this.dangerConfirmSubmitButton = null
         this.dangerConfirmCancelButton = null
         this.dangerConfirmResolver = null
+        this.messageActionsModal = null
+        this.messageEditModal = null
+        this.messageActionEditButton = null
+        this.messageActionDeleteButton = null
+        this.messageEditForm = null
+        this.messageEditInput = null
+        this.messageEditError = null
+        this.messageEditSubmitButton = null
+        this.messageActionTarget = null
+        this.messageActionMode = 'TEXT'
+        this.messageActionsMenu = null
         this.groupCreateModal = null
         this.groupNameInput = null
         this.groupTitleError = null
@@ -180,6 +191,14 @@ class ChatApp {
         this.dangerConfirmMessage = document.querySelector('[data-apps-chat="danger-confirm-message"]')
         this.dangerConfirmSubmitButton = document.querySelector('[data-apps-chat="danger-confirm-submit"]')
         this.dangerConfirmCancelButton = document.querySelector('[data-apps-chat="danger-confirm-cancel"]')
+        this.messageActionsModal = document.querySelector('[data-apps-chat="message-actions-modal"]')
+        this.messageEditModal = document.querySelector('[data-apps-chat="message-edit-modal"]')
+        this.messageActionEditButton = document.querySelector('[data-apps-chat="message-action-edit"]')
+        this.messageActionDeleteButton = document.querySelector('[data-apps-chat="message-action-delete"]')
+        this.messageEditForm = document.querySelector('[data-apps-chat="message-edit-form"]')
+        this.messageEditInput = document.querySelector('[data-apps-chat="message-edit-input"]')
+        this.messageEditError = document.querySelector('[data-apps-chat="message-edit-error"]')
+        this.messageEditSubmitButton = document.querySelector('[data-apps-chat="message-edit-submit"]')
         this.groupCreateModal = document.getElementById('groupCreateModal')
         this.groupNameInput = document.querySelector('[data-apps-chat="group-name-input"]')
         this.groupTitleError = document.querySelector('[data-apps-chat="group-title-error"]')
@@ -789,6 +808,261 @@ class ChatApp {
 
     buildAttachmentUploadEndpoint = () => {
         return '/apps-chat/attachments'
+    }
+
+    buildMessageEditEndpoint = (messageId) => {
+        return `/apps-chat/messages/${encodeURIComponent(String(messageId))}/edit`
+    }
+
+    buildMessageDeleteEndpoint = (messageId) => {
+        return `/apps-chat/messages/${encodeURIComponent(String(messageId))}/delete`
+    }
+
+    setMessageEditError = (message = '') => {
+        if (!this.messageEditError) {
+            return
+        }
+
+        const text = String(message || '').trim()
+        this.messageEditError.textContent = text
+        this.messageEditError.classList.toggle('d-none', text.length === 0)
+    }
+
+    ensureMessageActionsMenu = () => {
+        if (this.messageActionsMenu) {
+            return
+        }
+
+        const menu = document.createElement('div')
+        menu.className = 'position-fixed bg-white border rounded-3 shadow-sm p-1'
+        menu.style.display = 'none'
+        menu.style.zIndex = '2100'
+        menu.style.minWidth = '150px'
+        menu.style.maxWidth = '220px'
+
+        const editButton = document.createElement('button')
+        editButton.type = 'button'
+        editButton.className = 'btn btn-sm w-100 text-start'
+        editButton.textContent = 'Edit'
+
+        const deleteButton = document.createElement('button')
+        deleteButton.type = 'button'
+        deleteButton.className = 'btn btn-sm w-100 text-start text-danger'
+        deleteButton.textContent = 'Delete'
+
+        menu.appendChild(editButton)
+        menu.appendChild(deleteButton)
+        document.body.appendChild(menu)
+
+        this.messageActionsMenu = menu
+        this.messageActionEditButton = editButton
+        this.messageActionDeleteButton = deleteButton
+
+        editButton.addEventListener('click', () => {
+            this.closeMessageActions()
+            this.openMessageEditModal()
+        })
+
+        deleteButton.addEventListener('click', async () => {
+            this.closeMessageActions()
+            await this.deleteSelectedMessage()
+        })
+
+        document.addEventListener('click', (event) => {
+            if (!this.messageActionsMenu || this.messageActionsMenu.style.display === 'none') {
+                return
+            }
+
+            const target = event.target
+            if (target instanceof Node && this.messageActionsMenu.contains(target)) {
+                return
+            }
+
+            this.closeMessageActions()
+        })
+
+        window.addEventListener('resize', () => {
+            this.closeMessageActions()
+        })
+
+        this.messagesScrollWrapper?.addEventListener('scroll', () => {
+            this.closeMessageActions()
+        })
+    }
+
+    openMessageActions = (targetMessageNode, cursorX, cursorY) => {
+        if (!targetMessageNode) {
+            return
+        }
+
+        this.ensureMessageActionsMenu()
+        if (!this.messageActionsMenu) {
+            return
+        }
+
+        this.messageActionTarget = targetMessageNode
+        this.messageActionMode = String(targetMessageNode.dataset.messageKind || 'TEXT').toUpperCase()
+
+        if (this.messageActionEditButton) {
+            this.messageActionEditButton.classList.toggle('d-none', this.messageActionMode !== 'TEXT')
+        }
+
+        this.messageActionsMenu.style.visibility = 'hidden'
+        this.messageActionsMenu.style.display = 'block'
+
+        const menuRect = this.messageActionsMenu.getBoundingClientRect()
+        const viewportWidth = window.innerWidth
+        const viewportHeight = window.innerHeight
+        const margin = 8
+
+        let left = Number.isFinite(cursorX) ? cursorX : margin
+        let top = Number.isFinite(cursorY) ? cursorY : margin
+
+        if (left + menuRect.width + margin > viewportWidth) {
+            left = viewportWidth - menuRect.width - margin
+        }
+
+        if (top + menuRect.height + margin > viewportHeight) {
+            top = viewportHeight - menuRect.height - margin
+        }
+
+        left = Math.max(margin, left)
+        top = Math.max(margin, top)
+
+        this.messageActionsMenu.style.left = `${left}px`
+        this.messageActionsMenu.style.top = `${top}px`
+        this.messageActionsMenu.style.visibility = 'visible'
+    }
+
+    closeMessageActions = () => {
+        if (!this.messageActionsMenu) {
+            return
+        }
+
+        this.messageActionsMenu.style.display = 'none'
+    }
+
+    openMessageEditModal = () => {
+        if (!this.messageActionTarget || this.messageActionMode !== 'TEXT') {
+            return
+        }
+
+        const bodyNode = this.messageActionTarget.querySelector('[data-message-body]')
+        this.setMessageEditError('')
+        if (this.messageEditInput) {
+            this.messageEditInput.value = String(bodyNode?.textContent || '').trim()
+        }
+
+        this.getBootstrapModal(this.messageEditModal)?.show()
+
+        queueMicrotask(() => {
+            this.messageEditInput?.focus()
+            this.messageEditInput?.select()
+        })
+    }
+
+    closeMessageEditModal = () => {
+        this.getBootstrapModal(this.messageEditModal)?.hide()
+    }
+
+    applyEditedBadge = (messageNode, isEdited) => {
+        if (!messageNode) {
+            return
+        }
+
+        let badge = messageNode.querySelector('[data-message-edited-badge]')
+        if (!isEdited) {
+            if (badge) {
+                badge.remove()
+            }
+            return
+        }
+
+        if (!badge) {
+            badge = document.createElement('span')
+            badge.className = 'text-muted small ms-1'
+            badge.setAttribute('data-message-edited-badge', '1')
+            badge.textContent = '(edited)'
+            const messageContainer = messageNode.querySelector('.chat-message')
+            if (messageContainer) {
+                messageContainer.appendChild(badge)
+            }
+        }
+    }
+
+    editSelectedMessage = async () => {
+        if (!this.messageActionTarget || !this.messageEditInput) {
+            return
+        }
+
+        const messageId = this.messageActionTarget.dataset.messageId || ''
+        if (!messageId) {
+            return
+        }
+
+        const body = String(this.messageEditInput.value || '')
+        this.setMessageEditError('')
+        this.messageEditSubmitButton?.setAttribute('disabled', 'disabled')
+
+        try {
+            const response = await fetch(this.buildMessageEditEndpoint(messageId), {
+                method: 'POST',
+                headers: { 'Accept': 'application/json' },
+                body: new URLSearchParams({ body }),
+            })
+
+            const payload = await response.json().catch(() => ({}))
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.error || 'Failed to edit message.')
+            }
+
+            const bodyNode = this.messageActionTarget.querySelector('[data-message-body]')
+            if (bodyNode) {
+                bodyNode.textContent = String(payload.message?.body || '')
+            }
+
+            this.applyEditedBadge(this.messageActionTarget, !!payload.message?.isEdited)
+            this.closeMessageEditModal()
+        } catch (error) {
+            this.setMessageEditError(error?.message || 'Failed to edit message.')
+        } finally {
+            this.messageEditSubmitButton?.removeAttribute('disabled')
+        }
+    }
+
+    deleteSelectedMessage = async () => {
+        if (!this.messageActionTarget) {
+            return
+        }
+
+        const messageId = this.messageActionTarget.dataset.messageId || ''
+        if (!messageId) {
+            return
+        }
+
+        const confirmed = await this.openDangerConfirmModal('Delete this message?')
+        if (!confirmed) {
+            return
+        }
+
+        try {
+            const response = await fetch(this.buildMessageDeleteEndpoint(messageId), {
+                method: 'POST',
+                headers: { 'Accept': 'application/json' },
+            })
+
+            const payload = await response.json().catch(() => ({}))
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.error || 'Failed to delete message.')
+            }
+
+            this.messageActionTarget.remove()
+            this.messageActionTarget = null
+            await this.loadConversationMessages(this.activeConversationId, this.buildMessagesEndpoint(this.activeConversationItem, this.activeConversationId))
+            this.closeMessageActions()
+        } catch (error) {
+            this.showBottomNotice(error?.message || 'Failed to delete message.')
+        }
     }
 
     uploadSelectedAttachments = async () => {
@@ -2097,6 +2371,9 @@ class ChatApp {
         const listItem = document.createElement('li')
         listItem.className = `chat-group${isOwn ? ' odd' : ''}`
         listItem.id = `message-${message.id || index}`
+        listItem.dataset.messageId = String(message.id || '')
+        listItem.dataset.messageKind = String(message.kind || 'TEXT').toUpperCase()
+        listItem.dataset.messageOwn = isOwn ? '1' : '0'
 
         const avatar = this.createAvatarElement(avatarSrc, avatarLabel)
         listItem.appendChild(avatar)
@@ -2117,6 +2394,7 @@ class ChatApp {
         const chatMessage = document.createElement('div')
         chatMessage.className = 'chat-message'
         const bodyElement = document.createElement('p')
+        bodyElement.setAttribute('data-message-body', '1')
         bodyElement.textContent = bodyTextToRender
 
         if (hasTextBody) {
@@ -2148,6 +2426,8 @@ class ChatApp {
                 this.renderMessageLinkPreviews(urlsInBody, linkPreviewContainer, isOwn)
             })
         }
+
+        this.applyEditedBadge(listItem, !!message.isEdited || !!message.editedAt)
 
         chatBody.appendChild(titleWrapper)
         chatBody.appendChild(chatMessage)
@@ -2323,6 +2603,42 @@ class ChatApp {
                 .finally(() => {
                     this.chatSendButton?.removeAttribute('disabled')
                 })
+        })
+
+        this.messagesList?.addEventListener('contextmenu', (event) => {
+            const target = event.target
+            if (target instanceof HTMLElement && target.closest('a, button, input, textarea, video, audio')) {
+                return
+            }
+
+            const messageNode = target instanceof HTMLElement ? target.closest('li.chat-group') : null
+            if (!messageNode) {
+                return
+            }
+
+            if ((messageNode.dataset.messageOwn || '0') !== '1') {
+                return
+            }
+
+            event.preventDefault()
+            this.openMessageActions(messageNode, event.clientX, event.clientY)
+        })
+
+        this.messageEditForm?.addEventListener('submit', async (event) => {
+            event.preventDefault()
+            await this.editSelectedMessage()
+        })
+
+        this.messageEditModal?.querySelector('[data-apps-chat="message-edit-close"]')?.addEventListener('click', () => {
+            this.closeMessageEditModal()
+        })
+
+        this.messageEditModal?.querySelector('[data-apps-chat="message-edit-cancel"]')?.addEventListener('click', () => {
+            this.closeMessageEditModal()
+        })
+
+        this.messageEditInput?.addEventListener('input', () => {
+            this.setMessageEditError('')
         })
 
         this.attachmentButton?.addEventListener('click', (event) => {

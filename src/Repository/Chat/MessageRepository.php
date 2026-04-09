@@ -64,6 +64,18 @@ class MessageRepository extends ServiceEntityRepository
         return $latestByConversation;
     }
 
+    public function findLatestMessageByConversationId(int $conversationId): ?Message
+    {
+        return $this->createQueryBuilder('m')
+            ->andWhere('m.conversation_id = :conversationId')
+            ->setParameter('conversationId', $conversationId)
+            ->orderBy('m.created_at', 'DESC')
+            ->addOrderBy('m.id', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
     //    /**
     //     * @return Message[] Returns an array of Message objects
     //     */

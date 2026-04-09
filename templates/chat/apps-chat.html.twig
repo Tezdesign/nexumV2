@@ -462,6 +462,48 @@
                     </div>
                 </div>
 
+                <div class="modal fade" tabindex="-1" aria-hidden="true" data-apps-chat="message-actions-modal">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Message options</h5>
+                                <button type="button" class="btn-close" data-apps-chat="message-actions-close" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body d-flex flex-column gap-2">
+                                <button type="button" class="btn btn-light text-start" data-apps-chat="message-action-edit">
+                                    <i class="ti ti-edit me-1"></i>
+                                    <span>Edit message</span>
+                                </button>
+                                <button type="button" class="btn btn-outline-danger text-start" data-apps-chat="message-action-delete">
+                                    <i class="ti ti-trash me-1"></i>
+                                    <span>Delete message</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal fade" tabindex="-1" aria-hidden="true" data-apps-chat="message-edit-modal">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <form data-apps-chat="message-edit-form">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Edit message</h5>
+                                    <button type="button" class="btn-close" data-apps-chat="message-edit-close" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <textarea class="form-control" rows="4" maxlength="300" data-apps-chat="message-edit-input"></textarea>
+                                    <div class="text-danger small mt-2 d-none" data-apps-chat="message-edit-error"></div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-light" data-apps-chat="message-edit-cancel">Cancel</button>
+                                    <button type="submit" class="btn btn-primary" data-apps-chat="message-edit-submit">Save</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
                 <input type="file" accept="image/*" class="d-none" data-apps-chat="customize-avatar-input">
 
                 <div class="modal fade" tabindex="-1" aria-hidden="true" id="groupCreateModal">
@@ -532,5 +574,5 @@
 {% endblock %}
 
 {% block script %}
-    <script src="/js/pages/apps-chat.js?v=20260409a"></script>
+    <script src="/js/pages/apps-chat.js?v=20260409c"></script>
 {% endblock %}
