@@ -938,7 +938,7 @@
                 }
             } catch (e) {}
 
-            {% if createTaskForm is defined and createTaskForm.vars.submitted and not createTaskForm.vars.valid %}
+            {% if createTaskForm is defined and createTaskForm is not null and createTaskForm.vars.submitted and not createTaskForm.vars.valid %}
             if (window.bootstrap && bootstrap.Modal) {
                 new bootstrap.Modal(taskModal).show();
             }
