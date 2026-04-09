@@ -1,8 +1,13 @@
 document.addEventListener('DOMContentLoaded', function () {
     // 1. Initialize Components
     if ($('[data-toggle="select2"]').length) {
-        $('[data-toggle="select2"]').select2({
-            dropdownParent: $('#createProfileModal') // Fix for Select2 inside Bootstrap Modals
+        $('[data-toggle="select2"]').each(function() {
+            let parentModal = $(this).closest('.modal');
+            if (parentModal.length) {
+                $(this).select2({ dropdownParent: parentModal });
+            } else {
+                $(this).select2();
+            }
         });
     }
 
@@ -12,7 +17,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if ($('[data-provider="flatpickr"]').length) {
         const startInput = document.getElementById('budget_profile_start_date');
         const endInput = document.getElementById('budget_profile_end_date');
-        
+
         if (startInput) {
             startPicker = flatpickr(startInput, { dateFormat: "Y-m-d" });
         }
@@ -30,7 +35,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function toggleDateMode() {
         if (!radioStandard || !radioCustom) return;
-        
+
         if (radioStandard.checked) {
             // Standard: Enable Fiscal Year dropdown, Disable Flatpickr popups & make inputs readonly
             if (fiscalYearSelect) {
@@ -40,7 +45,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (endDateInput) endDateInput.setAttribute('readonly', 'readonly');
             if (startPicker) startPicker.set('clickOpens', false);
             if (endPicker) endPicker.set('clickOpens', false);
-            
+
             // Re-trigger standard calculation
             if (fiscalYearSelect) {
                 $(fiscalYearSelect).trigger('change');
@@ -60,7 +65,10 @@ document.addEventListener('DOMContentLoaded', function () {
     if(radioStandard && radioCustom) {
         radioStandard.addEventListener('change', toggleDateMode);
         radioCustom.addEventListener('change', toggleDateMode);
-        toggleDateMode(); // Run on load
+
+        // If editing an existing profile with non-standard dates, we might want to check Custom mode automatically.
+        // For now, run on load.
+        toggleDateMode(); 
     }
 
     // 3. Auto-Calculate Standard Dates based on Fiscal Year Dropdown
@@ -68,18 +76,18 @@ document.addEventListener('DOMContentLoaded', function () {
         $(fiscalYearSelect).on('change', function() {
             // ONLY auto-fill if Standard is checked! If Custom is checked, let them do what they want.
             if (radioStandard && !radioStandard.checked) return;
-            
+
             const year = $(this).val();
             if (year) {
                 if (startPicker) startPicker.setDate(year + '-01-01', true);
                 else if (startDateInput) startDateInput.value = year + '-01-01';
-                
+
                 if (endPicker) endPicker.setDate(year + '-12-31', true);
                 else if (endDateInput) endDateInput.value = year + '-12-31';
             } else {
                 if (startPicker) startPicker.clear();
                 else if (startDateInput) startDateInput.value = '';
-                
+
                 if (endPicker) endPicker.clear();
                 else if (endDateInput) endDateInput.value = '';
             }
@@ -87,34 +95,39 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // 5. Clean Modal on Close
-    const modalElement = document.getElementById('createProfileModal');
-    if (modalElement) {
-        modalElement.addEventListener('hidden.bs.modal', function () {
-            const form = document.getElementById('createProfileForm');
-            if (form) {
-                // If there are server-side errors on the page, the user is currently stuck on a failed POST request.
-                // Clicking "Cancel" means they are abandoning the bad data.
-                // We forcefully redirect them to the clean GET URL to instantly wipe the browser's POST memory,
-                // unblur the screen, and prevent the "Confirm Form Resubmission" warning if they hit refresh!
-                if ($(form).find('.text-danger.mt-1').length > 0) {
-                    window.location.href = window.location.pathname;
-                    return;
-                }
+    const createModalElement = document.getElementById('createProfileModal');
+    const updateModalElement = document.getElementById('updateProfileModal');
 
-                // Otherwise, just do a normal visual reset for a clean form
-                $(form).find('input[type="text"], input[type="number"], input[type="date"]').val('');
-                $(form).find('select').val('').trigger('change.select2');
-
-                const flatpickrs = document.querySelectorAll('[data-provider="flatpickr"]');
-                flatpickrs.forEach(fp => {
-                    if (fp._flatpickr) {
-                        fp._flatpickr.clear();
+    function attachModalCloseListener(modalElement, formId) {
+        if (modalElement) {
+            modalElement.addEventListener('hidden.bs.modal', function () {
+                const form = document.getElementById(formId);
+                if (form) {
+                    if ($(form).find('.text-danger.mt-1').length > 0) {
+                        window.location.href = window.location.pathname;
+                        return;
                     }
-                });
 
-                $(form).find('.is-invalid').removeClass('is-invalid');
-                $(form).find('.text-danger.mt-1').remove();
-            }
-        });
+                    // Otherwise, just do a normal visual reset for a clean form
+                    if (formId === 'createProfileForm') {
+                        $(form).find('input[type="text"], input[type="number"], input[type="date"]').val('');
+                        $(form).find('select').val('').trigger('change.select2');
+
+                        const flatpickrs = document.querySelectorAll('[data-provider="flatpickr"]');
+                        flatpickrs.forEach(fp => {
+                            if (fp._flatpickr) {
+                                fp._flatpickr.clear();
+                            }
+                        });
+                    }
+
+                    $(form).find('.is-invalid').removeClass('is-invalid');
+                    $(form).find('.text-danger.mt-1').remove();
+                }
+            });
+        }
     }
-    });
+
+    attachModalCloseListener(createModalElement, 'createProfileForm');
+    attachModalCloseListener(updateModalElement, 'updateProfileForm');
+});

@@ -41,12 +41,22 @@ class FinancialDashboardController extends AbstractController
     }
 
     #[Route('/profile/{id}', name: 'apps-financial-analysis-profile')]
-    public function overview(BudgetProfile $budgetProfile, BudgetDashboardService $dashboardService): Response
+    public function overview(BudgetProfile $budgetProfile, BudgetDashboardService $dashboardService, Request $request, EntityManagerInterface $entityManager): Response
     {
+        $form = $this->createForm(BudgetProfileType::class, $budgetProfile);
+        $form->handleRequest($request);
+
+        if ($form->isSubmitted() && $form->isValid()) {
+            $entityManager->flush();
+            $this->addFlash('success', 'Budget Profile updated successfully!');
+            return $this->redirectToRoute('apps-financial-analysis-profile', ['id' => $budgetProfile->getId()]);
+        }
+
         // Future: Filter dashboardService projects based on budgetProfile dates
         return $this->render('financial-analysis/overview.html.twig', [
             'budgetProfile' => $budgetProfile,
-            'projects' => $dashboardService->getFormattedBudgets()
+            'projects' => $dashboardService->getFormattedBudgets(),
+            'form' => $form->createView(),
         ]);
     }
 

@@ -253,7 +253,7 @@ class BudgetProfile
 
             $actualEnd = $this->end_date->format('Y-m-d');
 
-            if ($actualEnd !== $expectedEndDateMinusOneDay->format('Y-m-d') && $actualEnd !== $expectedEndDateExact->format('Y-m-d')) {
+            if ($this->end_date->format('Y-m-d') !== $expectedEndDateMinusOneDay->format('Y-m-d') && $actualEnd !== $expectedEndDateExact->format('Y-m-d')) {
                 $context->buildViolation('The budget period must be exactly 12 months long (e.g., ' . $this->start_date->format('Y-m-d') . ' to ' . $expectedEndDateMinusOneDay->format('Y-m-d') . ').')
                     ->atPath('end_date')
                     ->addViolation();
@@ -261,6 +261,14 @@ class BudgetProfile
         }
     }
 
-
+    #[Assert\Callback]
+    public function validateUpdateLogic(ExecutionContextInterface $context, mixed $payload): void
+    {
+        // FUTURE IMPLEMENTATION: The 110 Rule
+        // If the new value of the budget_disposable is less than the sum of allocated project budgets
+        // or the current expenses (sum of project budget expenses within the same fiscal year + 10%),
+        // the update must be denied.
+        // This logic will be implemented later when the transactions section is built.
+    }
 }
 
