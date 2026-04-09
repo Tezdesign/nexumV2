@@ -67,12 +67,25 @@ class ConversationSidebarProvider
     {
         $conversations = $this->conversationRepository->findByIds($conversationIds);
         $latestMessages = $this->messageRepository->findLatestMessagesByConversationIds($conversationIds);
+        $participants = $this->participantRepository->findBy([
+            'conversation_id' => $conversationIds,
+            'user_id' => $userId,
+            'left_at' => null,
+        ]);
         $conversationsById = [];
+        $participantsByConversationId = [];
 
         foreach ($conversations as $conversation) {
             $id = $conversation->getId();
             if ($id !== null) {
                 $conversationsById[$id] = $conversation;
+            }
+        }
+
+        foreach ($participants as $participant) {
+            $conversationId = $participant->getConversationId();
+            if ($conversationId !== null) {
+                $participantsByConversationId[$conversationId] = $participant;
             }
         }
 
@@ -83,19 +96,22 @@ class ConversationSidebarProvider
                 continue;
             }
 
-            $items[] = $this->formatConversation($conversation, $userId, $latestMessages[$conversationId] ?? null);
+            $participant = $participantsByConversationId[$conversationId] ?? null;
+            $items[] = $this->formatConversation($conversation, $userId, $latestMessages[$conversationId] ?? null, $participant);
         }
 
         return $items;
     }
 
-    private function formatConversation(Conversation $conversation, int $userId, ?Message $latestMessage): array
+    private function formatConversation(Conversation $conversation, int $userId, ?Message $latestMessage, ?ConversationParticipant $participant): array
     {
         if ($this->isDirectConversation($conversation)) {
-            return $this->formatDirectConversation($conversation, $userId, $latestMessage);
+            return $this->formatDirectConversation($conversation, $userId, $latestMessage, $participant);
         }
 
         $lastActivityAt = $latestMessage?->getCreatedAt() ?? $conversation->getLastMessageAt();
+        $conversationId = (int) ($conversation->getId() ?? 0);
+        $unreadCount = $conversationId > 0 ? $this->calculateUnreadCount($conversationId, $participant, $userId) : 0;
 
         return [
             'id' => $conversation->getId(),
@@ -107,6 +123,7 @@ class ConversationSidebarProvider
             'lastMessageAt' => $conversation->getLastMessageAt(),
             'lastMessagePreview' => $this->buildMessagePreview($latestMessage),
             'lastMessageTimeLabel' => $this->formatRelativeTimeLabel($lastActivityAt),
+            'unreadCount' => $unreadCount,
         ];
     }
 
@@ -120,12 +137,14 @@ class ConversationSidebarProvider
         return $conversation->getDmKey() !== null;
     }
 
-    private function formatDirectConversation(Conversation $conversation, int $userId, ?Message $latestMessage): array
+    private function formatDirectConversation(Conversation $conversation, int $userId, ?Message $latestMessage, ?ConversationParticipant $participant): array
     {
         $other = $this->participantRepository->findOtherParticipant((int) $conversation->getId(), $userId);
         $otherUser = $this->findParticipantUser($other);
         $name = $this->buildDmName($otherUser, $other);
         $lastActivityAt = $latestMessage?->getCreatedAt() ?? $conversation->getLastMessageAt();
+        $conversationId = (int) ($conversation->getId() ?? 0);
+        $unreadCount = $conversationId > 0 ? $this->calculateUnreadCount($conversationId, $participant, $userId) : 0;
 
         return [
             'id' => $conversation->getId(),
@@ -137,7 +156,14 @@ class ConversationSidebarProvider
             'lastMessageAt' => $conversation->getLastMessageAt(),
             'lastMessagePreview' => $this->buildMessagePreview($latestMessage),
             'lastMessageTimeLabel' => $this->formatRelativeTimeLabel($lastActivityAt),
+            'unreadCount' => $unreadCount,
         ];
+    }
+
+    private function calculateUnreadCount(int $conversationId, ?ConversationParticipant $participant, int $userId): int
+    {
+        $lastReadMessageId = $participant?->getLastReadMessageId();
+        return $this->messageRepository->countUnreadMessages($conversationId, $lastReadMessageId, $userId);
     }
 
     private function buildMessagePreview(?Message $message): string

@@ -102,6 +102,11 @@
         [data-apps-chat="inline-edit-cancel"]:hover {
             color: var(--bs-body-color) !important;
         }
+        [data-apps-chat="conversation-item"][data-conversation-unread="1"] [data-apps-chat="conversation-last-time"],
+        [data-apps-chat="conversation-item"][data-conversation-unread="1"] [data-apps-chat="conversation-last-preview"] {
+            color: var(--bs-primary) !important;
+            font-weight: 600;
+        }
     </style>
 {% endblock %}
 
@@ -208,7 +213,7 @@
                                     </div>
 
                                     {% for conversation in conversations %}
-                                        <a href="javascript:void(0);" class="text-body d-block" data-apps-chat="conversation-item" data-conversation-id="{{ conversation.id }}" data-messages-endpoint="{{ path('apps-chat-conversation-messages', {'conversationId': conversation.id}) }}" data-conversation-name="{{ conversation.name|e('html_attr') }}" data-conversation-avatar="{{ (conversation.avatarSrc ?? '')|e('html_attr') }}" data-conversation-type="{{ conversation.isDm ? 'DM' : 'GROUP' }}" data-conversation-is-admin="{{ conversation.isAdmin ? '1' : '0' }}" data-conversation-created-at="{{ (conversation.createdAtLabel ?? '--')|e('html_attr') }}" data-dm-name="{{ conversation.isDm ? conversation.name|e('html_attr') : '' }}" data-group-title="{{ conversation.isDm ? '' : conversation.name|e('html_attr') }}">
+                                        <a href="javascript:void(0);" class="text-body d-block" data-apps-chat="conversation-item" data-conversation-id="{{ conversation.id }}" data-messages-endpoint="{{ path('apps-chat-conversation-messages', {'conversationId': conversation.id}) }}" data-conversation-name="{{ conversation.name|e('html_attr') }}" data-conversation-avatar="{{ (conversation.avatarSrc ?? '')|e('html_attr') }}" data-conversation-type="{{ conversation.isDm ? 'DM' : 'GROUP' }}" data-conversation-is-admin="{{ conversation.isAdmin ? '1' : '0' }}" data-conversation-created-at="{{ (conversation.createdAtLabel ?? '--')|e('html_attr') }}" data-dm-name="{{ conversation.isDm ? conversation.name|e('html_attr') : '' }}" data-group-title="{{ conversation.isDm ? '' : conversation.name|e('html_attr') }}" data-conversation-unread="{{ (conversation.unreadCount ?? 0) > 0 ? '1' : '0' }}">
                                             <div class="chat-users">
                                                 <div class="avatar-md {{ conversation.isDm ? 'chat-avatar-online' : 'chat-avatar-offline' }}">
                                                     {% if conversation.avatarSrc %}
@@ -222,13 +227,20 @@
 
                                                 <div class="flex-grow-1 overflow-hidden">
                                                     <h5 class="m-0">
-                                                        <span class="float-end text-muted fs-12">
-                                                            {{ conversation.lastMessageTimeLabel ?? '--' }}
+                                                        <span class="float-end d-flex flex-column align-items-end">
+                                                            <span class="text-muted fs-12" data-apps-chat="conversation-last-time">
+                                                                {{ conversation.lastMessageTimeLabel ?? '--' }}
+                                                            </span>
+                                                            {% if (conversation.unreadCount ?? 0) > 0 %}
+                                                                <span class="badge rounded-pill bg-danger text-white fs-10 mt-1" data-apps-chat="conversation-unread-badge" style="min-width: 20px;">
+                                                                    {{ conversation.unreadCount > 99 ? '99+' : conversation.unreadCount }}
+                                                                </span>
+                                                            {% endif %}
                                                         </span>
                                                         <span data-apps-chat="conversation-name">{{ conversation.name }}</span>
                                                     </h5>
                                                     <p class="mt-1 mb-0 text-muted lh-1">
-                                                        <span class="w-75 d-inline-block text-truncate overflow-hidden fs-13">
+                                                        <span class="w-75 d-inline-block text-truncate overflow-hidden fs-13" data-apps-chat="conversation-last-preview">
                                                             {{ conversation.lastMessagePreview ?? 'No messages yet' }}
                                                         </span>
                                                     </p>

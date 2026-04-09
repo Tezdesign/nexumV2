@@ -75,6 +75,24 @@ class MessageRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
+    public function countUnreadMessages(int $conversationId, ?int $lastReadMessageId, int $currentUserId): int
+    {
+        $queryBuilder = $this->createQueryBuilder('m')
+            ->select('COUNT(m.id)')
+            ->andWhere('m.conversation_id = :conversationId')
+            ->andWhere('m.sender_id != :currentUserId')
+            ->setParameter('conversationId', $conversationId)
+            ->setParameter('currentUserId', $currentUserId);
+
+        if ($lastReadMessageId !== null) {
+            $queryBuilder
+                ->andWhere('m.id > :lastReadMessageId')
+                ->setParameter('lastReadMessageId', $lastReadMessageId);
+        }
+
+        return (int) $queryBuilder->getQuery()->getSingleScalarResult();
+    }
+
     //    /**
     //     * @return Message[] Returns an array of Message objects
     //     */

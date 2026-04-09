@@ -2607,6 +2607,18 @@ class ChatApp {
         })
     }
 
+    clearConversationUnreadState = (conversationItem) => {
+        if (!conversationItem) {
+            return
+        }
+
+        conversationItem.dataset.conversationUnread = '0'
+        const badge = conversationItem.querySelector('[data-apps-chat="conversation-unread-badge"]')
+        if (badge) {
+            badge.remove()
+        }
+    }
+
     renderMessages = (messages, readReceipts = []) => {
         this.clearMessages()
 
@@ -2725,6 +2737,7 @@ class ChatApp {
             await this.loadConversationMembers(nextConversationId)
         }
 
+        this.clearConversationUnreadState(item)
         this.loadConversationMessages(nextConversationId, endpoint)
     }
 
