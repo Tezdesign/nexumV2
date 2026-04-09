@@ -1868,13 +1868,16 @@ class ChatApp {
         return this.conversationItems.find((item) => !item.classList.contains('d-none')) || null
     }
 
-    buildMessagesEndpoint = (item, conversationId) => {
+    buildMessagesEndpoint = (item, conversationId, { markAsRead = false } = {}) => {
         const itemEndpoint = item?.dataset.messagesEndpoint || ''
-        if (itemEndpoint) {
-            return itemEndpoint
+        const baseEndpoint = itemEndpoint || `/apps-chat/conversations/${encodeURIComponent(String(conversationId))}/messages`
+
+        if (!markAsRead) {
+            return baseEndpoint
         }
 
-        return `/apps-chat/conversations/${encodeURIComponent(String(conversationId))}/messages`
+        const separator = baseEndpoint.includes('?') ? '&' : '?'
+        return `${baseEndpoint}${separator}markAsRead=1`
     }
 
     createAvatarElement = (avatarSrc, fallbackText) => {
@@ -2606,7 +2609,7 @@ class ChatApp {
 
         const rawConversationId = item.dataset.conversationId || ''
         const nextConversationId = rawConversationId !== '' ? rawConversationId : null
-        const endpoint = this.buildMessagesEndpoint(item, rawConversationId)
+        const endpoint = this.buildMessagesEndpoint(item, rawConversationId, { markAsRead: true })
 
         if (!endpoint) {
             return
@@ -2651,11 +2654,6 @@ class ChatApp {
                 this.selectConversation(item)
             })
         })
-
-        const firstVisibleConversation = this.getFirstVisibleConversation()
-        if (firstVisibleConversation) {
-            this.selectConversation(firstVisibleConversation)
-        }
     }
 
     initForm = () => {

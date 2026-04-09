@@ -3,6 +3,7 @@
 namespace App\Controller\chat;
 
 use App\Entity\Chat\Conversation;
+use App\Entity\Chat\ConversationParticipant;
 use App\Entity\Chat\Message;
 use App\Entity\UserHandling\Utilisateur;
 use App\Repository\Chat\ConversationParticipantRepository;
@@ -32,9 +33,11 @@ class MessageController extends AbstractController
 	#[Route('/apps-chat/conversations/{conversationId}/messages', name: 'apps-chat-conversation-messages', methods: ['GET'])]
 	public function index(
 		int $conversationId,
+		Request $request,
 		MessageRepository $messageRepository,
 		ConversationParticipantRepository $participantRepository,
 		UtilisateurRepository $utilisateurRepository,
+		EntityManagerInterface $entityManager,
 	): JsonResponse {
 		if ($conversationId <= 0) {
 			return $this->json([
@@ -51,6 +54,10 @@ class MessageController extends AbstractController
 		}
 
 		$messages = $messageRepository->findByConversationOrdered($conversationId);
+		if ($request->query->getBoolean('markAsRead', false)) {
+			$this->markConversationAsRead($messages, $conversationId, $participantRepository, $entityManager);
+		}
+
 		$usersById = $this->mapUsersById($messages, $utilisateurRepository);
 
 		$payload = array_map(function ($message) use ($usersById): array {
@@ -79,6 +86,47 @@ class MessageController extends AbstractController
 			'success' => true,
 			'messages' => $payload,
 		]);
+	}
+
+	/**
+	 * @param Message[] $messages
+	 */
+	private function markConversationAsRead(
+		array $messages,
+		int $conversationId,
+		ConversationParticipantRepository $participantRepository,
+		EntityManagerInterface $entityManager,
+	): void {
+		if ($messages === []) {
+			return;
+		}
+
+		$lastMessage = $messages[count($messages) - 1] ?? null;
+		if (!$lastMessage instanceof Message) {
+			return;
+		}
+
+		$lastMessageId = $lastMessage->getId();
+		if ($lastMessageId === null) {
+			return;
+		}
+
+		$participant = $participantRepository->findOneBy([
+			'conversation_id' => $conversationId,
+			'user_id' => ConversationController::SESSION_CURRENT_USER_ID,
+			'left_at' => null,
+		]);
+
+		if (!$participant instanceof ConversationParticipant) {
+			return;
+		}
+
+		if ($participant->getLastReadMessageId() === $lastMessageId) {
+			return;
+		}
+
+		$participant->setLastReadMessageId($lastMessageId);
+		$entityManager->flush();
 	}
 
 	#[Route('/apps-chat/conversations/{conversationId}/messages', name: 'apps-chat-message-store', methods: ['POST'])]
