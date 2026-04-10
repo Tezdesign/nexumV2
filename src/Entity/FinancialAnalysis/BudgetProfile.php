@@ -46,7 +46,7 @@ class BudgetProfile
         return $this->fiscal_year;
     }
 
-    public function setFiscal_year(string $fiscal_year): self
+    public function setFiscal_year(?string $fiscal_year): self
     {
         $this->fiscal_year = $fiscal_year;
         return $this;
@@ -63,7 +63,7 @@ class BudgetProfile
         return $this->budget_disposable;
     }
 
-    public function setBudget_disposable(string $budget_disposable): self
+    public function setBudget_disposable(?string $budget_disposable): self
     {
         $this->budget_disposable = $budget_disposable;
         return $this;
@@ -140,7 +140,7 @@ class BudgetProfile
         return $this->fiscal_year;
     }
 
-    public function setFiscalYear(string $fiscal_year): static
+    public function setFiscalYear(?string $fiscal_year): static
     {
         $this->fiscal_year = $fiscal_year;
 
@@ -152,7 +152,7 @@ class BudgetProfile
         return $this->budget_disposable;
     }
 
-    public function setBudgetDisposable(string $budget_disposable): static
+    public function setBudgetDisposable(?string $budget_disposable): static
     {
         $this->budget_disposable = $budget_disposable;
 
