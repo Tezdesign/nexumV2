@@ -2,6 +2,8 @@
     projectForm: form,
     contentId: 'editProjectModalContent',
     formId: 'editProjectForm',
+    formAction: path('app_project_edit', {id: project.id}),
+    formMethod: 'POST',
     backUrl: backUrl|default(''),
     assignableUsers: assignableUsers|default([])
 } %}
