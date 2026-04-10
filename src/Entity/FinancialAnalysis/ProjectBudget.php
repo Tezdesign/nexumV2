@@ -45,7 +45,7 @@ class ProjectBudget
         return $this->name;
     }
 
-    public function setName(string $name): self
+    public function setName(?string $name): self
     {
         $this->name = $name;
         return $this;
@@ -173,7 +173,7 @@ class ProjectBudget
         return $this->total_budget;
     }
 
-    public function setTotalBudget(string $total_budget): static
+    public function setTotalBudget(?string $total_budget): static
     {
         $this->total_budget = $total_budget;
 
