@@ -1,0 +1,63 @@
+[33m69a7c3b[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mMalek[m[33m)[m HEAD@{0}: commit (cherry-pick): fix: generalized the slider ui fix previously for all files using FA.css
+[33ma0258ef[m HEAD@{1}: commit (cherry-pick): fix: fixed issues related to the update transaction UI and UX and filtering issues across entities
+[33md27acb5[m HEAD@{2}: reset: moving to d27acb573f1546ebf449b2af0926ea61bb3576ee
+[33md27acb5[m HEAD@{3}: commit: gitignore and cache update
+[33mafdc356[m HEAD@{4}: commit: ui implementation changes
+[33m3e49eee[m[33m ([m[1;31morigin/Malek[m[33m)[m HEAD@{5}: commit: fix: fixed issues related to the update transaction UI and UX and filtering issues across entities
+[33mcd6ff9d[m HEAD@{6}: commit: feature: FINISHED!!
+[33m3765fa8[m HEAD@{7}: commit: feature: filtering and searn for all the Es
+[33me3bbbf2[m HEAD@{8}: commit: big checkpoint do or die for filters
+[33m18663e4[m HEAD@{9}: reset: moving to 18663e4
+[33m18663e4[m HEAD@{10}: reset: moving to 18663e4
+[33m18663e4[m HEAD@{11}: commit: feature : filter for transactions
+[33m8e44f0e[m HEAD@{12}: commit: feature :search for all pages
+[33m47a3b7d[m HEAD@{13}: commit: implemented search for E3
+[33m9a03e2e[m HEAD@{14}: commit: got rid of the footer
+[33mfa456bb[m HEAD@{15}: commit: orgnizing the ui
+[33m00ff441[m HEAD@{16}: commit: CRUD for E1 complete
+[33m0170968[m HEAD@{17}: commit: CRUD for E3 and E2 complete
+[33m2786880[m HEAD@{18}: commit: featrue: multi delete for the transactions implmeanted
+[33m226ff26[m HEAD@{19}: commit: fix error in breadcrumb routing: actual symfony pathing instead of idiotic js.back() function
+[33ma153f04[m HEAD@{20}: commit: migration issue fix and ui transaction impelmenting fix
+[33m5495c4b[m HEAD@{21}: commit: saving before description correction type migration
+[33me4b2e9a[m HEAD@{22}: commit: fixed ui for transactions list view
+[33mcb44ab9[m HEAD@{23}: commit: semi ready design for the trasncations layout
+[33m52b8094[m HEAD@{24}: commit: create update logic and ui for E1 and E2 : task failed successfully
+[33m7f6399d[m HEAD@{25}: commit: fix ui crashes and controller declrations issues with project budget
+[33m3a3c1bc[m HEAD@{26}: commit: rollback commit
+[33m0793653[m HEAD@{27}: commit: fixed upadate and create model js ui issues and set them as the base for every model aside from delete
+[33meeed2cf[m HEAD@{28}: commit: still fixing STUUUUUPID JS issues
+[33m750302a[m HEAD@{29}: commit: update handling ui + functions
+[33m8156efc[m HEAD@{30}: commit: compelete fix for the add interface ui issues
+[33mf3807f8[m HEAD@{31}: commit: more ui fixex
+[33mbfe4101[m HEAD@{32}: commit: finally fixed the ui issue
+[33m6ac10d5[m HEAD@{33}: commit: fix : temp fix for validation text not showing up
+[33m3e36b75[m HEAD@{34}: commit: fix: ui issues in add widget for the budget profile
+[33m9528402[m HEAD@{35}: commit: fall back point
+[33m34508af[m HEAD@{36}: commit: buidling ui for crud implementation and forms and input validation E1
+[33mb06f34c[m HEAD@{37}: commit: breadcrumb ui changes
+[33m1bdd763[m HEAD@{38}: commit: getting closer to the intended ui
+[33m5e559f0[m HEAD@{39}: commit: Implementing new logic
+[33m102d5dd[m HEAD@{40}: commit: preparing for BP main crud logic and validation
+[33m9c74623[m HEAD@{41}: commit: solving ui issues
+[33m4811d9b[m HEAD@{42}: commit: solving commit issues
+[33m2643d14[m HEAD@{43}: commit: getting ready for fetch DB data
+[33m3ce925f[m HEAD@{44}: commit: ui fixes for badges
+[33m5a17240[m HEAD@{45}: commit: ui elements for page 1
+[33m4739327[m HEAD@{46}: commit: kpi and ui before plan
+[33m58abdb5[m HEAD@{47}: commit: more ui changes
+[33m0ae9312[m HEAD@{48}: commit: fixing some ui issues and kpi implemenation in twig
+[33mdc00e15[m HEAD@{49}: commit: refecting on ui
+[33m4fd35d6[m HEAD@{50}: commit: testing some crud functions (make:crud was used for the first)
+[33m7427003[m[33m ([m[1;32mmain[m[33m)[m HEAD@{51}: checkout: moving from main to Malek
+[33m7427003[m[33m ([m[1;32mmain[m[33m)[m HEAD@{52}: commit: fixed unrelated files
+[33m60c6f15[m HEAD@{53}: Branch: renamed refs/heads/master to refs/heads/main
+[33m60c6f15[m HEAD@{55}: commit: provided a migration solution to keep legacy code active
+[33mc3285d2[m HEAD@{56}: commit: verified schema and corrected errors
+[33m5998599[m HEAD@{57}: commit: added classes and repository files
+[33mbc74fb2[m HEAD@{58}: commit: seperated the logic for clearer workflow
+[33md1739c8[m HEAD@{59}: commit: fixed side bar and added seperate routing
+[33m378db27[m HEAD@{60}: commit: first new template run
+[33m016bec2[m HEAD@{61}: commit: adding template files to project
+[33m9e78847[m HEAD@{62}: commit: Add webapp packages
+[33mee33787[m HEAD@{63}: commit (initial): Add initial set of files

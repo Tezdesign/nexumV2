@@ -8,14 +8,37 @@ document.addEventListener('DOMContentLoaded', function() {
 
     /**
      * ==========================================
-     * MODAL BACKDROP FIX
+     * MODAL BACKDROP FIX & SELECT2 BUG FIX
      * ==========================================
      * Moves modals to the body to prevent them from being trapped 
      * behind backdrops when inside containers with overflow: hidden.
+     * Also repairs Select2 instances that break when their parent DOM node is moved.
      */
     document.addEventListener('show.bs.modal', function (event) {
-        if (event.target && event.target.classList.contains('modal') && event.target.parentNode !== document.body) {
-            document.body.appendChild(event.target);
+        const modal = event.target;
+        if (modal && modal.classList.contains('modal') && modal.parentNode !== document.body) {
+            
+            // Move the modal to the body to fix the z-index/backdrop bug
+            document.body.appendChild(modal);
+            
+            // Fix Select2 instances that break when their parent node is moved in the DOM
+            // We must destroy and re-initialize them so their event listeners reattach correctly
+            if (typeof jQuery !== 'undefined') {
+                const $modal = $(modal);
+                const $selects = $modal.find('[data-toggle="select2"]');
+                
+                if ($selects.length > 0) {
+                    $selects.each(function() {
+                        const $this = $(this);
+                        // If it was already initialized, destroy it first
+                        if ($this.hasClass('select2-hidden-accessible')) {
+                            $this.select2('destroy');
+                        }
+                        // Re-initialize with the correct dropdown parent so focus works perfectly
+                        $this.select2({ dropdownParent: $modal });
+                    });
+                }
+            }
         }
     });
 
