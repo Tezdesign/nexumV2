@@ -10,7 +10,7 @@
             <!-- Status Filter -->
             <div class="col-md-4 mb-3">
                 <label class="form-label fs-12">{{ 'Status'|trans }}</label>
-                <select class="form-select form-select-sm" id="filter-project-status">
+                <select class="form-select form-select-sm" data-toggle="select2" id="filter-project-status">
                     <option value="ALL">{{ 'All'|trans }}</option>
                     <option value="ON TRACK">{{ 'On Track'|trans }}</option>
                     <option value="AT RISK">{{ 'At Risk'|trans }}</option>
@@ -21,7 +21,7 @@
             <!-- Project Name Filter -->
             <div class="col-md-4 mb-3">
                 <label class="form-label fs-12">{{ 'Project'|trans }}</label>
-                <select class="form-select form-select-sm" id="filter-project-name">
+                <select class="form-select form-select-sm" data-toggle="select2" id="filter-project-name">
                     <option value="ALL">{{ 'All'|trans }}</option>
                     {% set unique_names = [] %}
                     {% if projects is defined %}
@@ -38,7 +38,7 @@
             <!-- Month Filter -->
             <div class="col-md-4 mb-3">
                 <label class="form-label fs-12">{{ 'Month'|trans }}</label>
-                <select class="form-select form-select-sm" id="filter-project-month">
+                <select class="form-select form-select-sm" data-toggle="select2" id="filter-project-month">
                     <option value="ALL">{{ 'All'|trans }}</option>
                     {% for i in 1..12 %}
                         <option value="{{ '%02d'|format(i) }}">{{ '%02d'|format(i) }}</option>

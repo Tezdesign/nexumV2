@@ -9,7 +9,7 @@
         <!-- Category Filter -->
         <div class="mb-3">
             <label class="form-label fs-12">{{ 'Category'|trans }}</label>
-            <select class="form-select form-select-sm" id="filter-category">
+            <select class="form-select form-select-sm" data-toggle="select2" id="filter-category">
                 <option value="ALL">{{ 'All Categories'|trans }}</option>
                 <option value="HARDWARE">{{ 'Hardware'|trans }}</option>
                 <option value="SOFTWARE">{{ 'Software'|trans }}</option>
@@ -24,19 +24,19 @@
         <div class="mb-4">
             <label class="form-label fs-12">{{ 'Exact Date'|trans }}</label>
             <div class="d-flex gap-1">
-                <select class="form-select form-select-sm" id="filter-date-year">
+                <select class="form-select form-select-sm" data-toggle="select2" id="filter-date-year">
                     <option value="ALL">{{ 'YYYY'|trans }}</option>
                     {% for year in 2020..2030 %}
                         <option value="{{ year }}">{{ year }}</option>
                     {% endfor %}
                 </select>
-                <select class="form-select form-select-sm" id="filter-date-month">
+                <select class="form-select form-select-sm" data-toggle="select2" id="filter-date-month">
                     <option value="ALL">{{ 'MM'|trans }}</option>
                     {% for i in 1..12 %}
                         <option value="{{ '%02d'|format(i) }}">{{ '%02d'|format(i) }}</option>
                     {% endfor %}
                 </select>
-                <select class="form-select form-select-sm" id="filter-date-day">
+                <select class="form-select form-select-sm" data-toggle="select2" id="filter-date-day">
                     <option value="ALL">{{ 'DD'|trans }}</option>
                     {% for i in 1..31 %}
                         <option value="{{ '%02d'|format(i) }}">{{ '%02d'|format(i) }}</option>

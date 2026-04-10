@@ -3,8 +3,11 @@ document.addEventListener('DOMContentLoaded', function () {
     if ($('[data-toggle="select2"]').length) {
         $('[data-toggle="select2"]').each(function() {
             let parentModal = $(this).closest('.modal');
+            let parentDropdown = $(this).closest('.dropdown-menu');
             if (parentModal.length) {
                 $(this).select2({ dropdownParent: parentModal });
+            } else if (parentDropdown.length) {
+                $(this).select2({ dropdownParent: parentDropdown });
             } else {
                 $(this).select2();
             }
