@@ -199,7 +199,7 @@ class FinancialDashboardController extends AbstractController
             $transaction->setProjectBudget($projectBudget);
             $dashboardService->handleTransactionCascade($projectBudget, $transaction, $profile);
             $this->addFlash('success', 'Transaction added successfully! Spending updated.');
-            return $this->redirectToRoute('apps-financial-analysis-budget-details', ['id' => $projectBudget->getId()]);
+            return $this->redirectToRoute('apps-financial-analysis-budget-details', ['id' => $projectBudget->getId(), '_fragment' => 'transactions-tab']);
         }
 
         $searchTerm = $request->query->get('q');
@@ -223,26 +223,40 @@ class FinancialDashboardController extends AbstractController
 
     #[Route('/transaction/{id}/update', name: 'apps-financial-analysis-update-transaction', methods: ['POST'])]
     public function updateTransaction(
-        Transaction $transaction, 
-        Request $request, 
+        Transaction $transaction,
+        Request $request,
         BudgetDashboardService $dashboardService
     ): Response {
         $projectBudget = $transaction->getProjectBudget();
         $profile = $dashboardService->getFiscalProfileForBudget($projectBudget);
-        
+
         $form = $this->createForm(TransactionType::class, $transaction);
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
             $dashboardService->handleTransactionUpdateCascade($projectBudget, $transaction, $profile);
             $this->addFlash('success', 'Transaction updated successfully!');
-        } else {
-            $this->addFlash('danger', 'Failed to update transaction. Please check errors.');
+            return $this->redirectToRoute('apps-financial-analysis-budget-details', ['id' => $projectBudget->getId(), '_fragment' => 'transactions-tab']);
         }
 
-        return $this->redirectToRoute('apps-financial-analysis-budget-details', ['id' => $projectBudget->getId()]);
-    }
+        // Native PHP/Twig approach: store errors in session flash bag to survive the redirect
+        if ($form->isSubmitted() && !$form->isValid()) {
+            $this->addFlash('danger', 'Failed to update transaction. Please check the errors in the form.');
+            
+            // Collect exact errors and put them in session
+            $errors = [];
+            foreach ($form->getErrors(true) as $error) {
+                $errors[$error->getOrigin()->getName()] = $error->getMessage();
+            }
+            // Store specific errors for this specific transaction ID
+            $request->getSession()->getFlashBag()->add('transaction_errors_' . $transaction->getId(), $errors);
+            
+            // Store the submitted invalid data so the form doesn't revert to old DB data
+            $request->getSession()->getFlashBag()->add('transaction_data_' . $transaction->getId(), $request->request->all('transaction'));
+        }
 
+        return $this->redirectToRoute('apps-financial-analysis-budget-details', ['id' => $projectBudget->getId(), '_fragment' => 'transactions-tab']);
+    }
     #[Route('/budget/{id}/transactions/bulk-delete', name: 'apps-financial-analysis-bulk-delete-transactions', methods: ['POST'])]
     public function bulkDeleteTransactions(
         ProjectBudget $projectBudget,
@@ -258,7 +272,7 @@ class FinancialDashboardController extends AbstractController
             $this->addFlash('success', count($ids) . ' transactions deleted successfully!');
         }
 
-        return $this->redirectToRoute('apps-financial-analysis-budget-details', ['id' => $projectBudget->getId()]);
+        return $this->redirectToRoute('apps-financial-analysis-budget-details', ['id' => $projectBudget->getId(), '_fragment' => 'transactions-tab']);
     }
 
     #[Route('/budget/{id}/delete', name: 'apps-financial-analysis-delete-project-budget', methods: ['POST'])]

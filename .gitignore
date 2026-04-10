@@ -22,6 +22,9 @@
 /.agents/
 /.gemini/
 /skills-lock.json
+/templates/ui_ideas
+/MODAL_IMPLEMENTATION_GUIDE.md
+
 
 # IDEs
 /.idea/

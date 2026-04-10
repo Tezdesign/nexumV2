@@ -148,4 +148,43 @@
     <!-- Custom FA JS Logic -->
     <script src="/js/FA_custom.js?v={{ random() }}"></script>
     <script src="/js/FA_functions.js?v={{ random() }}"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Restore active tab from URL hash
+            var hash = window.location.hash;
+            if (hash) {
+                var triggerEl = document.querySelector('a[href="' + hash + '"]');
+                if (triggerEl) {
+                    var tab = new bootstrap.Tab(triggerEl);
+                    tab.show();
+                }
+            }
+
+            // Update URL hash when a tab is clicked
+            document.querySelectorAll('a[data-bs-toggle="tab"]').forEach(function (el) {
+                el.addEventListener('shown.bs.tab', function (e) {
+                    if (history.pushState) {
+                        history.pushState(null, null, e.target.hash);
+                    } else {
+                        window.location.hash = e.target.hash;
+                    }
+                });
+            });
+
+            // If create transaction form has errors, force open transactions tab and the modal
+            {% if transactionForm is defined and transactionForm.vars.submitted and not transactionForm.vars.valid %}
+                var txTabEl = document.querySelector('a[href="#transactions-tab"]');
+                if (txTabEl) {
+                    var txTab = new bootstrap.Tab(txTabEl);
+                    txTab.show();
+                    var createModalEl = document.getElementById('createTransactionModal');
+                    if (createModalEl) {
+                        var createModal = new bootstrap.Modal(createModalEl);
+                        createModal.show();
+                    }
+                }
+            {% endif %}
+        });
+    </script>
 {% endblock %}

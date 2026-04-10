@@ -59,7 +59,7 @@ class Transaction
         return $this->cost;
     }
 
-    public function setCost(string $cost): self
+    public function setCost(?string $cost): self
     {
         $this->cost = $cost;
         return $this;

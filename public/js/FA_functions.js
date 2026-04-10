@@ -8,6 +8,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
     /**
      * ==========================================
+     * MODAL BACKDROP FIX
+     * ==========================================
+     * Moves modals to the body to prevent them from being trapped 
+     * behind backdrops when inside containers with overflow: hidden.
+     */
+    document.addEventListener('show.bs.modal', function (event) {
+        if (event.target && event.target.classList.contains('modal') && event.target.parentNode !== document.body) {
+            document.body.appendChild(event.target);
+        }
+    });
+
+    /**
+     * ==========================================
      * TRANSACTION TAB LOGIC
      * ==========================================
      */
@@ -91,6 +104,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
                 .then(response => response.text())
                 .then(html => {
+                    // Cleanup any orphaned update modals that were moved to the body
+                    document.querySelectorAll('body > .modal[id^="updateTransactionModal_"]').forEach(m => m.remove());
+
                     // Handle SimpleBar dynamically wrapping content
                     const simplebarContent = listContainer.querySelector('.simplebar-content');
                     if (simplebarContent) {
@@ -122,7 +138,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const gridViewContainer = document.getElementById('project-grid-view');
     const listViewContainer = document.getElementById('project-list-view');
 
-
+    // 1. Grid/List View Toggling (Vanilla JS)
     if (btnGridView && btnListView && gridViewContainer && listViewContainer) {
         const activeStyle = 'background-color: rgba(91, 105, 188, 0.15); color: var(--ct-secondary, #5b69bc); border-color: transparent;';
         const inactiveStyle = 'background-color: transparent; color: var(--ct-secondary, #5b69bc); border-color: rgba(91, 105, 188, 0.15);';
@@ -142,7 +158,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-
+    // 2. Pure Vanilla JS Live Search (No AJAX required for projects)
     const projectSearchInput = document.getElementById('project-search-input');
     const projectEmptyState = document.getElementById('project-search-empty-state');
 
@@ -153,6 +169,7 @@ document.addEventListener('DOMContentLoaded', function() {
             let visibleCount = 0;
             
             allCards.forEach(card => {
+                // Determine if we are filtering the grid column wrapper or the list card itself
                 const elementToHide = card.closest('.col') ? card.closest('.col') : card;
                 
                 const text = card.textContent.toLowerCase();
@@ -193,7 +210,7 @@ document.addEventListener('DOMContentLoaded', function() {
             allCards.forEach(card => {
                 const elementToHide = card.closest('.col') ? card.closest('.col') : card;
                 
-
+                // Only search within the title (h4) of the profile card
                 const titleElement = card.querySelector('h4');
                 const text = titleElement ? titleElement.textContent.toLowerCase() : '';
                 
@@ -205,7 +222,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
 
-
+            // Handle "No results found" dynamic state safely
             if (profileEmptyState) {
                 if (visibleCount === 0 && allCards.length > 0) {
                     profileEmptyState.classList.remove('d-none');
@@ -229,9 +246,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const btnClearFilters = document.getElementById('btn-clear-filters');
     const sliderElement = document.getElementById('transaction-amount-slider');
 
-    if (sliderPElement && btnApplyPFilters && btnClearPFilters) {
+    if (sliderElement && btnApplyFilters && btnClearFilters) {
 
-        noUiSlider.create(sliderPElement, {
+        // DELETE the dynamic maxProjectAmount calculation.
+        // Force it to use safe, hardcoded numbers exactly like your Transaction page.
+
+        // 1. Initialize NoUiSlider
+        noUiSlider.create(sliderElement, {
             start: [0, 100000], // Safe, valid numbers
             connect: true,
             tooltips: [true, true],
@@ -245,9 +266,9 @@ document.addEventListener('DOMContentLoaded', function() {
             })
         });
 
-
-        document.getElementById('projectFilterDropdown').addEventListener('shown.bs.dropdown', function () {
-            sliderPElement.noUiSlider.updateOptions({}, false);
+        // Fix the 0px Dropdown Bug!
+        document.getElementById('transactionFilterDropdown').addEventListener('shown.bs.dropdown', function () {
+            sliderElement.noUiSlider.updateOptions({}, false);
         });
 
         // 2. Apply Filters Logic
@@ -279,7 +300,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Date Check
                 const dateEl = card.querySelector('p.text-muted.mb-0.fs-12'); // The date paragraph
                 if (dateEl && showCard) {
-                    const dateText = dateEl.textContent.trim();
+                    const dateText = dateEl.textContent.trim(); // Format: "2026-04-09"
                     const parts = dateText.split('-');
                     
                     if (parts.length === 3) {
@@ -293,6 +314,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
 
+                // Amount Check
                 if (showCard) {
                     const costEl = card.querySelector('.text-danger');
                     if (costEl) {
@@ -308,7 +330,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
 
-
+                // Toggle Visibility
                 if (showCard) {
                     card.classList.remove('d-none');
                     visibleCount++;
@@ -317,7 +339,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
 
-
+            // Close the dropdown after applying
             const dropdownEl = document.getElementById('transactionFilterDropdown');
             if (dropdownEl) {
                 const dropdownInstance = bootstrap.Dropdown.getInstance(dropdownEl);
@@ -325,7 +347,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-
+        // 3. Clear Filters Logic
         btnClearFilters.addEventListener('click', function() {
             filterCategory.value = 'ALL';
             filterYear.value = 'ALL';
