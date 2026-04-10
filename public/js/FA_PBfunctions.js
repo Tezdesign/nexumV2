@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', function() {
             })
         });
 
-        // Force slider to redraw when dropdown opens so width isn't 0px
+
         const dropdownEl = document.getElementById('projectFilterDropdown');
         if (dropdownEl) {
             dropdownEl.addEventListener('shown.bs.dropdown', function () {
@@ -37,14 +37,11 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
-        // 2. Apply Filters Logic
-        // 2. Apply Filters Logic
         btnApplyPFilters.addEventListener('click', function() {
             const selectedStatus = filterStatus.value.toUpperCase();
             const selectedName = filterPName ? filterPName.value.trim().toLowerCase() : 'all';
             const selectedMonth = filterPMonth.value;
 
-            // Get raw slider values
             const sliderValues = sliderPElement.noUiSlider.get();
             const minAmount = parseFloat(sliderValues[0].replace(/[^0-9.-]+/g, ""));
             const maxAmount = parseFloat(sliderValues[1].replace(/[^0-9.-]+/g, ""));
@@ -55,7 +52,7 @@ document.addEventListener('DOMContentLoaded', function() {
             allProjectCards.forEach(card => {
                 let showCard = true;
 
-                // 1. Status Check
+
                 if (selectedStatus !== 'ALL') {
                     const statusBadge = card.querySelector('.badge');
                     if (!statusBadge || statusBadge.textContent.trim().toUpperCase() !== selectedStatus) {
@@ -63,26 +60,26 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
 
-                // 2. Project Name Check (More forgiving)
+
                 if (showCard && selectedName !== 'all') {
-                    // Check ALL text inside the card for the project name
+
                     const cardText = card.textContent.toLowerCase();
                     if (!cardText.includes(selectedName)) {
                         showCard = false;
                     }
                 }
 
-                // 3. Month Check (Looks for the specific "MM" anywhere near a calendar icon)
+
                 if (showCard && selectedMonth !== 'ALL') {
                     const dateIcon = card.querySelector('.ti-calendar-event');
                     if (dateIcon && dateIcon.parentElement) {
                         const dateText = dateIcon.parentElement.textContent.trim();
-                        // Looks for YYYY-MM-DD or MM/DD/YYYY
+
                         const dateMatch = dateText.match(/(\d{4})-(\d{2})-(\d{2})|(\d{2})\/(\d{2})\/(\d{4})/);
 
                         let cardMonth = null;
-                        if (dateMatch && dateMatch[2]) { cardMonth = dateMatch[2]; } // YYYY-MM-DD
-                        else if (dateMatch && dateMatch[4]) { cardMonth = dateMatch[4]; } // MM/DD/YYYY
+                        if (dateMatch && dateMatch[2]) { cardMonth = dateMatch[2]; }
+                        else if (dateMatch && dateMatch[4]) { cardMonth = dateMatch[4]; }
 
                         if (cardMonth !== selectedMonth) {
                             showCard = false;
@@ -92,18 +89,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
 
-                // 4. Amount Check (FIXED: Handles 'k' and 'M')
+
                 if (showCard) {
                     const budgetEls = card.querySelectorAll('h4.fw-normal, h5.fw-normal');
                     if (budgetEls.length > 0) {
                         const rawText = budgetEls[0].textContent.trim().toLowerCase();
                         let multiplier = 1;
 
-                        // Check for thousands or millions
+
                         if (rawText.includes('k')) multiplier = 1000;
                         if (rawText.includes('m')) multiplier = 1000000;
 
-                        // Strip characters, leaving only the decimal number
+
                         const cleanNumber = rawText.replace(/[^0-9.]/g, '');
                         const budgetValue = parseFloat(cleanNumber) * multiplier;
 
@@ -115,7 +112,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
 
-                // 5. Toggle Visibility safely (Handles both Grid and List views)
+
                 let elementToHide = card;
                 const parentCol = card.closest('.col');
                 if (parentCol && parentCol.parentElement && parentCol.parentElement.id === 'project-grid-view') {
@@ -130,7 +127,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
 
-            // Handle empty state graphic
+
             if (emptyState) {
                 if (visibleCount === 0 && allProjectCards.length > 0) {
                     emptyState.classList.remove('d-none');
@@ -139,7 +136,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
 
-            // Close the dropdown after applying
+
             const dropdownEl = document.getElementById('projectFilterDropdown');
             if (dropdownEl) {
                 const dropdownInstance = bootstrap.Dropdown.getInstance(dropdownEl);

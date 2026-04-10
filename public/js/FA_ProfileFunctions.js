@@ -17,11 +17,11 @@ document.addEventListener('DOMContentLoaded', function () {
     
     if (sliderElement && btnApplyFilters && btnClearFilters) {
         
-        // 1. Initialize NoUiSlider with Tooltips
+
         noUiSlider.create(sliderElement, {
-            start: [0, 1000000], // 1,000,000 as requested
+            start: [0, 1000000],
             connect: true,
-            tooltips: [true, true], // Show floating tooltips above handles
+            tooltips: [true, true],
             range: {
                 'min': 0,
                 'max': 1000000
@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', function () {
             })
         });
 
-        // Force slider to redraw when dropdown opens so width isn't 0px
+
         const dropdownEl = document.getElementById('profileFilterDropdown');
         if (dropdownEl) {
             dropdownEl.addEventListener('shown.bs.dropdown', function () {
@@ -40,18 +40,18 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
 
-        // 2. Apply Filters Logic
+
         btnApplyFilters.addEventListener('click', function() {
             const selectedStatus = filterStatus.value.toUpperCase();
             const selectedPeriod = filterPeriod.value.toUpperCase();
             const selectedCurrency = filterCurrency.value.toUpperCase();
             
-            // Get raw slider values
+
             const sliderValues = sliderElement.noUiSlider.get();
             const minAmount = parseFloat(sliderValues[0].replace(/[^0-9.-]+/g, ''));
             const maxAmount = parseFloat(sliderValues[1].replace(/[^0-9.-]+/g, ''));
 
-            // If slider is exactly at 1000000, we consider it unbounded (i.e. no max limit)
+
             const isMaxUnbounded = (maxAmount >= 1000000);
 
             const allProfileCards = document.querySelectorAll('.profile-card');
@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', function () {
             allProfileCards.forEach(card => {
                 let showCard = true;
 
-                // Status Check
+
                 if (selectedStatus !== 'ALL') {
                     const badge = card.querySelector('.badge');
                     if (!badge || badge.textContent.trim().toUpperCase() !== selectedStatus) {
@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                 }
 
-                // Currency Check
+
                 if (showCard && selectedCurrency !== 'ALL') {
                     const currencyTextEl = Array.from(card.querySelectorAll('.text-muted.fs-13')).find(el => el.textContent.includes('Base Currency:'));
                     if (currencyTextEl) {
@@ -81,7 +81,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                 }
 
-                // Period Type Check (Standard vs Custom)
+
                 if (showCard && selectedPeriod !== 'ALL') {
                     const dateIcon = card.querySelector('.ti-calendar-event');
                     if (dateIcon) {
@@ -108,7 +108,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                 }
 
-                // Amount Check (Disposable Budget)
+
                 if (showCard) {
                     const costEls = card.querySelectorAll('.fw-normal');
                     if (costEls.length > 0) {
@@ -125,7 +125,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                 }
 
-                // Toggle Visibility
+
                 let elementToHide = card;
                 const parentCol = card.closest('.col');
                 if (parentCol && parentCol.parentElement && parentCol.parentElement.id === 'profile-grid-container') {
@@ -140,7 +140,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             });
 
-            // Handle empty state graphic
+
             if (emptyState) {
                 if (visibleCount === 0) {
                     emptyState.classList.remove('d-none');
@@ -149,14 +149,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             }
 
-            // Close the dropdown after applying
+
             if (dropdownEl) {
                 const dropdownInstance = bootstrap.Dropdown.getInstance(dropdownEl);
                 if (dropdownInstance) dropdownInstance.hide();
             }
         });
 
-        // 3. Clear Filters Logic
+
         btnClearFilters.addEventListener('click', function() {
             filterStatus.value = 'ALL';
             filterPeriod.value = 'ALL';
