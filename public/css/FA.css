@@ -24,7 +24,7 @@
     border-radius: 50% !important;
     top: -6px !important;
     right: -10px !important;
-    background: #fff !important;
+    background: #727cf5 !important;
     border: 2px solid #727cf5 !important;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
 }
@@ -33,6 +33,72 @@
     display: none !important;
 }
 #profile-amount-slider .noUi-tooltip {
+    padding: 4px 8px !important;
+    font-size: 12px !important;
+    bottom: 130% !important;
+    background: #313a46 !important;
+    color: #fff !important;
+    border: none !important;
+}
+
+/* for DD in transaction tab*/
+#transaction-amount-slider.noUi-target {
+    height: 8px !important;
+    background-color: #e9ecef !important;
+    border: none !important;
+    margin-top: 30px !important; /* Forces room for tooltips */
+}
+#transaction-amount-slider .noUi-connect {
+    background-color: #727cf5 !important;
+}
+#transaction-amount-slider .noUi-handle {
+    width: 20px !important;
+    height: 20px !important;
+    border-radius: 50% !important;
+    top: -6px !important;
+    right: -10px !important;
+    background: #727cf5 !important;
+    border: 2px solid #727cf5 !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+}
+#transaction-amount-slider .noUi-handle::before,
+#transaction-amount-slider .noUi-handle::after {
+    display: none !important;
+}
+#transaction-amount-slider .noUi-tooltip {
+    padding: 4px 8px !important;
+    font-size: 12px !important;
+    bottom: 130% !important;
+    background: #313a46 !important;
+    color: #fff !important;
+    border: none !important;
+}
+
+/*for project in overview*/
+#project-amount-slider.noUi-target {
+    height: 8px !important;
+    background-color: #e9ecef !important;
+    border: none !important;
+    margin-top: 30px !important; /* Forces room for tooltips */
+}
+#project-amount-slider .noUi-connect {
+    background-color: #727cf5 !important;
+}
+#project-amount-slider .noUi-handle {
+    width: 20px !important;
+    height: 20px !important;
+    border-radius: 50% !important;
+    top: -6px !important;
+    right: -10px !important;
+    background: #727cf5 !important;
+    border: 2px solid #727cf5 !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+}
+#project-amount-slider .noUi-handle::before,
+#project-amount-slider .noUi-handle::after {
+    display: none !important;
+}
+#project-amount-slider .noUi-tooltip {
     padding: 4px 8px !important;
     font-size: 12px !important;
     bottom: 130% !important;

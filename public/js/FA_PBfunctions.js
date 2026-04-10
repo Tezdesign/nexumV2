@@ -146,9 +146,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // 3. Clear Filters Logic
         btnClearPFilters.addEventListener('click', function() {
-            if (filterStatus) filterStatus.value = 'ALL';
-            if (filterPName) filterPName.value = 'ALL';
-            if (filterPMonth) filterPMonth.value = 'ALL';
+            if (filterStatus) $(filterStatus).val('ALL').trigger('change.select2');
+            if (filterPName) $(filterPName).val('ALL').trigger('change.select2');
+            if (filterPMonth) $(filterPMonth).val('ALL').trigger('change.select2');
             
             if (sliderPElement && sliderPElement.noUiSlider) {
                 sliderPElement.noUiSlider.set([0, 100000]);
@@ -166,6 +166,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (emptyState) {
                 emptyState.classList.add('d-none');
+            }
+
+            const dropdownEl = document.getElementById('projectFilterDropdown');
+            if (dropdownEl) {
+                const dropdownInstance = bootstrap.Dropdown.getInstance(dropdownEl);
+                if (dropdownInstance) dropdownInstance.hide();
             }
         });
     }

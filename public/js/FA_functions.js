@@ -349,14 +349,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // 3. Clear Filters Logic
         btnClearFilters.addEventListener('click', function() {
-            filterCategory.value = 'ALL';
-            filterYear.value = 'ALL';
-            filterMonth.value = 'ALL';
-            filterDay.value = 'ALL';
-            sliderElement.noUiSlider.set([0, 10000]);
+            $(filterCategory).val('ALL').trigger('change.select2');
+            $(filterYear).val('ALL').trigger('change.select2');
+            $(filterMonth).val('ALL').trigger('change.select2');
+            $(filterDay).val('ALL').trigger('change.select2');
+            sliderElement.noUiSlider.set([0, 100000]);
 
             const allTxCards = document.querySelectorAll('.transaction-card');
             allTxCards.forEach(card => card.classList.remove('d-none'));
+
+            const dropdownEl = document.getElementById('transactionFilterDropdown');
+            if (dropdownEl) {
+                const dropdownInstance = bootstrap.Dropdown.getInstance(dropdownEl);
+                if (dropdownInstance) dropdownInstance.hide();
+            }
         });
     }
 });

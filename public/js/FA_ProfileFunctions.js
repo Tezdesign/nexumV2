@@ -158,9 +158,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
         btnClearFilters.addEventListener('click', function() {
-            filterStatus.value = 'ALL';
-            filterPeriod.value = 'ALL';
-            filterCurrency.value = 'ALL';
+            $(filterStatus).val('ALL').trigger('change.select2');
+            $(filterPeriod).val('ALL').trigger('change.select2');
+            $(filterCurrency).val('ALL').trigger('change.select2');
             sliderElement.noUiSlider.set([0, 1000000]);
 
             const allProfileCards = document.querySelectorAll('.profile-card');
@@ -175,6 +175,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (emptyState) {
                 emptyState.classList.add('d-none');
+            }
+
+            const dropdownEl = document.getElementById('profileFilterDropdown');
+            if (dropdownEl) {
+                const dropdownInstance = bootstrap.Dropdown.getInstance(dropdownEl);
+                if (dropdownInstance) dropdownInstance.hide();
             }
         });
     }
