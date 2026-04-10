@@ -146,5 +146,30 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (dropdownInstance) dropdownInstance.hide();
             }
         });
+
+        // 3. Clear Filters Logic
+        btnClearPFilters.addEventListener('click', function() {
+            if (filterStatus) filterStatus.value = 'ALL';
+            if (filterPName) filterPName.value = 'ALL';
+            if (filterPMonth) filterPMonth.value = 'ALL';
+            
+            if (sliderPElement && sliderPElement.noUiSlider) {
+                sliderPElement.noUiSlider.set([0, 100000]);
+            }
+
+            const allProjectCards = document.querySelectorAll('.project-card');
+            allProjectCards.forEach(card => {
+                let elementToHide = card;
+                const parentCol = card.closest('.col');
+                if (parentCol && parentCol.parentElement && parentCol.parentElement.id === 'project-grid-view') {
+                    elementToHide = parentCol;
+                }
+                elementToHide.classList.remove('d-none');
+            });
+
+            if (emptyState) {
+                emptyState.classList.add('d-none');
+            }
+        });
     }
 });

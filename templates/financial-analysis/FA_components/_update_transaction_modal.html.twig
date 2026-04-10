@@ -1,4 +1,7 @@
 <!-- Update Transaction Modal for Transaction {{ transaction.id }} -->
+{% set tx_errors = app.flashes('transaction_errors_' ~ transaction.id)|first %}
+{% set tx_data = app.flashes('transaction_data_' ~ transaction.id)|first %}
+
 <div class="modal fade" id="updateTransactionModal_{{ transaction.id }}" tabindex="-1" aria-labelledby="updateTransactionModalLabel_{{ transaction.id }}" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
@@ -13,19 +16,27 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">{{ 'Reference'|trans }}</label>
-                            <input type="text" name="transaction[reference]" id="tx_ref_{{ transaction.id }}" class="form-control" value="{{ transaction.reference }}" required>
+                            {% set ref_val = tx_data ? tx_data.reference|default('') : transaction.reference %}
+                            <input type="text" name="transaction[reference]" id="tx_ref_{{ transaction.id }}" class="form-control {% if tx_errors and tx_errors.reference is defined %}is-invalid{% endif %}" value="{{ ref_val }}" required>
+                            {% if tx_errors and tx_errors.reference is defined %}
+                                <div class="invalid-feedback d-block">{{ tx_errors.reference }}</div>
+                            {% endif %}
                         </div>
                         
                         <div class="col-md-6 mb-3">
                             <label class="form-label">{{ 'Expense Category'|trans }}</label>
-                            <select name="transaction[expense_category]" id="tx_cat_{{ transaction.id }}" class="form-select select2" data-toggle="select2">
-                                <option value="HARDWARE" {% if transaction.expenseCategory == 'HARDWARE' %}selected{% endif %}>Hardware</option>
-                                <option value="SOFTWARE" {% if transaction.expenseCategory == 'SOFTWARE' %}selected{% endif %}>Software</option>
-                                <option value="SERVICES" {% if transaction.expenseCategory == 'SERVICES' %}selected{% endif %}>Services</option>
-                                <option value="TRAVEL" {% if transaction.expenseCategory == 'TRAVEL' %}selected{% endif %}>Travel</option>
-                                <option value="MARKETING" {% if transaction.expenseCategory == 'MARKETING' %}selected{% endif %}>Marketing</option>
-                                <option value="OTHER" {% if transaction.expenseCategory == 'OTHER' %}selected{% endif %}>Other</option>
+                            {% set cat_val = tx_data ? tx_data.expense_category|default('') : transaction.expenseCategory %}
+                            <select name="transaction[expense_category]" id="tx_cat_{{ transaction.id }}" class="form-select select2 {% if tx_errors and tx_errors.expense_category is defined %}is-invalid{% endif %}" data-toggle="select2">
+                                <option value="HARDWARE" {% if cat_val == 'HARDWARE' %}selected{% endif %}>Hardware</option>
+                                <option value="SOFTWARE" {% if cat_val == 'SOFTWARE' %}selected{% endif %}>Software</option>
+                                <option value="SERVICES" {% if cat_val == 'SERVICES' %}selected{% endif %}>Services</option>
+                                <option value="TRAVEL" {% if cat_val == 'TRAVEL' %}selected{% endif %}>Travel</option>
+                                <option value="MARKETING" {% if cat_val == 'MARKETING' %}selected{% endif %}>Marketing</option>
+                                <option value="OTHER" {% if cat_val == 'OTHER' %}selected{% endif %}>Other</option>
                             </select>
+                            {% if tx_errors and tx_errors.expense_category is defined %}
+                                <div class="invalid-feedback d-block">{{ tx_errors.expense_category }}</div>
+                            {% endif %}
                         </div>
                     </div>
 
@@ -34,20 +45,32 @@
                             <label class="form-label">{{ 'Cost'|trans }}</label>
                             <div class="input-group">
                                 <span class="input-group-text">{{ currency_symbol|default('$') }}</span>
-                                <input type="number" name="transaction[cost]" id="tx_cost_{{ transaction.id }}" class="form-control" value="{{ transaction.cost|number_format(0, '', '') }}" step="0.01" required>
+                                {% set cost_val = tx_data ? tx_data.cost|default('') : transaction.cost|number_format(0, '', '') %}
+                                <input type="number" name="transaction[cost]" id="tx_cost_{{ transaction.id }}" class="form-control {% if tx_errors and tx_errors.cost is defined %}is-invalid{% endif %}" value="{{ cost_val }}" step="0.01" required>
                             </div>
+                            {% if tx_errors and tx_errors.cost is defined %}
+                                <div class="invalid-feedback d-block text-danger mt-1 fs-12">{{ tx_errors.cost }}</div>
+                            {% endif %}
                         </div>
 
                         <div class="col-md-6 mb-3">
                             <label class="form-label">{{ 'Transaction Date'|trans }}</label>
-                            <input type="text" name="transaction[date_stamp]" id="tx_date_{{ transaction.id }}" class="form-control" data-provider="flatpickr" data-date-format="Y-m-d" value="{{ transaction.dateStamp }}" required>
+                            {% set date_val = tx_data ? tx_data.date_stamp|default('') : transaction.dateStamp %}
+                            <input type="text" name="transaction[date_stamp]" id="tx_date_{{ transaction.id }}" class="form-control {% if tx_errors and tx_errors.date_stamp is defined %}is-invalid{% endif %}" data-provider="flatpickr" data-date-format="Y-m-d" value="{{ date_val }}" required>
+                            {% if tx_errors and tx_errors.date_stamp is defined %}
+                                <div class="invalid-feedback d-block">{{ tx_errors.date_stamp }}</div>
+                            {% endif %}
                         </div>
                     </div>
 
                     <div class="row">
                         <div class="col-12 mb-3">
                             <label class="form-label">{{ 'Description'|trans }}</label>
-                            <textarea name="transaction[description]" id="tx_desc_{{ transaction.id }}" class="form-control" rows="3">{{ transaction.description }}</textarea>
+                            {% set desc_val = tx_data ? tx_data.description|default('') : transaction.description %}
+                            <textarea name="transaction[description]" id="tx_desc_{{ transaction.id }}" class="form-control {% if tx_errors and tx_errors.description is defined %}is-invalid{% endif %}" rows="3">{{ desc_val }}</textarea>
+                            {% if tx_errors and tx_errors.description is defined %}
+                                <div class="invalid-feedback d-block">{{ tx_errors.description }}</div>
+                            {% endif %}
                         </div>
                     </div>
 
@@ -66,6 +89,19 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const updateModalEl = document.getElementById('updateTransactionModal_{{ transaction.id }}');
+        
+        {% if tx_errors %}
+            // Auto-open modal if there are errors returned in the flash bag
+            if (updateModalEl) {
+                // EXPLICIT FIX: Move modal to the body before showing it to avoid z-index/blur issues 
+                // caused by the SimpleBar container's overflow:hidden property.
+                if (updateModalEl.parentNode !== document.body) {
+                    document.body.appendChild(updateModalEl);
+                }
+                const myModal = new bootstrap.Modal(updateModalEl);
+                myModal.show();
+            }
+        {% endif %}
         
         if (updateModalEl) {
             updateModalEl.addEventListener('hidden.bs.modal', function () {
@@ -93,6 +129,7 @@
 
                     $(form).find('.is-invalid').removeClass('is-invalid');
                     $(form).find('.text-danger.mt-1').remove();
+                    $(form).find('.invalid-feedback').remove();
                 }
             });
         }

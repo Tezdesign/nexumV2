@@ -8,6 +8,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
     /**
      * ==========================================
+     * MODAL BACKDROP FIX
+     * ==========================================
+     * Moves modals to the body to prevent them from being trapped 
+     * behind backdrops when inside containers with overflow: hidden.
+     */
+    document.addEventListener('show.bs.modal', function (event) {
+        if (event.target && event.target.classList.contains('modal') && event.target.parentNode !== document.body) {
+            document.body.appendChild(event.target);
+        }
+    });
+
+    /**
+     * ==========================================
      * TRANSACTION TAB LOGIC
      * ==========================================
      */
@@ -91,6 +104,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
                 .then(response => response.text())
                 .then(html => {
+                    // Cleanup any orphaned update modals that were moved to the body
+                    document.querySelectorAll('body > .modal[id^="updateTransactionModal_"]').forEach(m => m.remove());
+
                     // Handle SimpleBar dynamically wrapping content
                     const simplebarContent = listContainer.querySelector('.simplebar-content');
                     if (simplebarContent) {
@@ -230,13 +246,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const btnClearFilters = document.getElementById('btn-clear-filters');
     const sliderElement = document.getElementById('transaction-amount-slider');
 
-    if (sliderPElement && btnApplyPFilters && btnClearPFilters) {
+    if (sliderElement && btnApplyFilters && btnClearFilters) {
 
         // DELETE the dynamic maxProjectAmount calculation.
         // Force it to use safe, hardcoded numbers exactly like your Transaction page.
 
         // 1. Initialize NoUiSlider
-        noUiSlider.create(sliderPElement, {
+        noUiSlider.create(sliderElement, {
             start: [0, 100000], // Safe, valid numbers
             connect: true,
             tooltips: [true, true],
@@ -251,8 +267,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         // Fix the 0px Dropdown Bug!
-        document.getElementById('projectFilterDropdown').addEventListener('shown.bs.dropdown', function () {
-            sliderPElement.noUiSlider.updateOptions({}, false);
+        document.getElementById('transactionFilterDropdown').addEventListener('shown.bs.dropdown', function () {
+            sliderElement.noUiSlider.updateOptions({}, false);
         });
 
         // 2. Apply Filters Logic
