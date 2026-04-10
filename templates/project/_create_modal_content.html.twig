@@ -4,9 +4,15 @@
 {% set submitLabel = submitLabel|default('Create Project') %}
 {% set headingTitle = headingTitle|default('Create New Project') %}
 {% set headingSubtitle = headingSubtitle|default('Start a new initiative for your team') %}
+{% set formAction = formAction|default(null) %}
+{% set formMethod = formMethod|default(null) %}
 
 <div class="modal-content" id="{{ contentId }}">
-    {{ form_start(projectForm, { attr: { id: formId, novalidate: 'novalidate' } }) }}
+    {{ form_start(projectForm, {
+        action: formAction,
+        method: formMethod,
+        attr: { id: formId, novalidate: 'novalidate' }
+    }) }}
     <input type="hidden" name="back" value="{{ backUrl|default('') }}">
 
     <div class="modal-header">
