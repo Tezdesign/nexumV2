@@ -1,0 +1,149 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Mes Résultats{% endblock %}
+
+{% block body %}
+
+<section class="section light-background">
+<div class="container">
+
+    <!-- HEADER -->
+    <div class="section-title mb-5 text-center">
+        <h2>Mes Résultats</h2>
+        <p>Consultez vos performances aux quiz</p>
+    </div>
+
+    {% if resultats|length > 0 %}
+
+    <div class="row gy-4">
+
+        {% for r in resultats %}
+
+        {% set percent = (r.score / r.total) * 100 %}
+        {% set success = percent >= 60 %}
+
+        <div class="col-lg-4 col-md-6">
+
+            <div class="card result-card p-4 h-100">
+
+                <!-- ICON -->
+                <div class="icon mb-3">
+                    {% if success %}
+                        <i class="bi bi-trophy-fill text-success"></i>
+                    {% else %}
+                        <i class="bi bi-x-circle-fill text-danger"></i>
+                    {% endif %}
+                </div>
+
+                <!-- TITLE -->
+                <h4 class="fw-bold">{{ r.formation.titre }}</h4>
+
+                <!-- SCORE -->
+                <div class="score-box my-3">
+                    <h2>{{ percent|round }}%</h2>
+                    <p>{{ r.score }}/{{ r.total }}</p>
+                </div>
+
+                <!-- STATUS -->
+                <div class="mb-3">
+                    {% if success %}
+                        <span class="badge bg-success">
+                            ✔ Réussi
+                        </span>
+                    {% else %}
+                        <span class="badge bg-danger">
+                            ✖ Échoué
+                        </span>
+                    {% endif %}
+                </div>
+
+                <!-- DATE -->
+                <p class="small text-muted">
+                    <i class="bi bi-calendar me-1"></i>
+                    {{ r.datePassage|date('d/m/Y H:i') }}
+                </p>
+
+                <!-- ACTION -->
+                <a href="{{ path('app_formation_show', {'id': r.formation.id}) }}"
+                   class="btn btn-modern mt-3">
+                    Revoir la formation
+                </a>
+
+            </div>
+
+        </div>
+
+        {% endfor %}
+
+    </div>
+
+    {% else %}
+
+    <!-- EMPTY -->
+    <div class="text-center py-5">
+        <i class="bi bi-graph-down display-3 text-muted"></i>
+        <h4 class="fw-bold mt-3">Aucun résultat</h4>
+        <p class="text-muted">Passez un quiz pour voir vos résultats ici</p>
+    </div>
+
+    {% endif %}
+
+</div>
+</section>
+
+<style>
+
+/* CARD */
+.result-card {
+    border-radius: 16px;
+    background: #fff;
+    border: 1px solid #eee;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+    transition: 0.3s;
+    text-align: center;
+}
+
+.result-card:hover {
+    transform: translateY(-10px);
+}
+
+/* ICON */
+.result-card .icon i {
+    font-size: 40px;
+}
+
+/* SCORE */
+.score-box {
+    background: linear-gradient(135deg, #111, #222);
+    color: #fff;
+    padding: 20px;
+    border-radius: 12px;
+}
+
+.score-box h2 {
+    font-size: 32px;
+    margin: 0;
+}
+
+/* BUTTON */
+.btn-modern {
+    background: #111;
+    color: #fff;
+    border-radius: 30px;
+    padding: 10px;
+    transition: 0.3s;
+}
+
+.btn-modern:hover {
+    background: #333;
+}
+
+/* BADGE */
+.badge {
+    font-size: 0.8rem;
+    padding: 6px 12px;
+}
+
+</style>
+
+{% endblock %}

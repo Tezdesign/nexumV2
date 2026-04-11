@@ -1,0 +1,318 @@
+{% extends 'layouts/vertical.html.twig' %}
+
+{% set title = 'Formations' %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+
+<style>
+.quiz-card img { transition: 0.3s; }
+.quiz-card img:hover { transform: scale(1.05); }
+
+.video-card video {
+    transition: transform 0.3s ease;
+    min-height: 220px;
+    object-fit: cover;
+    background: #000;
+}/* VALIDATION */input:focus, textarea:focus {
+    box-shadow: 0 0 0 3px rgba(13,110,253,0.15);
+    border-color: #0d6efd;
+}
+.is-invalid {
+    border: 2px solid #dc3545 !important;
+    background: #fff5f5;
+    animation: shake 0.2s;
+}
+
+.is-valid {
+    border: 2px solid #198754 !important;
+    background: #f0fff4;
+}
+
+.invalid-feedback {
+    font-size: 12px;
+    color: #dc3545;
+    margin-top: 5px;
+}
+
+@keyframes shake {
+    0% { transform: translateX(0); }
+    25% { transform: translateX(-3px); }
+    50% { transform: translateX(3px); }
+    75% { transform: translateX(-3px); }
+    100% { transform: translateX(0); }
+}
+.video-card video:hover { transform: scale(1.02); }
+
+.quiz-card { transition: all 0.25s ease; }
+.quiz-card:hover { transform: translateY(-2px); }
+
+.answer-box {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 16px;
+    padding: 12px;
+}
+
+.correct-answer {
+    background: rgba(25,135,84,0.1);
+    border-color: #198754;
+    color: #198754;
+}
+</style>
+
+<!-- HEADER -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="fw-bold">
+        <i class="bi bi-play-circle text-primary me-2"></i>
+        {{ formation.titre }}
+    </h3>
+
+    <button class="btn btn-success rounded-pill px-4"
+            data-bs-toggle="modal"
+            data-bs-target="#addQuizModal">
+        <i class="bi bi-plus-circle"></i> Ajouter Quiz
+    </button>
+</div>
+
+<!-- VIDEOS -->
+<div class="row g-4 mb-4">
+    {% for v in [formation.video1, formation.video2, formation.video3] %}
+        {% if v %}
+        <div class="col-md-4">
+            <video controls class="w-100 rounded shadow">
+                <source src="{{ asset('uploads/videos/' ~ v) }}">
+            </video>
+        </div>
+        {% endif %}
+    {% endfor %}
+</div>
+
+<!-- QUIZ LIST -->
+<div class="card p-4 shadow-sm rounded-4">
+    <h5 class="fw-bold mb-3">Quiz ({{ formation.quizzes|length }})</h5>
+
+    {% for quiz in formation.quizzes %}
+        <div class="quiz-card p-3 mb-3 border rounded-4">
+
+            <h6 class="fw-bold">{{ quiz.question }}</h6>
+
+            <div class="row mt-2">
+                <div class="col-md-4">
+                    <div class="answer-box {% if quiz.correct == 1 %}correct-answer{% endif %}">
+                        R1: {{ quiz.r1 }}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="answer-box {% if quiz.correct == 2 %}correct-answer{% endif %}">
+                        R2: {{ quiz.r2 }}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="answer-box {% if quiz.correct == 3 %}correct-answer{% endif %}">
+                        R3: {{ quiz.r3 }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- IMAGE -->
+            {% if quiz.image %}
+                <img src="{{ asset('uploads/quiz/' ~ quiz.image) }}"
+                     class="mt-3 rounded shadow"
+                     style="max-height:120px;">
+            {% endif %}
+
+            <!-- ACTIONS -->
+            <div class="mt-3 d-flex gap-2">
+
+                <button class="btn btn-outline-primary btn-sm"
+                        data-bs-toggle="modal"
+                        data-bs-target="#editQuiz{{ quiz.id }}">
+                    Modifier
+                </button>
+
+                <form method="post"
+                      action="{{ path('app_quiz_delete', {'id': quiz.id}) }}">
+                    <input type="hidden" name="_token"
+                           value="{{ csrf_token('delete_quiz_' ~ quiz.id) }}">
+                    <button class="btn btn-outline-danger btn-sm">
+                        Supprimer
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- EDIT MODAL -->
+        <div class="modal fade" id="editQuiz{{ quiz.id }}">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content rounded-4">
+
+                <form method="post"
+      enctype="multipart/form-data"
+      novalidate
+      action="{{ path('app_quiz_edit', {'id': quiz.id}) }}">
+
+                        <div class="modal-header">
+                            <h5>Modifier Quiz</h5>
+                            <button class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+
+                        <div class="modal-body">
+
+                            <textarea name="quiz[question]"
+                                      class="form-control mb-3">{{ quiz.question }}</textarea>
+
+                            <div class="row g-2">
+                                <div class="col">
+                                    <input name="quiz[r1]" class="form-control" value="{{ quiz.r1 }}">
+                                </div>
+                                <div class="col">
+                                    <input name="quiz[r2]" class="form-control" value="{{ quiz.r2 }}">
+                                </div>
+                                <div class="col">
+                                    <input name="quiz[r3]" class="form-control" value="{{ quiz.r3 }}">
+                                </div>
+                            </div>
+
+                            <select name="quiz[correct]" class="form-select mt-3">
+                                <option value="1" {% if quiz.correct==1 %}selected{% endif %}>R1</option>
+                                <option value="2" {% if quiz.correct==2 %}selected{% endif %}>R2</option>
+                                <option value="3" {% if quiz.correct==3 %}selected{% endif %}>R3</option>
+                            </select>
+
+                            <!-- IMAGE PREVIEW -->
+                            {% if quiz.image %}
+                                <img src="{{ asset('uploads/quiz/' ~ quiz.image) }}"
+                                     class="mt-3 rounded"
+                                     style="max-height:100px;">
+                            {% endif %}
+
+                            <!-- IMAGE INPUT -->
+                            <input type="file"
+                                   name="quiz[imageFile]"
+                                   class="form-control mt-3">
+
+                        </div>
+
+                        <div class="modal-footer">
+                            <button class="btn btn-primary">Save</button>
+                        </div>
+
+                    </form>
+
+                </div>
+            </div>
+        </div>
+
+    {% endfor %}
+</div>
+
+<!-- ADD MODAL -->
+<div class="modal fade" id="addQuizModal">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content rounded-4">
+
+            {{ form_start(quizForm, {
+    action: path('app_quiz_new', {'id': formation.id}),
+    attr: { novalidate: 'novalidate' },
+    multipart: true
+}) }}
+
+            <div class="modal-header">
+                <h5>Ajouter Quiz</h5>
+                <button class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+
+                {{ form_row(quizForm.question) }}
+
+                <div class="row">
+                    <div class="col">{{ form_row(quizForm.r1) }}</div>
+                    <div class="col">{{ form_row(quizForm.r2) }}</div>
+                    <div class="col">{{ form_row(quizForm.r3) }}</div>
+                </div>
+
+                {{ form_row(quizForm.correct) }}
+
+                <!-- IMAGE -->
+                {{ form_row(quizForm.imageFile) }}
+
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-success">Ajouter</button>
+            </div>
+
+            {{ form_end(quizForm) }}
+
+        </div>
+    </div>
+</div>
+
+</div><script>
+document.addEventListener("DOMContentLoaded", () => {
+
+    function validateField(input) {
+        let value = input.value.trim();
+        let error = "";
+
+        // règles
+        if (input.name.includes("question")) {
+            if (value.length < 5) error = "Question trop courte";
+        }
+
+        if (input.name.includes("r1") || input.name.includes("r2") || input.name.includes("r3")) {
+            if (value.length < 2) error = "Réponse trop courte";
+        }
+
+        // affichage
+        let feedback = input.nextElementSibling;
+        if (!feedback || !feedback.classList.contains("invalid-feedback")) {
+            feedback = document.createElement("div");
+            feedback.classList.add("invalid-feedback");
+            input.parentNode.appendChild(feedback);
+        }
+
+        if (error) {
+            input.classList.remove("is-valid");
+            input.classList.add("is-invalid");
+            feedback.innerText = error;
+            return false;
+        } else {
+            input.classList.remove("is-invalid");
+            input.classList.add("is-valid");
+            feedback.innerText = "";
+            return true;
+        }
+    }
+
+    // 🔥 LIVE VALIDATION
+    document.querySelectorAll("input, textarea").forEach(input => {
+        input.addEventListener("input", () => validateField(input));
+        input.addEventListener("blur", () => validateField(input));
+    });
+
+    // 🔥 SUBMIT VALIDATION
+    document.querySelectorAll("form").forEach(form => {
+        form.addEventListener("submit", function(e) {
+
+            let valid = true;
+
+            this.querySelectorAll("input, textarea").forEach(input => {
+                if (!validateField(input)) valid = false;
+            });
+
+            if (!valid) {
+                e.preventDefault();
+
+                // 🔥 animation globale
+                form.classList.add("shake");
+                setTimeout(() => form.classList.remove("shake"), 300);
+            }
+        });
+    });
+
+});
+</script>
+{% endblock %}

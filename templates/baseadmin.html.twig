@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="fr"
+      class="light-style layout-menu-fixed"
+      dir="ltr"
+      data-theme="theme-default"
+      data-assets-path="{{ asset('assets_admin/') }}"
+      data-template="vertical-menu-template-free">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>{% block title %}Dashboard{% endblock %}</title>
+
+    <!-- Favicon -->
+    <link rel="icon" href="{{ asset('logo.png') }}" />
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Public+Sans&display=swap" rel="stylesheet">
+
+    <!-- Core CSS (Sneat) -->
+    <link rel="stylesheet" href="{{ asset('assets_admin/vendor/css/core.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets_admin/vendor/css/theme-default.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets_admin/css/demo.css') }}">
+
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+
+    <!-- PERFECT SCROLLBAR (IMPORTANT FOR SIDEBAR) -->
+    <link rel="stylesheet" href="{{ asset('assets_admin/vendor/libs/perfect-scrollbar/perfect-scrollbar.css') }}">
+
+    <!-- Helpers -->
+    <script src="{{ asset('assets_admin/vendor/js/helpers.js') }}"></script>
+    <script src="{{ asset('assets_admin/js/config.js') }}"></script>
+
+    {% block stylesheets %}{% endblock %}
+</head>
+
+<body>
+<style>
+body{
+     background-image: url('{{ asset('background_white.png') }}');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;        
+
+}
+</style>
+
+<!-- LAYOUT -->
+<div class="layout-wrapper layout-content-navbar">
+    <div class="layout-container">
+
+        <!-- 🔥 SIDEBAR -->
+        {% include '_sidebar_admin.html.twig' %}
+
+        <!-- PAGE -->
+        <div class="layout-page">
+
+            <!-- 🔝 NAVBAR -->
+            {% include '_header_admin.html.twig' %}
+
+            <!-- CONTENT -->
+            <div class="content-wrapper">
+
+                <div class="container-xxl flex-grow-1 container-p-y">
+                    {% block body %}{% endblock %}
+                </div>
+
+                <!-- FOOTER (OPTIONAL) -->
+                <footer class="content-footer footer bg-footer-theme">
+                    <div class="container-xxl d-flex justify-content-between py-2">
+                        <div>
+                            © {{ "now"|date("Y") }} - Delta WEB
+                        </div>
+                    </div>
+                </footer>
+
+                <div class="content-backdrop fade"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- OVERLAY -->
+    <div class="layout-overlay layout-menu-toggle"></div>
+</div>
+
+<!-- CORE JS (ORDER IMPORTANT) -->
+<script src="{{ asset('assets_admin/vendor/libs/jquery/jquery.js') }}"></script>
+<script src="{{ asset('assets_admin/vendor/libs/popper/popper.js') }}"></script>
+<script src="{{ asset('assets_admin/vendor/js/bootstrap.js') }}"></script>
+
+<!-- SCROLLBAR -->
+<script src="{{ asset('assets_admin/vendor/libs/perfect-scrollbar/perfect-scrollbar.js') }}"></script>
+
+<!-- MENU (IMPORTANT FOR SIDEBAR) -->
+<script src="{{ asset('assets_admin/vendor/js/menu.js') }}"></script>
+
+<!-- MAIN -->
+<script src="{{ asset('assets_admin/js/main.js') }}"></script>
+
+{% block javascripts %}{% endblock %}
+
+</body>
+</html>
