@@ -298,7 +298,7 @@ class ReclamationRepository extends ServiceEntityRepository
         }
 
         $col = $this->getEntityManager()->getConnection()->executeQuery(
-            'SELECT id_rec FROM reclamation WHERE id_rec IN (?) AND fichier IS NOT NULL',
+            'SELECT idRec FROM reclamation WHERE idRec IN (?) AND fichier IS NOT NULL',
             [$idRecs],
             [ArrayParameterType::INTEGER]
         )->fetchFirstColumn();

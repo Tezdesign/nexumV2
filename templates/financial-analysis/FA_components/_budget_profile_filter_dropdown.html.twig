@@ -1,0 +1,58 @@
+<!-- Budget Profile Filter Dropdown -->
+<div class="dropdown d-inline-block">
+    <button type="button" class="btn btn-outline-primary btn-sm rounded-pill d-flex align-items-center gap-1 dropdown-toggle drop-arrow-none" id="profileFilterDropdown" data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="outside">
+        <i class="ti ti-filter fs-16"></i> {{ 'Filter'|trans }}
+    </button>
+    <div class="dropdown-menu dropdown-menu-end p-3 shadow-lg border-0 mb-2" aria-labelledby="profileFilterDropdown" style="width: 400px;">
+        <h5 class="dropdown-header text-uppercase fs-13 px-0 pb-2 mb-3 border-bottom border-dashed">{{ 'Filter Profiles'|trans }}</h5>
+        
+        <div class="row">
+            <!-- Status Filter -->
+            <div class="col-md-4 mb-3">
+                <label class="form-label fs-12">{{ 'Status'|trans }}</label>
+                <select class="form-select form-select-sm" data-toggle="select2" id="filter-profile-status">
+                    <option value="ALL">{{ 'All'|trans }}</option>
+                    <option value="DRAFT">{{ 'Draft'|trans }}</option>
+                    <option value="ACTIVE">{{ 'Active'|trans }}</option>
+                    <option value="CLOSED">{{ 'Closed'|trans }}</option>
+                </select>
+            </div>
+
+            <!-- Period Type Filter -->
+            <div class="col-md-4 mb-3">
+                <label class="form-label fs-12">{{ 'Period'|trans }}</label>
+                <select class="form-select form-select-sm" data-toggle="select2" id="filter-profile-period">
+                    <option value="ALL">{{ 'All'|trans }}</option>
+                    <option value="STANDARD">{{ 'Standard'|trans }}</option>
+                    <option value="CUSTOM">{{ 'Custom'|trans }}</option>
+                </select>
+            </div>
+
+            <!-- Currency Filter -->
+            <div class="col-md-4 mb-3">
+                <label class="form-label fs-12">{{ 'Currency'|trans }}</label>
+                <select class="form-select form-select-sm" data-toggle="select2" id="filter-profile-currency">
+                    <option value="ALL">{{ 'All'|trans }}</option>
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                    <option value="GBP">GBP</option>
+                    <option value="TND">TND</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Amount Range Slider -->
+            <div class="col-12 mb-4 pb-4 mt-2">
+                <label class="form-label fs-12 mb-3">{{ 'Disposable Budget Range'|trans }}</label>
+                <div id="profile-amount-slider"></div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="d-flex justify-content-between mt-3 pt-2 border-top border-dashed">
+            <button type="button" class="btn btn-sm btn-light" id="btn-clear-profile-filters">{{ 'Clear'|trans }}</button>
+            <button type="button" class="btn btn-sm btn-primary" id="btn-apply-profile-filters">{{ 'Apply Filters'|trans }}</button>
+        </div>
+    </div>
+</div>

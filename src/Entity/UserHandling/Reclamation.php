@@ -13,7 +13,7 @@ class Reclamation
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
-    #[ORM\Column(name: 'id_rec', type: 'integer')]
+    #[ORM\Column(name: 'idRec', type: 'integer')]
     private ?int $idRec = null;
 
     public function getIdRec(): ?int

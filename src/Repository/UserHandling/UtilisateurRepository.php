@@ -327,9 +327,9 @@ class UtilisateurRepository extends ServiceEntityRepository
             return null;
         }
         
-        // Compte autorisé à se connecter (insensible à la casse). 'pending' = compte créé, en attente de validation admin.
+        // Login is allowed only for active/actif statuses.
         $statut = strtolower(trim((string) $utilisateur->getStatut()));
-        if (!\in_array($statut, ['active', 'pending'], true)) {
+        if (!\in_array($statut, ['active', 'actif'], true)) {
             return null;
         }
         

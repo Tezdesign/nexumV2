@@ -1,0 +1,236 @@
+{% extends 'layouts/vertical.html.twig' %}
+
+{% set title = 'Projects' %}
+
+{% block css %}{% endblock %}
+
+{% block content %}
+
+<div class="container py-4">
+
+    <h2 class="fw-bold mb-4">Admin Dashboard</h2>
+
+    <!-- 🔥 STATS -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card stat-card bg1">
+                <h6>Total</h6>
+                <h3>{{ stats.formations }}</h3>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card stat-card bg2">
+                <h6>Réussi</h6>
+                <h3>{{ stats.reussi }}</h3>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card stat-card bg3">
+                <h6>Quiz</h6>
+                <h3>{{ stats.quiz }}</h3>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card stat-card bg4">
+                <h6>Success</h6>
+                <h3>{{ stats.successRate }}%</h3>
+            </div>
+        </div>
+    </div>
+
+<div class="row g-4 mb-4">
+
+    <!-- 🔵 CHART GLOBAL -->
+    <div class="col-md-6">
+        <div class="card p-4 h-100">
+            <h6 class="fw-bold mb-3">Répartition</h6>
+            <canvas id="chartGlobal"></canvas>
+        </div>
+    </div>
+
+    <!-- 📈 MONTHLY -->
+    
+
+    <!-- 🏆 TOP FORMATIONS -->
+    <div class="col-md-6">
+        <div class="card p-4 h-100">
+            <h6 class="fw-bold mb-3">Top formations</h6>
+            <canvas id="chartTop"></canvas>
+        </div>
+    </div>
+
+</div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+// 🎨 CONFIG STYLE GLOBAL
+Chart.defaults.font.family = 'Inter, sans-serif';
+Chart.defaults.plugins.legend.position = 'bottom';
+
+// 🔥 GRADIENT FUNCTION
+function gradient(ctx, color1, color2) {
+    const grad = ctx.createLinearGradient(0, 0, 0, 300);
+    grad.addColorStop(0, color1);
+    grad.addColorStop(1, color2);
+    return grad;
+}
+
+// ================= GLOBAL =================
+fetch("{{ path('admin_chart') }}")
+.then(r=>r.json())
+.then(data=>{
+
+    const ctx = document.getElementById('chartGlobal').getContext('2d');
+
+    new Chart(ctx,{
+        type:'doughnut',
+        data:{
+            labels:data.labels,
+            datasets:[{
+                data:data.data,
+                backgroundColor:[
+                    '#6f42c1',
+                    '#ffc107',
+                    '#198754'
+                ],
+                borderWidth:0
+            }]
+        },
+        options:{
+            cutout:'70%',
+            plugins:{
+                legend:{
+                    labels:{usePointStyle:true}
+                }
+            }
+        }
+    });
+
+});
+
+// ================= MONTHLY =================
+fetch("{{ path('admin_chart_monthly') }}")
+.then(r=>r.json())
+.then(data=>{
+
+    const ctx = document.getElementById('chartMonthly').getContext('2d');
+
+    const grad = gradient(ctx, '#6f42c1', '#9d6bff');
+
+    new Chart(ctx,{
+        type:'line',
+        data:{
+            labels:data.labels,
+            datasets:[{
+                label:'Inscriptions',
+                data:data.data,
+                borderColor:'#6f42c1',
+                backgroundColor:grad,
+                fill:true,
+                tension:0.4
+            }]
+        },
+        options:{
+            responsive:true,
+            scales:{
+                y:{beginAtZero:true}
+            }
+        }
+    });
+
+});
+
+// ================= TOP =================
+fetch("{{ path('admin_chart_top') }}")
+.then(r=>r.json())
+.then(data=>{
+
+    const ctx = document.getElementById('chartTop').getContext('2d');
+
+    const grad = gradient(ctx, '#198754', '#20c997');
+
+    new Chart(ctx,{
+        type:'bar',
+        data:{
+            labels:data.labels,
+            datasets:[{
+                label:'Participants',
+                data:data.data,
+                backgroundColor:grad,
+                borderRadius:10
+            }]
+        },
+        options:{
+            indexAxis:'y',
+            scales:{
+                x:{beginAtZero:true}
+            }
+        }
+    });
+
+});
+</script>
+ 
+ 
+
+</div>
+
+<style>
+.stat-card {
+    padding:20px;
+    border-radius:15px;
+    color:white;
+}
+.bg1 {background:#6f42c1;}
+.bg2 {background:#198754;}
+.bg3 {background:#ffc107;}
+.bg4 {background:#212529;}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+// 🔥 CHART
+fetch("{{ path('admin_chart') }}")
+.then(r=>r.json())
+.then(data=>{
+    new Chart(document.getElementById('chart'),{
+        type:'doughnut',
+        data:{
+            labels:data.labels,
+            datasets:[{data:data.data}]
+        }
+    });
+});
+
+// 🔥 AJAX
+function load(page=1){
+    let q=document.getElementById('search').value;
+    let sort=document.getElementById('sort').value;
+
+    fetch(`?q=${q}&sort=${sort}&page=${page}`,{
+        headers:{'X-Requested-With':'XMLHttpRequest'}
+    })
+    .then(r=>r.text())
+    .then(html=>{
+        document.getElementById('list-container').innerHTML=html;
+    });
+}
+
+document.getElementById('search').addEventListener('keyup',()=>load());
+document.getElementById('sort').addEventListener('change',()=>load());
+
+document.addEventListener('click',function(e){
+    if(e.target.closest('.pagination a')){
+        e.preventDefault();
+        let url=e.target.closest('a').href;
+        let page=new URL(url).searchParams.get('page');
+        load(page);
+    }
+});
+</script>
+
+{% endblock %}

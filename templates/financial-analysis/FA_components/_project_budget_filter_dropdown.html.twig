@@ -1,0 +1,64 @@
+<!-- Project Budget Filter Dropdown -->
+<div class="dropdown d-inline-block">
+    <button type="button" class="btn btn-link text-muted p-1 text-decoration-none dropdown-toggle drop-arrow-none" id="projectFilterDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="{{ 'Filter Parameters'|trans }}" data-bs-auto-close="outside">
+        <i class="ti ti-adjustments-horizontal fs-20"></i>
+    </button>
+    <div class="dropdown-menu dropdown-menu-end p-3 shadow-lg border-0 mb-2" aria-labelledby="projectFilterDropdown" style="width: 400px;">
+        <h5 class="dropdown-header text-uppercase fs-13 px-0 pb-2 mb-3 border-bottom border-dashed">{{ 'Filter Projects'|trans }}</h5>
+        
+        <div class="row">
+            <!-- Status Filter -->
+            <div class="col-md-4 mb-3">
+                <label class="form-label fs-12">{{ 'Status'|trans }}</label>
+                <select class="form-select form-select-sm" data-toggle="select2" id="filter-project-status">
+                    <option value="ALL">{{ 'All'|trans }}</option>
+                    <option value="ON TRACK">{{ 'On Track'|trans }}</option>
+                    <option value="AT RISK">{{ 'At Risk'|trans }}</option>
+                    <option value="OFF TRACK">{{ 'Off Track'|trans }}</option>
+                </select>
+            </div>
+
+            <!-- Project Name Filter -->
+            <div class="col-md-4 mb-3">
+                <label class="form-label fs-12">{{ 'Project'|trans }}</label>
+                <select class="form-select form-select-sm" data-toggle="select2" id="filter-project-name">
+                    <option value="ALL">{{ 'All'|trans }}</option>
+                    {% set unique_names = [] %}
+                    {% if projects is defined %}
+                        {% for project in projects %}
+                            {% if project.projectName not in unique_names %}
+                                {% set unique_names = unique_names|merge([project.projectName]) %}
+                                <option value="{{ project.projectName }}">{{ project.projectName|trans }}</option>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                </select>
+            </div>
+
+            <!-- Month Filter -->
+            <div class="col-md-4 mb-3">
+                <label class="form-label fs-12">{{ 'Month'|trans }}</label>
+                <select class="form-select form-select-sm" data-toggle="select2" id="filter-project-month">
+                    <option value="ALL">{{ 'All'|trans }}</option>
+                    {% for i in 1..12 %}
+                        <option value="{{ '%02d'|format(i) }}">{{ '%02d'|format(i) }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+
+            <!-- Amount Range Slider -->
+            <div class="mb-4 pb-4">
+                <label class="form-label fs-12 mb-3">{{ 'Total Budget Range'|trans }}</label>
+                <div id="project-amount-slider"></div>
+            </div>
+
+
+        <!-- Action Buttons -->
+        <div class="d-flex justify-content-between mt-3 pt-2 border-top border-dashed">
+            <button type="button" class="btn btn-sm btn-light" id="btn-clear-project-filters">{{ 'Clear'|trans }}</button>
+            <button type="button" class="btn btn-sm btn-primary" id="btn-apply-project-filters">{{ 'Apply Filters'|trans }}</button>
+        </div>
+    </div>
+</div>

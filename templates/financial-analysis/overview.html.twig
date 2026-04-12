@@ -1,0 +1,344 @@
+{% extends 'layouts/vertical.html.twig' %}
+
+{% set title = 'Financial Analysis'|trans %}
+
+{% block css %}
+    <!-- Tabler Icons Webfont (CDN) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+
+    <link href="/vendor/select2/css/select2.min.css" rel="stylesheet" type="text/css" />
+
+    <link href="/vendor/nouislider/nouislider.min.css" rel="stylesheet" type="text/css" />
+
+    <link href="/css/FA.css?v={{ random() }}" rel="stylesheet" type="text/css" />
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid pt-4">
+        <!-- Breadcrumb -->
+        <div class="row align-items-center mb-3">
+            <div class="col-12 d-flex justify-content-between align-items-center">
+                <div class="page-title-box mb-0">
+                    <h4 class="page-title m-0">
+                        <nav aria-label="breadcrumb" class="d-inline-block">
+                            <ol class="breadcrumb m-0 p-0 bg-transparent align-items-center">
+                                <li class="breadcrumb-item">
+                                    <a href="{{ path('apps-financial-analysis-landing') }}" class="text-dark text-decoration-none">
+                                        <i class="ti ti-smart-home fs-16 me-1"></i>{{ 'Fiscal Budget Profiles'|trans }}
+                                    </a>
+                                </li>
+                                <li class="breadcrumb-item active text-muted" aria-current="page">{{ 'FY'|trans }} {{ budgetProfile.fiscalYear }} {{ 'Dashboard'|trans }}</li>
+                            </ol>
+                        </nav>
+                    </h4>
+                </div>
+                <div class="d-flex gap-2 align-items-center">
+                    <span class="text-muted fs-14 fw-medium me-3 d-flex align-items-center">
+                        <i class="ti ti-cash fs-18 me-1"></i>{{ 'Base Currency:'|trans }}&nbsp;<strong class="text-dark">{{ budgetProfile.baseCurrency|default('N/A') }}</strong>
+                    </span>
+                    <button type="button" class="btn btn-outline-primary rounded-pill px-3 py-1" data-bs-toggle="modal" data-bs-target="#updateProfileModal">
+                        <i class="ti ti-pencil me-1"></i> {{ 'Edit Profile'|trans }}
+                    </button>
+                    <button type="button" class="btn btn-outline-danger rounded-pill px-3 py-1" data-bs-toggle="modal" data-bs-target="#deleteBudgetProfileModal">
+                        <i class="ti ti-trash me-1"></i> {{ 'Delete Profile'|trans }}
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5 KPI Widgets Row -->
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xxl-5">
+            
+            <!-- Widget 1: Total Budget -->
+            <div class="col">
+                <div class="card">
+                    <div class="d-flex card-header justify-content-between align-items-center">
+                        <div>
+                            <h4 class="header-title">{{ 'Total Budget'|trans }}</h4>
+                        </div>
+                        <div class="dropdown">
+                            <a href="#" class="dropdown-toggle drop-arrow-none card-drop" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="ri-more-2-fill fs-18"></i>
+                            </a>
+                            <div class="dropdown-menu dropdown-menu-end">
+                                <a href="javascript:void(0);" class="dropdown-item">{{ 'As percentile'|trans }}</a>
+                                <a href="javascript:void(0);" class="dropdown-item">{{ 'Raw Numbers'|trans }}</a>
+                                <a href="javascript:void(0);" class="dropdown-item">{{ 'Time Frame'|trans }}</a>
+                                <a href="javascript:void(0);" class="dropdown-item">{{ 'Action'|trans }}</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card-body pt-0">
+                        <div class="d-flex align-items-center gap-2 justify-content-between">
+                            <span class="badge badge-soft-success rounded-pill fs-13">{{ kpi_budget_badge|default('32%') }}
+                                <i class="ti ti-trending-up"></i>
+                            </span>
+                            <div class="text-end">
+                                <h3 class="fw-semibold">{{ currency_symbol|default('$') }}{{ kpi_budget_value|default('5.42M') }}</h3>
+                                <p class="text-muted mb-0">{{ kpi_budget_subtitle|default('Since last month'|trans) }}</p>
+                            </div>
+                        </div>
+
+                        <div class="progress progress-soft progress-sm mt-3">
+                            <div class="progress-bar bg-success" role="progressbar" style="width: {{ kpi_budget_progress|default('25') }}%" aria-valuenow="{{ kpi_budget_progress|default('25') }}" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Widget 2: Total Spending -->
+            <div class="col">
+                <div class="card">
+                    <div class="d-flex card-header justify-content-between align-items-center">
+                        <div>
+                            <h4 class="header-title">{{ 'Total Spending'|trans }}</h4>
+                        </div>
+                        <div class="dropdown">
+                            <a href="#" class="dropdown-toggle drop-arrow-none card-drop" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="ri-more-2-fill fs-18"></i>
+                            </a>
+                            <div class="dropdown-menu dropdown-menu-end">
+                                <a href="javascript:void(0);" class="dropdown-item">{{ 'As percentile'|trans }}</a>
+                                <a href="javascript:void(0);" class="dropdown-item">{{ 'Raw Numbers'|trans }}</a>
+                                <a href="javascript:void(0);" class="dropdown-item">{{ 'Time Frame'|trans }}</a>
+                                <a href="javascript:void(0);" class="dropdown-item">{{ 'Action'|trans }}</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card-body pt-0">
+                        <div class="d-flex align-items-center gap-2 justify-content-between">
+                            <span class="badge badge-soft-danger rounded-pill fs-13">{{ kpi_spending_badge|default('12%') }}
+                                <i class="ti ti-trending-up"></i>
+                            </span>
+                            <div class="text-end">
+                                <h3 class="fw-semibold">{{ currency_symbol|default('$') }}{{ kpi_spending_value|default('1.20M') }}</h3>
+                                <p class="text-muted mb-0">{{ kpi_spending_subtitle|default('Since last month'|trans) }}</p>
+                            </div>
+                        </div>
+
+                        <div class="progress progress-soft progress-sm mt-3">
+                            <div class="progress-bar bg-danger" role="progressbar" style="width: {{ kpi_spending_progress|default('45') }}%" aria-valuenow="{{ kpi_spending_progress|default('45') }}" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Widget 3: Remaining Budget -->
+            <div class="col">
+                <div class="card">
+                    <div class="d-flex card-header justify-content-between align-items-center">
+                        <div>
+                            <h4 class="header-title">{{ 'Remaining Budget'|trans }}</h4>
+                        </div>
+                        <div class="dropdown">
+                            <a href="#" class="dropdown-toggle drop-arrow-none card-drop" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="ri-more-2-fill fs-18"></i>
+                            </a>
+                            <div class="dropdown-menu dropdown-menu-end">
+                                <a href="javascript:void(0);" class="dropdown-item">{{ 'As percentile'|trans }}</a>
+                                <a href="javascript:void(0);" class="dropdown-item">{{ 'Raw Numbers'|trans }}</a>
+                                <a href="javascript:void(0);" class="dropdown-item">{{ 'Time Frame'|trans }}</a>
+                                <a href="javascript:void(0);" class="dropdown-item">{{ 'Action'|trans }}</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card-body pt-0">
+                        <div class="d-flex align-items-center gap-2 justify-content-between">
+                            <span class="badge badge-soft-info rounded-pill fs-13">{{ kpi_remaining_badge|default('5.7%') }}
+                                <i class="ti ti-trending-down"></i>
+                            </span>
+                            <div class="text-end">
+                                <h3 class="fw-semibold">{{ currency_symbol|default('$') }}{{ kpi_remaining_value|default('4.22M') }}</h3>
+                                <p class="text-muted mb-0">{{ kpi_remaining_subtitle|default('Since last month'|trans) }}</p>
+                            </div>
+                        </div>
+
+                        <div class="progress progress-soft progress-sm mt-3">
+                            <div class="progress-bar bg-info" role="progressbar" style="width: {{ kpi_remaining_progress|default('75') }}%" aria-valuenow="{{ kpi_remaining_progress|default('75') }}" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Widget 4: Customer Satisfaction -->
+            <div class="col">
+                <div class="card">
+                    <div class="d-flex card-header justify-content-between align-items-center">
+                        <div>
+                            <h4 class="header-title">{{ 'Utilization'|trans }}</h4>
+                        </div>
+                        <div class="dropdown">
+                            <a href="#" class="dropdown-toggle drop-arrow-none card-drop" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="ri-more-2-fill fs-18"></i>
+                            </a>
+                            <div class="dropdown-menu dropdown-menu-end">
+                                <a href="javascript:void(0);" class="dropdown-item">{{ 'As percentile'|trans }}</a>
+                                <a href="javascript:void(0);" class="dropdown-item">{{ 'Raw Numbers'|trans }}</a>
+                                <a href="javascript:void(0);" class="dropdown-item">{{ 'Time Frame'|trans }}</a>
+                                <a href="javascript:void(0);" class="dropdown-item">{{ 'Action'|trans }}</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card-body pt-0">
+                        <div class="d-flex align-items-center gap-2 justify-content-between">
+                            <span class="badge badge-soft-primary rounded-pill fs-13">{{ kpi_utilization_badge|default('2.1%') }}
+                                <i class="ti ti-trending-up"></i>
+                            </span>
+                            <div class="text-end">
+                                <h3 class="fw-semibold">{{ kpi_utilization_value|default('94.3%') }}</h3>
+                                <p class="text-muted mb-0">{{ kpi_utilization_subtitle|default('Since last month'|trans) }}</p>
+                            </div>
+                        </div>
+
+                        <div class="progress progress-soft progress-sm mt-3">
+                            <div class="progress-bar bg-primary" role="progressbar" style="width: {{ kpi_satisfaction_progress|default('94.3') }}%" aria-valuenow="{{ kpi_satisfaction_progress|default('94.3') }}" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Widget 5: New Users -->
+            <div class="col">
+                <div class="card">
+                    <div class="d-flex card-header justify-content-between align-items-center">
+                        <div>
+                            <h4 class="header-title">{{ 'Cash Flow'|trans }}</h4>
+                        </div>
+                        <div class="dropdown">
+                            <a href="#" class="dropdown-toggle drop-arrow-none card-drop" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="ri-more-2-fill fs-18"></i>
+                            </a>
+                            <div class="dropdown-menu dropdown-menu-end">
+                                <a href="javascript:void(0);" class="dropdown-item">{{ 'X/100'|trans }}</a>
+                                <a href="javascript:void(0);" class="dropdown-item">{{ 'Raw Numbers'|trans }}</a>
+                                <a href="javascript:void(0);" class="dropdown-item">{{ 'Time Frame'|trans }}</a>
+                                <a href="javascript:void(0);" class="dropdown-item">{{ 'Action'|trans }}</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card-body pt-0">
+                        <div class="d-flex align-items-end gap-2 justify-content-between">
+                            <div class="text-end flex-shrink-0">
+                                <div id="chart-two" data-colors="#f9c851,#F6F7FB"></div>
+                            </div>
+                            <div class="text-end">
+                                <h3 class="fw-semibold">{{ kpi_cashflow_value|default('45.3k') }}</h3>
+                                <p class="text-muted mb-0">{{ kpi_cashflow_subtitle|default('Since last month'|trans) }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div> <!-- end row -->
+
+        <!-- Project Budgets Section -->
+        <div class="row mt-4">
+            <div class="col-12 col-lg-9 col-xl-8">
+                {% include 'financial-analysis/FA_components/_project_budget_action_bar.html.twig' %}
+                
+                <!-- Project Budgets Display -->
+                {% if projects is empty %}
+                    <!-- Empty State: No Projects Found -->
+                    <div class="row justify-content-center align-items-center mt-4">
+                        <div class="col-md-10">
+                            <div class="card text-center bg-transparent shadow-none">
+                                <div class="card-body p-5">
+                                    <div class="mb-4">
+                                        <i class="ti ti-calendar-off text-muted opacity-50" style="font-size: 5rem;"></i>
+                                    </div>
+                                    <h4 class="mt-3 mb-2 fw-semibold">{{ 'No Project Budgets Found'|trans }}</h4>
+                                    <p class="text-muted mb-4 fs-14">
+                                        {{ 'There are no active project budgets that fall within the scope of this Fiscal Year ('|trans }}{{ budgetProfile.startDate|date('Y-m-d') }} to {{ budgetProfile.endDate|date('Y-m-d') }}).
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% else %}
+                    <!-- Grid View Container -->
+                    <div id="project-grid-view" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+                        {% for project in projects %}
+                            <div class="col">
+                                {% include 'financial-analysis/FA_components/_project_budget_card.html.twig' with {'project': project} %}
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- List View Container (Hidden by default) -->
+                    <div id="project-list-view" class="d-none">
+                        {% for project in projects %}
+                            {% include 'financial-analysis/FA_components/_project_budget_list_row.html.twig' with {'project': project} %}
+                        {% endfor %}
+                    </div>
+
+                    <!-- Live Search Empty State (Hidden by default) -->
+                    <div id="project-search-empty-state" class="row justify-content-center align-items-center mt-2 d-none">
+                        <div class="col-md-10">
+                            <div class="card text-center bg-transparent shadow-none">
+                                <div class="card-body p-4">
+                                    <div class="mb-3">
+                                        <i class="ti ti-search text-muted opacity-50" style="font-size: 4rem;"></i>
+                                    </div>
+                                    <h5 class="mt-2 mb-1 fw-semibold">{{ 'No matches found'|trans }}</h5>
+                                    <p class="text-muted mb-0 fs-13">
+                                        {{ 'Try adjusting your search term.'|trans }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+                
+                <!-- End Project Budgets Section -->
+            </div>
+        </div>
+
+    </div> <!-- end container -->
+
+    {% include 'financial-analysis/FA_components/_update_profile_modal.html.twig' %}
+    {% include 'financial-analysis/FA_components/_create_project_budget_modal.html.twig' %}
+    {% include 'financial-analysis/FA_components/_delete_budget_profile_modal.html.twig' %}
+{% endblock %}
+
+{% block script %}
+    <!-- Flatpickr js -->
+    <script src="/vendor/flatpickr/flatpickr.min.js"></script>
+
+    <!-- Select2 js -->
+    <script src="/vendor/select2/js/select2.min.js"></script>
+
+    <!-- Apex Chart js -->
+    <script src="/vendor/apexcharts/apexcharts.min.js"></script>
+
+    <!-- Widgets js -->
+    <script src="/js/pages/widgets.js"></script>
+
+    <!-- NoUiSlider js -->
+    <script src="/vendor/nouislider/nouislider.min.js"></script>
+    <script src="/vendor/wnumb/wNumb.min.js"></script>
+
+    <!-- Custom FA JS Logic -->
+    <script src="/js/FA_custom.js?v={{ random() }}"></script>
+    <script src="/js/FA_functions.js?v={{ random() }}"></script>
+    <script src="/js/FA_PBfunctions.js?v={{ random() }}"></script>
+
+    <script>
+        $(document).ready(function() {
+            // Initialize Select2 for Fiscal Year
+            if ($('[data-toggle="select2"]').length) {
+                $('[data-toggle="select2"]').select2();
+            }
+        });
+    </script>
+{% endblock %}
+
+
+{% block footer %}{% endblock %}
+
+

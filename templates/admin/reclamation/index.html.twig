@@ -139,7 +139,6 @@
                     <table class="table table-hover table-centered mb-0" id="adminRecTable">
                         <thead class="table-light">
                             <tr>
-                                <th>{{ rm.sort_link('ID', 'idRec', sort, dir) }}</th>
                                 <th>{{ rm.sort_link('Title', 'titre', sort, dir) }}</th>
                                 <th>{{ rm.sort_link('Category', 'categorie', sort, dir) }}</th>
                                 <th>{{ rm.sort_link('Project / details', 'projet', sort, dir) }}</th>
@@ -153,13 +152,12 @@
                         <tbody>
                             {% for r in reclamations %}
                             {% set uname = (r.user_prenom|default('') ~ ' ' ~ r.user_nom|default(''))|trim %}
-                            {% set search_blob = (r.idRec ~ ' ' ~ r.titre ~ ' ' ~ (r.categorie|default('')) ~ ' ' ~ (r.projet|default('')) ~ ' ' ~ (r.statut|default('')) ~ ' ' ~ (r.date|default('')) ~ ' ' ~ uname ~ ' ' ~ (r.user_email|default('')) ~ ' ' ~ r.id_user)|lower %}
+                            {% set search_blob = (r.titre ~ ' ' ~ (r.categorie|default('')) ~ ' ' ~ (r.projet|default('')) ~ ' ' ~ (r.statut|default('')) ~ ' ' ~ (r.date|default('')) ~ ' ' ~ uname ~ ' ' ~ (r.user_email|default('')))|lower %}
                             <tr class="admin-rec-row{{ r.has_fichier ? ' admin-rec-row--has-file' : '' }}"
                                 data-search="{{ search_blob|e('html_attr') }}"
                                 data-has-file="{{ r.has_fichier ? '1' : '0' }}"
                                 data-file-url="{{ r.has_fichier ? path('admin_reclamations_fichier', {id: r.idRec}) : '' }}"
                                 {% if r.has_fichier %}title="Double-click to open attachment"{% endif %}>
-                                <td class="text-muted">#{{ r.idRec }}</td>
                                 <td class="fw-medium">{{ r.titre }}</td>
                                 <td>{{ r.categorie ?? '—' }}</td>
                                 <td class="text-truncate" style="max-width: 200px;" title="{{ r.projet|default('') }}">{{ r.projet ?? '—' }}</td>
@@ -168,7 +166,7 @@
                                         <span class="d-block fw-medium">{{ r.user_prenom }} {{ r.user_nom }}</span>
                                         <span class="fs-12 text-muted">{{ r.user_email|default('') }}</span>
                                     {% else %}
-                                        <span class="text-muted">User #{{ r.id_user }}</span>
+                                        <span class="text-muted">Unknown user</span>
                                     {% endif %}
                                 </td>
                                 <td>
@@ -186,7 +184,7 @@
                                     {% endif %}
                                 </td>
                                 <td class="text-end text-nowrap" onclick="event.stopPropagation();">
-                                    <button type="button" class="btn btn-sm btn-soft-primary btn-admin-rec-edit" title="Edit" data-bs-toggle="modal" data-bs-target="#adminRecModal" data-fragment-url="{{ path('admin_reclamations_edit', {id: r.idRec}) }}?fragment=1" data-rec-id="{{ r.idRec }}">
+                                    <button type="button" class="btn btn-sm btn-soft-primary btn-admin-rec-edit" title="Edit" data-bs-toggle="modal" data-bs-target="#adminRecModal" data-fragment-url="{{ path('admin_reclamations_edit', {id: r.idRec}) }}?fragment=1">
                                         <i class="ri-pencil-line"></i>
                                     </button>
                                     <form method="post" action="{{ path('admin_reclamations_delete', {id: r.idRec}) }}" class="d-inline" onsubmit="return confirm('Delete this reclamation?');">
@@ -198,11 +196,11 @@
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="9" class="text-center text-muted py-5">No reclamations yet.</td>
+                                <td colspan="8" class="text-center text-muted py-5">No reclamations yet.</td>
                             </tr>
                             {% endfor %}
                             <tr id="adminRecFilterEmpty" class="d-none">
-                                <td colspan="9" class="text-center text-muted py-4">No rows match your filter.</td>
+                                <td colspan="8" class="text-center text-muted py-4">No rows match your filter.</td>
                             </tr>
                         </tbody>
                     </table>
@@ -427,8 +425,7 @@
     document.querySelectorAll('.btn-admin-rec-edit').forEach(function (btn) {
         btn.addEventListener('click', function () {
             var u = this.getAttribute('data-fragment-url');
-            var id = this.getAttribute('data-rec-id') || '';
-            if (u) loadFragment(u, id ? 'Edit reclamation #' + id : 'Edit reclamation');
+            if (u) loadFragment(u, 'Edit reclamation');
         });
     });
 

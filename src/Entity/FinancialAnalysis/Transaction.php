@@ -9,6 +9,7 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 
 use App\Repository\FinancialAnalysis\TransactionRepository;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: TransactionRepository::class)]
 #[ORM\Table(name: 'transaction')]
@@ -32,6 +33,9 @@ class Transaction
     }
 
     #[ORM\Column(type: 'string', nullable: true)]
+    #[Assert\NotBlank(message: "A transaction reference is required.")]
+    #[Assert\Regex(pattern: "/^TX-\d{6}$/", message: "The reference must follow the format TX-XXXXXX (e.g., TX-987452).")]
+
     private ?string $reference = null;
 
     public function getReference(): ?string
@@ -46,6 +50,8 @@ class Transaction
     }
 
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2, nullable: false)]
+    #[Assert\NotBlank(message: "enter the cost ")]
+    #[Assert\Positive(message: "the value needs to be greater than 0.")]
     private ?string $cost = null;
 
     public function getCost(): ?string
@@ -53,27 +59,32 @@ class Transaction
         return $this->cost;
     }
 
-    public function setCost(string $cost): self
+    public function setCost(?string $cost): self
     {
         $this->cost = $cost;
         return $this;
     }
 
     #[ORM\Column(type: 'date', nullable: false)]
+    #[Assert\NotBlank(message: "A date is required for this transaction.")]
+    #[Assert\LessThanOrEqual('today', message: "The transaction date cannot be in the future.")]
     private ?\DateTimeInterface $date_stamp = null;
 
-    public function getDate_stamp(): ?\DateTimeInterface
-    {
-        return $this->date_stamp;
-    }
+    //old code that confilect son terms of casing for the function
 
-    public function setDate_stamp(\DateTimeInterface $date_stamp): self
-    {
-        $this->date_stamp = $date_stamp;
-        return $this;
-    }
+//    public function getDate_stamp(): ?\DateTimeInterface
+//    {
+//        return $this->date_stamp;
+//    }
+//
+//    public function setDate_stamp(?\DateTimeInterface $date_stamp): self
+//    {
+//        $this->date_stamp = $date_stamp;
+//        return $this;
+//    }
 
     #[ORM\Column(type: 'string', nullable: true)]
+    #[Assert\NotBlank(message: "Select a valid category.")]
     private ?string $expense_category = null;
 
     public function getExpense_category(): ?string
@@ -102,15 +113,16 @@ class Transaction
         return $this;
     }
 
-    #[ORM\Column(type: 'integer', nullable: false)]
-    private ?int $description = null;
+    #[ORM\Column(type: 'string', length: 255, nullable: true)]
+    #[Assert\NotBlank(message: "A description is required.")]
+    private ?string $description = null;
 
-    public function getDescription(): ?int
+    public function getDescription(): ?string
     {
         return $this->description;
     }
 
-    public function setDescription(int $description): self
+    public function setDescription(?string $description): self
     {
         $this->description = $description;
         return $this;
@@ -121,7 +133,7 @@ class Transaction
         return $this->date_stamp;
     }
 
-    public function setDateStamp(\DateTime $date_stamp): static
+    public function setDateStamp(?\DateTime $date_stamp): static
     {
         $this->date_stamp = $date_stamp;
 

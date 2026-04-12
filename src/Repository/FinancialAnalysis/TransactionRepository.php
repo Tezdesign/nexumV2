@@ -16,6 +16,93 @@ class TransactionRepository extends ServiceEntityRepository
         parent::__construct($registry, Transaction::class);
     }
 
+    public function save(Transaction $entity, bool $flush = false): void
+    {
+        $this->getEntityManager()->persist($entity);
+
+        if ($flush) {
+            $this->getEntityManager()->flush();
+        }
+    }
+
+    public function getTotalCostForProjectBudget(int $projectBudgetId): float
+    {
+        $result = $this->createQueryBuilder('t')
+            ->select('SUM(t.cost) as totalCost')
+            ->andWhere('t.projectBudget = :pbId')
+            ->setParameter('pbId', $projectBudgetId)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        return $result ? (float) $result : 0.0;
+    }
+
+    public function searchByReferenceOrDescriptionDql(int $projectBudgetId, string $searchTerm): array
+    {
+        return $this->createQueryBuilder('t')
+            ->andWhere('t.projectBudget = :pbId')
+            ->andWhere('t.reference LIKE :term OR t.description LIKE :term')
+            ->setParameter('pbId', $projectBudgetId)
+            ->setParameter('term', '%' . $searchTerm . '%')
+            ->orderBy('t.date_stamp', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function updateTransactionDql(Transaction $transaction): void
+    {
+        $this->createQueryBuilder('t')
+            ->update()
+            ->set('t.reference', ':ref')
+            ->set('t.cost', ':cost')
+            ->set('t.date_stamp', ':date')
+            ->set('t.expense_category', ':cat')
+            ->set('t.description', ':desc')
+            ->where('t.id = :id')
+            ->setParameter('ref', $transaction->getReference())
+            ->setParameter('cost', $transaction->getCost())
+            ->setParameter('date', $transaction->getDateStamp() ? $transaction->getDateStamp()->format('Y-m-d') : null)
+            ->setParameter('cat', $transaction->getExpenseCategory())
+            ->setParameter('desc', $transaction->getDescription())
+            ->setParameter('id', $transaction->getId())
+            ->getQuery()
+            ->execute();
+    }
+
+    public function bulkDeleteDql(array $ids): void
+    {
+        $this->createQueryBuilder('t')
+            ->delete()
+            ->where('t.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->getQuery()
+            ->execute();
+    }
+
+    public function deleteByProjectBudgetDql(int $pbId): void
+    {
+        $this->createQueryBuilder('t')
+            ->delete()
+            ->where('t.projectBudget = :pbId')
+            ->setParameter('pbId', $pbId)
+            ->getQuery()
+            ->execute();
+    }
+
+    public function deleteByFiscalYearScopeDql(\DateTimeInterface $start, \DateTimeInterface $end): void
+    {
+        $this->getEntityManager()->createQuery('
+            DELETE FROM App\Entity\FinancialAnalysis\Transaction t 
+            WHERE t.projectBudget IN (
+                SELECT pb.id FROM App\Entity\FinancialAnalysis\ProjectBudget pb 
+                WHERE pb.dueDate >= :start AND pb.dueDate <= :end
+            )
+        ')
+        ->setParameter('start', $start->format('Y-m-d'))
+        ->setParameter('end', $end->format('Y-m-d'))
+        ->execute();
+    }
+
     //    /**
     //     * @return Transaction[] Returns an array of Transaction objects
     //     */

@@ -15,6 +15,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 
+
 class HomeController extends AbstractController
 {
     private AuthService $authService;
@@ -472,12 +473,6 @@ class HomeController extends AbstractController
     public function training(): Response
     {
         return $this->render('training/apps-training.html.twig');
-    }
-
-    #[Route('/apps-financial-analysis', name: 'apps-financial-analysis')]
-    public function financialAnalysis(): Response
-    {
-        return $this->render('financial-analysis/apps-financial-analysis.html.twig');
     }
 
     #[Route('/apps-resources-management', name: 'apps-resources-management')]

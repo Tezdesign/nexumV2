@@ -1,0 +1,36 @@
+<!-- Delete Project Budget Confirmation Modal -->
+<div class="modal fade" id="deleteProjectBudgetModal" tabindex="-1" aria-labelledby="deleteProjectBudgetModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-bottom border-dashed d-flex align-items-center">
+                <h4 class="modal-title" id="deleteProjectBudgetModalLabel">{{ 'Confirm Project Budget Deletion'|trans }}</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4 text-center">
+                <div class="mb-4">
+                    <i class="ti ti-trash-x text-danger opacity-75" style="font-size: 5rem;"></i>
+                </div>
+                <h4 class="fw-semibold">{{ 'Danger Zone'|trans }}</h4>
+                <p class="text-muted fs-15">
+                    {{ 'Are you sure you want to delete the budget'|trans }} 
+                    <span class="fw-bold text-dark">"{{ projectBudget.name }}"</span>?
+                </p>
+                <div class="alert alert-soft-danger d-flex align-items-center" role="alert">
+                    <i class="ti ti-alert-triangle fs-20 me-2"></i>
+                    <div class="text-start">
+                        {{ 'This will permanently delete all'|trans }} <strong>{{ transactions|length }}</strong> {{ 'associated transactions.'|trans }}
+                    </div>
+                </div>
+                <p class="text-muted fs-13 mt-2">
+                    {{ 'The total expenses for the Fiscal Year'|trans }} {{ budgetProfile.fiscalYear }} {{ 'will be recalculated.'|trans }}
+                </p>
+            </div>
+            <div class="modal-footer">
+                <form action="{{ path('apps-financial-analysis-delete-project-budget', {id: projectBudgetEntity.id}) }}" method="POST">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">{{ 'Cancel'|trans }}</button>
+                    <button type="submit" class="btn btn-danger">{{ 'Delete Everything'|trans }}</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

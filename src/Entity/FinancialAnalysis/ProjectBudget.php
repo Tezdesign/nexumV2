@@ -9,10 +9,13 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 
 use App\Repository\FinancialAnalysis\ProjectBudgetRepository;
+use Symfony\Component\Validator\Constraints as Assert;
+use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 #[ORM\Entity(repositoryClass: ProjectBudgetRepository::class)]
 #[ORM\Table(name: 'project_budget')]
 #[ORM\Index(name: "fk_pro_id", columns: ["projectId"])]
+#[ORM\HasLifecycleCallbacks]
 class ProjectBudget
 {
     #[ORM\Id]
@@ -32,6 +35,9 @@ class ProjectBudget
     }
 
     #[ORM\Column(type: 'string', nullable: false)]
+    #[Assert\NotBlank(message: "enter the name of the budget")]
+    #[Assert\Regex(pattern: "/^[a-zA-Z ]+$/",message: "The name can only contain letters and spaces")]
+    #[Assert\Length(min: 3, minMessage: "The name must at least 3 characters long.")]
     private ?string $name = null;
 
     public function getName(): ?string
@@ -39,25 +45,18 @@ class ProjectBudget
         return $this->name;
     }
 
-    public function setName(string $name): self
+    public function setName(?string $name): self
     {
         $this->name = $name;
         return $this;
     }
 
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2, nullable: false)]
+    #[Assert\NotBlank(message: "enter the budget for the project")]
+    #[Assert\Positive(message: "The budget must be greater than zero.")]
     private ?string $total_budget = null;
 
-    public function getTotal_budget(): ?string
-    {
-        return $this->total_budget;
-    }
 
-    public function setTotal_budget(string $total_budget): self
-    {
-        $this->total_budget = $total_budget;
-        return $this;
-    }
 
     #[ORM\Column(name: 'actualSpend', type: Types::DECIMAL, precision: 10, scale: 2, nullable: false)]
     private ?string $actualSpend = null;
@@ -74,7 +73,7 @@ class ProjectBudget
     }
 
     #[ORM\Column(type: 'string', nullable: true)]
-    private ?string $status = null;
+    private ?string $status = "ON TRACK";
 
     public function getStatus(): ?string
     {
@@ -88,6 +87,7 @@ class ProjectBudget
     }
 
     #[ORM\Column(name: 'dueDate', type: 'date', nullable: false)]
+    #[Assert\NotBlank(message: "A due date is required.")]
     private ?\DateTimeInterface $dueDate = null;
 
     public function getDueDate(): ?\DateTimeInterface
@@ -95,32 +95,52 @@ class ProjectBudget
         return $this->dueDate;
     }
 
-    public function setDueDate(\DateTimeInterface $dueDate): self
+    public function setDueDate(?\DateTimeInterface $dueDate): self
     {
         $this->dueDate = $dueDate;
         return $this;
     }
 
-    #[ORM\Column(name: 'projectId', type: 'integer', nullable: false)]
-    private ?int $projectId = null;
+    #[ORM\ManyToOne(targetEntity: \App\Entity\Projects\Project::class)]
+    #[ORM\JoinColumn(name: 'projectId', referencedColumnName: 'id', nullable: false)]
+    #[Assert\NotBlank(message: "You must select a project.")]
+    private ?\App\Entity\Projects\Project $project = null;
 
-    public function getProjectId(): ?int
+    public function getProject(): ?\App\Entity\Projects\Project
     {
-        return $this->projectId;
+        return $this->project;
     }
 
-    public function setProjectId(int $projectId): self
+    public function setProject(?\App\Entity\Projects\Project $project): self
     {
-        $this->projectId = $projectId;
+        $this->project = $project;
         return $this;
     }
 
     #[ORM\OneToMany(targetEntity: Transaction::class, mappedBy: 'projectBudget')]
     private Collection $transactions;
 
+    // Transient attributes for validation (not mapped to DB)
+    private ?\DateTimeInterface $transientFiscalStart = null;
+    private ?\DateTimeInterface $transientFiscalEnd = null;
+
+    public function setTransientFiscalStart(?\DateTimeInterface $start): self
+    {
+        $this->transientFiscalStart = $start;
+        return $this;
+    }
+
+    public function setTransientFiscalEnd(?\DateTimeInterface $end): self
+    {
+        $this->transientFiscalEnd = $end;
+        return $this;
+    }
+
     public function __construct()
     {
         $this->transactions = new ArrayCollection();
+        $this->actualSpend = '0.00';
+        $this->status = 'ON TRACK';
     }
 
     /**
@@ -153,12 +173,76 @@ class ProjectBudget
         return $this->total_budget;
     }
 
-    public function setTotalBudget(string $total_budget): static
+    public function setTotalBudget(?string $total_budget): static
     {
         $this->total_budget = $total_budget;
 
         return $this;
     }
 
+    #[Assert\Callback]
+    public function validateProjectLogic(ExecutionContextInterface $context, mixed $payload): void
+    {
+
+        if ($this->dueDate && $this->project && $this->project->getEndDate()) {
+
+            $budgetDate = $this->dueDate->format('Y-m-d');
+            $projectEndDate = $this->project->getEndDate()->format('Y-m-d');
+
+            if ($budgetDate > $projectEndDate) {
+                $context->buildViolation('The budget due date cannot be later than the project end date (' . $projectEndDate . ').')
+                    ->atPath('dueDate')
+                    ->addViolation();
+            }
+        }
+
+        if ($this->dueDate && $this->transientFiscalStart && $this->transientFiscalEnd) {
+            $budgetDate = $this->dueDate->format('Y-m-d');
+            $fStart = $this->transientFiscalStart->format('Y-m-d');
+            $fEnd = $this->transientFiscalEnd->format('Y-m-d');
+
+            if ($budgetDate < $fStart || $budgetDate > $fEnd) {
+                $context->buildViolation('The budget due date must fall within the Fiscal Year (' . $fStart . ' to ' . $fEnd . ').')
+                    ->atPath('dueDate')
+                    ->addViolation();
+            }
+        }
+    }
+
+    #[ORM\PrePersist]
+    #[ORM\PreUpdate]
+    public function calculateStatus(): void
+    {
+        $budget = (float) $this->total_budget;
+        $spend = (float) $this->actualSpend;
+        
+        if ($budget > 0) {
+            $utilization = $spend / $budget;
+            if ($utilization <= 0.70) {
+                $this->status = 'ON TRACK';
+            } elseif ($utilization <= 1.00) {
+                $this->status = 'AT RISK';
+            } else {
+                $this->status = 'OVER BUDGET';
+            }
+        } else {
+            $this->status = 'ON TRACK';
+        }
+    }
+
+    #[Assert\Callback]
+    public function validateBudgetUpdateLogic(ExecutionContextInterface $context, mixed $payload): void
+    {
+        $budget = (float) $this->total_budget;
+        $spend = (float) $this->actualSpend;
+        
+        $maxAllowedSpend = $budget * 1.10;
+        
+        if ($spend > $maxAllowedSpend) {
+            $context->buildViolation('The new budget is too low. The current actual spending ($' . number_format($spend, 2) . ') exceeds 110% of this proposed budget.')
+                ->atPath('total_budget')
+                ->addViolation();
+        }
+    }
 }
 

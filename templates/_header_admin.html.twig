@@ -1,0 +1,141 @@
+<nav
+  class="layout-navbar container-xxl navbar navbar-expand-xl navbar-detached align-items-center bg-navbar-theme"
+  id="layout-navbar"
+>
+
+  <!-- MOBILE MENU TOGGLE -->
+  <div class="layout-menu-toggle navbar-nav align-items-xl-center me-3 me-xl-0 d-xl-none">
+    <a class="nav-item nav-link px-0 me-xl-4" href="javascript:void(0)">
+      <i class="bi bi-list fs-4"></i>
+    </a>
+  </div>
+
+  <div class="navbar-nav-right d-flex align-items-center w-100" id="navbar-collapse">
+
+    <!-- 🔍 SEARCH -->
+    <div class="navbar-nav align-items-center">
+      <div class="nav-item d-flex align-items-center position-relative">
+
+        <i class="bi bi-search position-absolute ms-2 text-muted"></i>
+
+        <input
+          type="text"
+          class="form-control border-0 shadow-none ps-4"
+          placeholder="Rechercher..."
+        />
+
+      </div>
+    </div>
+
+    <!-- RIGHT SIDE -->
+    <ul class="navbar-nav flex-row align-items-center ms-auto gap-2">
+
+      <!-- 🔔 NOTIFICATIONS -->
+      <li class="nav-item dropdown">
+        <a class="nav-link position-relative" href="#" data-bs-toggle="dropdown">
+          <i class="bi bi-bell fs-5"></i>
+
+          <!-- Badge -->
+          <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+            3
+          </span>
+        </a>
+
+        <ul class="dropdown-menu dropdown-menu-end p-0 shadow" style="width:300px;">
+
+          <li class="px-3 py-2 border-bottom fw-semibold">
+            Notifications
+          </li>
+
+          <li class="px-3 py-2 small text-muted">
+            Nouvelle commande reçue
+          </li>
+
+          <li class="px-3 py-2 small text-muted">
+            Stock faible produit
+          </li>
+
+          <li class="px-3 py-2 small text-muted">
+            Nouveau client ajouté
+          </li>
+
+          <li class="text-center py-2 border-top">
+            <a href="#" class="small text-primary">Voir tout</a>
+          </li>
+
+        </ul>
+      </li>
+
+      <!-- ⚡ QUICK ACTION -->
+      
+
+      <!-- 👤 USER -->
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle d-flex align-items-center gap-2" href="#" data-bs-toggle="dropdown">
+
+          <!-- Avatar -->
+          <div class="avatar-circle">
+            {% if app.user %}
+              
+            
+            {{ app.user.name|slice(0,1)|upper }}
+                        {% endif %}
+
+          </div>
+
+          <!-- Name (desktop only) -->
+          <span class="d-none d-xl-inline fw-semibold">
+            {% if app.user %}
+            {{ app.user.name }}
+                        {% endif %}
+
+          </span>
+
+        </a>
+
+        <ul class="dropdown-menu dropdown-menu-end shadow">
+
+          <!-- USER INFO -->
+          <li class="px-3 py-2 border-bottom">
+            <div class="fw-semibold">
+              {% if app.user %}
+              {{ app.user.name }} {{ app.user.prename }}
+                        {% endif %}
+
+            </div>
+            <small class="text-muted">
+              {% if app.user %}
+                
+             </small>
+              {{ app.user.roles[0]|replace({'ROLE_':''}) }}
+
+            </small>
+              {% endif %}
+          </li>
+
+          <li>
+            <a class="dropdown-item" href="#">
+              <i class="bi bi-person me-2"></i> Profil
+            </a>
+          </li>
+
+          <li>
+            <a class="dropdown-item" href="#">
+              <i class="bi bi-gear me-2"></i> Paramètres
+            </a>
+          </li>
+
+          <li><hr></li>
+
+          <li>
+            <a class="dropdown-item text-danger" href=" ">
+              <i class="bi bi-box-arrow-right me-2"></i> Déconnexion
+            </a>
+          </li>
+
+        </ul>
+      </li>
+
+    </ul>
+  </div>
+</nav>

@@ -18,7 +18,15 @@ services:
         exclude:
             - '../src/DependencyInjection/'
             - '../src/Entity/'
+            - '../src/Knp/'
             - '../src/Kernel.php'
+
+    Knp\:
+        resource: '../src/Knp/'
+        autowire: true
+        autoconfigure: true
+
+    Knp\Component\Pager\PaginatorInterface: '@Knp\Component\Pager\Paginator'
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

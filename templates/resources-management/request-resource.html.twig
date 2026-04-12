@@ -1,0 +1,123 @@
+{% extends 'layouts/vertical.html.twig' %}
+
+{% set title = 'Resources Catalog' %}
+
+{% block content %}
+{% for label, messages in app.flashes %}
+    {% for message in messages %}
+        <div class="alert alert-{{ label }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    {% endfor %}
+{% endfor %}
+
+<div class="container-fluid mt-4">
+    <div class="d-flex align-items-center justify-content-between mb-4">
+        <h4 class="text-primary fw-bold mb-0">Resources Catalog</h4>
+        <a href="{{ path('client_resources_view') }}" class="btn btn-secondary btn-sm">
+            <i class="mdi mdi-arrow-left me-1"></i> Back
+        </a>
+    </div>
+
+    <!-- Smart Search -->
+    <div class="mb-4">
+        <input type="text" id="resourceSearch" class="form-control" placeholder="Search resources...">
+    </div>
+
+    <div class="row g-4" id="resourceCards">
+        {% for resource in resources %}
+        <div class="col-md-4 resource-card" data-name="{{ resource.resourceName|lower }}" data-type="{{ resource.resourceType|lower }}">
+            <div class="card shadow-sm h-100">
+                
+                <!-- Resource Image -->
+                <div class="card-img-top d-flex align-items-center justify-content-center" style="height:150px;">
+                    {% if resource.imagePath %}
+                        <img src="{{ asset(resource.imagePath) }}" 
+                             alt="{{ resource.resourceName }}" 
+                             class="img-fluid h-100 w-100" 
+                             style="object-fit: cover;">
+                    {% else %}
+                        <span class="text-muted">No Image</span>
+                    {% endif %}
+                </div>
+
+                <!-- Resource Info -->
+                <div class="card-body">
+                    <h5 class="card-title">{{ resource.resourceName }} ({{ resource.resourceCode }})</h5>
+                    <p class="mb-1"><strong>Type:</strong> {{ resource.resourceType }}</p>
+                    <p class="mb-1"><strong>Available:</strong> {{ resource.availableQuantity }}</p>
+                    <p class="mb-1"><strong>Price:</strong> ${{ resource.unitCost }}</p>
+
+                    <!-- Request Form -->
+                    <form method="POST" action="{{ path('submit_resource_request') }}" class="request-form"
+                          data-price="{{ resource.unitCost }}"
+                          data-available="{{ resource.availableQuantity }}">
+                        <input type="hidden" name="resource_id" value="{{ resource.resourceId }}">
+
+                        <div class="mb-2">
+                            <label>Project</label>
+                            <select class="form-select" name="project_id" required>
+                                {% for project in projects %}
+                                <option value="{{ project.id }}">{{ project.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-2">
+                            <label>Quantity</label>
+                            <input type="number" class="form-control quantity-input" name="quantity" min="1" max="{{ resource.availableQuantity }}" required>
+                        </div>
+
+                        <div class="mb-2">
+                            <label>Estimated Cost:</label>
+                            <span class="estimated-cost">$0.00</span>
+                        </div>
+
+                        <button type="submit" class="btn btn-success btn-sm">Request +</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Search filter
+    const searchInput = document.getElementById('resourceSearch');
+    const cards = document.querySelectorAll('.resource-card');
+
+    searchInput.addEventListener('input', () => {
+        const query = searchInput.value.toLowerCase();
+        cards.forEach(card => {
+            const name = card.dataset.name;
+            const type = card.dataset.type;
+            card.style.display = (name.includes(query) || type.includes(query)) ? '' : 'none';
+        });
+    });
+
+    // Dynamic cost calculation
+    document.querySelectorAll('.request-form').forEach(form => {
+        const quantityInput = form.querySelector('.quantity-input');
+        const costSpan = form.querySelector('.estimated-cost');
+        const price = parseFloat(form.dataset.price);
+        const maxAvailable = parseInt(form.dataset.available);
+
+        quantityInput.addEventListener('input', () => {
+            let q = parseInt(quantityInput.value) || 0;
+            if (q > maxAvailable) q = maxAvailable;
+            if (q < 1) q = 1;
+            quantityInput.value = q;
+            costSpan.textContent = '$' + (q * price).toFixed(2);
+        });
+
+        // Initialize cost
+        quantityInput.dispatchEvent(new Event('input'));
+    });
+});
+</script>
+{% endblock %}

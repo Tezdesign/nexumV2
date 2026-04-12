@@ -1,0 +1,38 @@
+<div class="dropdown d-inline-block">
+    <button class="btn btn-link text-muted p-1 text-decoration-none dropdown-toggle drop-arrow-none" type="button" id="projectFilterDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="{{ 'Filter Parameters'|trans }}" data-bs-auto-close="outside">
+        <i class="ti ti-adjustments-horizontal fs-20"></i>
+    </button>
+    <div class="dropdown-menu dropdown-menu-end p-3 shadow-lg border-0" aria-labelledby="projectFilterDropdown" style="width: 320px;">
+        <h5 class="dropdown-header text-uppercase fs-13 px-0 pb-2 mb-2 border-bottom border-dashed">{{ 'Filter Projects'|trans }}</h5>
+
+        <div class="mb-3">
+            <label class="form-label fs-12">{{ 'Status'|trans }}</label>
+            <select class="form-select form-select-sm" id="filter-project-status">
+                <option value="ALL">{{ 'All Statuses'|trans }}</option>
+                <option value="ON TRACK">{{ 'On Track'|trans }}</option>
+                <option value="AT RISK">{{ 'At Risk'|trans }}</option>
+                <option value="OFF TRACK">{{ 'Off Track'|trans }}</option>
+            </select>
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label fs-12">{{ 'Month'|trans }}</label>
+            <select class="form-select form-select-sm" id="filter-project-month">
+                <option value="ALL">{{ 'All Months'|trans }}</option>
+                {% for i in 1..12 %}
+                    <option value="{{ '%02d'|format(i) }}">{{ '%02d'|format(i) }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="mb-4 pb-4">
+            <label class="form-label fs-12 mb-3">{{ 'Total Budget Range'|trans }}</label>
+            <div id="project-amount-slider"></div>
+        </div>
+
+        <div class="d-flex justify-content-between mt-3 pt-2 border-top border-dashed">
+            <button type="button" class="btn btn-sm btn-light" id="btn-clear-project-filters">{{ 'Clear'|trans }}</button>
+            <button type="button" class="btn btn-sm btn-primary" id="btn-apply-project-filters">{{ 'Apply Filters'|trans }}</button>
+        </div>
+    </div>
+</div>

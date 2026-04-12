@@ -16,6 +16,28 @@ class BudgetProfileRepository extends ServiceEntityRepository
         parent::__construct($registry, BudgetProfile::class);
     }
 
+    public function updateTotalExpenseDql(BudgetProfile $profile, float $totalExpense): void
+    {
+        $qb = $this->createQueryBuilder('bp');
+        $qb->update()
+            ->set('bp.total_expense', ':total_expense')
+            ->where('bp.id = :id')
+            ->setParameter('total_expense', $totalExpense)
+            ->setParameter('id', $profile->getId())
+            ->getQuery()
+            ->execute();
+    }
+
+    public function deleteProfileDql(int $id): void
+    {
+        $this->createQueryBuilder('bp')
+            ->delete()
+            ->where('bp.id = :id')
+            ->setParameter('id', $id)
+            ->getQuery()
+            ->execute();
+    }
+
     //    /**
     //     * @return BudgetProfile[] Returns an array of BudgetProfile objects
     //     */

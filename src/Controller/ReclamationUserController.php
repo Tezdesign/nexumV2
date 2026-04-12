@@ -48,7 +48,7 @@ class ReclamationUserController extends AbstractController
             return $this->redirectToRoute('welcome');
         }
 
-        $sort = (string) $request->query->get('sort', 'idRec');
+        $sort = (string) $request->query->get('sort', 'date');
         $dir = strtoupper((string) $request->query->get('dir', 'DESC')) === 'ASC' ? 'ASC' : 'DESC';
 
         $reclamations = $this->reclamationRepository->findForUserListing($userId, $sort, $dir);
@@ -102,7 +102,7 @@ class ReclamationUserController extends AbstractController
             $binary = @file_get_contents($path);
             if ($binary !== false && $binary !== '') {
                 $this->entityManager->getConnection()->executeStatement(
-                    'UPDATE reclamation SET fichier = ? WHERE id_rec = ?',
+                    'UPDATE reclamation SET fichier = ? WHERE idRec = ?',
                     [$binary, $rec->getIdRec()]
                 );
                 $rec->setFichier($binary);
