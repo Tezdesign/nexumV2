@@ -535,13 +535,32 @@ class MessageController extends AbstractController
 		}
 
 		$now = new DateTimeImmutable('now', $createdAt->getTimezone());
-		$secondsDiff = $now->getTimestamp() - $createdAt->getTimestamp();
+		$seconds = max(0, $now->getTimestamp() - $createdAt->getTimestamp());
 
-		if ($secondsDiff < 24 * 60 * 60) {
-			return $createdAt->format('g:ia');
+		if ($seconds < 60) {
+			return 'now';
 		}
 
-		return $createdAt->format('m/d g:ia');
+		if ($seconds < 3600) {
+			$minutes = (int) floor($seconds / 60);
+			return $minutes . ' min';
+		}
+
+		if ($seconds < 86400) {
+			$hours = (int) floor($seconds / 3600);
+			return $hours . ' h';
+		}
+
+		if ($seconds < 604800) {
+			$days = (int) floor($seconds / 86400);
+			return $days . ' day' . ($days === 1 ? '' : 's');
+		}
+
+		if ($seconds < 1209600) {
+			return '1 week ago';
+		}
+
+		return $createdAt->format('M j');
 	}
 
 	private function isBlockedPreviewHost(string $host): bool

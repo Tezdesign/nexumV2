@@ -6,6 +6,7 @@ class ChatApp {
         this.messagesList = null
         this.messagesState = null
         this.conversationItems = []
+        this.conversationItemsContainer = null
         this.activeConversationItem = null
         this.activeConversationId = null
         this.filterButtons = []
@@ -131,6 +132,7 @@ class ChatApp {
         this.conversationItems = Array.from(
             document.querySelectorAll('[data-apps-chat="conversation-item"]')
         )
+        this.conversationItemsContainer = document.querySelector('[data-apps-chat="conversation-items"]')
         this.filterButtons = Array.from(
             document.querySelectorAll('[data-chat-filter]')
         )
@@ -495,11 +497,16 @@ class ChatApp {
     }
 
     promoteConversationItem = (item) => {
-        if (!item || !item.parentElement) {
+        if (!item) {
             return
         }
 
-        item.parentElement.prepend(item)
+        const targetContainer = this.conversationItemsContainer || item.parentElement
+        if (!targetContainer) {
+            return
+        }
+
+        targetContainer.prepend(item)
         this.conversationItems = [item, ...this.conversationItems.filter((conversationItem) => conversationItem !== item)]
     }
 
@@ -522,7 +529,6 @@ class ChatApp {
         }
 
         item.dataset.conversationCreatedAt = item.dataset.conversationCreatedAt || ''
-        this.promoteConversationItem(item)
     }
 
     setDetailsDrawerOpen = (open) => {
@@ -1184,6 +1190,35 @@ class ChatApp {
             }
 
             const createdMessages = Array.isArray(payload.messages) ? payload.messages : []
+            const createdAttachments = Array.isArray(payload.attachments) ? payload.attachments : []
+            if (createdAttachments.length > 0) {
+                const attachmentsByMessageId = new Map()
+                createdAttachments.forEach((attachment) => {
+                    const key = String(attachment?.messageId || '')
+                    if (!key) {
+                        return
+                    }
+
+                    if (!attachmentsByMessageId.has(key)) {
+                        attachmentsByMessageId.set(key, [])
+                    }
+
+                    attachmentsByMessageId.get(key).push(attachment)
+                })
+
+                createdMessages.forEach((message) => {
+                    const key = String(message?.id || '')
+                    if (!key) {
+                        return
+                    }
+
+                    const attachments = attachmentsByMessageId.get(key)
+                    if (attachments && attachments.length > 0) {
+                        message.attachments = attachments
+                    }
+                })
+            }
+
             if (createdMessages.length > 0) {
                 this.setMessagesState('', false)
             }
@@ -1900,16 +1935,21 @@ class ChatApp {
     getAttachmentKind = (attachment) => {
         const mimeType = String(attachment?.mimeType || '').toLowerCase()
         const fileName = String(attachment?.fileName || '').toLowerCase()
+        const extension = this.getAttachmentExtension(fileName)
         if (mimeType.startsWith('image/')) {
             return 'image'
         }
 
         if (mimeType.startsWith('video/')) {
-            return 'video'
+            return this.isPreviewableVideoExtension(extension) ? 'video' : 'file'
         }
 
         if (mimeType.startsWith('audio/')) {
             return 'audio'
+        }
+
+        if (this.isPreviewableVideoExtension(extension)) {
+            return 'video'
         }
 
         if (fileName.endsWith('.mp3') || fileName.endsWith('.wav') || fileName.endsWith('.ogg') || fileName.endsWith('.m4a') || fileName.endsWith('.aac') || fileName.endsWith('.flac') || fileName.endsWith('.webm')) {
@@ -1917,6 +1957,16 @@ class ChatApp {
         }
 
         return 'file'
+    }
+
+    getAttachmentExtension = (fileName = '') => {
+        const safeFileName = String(fileName || '').toLowerCase()
+        const parts = safeFileName.split('.')
+        return parts.length > 1 ? parts[parts.length - 1] : ''
+    }
+
+    isPreviewableVideoExtension = (extension) => {
+        return ['mp4', 'm4v', 'webm', 'ogv', 'ogg'].includes(String(extension || '').toLowerCase())
     }
 
     createAttachmentNode = (attachment, index) => {
@@ -1950,6 +2000,26 @@ class ChatApp {
             video.src = url
             video.className = 'w-100 rounded-3 border bg-black'
             video.setAttribute('playsinline', 'playsinline')
+
+            video.addEventListener('error', () => {
+                const fallback = document.createElement('a')
+                fallback.href = url
+                fallback.target = '_blank'
+                fallback.rel = 'noopener'
+                fallback.className = 'd-inline-flex align-items-center gap-2 text-decoration-none border rounded-3 px-3 py-2 bg-body-tertiary text-body'
+
+                const icon = document.createElement('span')
+                icon.textContent = '▶'
+                icon.className = 'fw-semibold'
+
+                const text = document.createElement('span')
+                text.textContent = `${fileName} (open video)`
+
+                fallback.appendChild(icon)
+                fallback.appendChild(text)
+
+                wrapper.replaceChildren(fallback)
+            })
 
             wrapper.appendChild(video)
             return wrapper
@@ -2506,9 +2576,20 @@ class ChatApp {
 
         if (isAttachmentMessage) {
             chatMessage.appendChild(attachmentContainer)
-            queueMicrotask(() => {
-                this.loadMessageAttachments(message.id, attachmentContainer, bodyElement)
-            })
+            if (attachments.length > 0) {
+                attachmentContainer.classList.remove('d-none')
+                attachments.forEach((attachment, attachmentIndex) => {
+                    attachmentContainer.appendChild(this.createAttachmentNode(attachment, attachmentIndex))
+                })
+
+                if (bodyElement) {
+                    bodyElement.classList.add('d-none')
+                }
+            } else {
+                queueMicrotask(() => {
+                    this.loadMessageAttachments(message.id, attachmentContainer, bodyElement)
+                })
+            }
         } else if (attachments.length > 0) {
             attachmentContainer.classList.remove('d-none')
             attachments.forEach((attachment, attachmentIndex) => {
@@ -3221,6 +3302,7 @@ class ChatApp {
             queueMicrotask(async () => {
                 const conversationItem = document.querySelector(`[data-apps-chat="conversation-item"][data-conversation-id="${conversationId}"]`)
                 if (conversationItem) {
+                    this.promoteConversationItem(conversationItem)
                     conversationItem.click()
                 } else {
                     // Reload page after a short delay to ensure all events are processed

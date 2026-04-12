@@ -353,46 +353,48 @@
                                         <span class="badge text-bg-light ms-auto" data-apps-chat="filter-label">All</span>
                                     </div>
 
-                                    {% for conversation in conversations %}
-                                        <a href="javascript:void(0);" class="text-body d-block" data-apps-chat="conversation-item" data-conversation-id="{{ conversation.id }}" data-messages-endpoint="{{ path('apps-chat-conversation-messages', {'conversationId': conversation.id}) }}" data-conversation-name="{{ conversation.name|e('html_attr') }}" data-conversation-avatar="{{ (conversation.avatarSrc ?? '')|e('html_attr') }}" data-conversation-type="{{ conversation.isDm ? 'DM' : 'GROUP' }}" data-conversation-is-admin="{{ conversation.isAdmin ? '1' : '0' }}" data-conversation-created-at="{{ (conversation.createdAtLabel ?? '--')|e('html_attr') }}" data-dm-name="{{ conversation.isDm ? conversation.name|e('html_attr') : '' }}" data-group-title="{{ conversation.isDm ? '' : conversation.name|e('html_attr') }}" data-conversation-unread="{{ (conversation.unreadCount ?? 0) > 0 ? '1' : '0' }}">
-                                            <div class="chat-users">
-                                                <div class="avatar-md {{ conversation.isDm ? 'chat-avatar-online' : 'chat-avatar-offline' }}">
-                                                    {% if conversation.avatarSrc %}
-                                                        <img src="{{ conversation.avatarSrc }}" class="w-100 h-100 object-fit-cover rounded-circle" alt="{{ conversation.name }}" data-apps-chat="conversation-avatar-image" />
-                                                    {% else %}
-                                                        <div class="h-100 w-100 rounded-circle bg-secondary-subtle text-secondary d-flex align-items-center justify-content-center fw-semibold" data-apps-chat="conversation-avatar-fallback">
-                                                            {{ conversation.name|slice(0, 1)|upper }}
-                                                        </div>
-                                                    {% endif %}
-                                                </div>
+                                    <div data-apps-chat="conversation-items">
+                                        {% for conversation in conversations %}
+                                            <a href="javascript:void(0);" class="text-body d-block" data-apps-chat="conversation-item" data-conversation-id="{{ conversation.id }}" data-messages-endpoint="{{ path('apps-chat-conversation-messages', {'conversationId': conversation.id}) }}" data-conversation-name="{{ conversation.name|e('html_attr') }}" data-conversation-avatar="{{ (conversation.avatarSrc ?? '')|e('html_attr') }}" data-conversation-type="{{ conversation.isDm ? 'DM' : 'GROUP' }}" data-conversation-is-admin="{{ conversation.isAdmin ? '1' : '0' }}" data-conversation-created-at="{{ (conversation.createdAtLabel ?? '--')|e('html_attr') }}" data-dm-name="{{ conversation.isDm ? conversation.name|e('html_attr') : '' }}" data-group-title="{{ conversation.isDm ? '' : conversation.name|e('html_attr') }}" data-conversation-unread="{{ (conversation.unreadCount ?? 0) > 0 ? '1' : '0' }}">
+                                                <div class="chat-users">
+                                                    <div class="avatar-md {{ conversation.isDm ? 'chat-avatar-online' : 'chat-avatar-offline' }}">
+                                                        {% if conversation.avatarSrc %}
+                                                            <img src="{{ conversation.avatarSrc }}" class="w-100 h-100 object-fit-cover rounded-circle" alt="{{ conversation.name }}" data-apps-chat="conversation-avatar-image" />
+                                                        {% else %}
+                                                            <div class="h-100 w-100 rounded-circle bg-secondary-subtle text-secondary d-flex align-items-center justify-content-center fw-semibold" data-apps-chat="conversation-avatar-fallback">
+                                                                {{ conversation.name|slice(0, 1)|upper }}
+                                                            </div>
+                                                        {% endif %}
+                                                    </div>
 
-                                                <div class="flex-grow-1 overflow-hidden">
-                                                    <h5 class="m-0">
-                                                        <span class="float-end d-flex flex-column align-items-end">
-                                                            <span class="text-muted fs-12" data-apps-chat="conversation-last-time">
-                                                                {{ conversation.lastMessageTimeLabel ?? '--' }}
-                                                            </span>
-                                                            {% if (conversation.unreadCount ?? 0) > 0 %}
-                                                                <span class="badge rounded-pill bg-danger text-white fs-10 mt-1" data-apps-chat="conversation-unread-badge" style="min-width: 20px;">
-                                                                    {{ conversation.unreadCount > 99 ? '99+' : conversation.unreadCount }}
+                                                    <div class="flex-grow-1 overflow-hidden">
+                                                        <h5 class="m-0">
+                                                            <span class="float-end d-flex flex-column align-items-end">
+                                                                <span class="text-muted fs-12" data-apps-chat="conversation-last-time">
+                                                                    {{ conversation.lastMessageTimeLabel ?? '--' }}
                                                                 </span>
-                                                            {% endif %}
-                                                        </span>
-                                                        <span data-apps-chat="conversation-name">{{ conversation.name }}</span>
-                                                    </h5>
-                                                    <p class="mt-1 mb-0 text-muted lh-1">
-                                                        <span class="w-75 d-inline-block text-truncate overflow-hidden fs-13" data-apps-chat="conversation-last-preview">
-                                                            {{ conversation.lastMessagePreview ?? 'No messages yet' }}
-                                                        </span>
-                                                    </p>
+                                                                {% if (conversation.unreadCount ?? 0) > 0 %}
+                                                                    <span class="badge rounded-pill bg-danger text-white fs-10 mt-1" data-apps-chat="conversation-unread-badge" style="min-width: 20px;">
+                                                                        {{ conversation.unreadCount > 99 ? '99+' : conversation.unreadCount }}
+                                                                    </span>
+                                                                {% endif %}
+                                                            </span>
+                                                            <span data-apps-chat="conversation-name">{{ conversation.name }}</span>
+                                                        </h5>
+                                                        <p class="mt-1 mb-0 text-muted lh-1">
+                                                            <span class="w-75 d-inline-block text-truncate overflow-hidden fs-13" data-apps-chat="conversation-last-preview">
+                                                                {{ conversation.lastMessagePreview ?? 'No messages yet' }}
+                                                            </span>
+                                                        </p>
+                                                    </div>
                                                 </div>
+                                            </a>
+                                        {% else %}
+                                            <div class="px-3 py-3 text-muted fs-13">
+                                                No conversations found for this user.
                                             </div>
-                                        </a>
-                                    {% else %}
-                                        <div class="px-3 py-3 text-muted fs-13">
-                                            No conversations found for this user.
-                                        </div>
-                                    {% endfor %}
+                                        {% endfor %}
+                                    </div>
 
                                     <div class="px-3 py-3 text-muted fs-13 d-none" data-apps-chat="filter-empty">
                                         No conversations match this filter.

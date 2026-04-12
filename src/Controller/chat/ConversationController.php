@@ -89,6 +89,13 @@ class ConversationController extends AbstractController
             ], 422);
         }
 
+        if (!$avatar->isValid()) {
+            return $this->json([
+                'success' => false,
+                'error' => $this->formatUploadFailureMessage($avatar),
+            ], 422);
+        }
+
         $mimeType = (string) ($avatar->getMimeType() ?? '');
         if ($mimeType === '' || !str_starts_with($mimeType, 'image/')) {
             return $this->json([
@@ -450,6 +457,22 @@ class ConversationController extends AbstractController
         return (int) ($this->authService->getCurrentUserId() ?? 0);
     }
 
+    private function formatUploadFailureMessage(UploadedFile $file): string
+    {
+        $errorCode = $file->getError();
+        if ($errorCode === UPLOAD_ERR_INI_SIZE || $errorCode === UPLOAD_ERR_FORM_SIZE) {
+            $serverLimit = trim((string) ini_get('upload_max_filesize'));
+            $message = 'Upload failed: file is larger than the server upload limit';
+            if ($serverLimit !== '') {
+                $message .= sprintf(' (upload_max_filesize=%s)', $serverLimit);
+            }
+
+            return $message . '.';
+        }
+
+        return 'Upload failed: ' . $file->getErrorMessage();
+    }
+
     private function loadEditableGroupConversation(
         int $conversationId,
         ConversationRepository $conversationRepository,
@@ -668,8 +691,10 @@ class ConversationController extends AbstractController
         $memberUserIds = $this->extractUserIds($request);
 
         $conversation = new Conversation();
+        $now = new \DateTime();
         try {
             $normalizedMemberIds = $conversation->initializeGroupConversation($this->currentUserId(), $title, $memberUserIds);
+            $conversation->setLastMessageAt($now);
         } catch (InvalidArgumentException $exception) {
             return $this->json([
                 'success' => false,
@@ -679,7 +704,21 @@ class ConversationController extends AbstractController
 
         $avatar = $request->files->get('avatar');
         if ($avatar instanceof UploadedFile) {
+            if (!$avatar->isValid()) {
+                return $this->json([
+                    'success' => false,
+                    'error' => $this->formatUploadFailureMessage($avatar),
+                ], 422);
+            }
+
             $mimeType = (string) ($avatar->getMimeType() ?? '');
+            if ($mimeType === '' || !str_starts_with($mimeType, 'image/')) {
+                return $this->json([
+                    'success' => false,
+                    'error' => 'Only image files are allowed.',
+                ], 422);
+            }
+
             $binary = file_get_contents($avatar->getPathname());
             if ($binary === false || $binary === '') {
                 return $this->json([
@@ -810,10 +849,12 @@ class ConversationController extends AbstractController
 
         // Create new conversation
         $conversation = new Conversation();
+        $now = new \DateTime();
         $conversation->setType('DM');
         $conversation->setDmKey($dmKey);
         $conversation->setCreatedBy($this->currentUserId());
-        $conversation->setCreatedAt(new \DateTime());
+        $conversation->setCreatedAt($now);
+        $conversation->setLastMessageAt($now);
 
         $entityManager->persist($conversation);
         $entityManager->flush();

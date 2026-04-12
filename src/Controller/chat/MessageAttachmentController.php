@@ -10,6 +10,8 @@ use App\Repository\Chat\MessageAttachmentRepository;
 use App\Repository\Chat\MessageRepository;
 use App\Repository\UserHandling\UtilisateurRepository;
 use App\Service\AuthService;
+use DateTimeImmutable;
+use DateTimeInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use InvalidArgumentException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -69,79 +71,122 @@ class MessageAttachmentController extends AbstractController
 		$sender = $utilisateurRepository->find($this->currentUserId());
 		$messagesPayload = [];
 		$attachments = [];
-		foreach ($files as $file) {
-			$mimeType = $file->getMimeType() ?: 'application/octet-stream';
-			$fileContent = file_get_contents($file->getRealPath());
+		try {
+			foreach ($files as $file) {
+				$safeFileName = $this->normalizeAttachmentFileName($file->getClientOriginalName());
 
-			if ($fileContent === false) {
-				return $this->json([
-					'success' => false,
-					'error' => 'Could not read uploaded file.',
-				], 422);
+				if (!$file->isValid()) {
+					return $this->json([
+						'success' => false,
+						'error' => $this->formatUploadFailureMessage($file, MessageAttachment::MAX_FILE_SIZE_BYTES),
+					], 422);
+				}
+
+				if ($file->getSize() !== null && $file->getSize() > MessageAttachment::MAX_FILE_SIZE_BYTES) {
+					return $this->json([
+						'success' => false,
+						'error' => 'File is too big. Maximum size is 30 MB.',
+					], 422);
+				}
+
+				$mimeType = 'application/octet-stream';
+				try {
+					$detectedMimeType = $file->getMimeType() ?: $mimeType;
+					$mimeType = $this->normalizeAttachmentMimeType($detectedMimeType, $safeFileName);
+				} catch (\Throwable) {
+					// Keep default MIME when finfo cannot inspect the temporary file.
+					$mimeType = $this->normalizeAttachmentMimeType($mimeType, $safeFileName);
+				}
+
+				$path = $file->getRealPath() ?: $file->getPathname();
+				$fileStream = @fopen($path, 'rb');
+				if ($fileStream === false) {
+					return $this->json([
+						'success' => false,
+						'error' => 'Could not read uploaded file.',
+					], 422);
+				}
+
+				$fileSize = (int) ($file->getSize() ?? 0);
+				if ($fileSize <= 0) {
+					$stats = @fstat($fileStream);
+					$fileSize = is_array($stats) && isset($stats['size']) ? (int) $stats['size'] : 0;
+				}
+
+				$message = new Message();
+				$now = new \DateTime();
+				try {
+					$message->setConversationId($conversationId)
+						->setSenderId($this->currentUserId())
+						->setBody($safeFileName)
+						->setKind('ATTACHMENT')
+						->setCreatedAt($now);
+				} catch (InvalidArgumentException $exception) {
+					return $this->json([
+						'success' => false,
+						'error' => $exception->getMessage(),
+					], 422);
+				}
+
+				$entityManager->persist($message);
+				$entityManager->flush();
+
+				$attachment = new MessageAttachment();
+				try {
+					$attachment->setMessageId((int) $message->getId())
+						->setFileName($safeFileName)
+						->setMimeType($mimeType)
+						->setSizeBytes($fileSize)
+						->setData($fileStream)
+						->setCreatedAt($now);
+				} catch (InvalidArgumentException $exception) {
+					@fclose($fileStream);
+					return $this->json([
+						'success' => false,
+						'error' => $exception->getMessage(),
+					], 422);
+				}
+
+				$entityManager->persist($attachment);
+				$entityManager->flush();
+
+				$conversation->setLastMessageId($message->getId());
+				$conversation->setLastMessageAt($message->getCreatedAt());
+				$entityManager->flush();
+
+				$messagesPayload[] = [
+					'id' => $message->getId(),
+					'body' => $message->getBody() ?? '',
+					'kind' => 'ATTACHMENT',
+					'senderId' => $this->currentUserId(),
+					'senderName' => $sender !== null
+						? trim(sprintf('%s %s', (string) $sender->getPrenom(), (string) $sender->getNom()))
+						: 'Unknown User',
+					'senderAvatarSrc' => $sender !== null ? $this->toDataUri($sender->getImagelink(), 'image/jpeg') : null,
+					'isOwn' => true,
+					'createdAt' => $message->getCreatedAt()?->format(DATE_ATOM),
+					'timeLabel' => $this->formatMessageTimeLabel($message->getCreatedAt()),
+				];
+
+				$attachments[] = [
+					'id' => $attachment->getId(),
+					'messageId' => $message->getId(),
+					'fileName' => $attachment->getFileName(),
+					'mimeType' => $attachment->getMimeType(),
+					'sizeBytes' => $attachment->getSizeBytes(),
+					'url' => $this->generateUrl('apps-chat-attachment-show', ['attachmentId' => $attachment->getId()]),
+				];
+			}
+		} catch (\Throwable $exception) {
+			$errorMessage = trim($exception->getMessage());
+			if ($errorMessage === '') {
+				$errorMessage = 'Unexpected attachment upload error.';
 			}
 
-			$message = new Message();
-			$now = new \DateTime();
-			try {
-				$message->setConversationId($conversationId)
-					->setSenderId($this->currentUserId())
-					->setBody($file->getClientOriginalName())
-					->setKind('ATTACHMENT')
-					->setCreatedAt($now);
-			} catch (InvalidArgumentException $exception) {
-				return $this->json([
-					'success' => false,
-					'error' => $exception->getMessage(),
-				], 422);
-			}
-
-			$entityManager->persist($message);
-			$entityManager->flush();
-
-			$attachment = new MessageAttachment();
-			try {
-				$attachment->setMessageId((int) $message->getId())
-					->setFileName($file->getClientOriginalName())
-					->setMimeType($mimeType)
-					->setSizeBytes(strlen($fileContent))
-					->setData($fileContent)
-					->setCreatedAt($now);
-			} catch (InvalidArgumentException $exception) {
-				return $this->json([
-					'success' => false,
-					'error' => $exception->getMessage(),
-				], 422);
-			}
-
-			$entityManager->persist($attachment);
-			$entityManager->flush();
-
-			$conversation->setLastMessageId($message->getId());
-			$conversation->setLastMessageAt($message->getCreatedAt());
-			$entityManager->flush();
-
-			$messagesPayload[] = [
-				'id' => $message->getId(),
-				'body' => $message->getBody() ?? '',
-				'kind' => 'ATTACHMENT',
-				'senderId' => $this->currentUserId(),
-				'senderName' => $sender !== null
-					? trim(sprintf('%s %s', (string) $sender->getPrenom(), (string) $sender->getNom()))
-					: 'Unknown User',
-				'senderAvatarSrc' => $sender !== null ? $this->toDataUri($sender->getImagelink(), 'image/jpeg') : null,
-				'isOwn' => true,
-				'createdAt' => $message->getCreatedAt()?->format(DATE_ATOM),
-				'timeLabel' => $message->getCreatedAt()?->format('g:ia') ?? '--',
-			];
-
-			$attachments[] = [
-				'id' => $attachment->getId(),
-				'messageId' => $message->getId(),
-				'fileName' => $attachment->getFileName(),
-				'mimeType' => $attachment->getMimeType(),
-				'sizeBytes' => $attachment->getSizeBytes(),
-				'url' => $this->generateUrl('apps-chat-attachment-show', ['attachmentId' => $attachment->getId()]),
-			];
+			return $this->json([
+				'success' => false,
+				'error' => $errorMessage,
+			], 500);
 		}
 
 		return $this->json([
@@ -151,9 +196,110 @@ class MessageAttachmentController extends AbstractController
 		]);
 	}
 
+	private function formatMessageTimeLabel(?DateTimeInterface $createdAt): string
+	{
+		if ($createdAt === null) {
+			return '--';
+		}
+
+		$now = new DateTimeImmutable('now', $createdAt->getTimezone());
+		$seconds = max(0, $now->getTimestamp() - $createdAt->getTimestamp());
+
+		if ($seconds < 60) {
+			return 'now';
+		}
+
+		if ($seconds < 3600) {
+			$minutes = (int) floor($seconds / 60);
+			return $minutes . ' min';
+		}
+
+		if ($seconds < 86400) {
+			$hours = (int) floor($seconds / 3600);
+			return $hours . ' h';
+		}
+
+		if ($seconds < 604800) {
+			$days = (int) floor($seconds / 86400);
+			return $days . ' day' . ($days === 1 ? '' : 's');
+		}
+
+		if ($seconds < 1209600) {
+			return '1 week ago';
+		}
+
+		return $createdAt->format('M j');
+	}
 	private function currentUserId(): int
 	{
 		return (int) ($this->authService->getCurrentUserId() ?? 0);
+	}
+
+	private function formatUploadFailureMessage(UploadedFile $file, ?int $appLimitBytes = null): string
+	{
+		$errorCode = $file->getError();
+		if ($errorCode === UPLOAD_ERR_INI_SIZE || $errorCode === UPLOAD_ERR_FORM_SIZE) {
+			$serverLimit = trim((string) ini_get('upload_max_filesize'));
+			$message = 'Upload failed: file is larger than the server upload limit';
+			if ($serverLimit !== '') {
+				$message .= sprintf(' (upload_max_filesize=%s)', $serverLimit);
+			}
+
+			if ($appLimitBytes !== null) {
+				$appLimitMb = (int) round($appLimitBytes / 1048576);
+				$message .= sprintf(' and must not exceed %d MB in this application.', $appLimitMb);
+			}
+
+			return $message;
+		}
+
+		return 'Upload failed: ' . $file->getErrorMessage();
+	}
+
+	private function normalizeAttachmentFileName(?string $originalName): string
+	{
+		$name = trim((string) $originalName);
+		if ($name === '') {
+			return 'attachment.bin';
+		}
+
+		$extension = pathinfo($name, PATHINFO_EXTENSION);
+		$baseName = pathinfo($name, PATHINFO_FILENAME);
+
+		if ($extension !== '') {
+			$maxBaseLength = max(1, 255 - mb_strlen($extension) - 1);
+			$baseName = mb_substr($baseName, 0, $maxBaseLength);
+			return $baseName . '.' . $extension;
+		}
+
+		return mb_substr($name, 0, 255);
+	}
+
+	private function normalizeAttachmentMimeType(string $mimeType, string $fileName): string
+	{
+		$normalizedMimeType = strtolower(trim($mimeType));
+		if ($normalizedMimeType !== '' && $normalizedMimeType !== 'application/octet-stream') {
+			return $normalizedMimeType;
+		}
+
+		$extension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+		return match ($extension) {
+			'mp4', 'm4v' => 'video/mp4',
+			'webm' => 'video/webm',
+			'ogv' => 'video/ogg',
+			'mov' => 'video/quicktime',
+			'avi' => 'video/x-msvideo',
+			'mkv' => 'video/x-matroska',
+			'3gp' => 'video/3gpp',
+			'3g2' => 'video/3gpp2',
+			'ogg', 'oga' => 'audio/ogg',
+			'mp3' => 'audio/mpeg',
+			'wav' => 'audio/wav',
+			'm4a' => 'audio/mp4',
+			'aac' => 'audio/aac',
+			'flac' => 'audio/flac',
+			default => $normalizedMimeType !== '' ? $normalizedMimeType : 'application/octet-stream',
+		};
 	}
 
 	/**
