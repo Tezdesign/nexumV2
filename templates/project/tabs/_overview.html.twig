@@ -9,65 +9,6 @@
 
 {% set overview = projectOverview|default({}) %}
 {% set memberProductivity = overview.member_productivity|default([]) %}
-{% set taskInsights = overview.task_insights|default([])|slice(0, 6) %}
-
-<div class="row g-3 mb-3">
-    <div class="col-12 col-md-6">
-        <div class="card nexum-shell-card h-100">
-            <div class="card-body">
-                <div class="text-muted small mb-1">Project Completion</div>
-                <div class="d-flex align-items-end justify-content-between gap-3">
-                    <div class="display-6 mb-0">{{ overview.completion_percentage|default(0) }}%</div>
-                    <div class="text-muted small">
-                        {{ overview.status_counts.done|default(0) }} done /
-                        {{ overview.status_counts.in_progress|default(0) }} in progress /
-                        {{ overview.status_counts.todo|default(0) }} todo
-                    </div>
-                </div>
-                <div class="progress mt-3" style="height: 10px;">
-                    <div class="progress-bar" role="progressbar" style="width: {{ overview.completion_percentage|default(0) }}%"></div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-12 col-md-6">
-        <div class="card nexum-shell-card h-100">
-            <div class="card-body">
-                <div class="text-muted small mb-1">Delivery Health</div>
-                <div class="d-flex align-items-end justify-content-between gap-3">
-                    <div class="display-6 mb-0">{{ overview.tasks_on_track|default(0) }}</div>
-                    <div class="text-muted small">on track</div>
-                </div>
-                <div class="mt-2 small">
-                    <span class="badge text-bg-danger-subtle text-danger me-2">{{ overview.tasks_overdue|default(0) }} overdue</span>
-                    <span class="badge text-bg-light">{{ overview.tasks_total|default(0) }} total tasks</span>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-12 col-md-6">
-        <div class="card nexum-shell-card h-100">
-            <div class="card-body">
-                <div class="text-muted small mb-1">Estimated vs Actual Time</div>
-                <div class="fw-semibold mb-2">
-                    {{ overview.actual_time_total is not null ? overview.actual_time_total : '—' }}
-                    /
-                    {{ overview.estimated_time_total is not null ? overview.estimated_time_total : '—' }}
-                </div>
-                <div class="text-muted small">
-                    {% if overview.time_utilization_percentage is not null %}
-                        {{ overview.time_utilization_percentage }}% of estimated time consumed
-                    {% else %}
-                        Not enough task time data yet.
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
-
-</div>
 
 <div class="card nexum-shell-card mb-3">
     <div class="card-body">
@@ -84,7 +25,6 @@
                         <th>Member</th>
                         <th>Productivity</th>
                         <th>Completed This Week</th>
-                        <th>Avg Completion Time</th>
                         <th>On-Time Rate</th>
                     </tr>
                     </thead>
@@ -99,13 +39,6 @@
                             </td>
                             <td>{{ row.completed_this_week }}</td>
                             <td>
-                                {% if row.average_completion_time is not null %}
-                                    {{ row.average_completion_time }}
-                                {% else %}
-                                    —
-                                {% endif %}
-                            </td>
-                            <td>
                                 {% if row.on_time_delivery_rate is not null %}
                                     {{ row.on_time_delivery_rate }}%
                                 {% else %}
@@ -119,53 +52,6 @@
             </div>
         {% else %}
             <div class="text-muted small">No assigned-task productivity data yet.</div>
-        {% endif %}
-    </div>
-</div>
-
-<div class="card nexum-shell-card mb-3">
-    <div class="card-body">
-        <div class="d-flex align-items-center justify-content-between mb-3">
-            <h5 class="mb-0">Task Insights</h5>
-            <div class="text-muted small">Most urgent tasks first</div>
-        </div>
-
-        {% if taskInsights %}
-            <div class="d-flex flex-column gap-2">
-                {% for taskInsight in taskInsights %}
-                    {% set user = taskInsight.assigned_to ? (membersById[taskInsight.assigned_to] ?? null) : null %}
-                    {% set fullName = user ? ((user.prenom ~ ' ' ~ user.nom)|trim) : 'Unassigned' %}
-                    <div class="border rounded-3 p-3">
-                        <div class="d-flex flex-wrap align-items-start justify-content-between gap-2">
-                            <div>
-                                <div class="fw-semibold">{{ taskInsight.title|default('Untitled task')|plain_text }}</div>
-                                <div class="text-muted small">Assigned to {{ fullName|plain_text }}</div>
-                            </div>
-                            <div class="d-flex flex-wrap gap-2">
-                                <span class="badge text-bg-light">{{ taskInsight.status|replace({'_': ' '})|title }}</span>
-                                {% if taskInsight.overdue_by_days is not null %}
-                                    <span class="badge text-bg-danger-subtle text-danger">Overdue by {{ taskInsight.overdue_by_days }}d</span>
-                                {% elseif taskInsight.days_remaining is not null %}
-                                    <span class="badge text-bg-success-subtle text-success">{{ taskInsight.days_remaining }}d remaining</span>
-                                {% else %}
-                                    <span class="badge text-bg-secondary">No due date signal</span>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <div class="text-muted small mt-2">
-                            Time spent:
-                            {{ taskInsight.actual_time is not null ? taskInsight.actual_time : '—' }}
-                            /
-                            {{ taskInsight.estimated_time is not null ? taskInsight.estimated_time : '—' }}
-                            {% if taskInsight.time_variance is not null %}
-                                <span class="ms-2">Variance {{ taskInsight.time_variance > 0 ? '+' : '' }}{{ taskInsight.time_variance }}</span>
-                            {% endif %}
-                        </div>
-                    </div>
-                {% endfor %}
-            </div>
-        {% else %}
-            <div class="text-muted small">No task timing data yet.</div>
         {% endif %}
     </div>
 </div>
