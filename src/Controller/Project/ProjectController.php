@@ -373,29 +373,21 @@ final class ProjectController extends AbstractController
         }
 
         $projectTasks = $pid !== null ? $taskRepository->findForProject((int) $pid) : [];
-        $progressTotal = count($projectTasks);
-        $progressDoneOrInProgress = 0;
-        foreach ($projectTasks as $projectTask) {
-            $status = strtolower(trim((string) ($projectTask->getStatus() ?? '')));
-            if (in_array($status, ['done', 'completed', 'complete', 'finished', 'in_progress', 'in progress', 'progress', 'doing', 'started'], true)) {
-                $progressDoneOrInProgress++;
-            }
-        }
-        $projectProgressPercent = $progressTotal > 0
-            ? (int) round(($progressDoneOrInProgress / $progressTotal) * 100)
-            : 0;
-
-        $stats = ['total' => 0, 'completed' => 0, 'overdue' => 0];
-        if ($pid !== null) {
-            $stats = $taskRepository->getStatsForProject((int) $pid);
-        }
+        $projectOverview = ProjectProgressEngine::build($project, $projectTasks);
+        $projectProgressPercent = (int) ($projectOverview['completion_percentage'] ?? 0);
+        $statusCounts = (array) ($projectOverview['status_counts'] ?? []);
+        $stats = [
+            'total' => (int) ($projectOverview['tasks_total'] ?? 0),
+            'completed' => (int) ($statusCounts['done'] ?? 0),
+            'overdue' => (int) ($projectOverview['tasks_overdue'] ?? 0),
+        ];
 
         $recentActivities = $pid !== null ? $activityFeed->findRecentForProject((int) $pid, 6) : [];
 
         $tasks = [];
         $taskUserIds = [];
         if ($pid !== null && $tab === 'tasks') {
-            $tasks = $taskRepository->findForProject((int) $pid, 200);
+            $tasks = array_slice($projectTasks, 0, 200);
             foreach ($tasks as $task) {
                 $au = $task->getAssignedTo();
                 if ($au !== null) {
@@ -466,6 +458,7 @@ final class ProjectController extends AbstractController
             'avatarUrlById' => $avatarUrlById,
             'pickableUsers' => $pickableUsers,
             'stats' => $stats,
+            'projectOverview' => $projectOverview,
             'tasks' => $tasks,
             'activeTab' => $tab,
             'canEditProject' => $canEditProject,
