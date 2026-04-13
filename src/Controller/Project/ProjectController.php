@@ -1,27 +1,26 @@
 <?php
 
-namespace App\Controller;
+namespace App\Controller\Project;
 
 use App\Entity\Projects\Project;
 use App\Entity\Projects\ProjectAssignment;
 use App\Entity\Tasks\Task;
-use App\Form\Tasks\TaskQuickCreateType;
-use App\Form\Projects\ProjectQuickCreateType;
 use App\Form\Projects\ProjectManagerUpdateType;
-use App\Form\Projects\ProjectType;
+use App\Form\Projects\ProjectQuickCreateType;
+use App\Form\Tasks\TaskQuickCreateType;
 use App\Repository\Projects\ProjectAssignmentRepository;
 use App\Repository\Projects\ProjectRepository;
 use App\Repository\Tasks\TaskRepository;
 use App\Repository\UserHandling\UtilisateurRepository;
+use App\Service\AuthService;
+use App\Service\ProjectActivityFeed;
+use App\Service\ProjectActivityLogger;
+use App\Support\UserDisplayName;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
-use App\Service\AuthService;
-use App\Service\ProjectActivityLogger;
-use App\Service\ProjectActivityFeed;
-use App\Support\UserDisplayName;
 
 #[Route('/project')]
 final class ProjectController extends AbstractController
@@ -319,7 +318,7 @@ final class ProjectController extends AbstractController
         }
 
         $tab = strtolower(trim((string) $request->query->get('tab', 'overview')));
-        $allowedTabs = ['overview', 'tasks', 'kanban', 'discussion', 'files', 'activity', 'settings'];
+        $allowedTabs = ['overview', 'tasks', 'kanban'];
         if (!in_array($tab, $allowedTabs, true)) {
             $tab = 'overview';
         }
@@ -507,7 +506,7 @@ final class ProjectController extends AbstractController
         }
 
         $tab = strtolower(trim((string) $request->request->get('tab', 'overview')));
-        $allowedTabs = ['overview', 'tasks', 'kanban', 'discussion', 'files', 'activity', 'settings'];
+        $allowedTabs = ['overview', 'tasks', 'kanban'];
         if (!in_array($tab, $allowedTabs, true)) {
             $tab = 'overview';
         }

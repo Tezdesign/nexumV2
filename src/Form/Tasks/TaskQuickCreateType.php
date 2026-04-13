@@ -22,13 +22,14 @@ use Doctrine\ORM\QueryBuilder;
 final class TaskQuickCreateType extends AbstractType
 {
     /**
-     * @param array{is_manager?: bool, allowed_project_ids?: int[], member_ids?: int[]} $options
+     * @param array{is_manager?: bool, allowed_project_ids?: int[], member_ids?: int[], force_self_assign?: bool} $options
      */
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $isManager = (bool) ($options['is_manager'] ?? false);
         $allowedProjectIds = array_values(array_unique(array_map('intval', $options['allowed_project_ids'] ?? [])));
         $memberIds = array_values(array_unique(array_map('intval', $options['member_ids'] ?? [])));
+        $forceSelfAssign = (bool) ($options['force_self_assign'] ?? false);
 
         $builder
             ->add('title', TextType::class, [
@@ -94,7 +95,7 @@ final class TaskQuickCreateType extends AbstractType
                 'label' => 'Priority',
             ]);
 
-        if ($isManager) {
+        if ($isManager && !$forceSelfAssign) {
             $builder->add('assignedUser', EntityType::class, [
                 'mapped' => false,
                 'required' => true,
@@ -135,9 +136,11 @@ final class TaskQuickCreateType extends AbstractType
             'is_manager' => false,
             'allowed_project_ids' => [],
             'member_ids' => [],
+            'force_self_assign' => false,
         ]);
         $resolver->setAllowedTypes('is_manager', 'bool');
         $resolver->setAllowedTypes('allowed_project_ids', 'array');
         $resolver->setAllowedTypes('member_ids', 'array');
+        $resolver->setAllowedTypes('force_self_assign', 'bool');
     }
 }

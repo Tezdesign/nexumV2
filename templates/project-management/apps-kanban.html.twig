@@ -1,61 +1,465 @@
 {% extends 'layouts/vertical.html.twig' %}
 
-{% set title = 'Kanban' %}
+{% set title = isManager ? 'Project Kanban' : 'My Kanban' %}
 
-{% block css %}{% endblock %}
+{% block css %}
+    {% include 'partials/_task_project_design_system.html.twig' %}
+    <style>
+        .kanban-shell {
+            padding: 22px 0 28px;
+        }
+
+        .kanban-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+        }
+
+        .kanban-toolbar {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .kanban-filter-btn,
+        .kanban-add-btn {
+            border-radius: 14px;
+            padding: 11px 18px;
+            font-weight: 800;
+        }
+
+        .kanban-filter-btn {
+            border: 1px solid #d9e2ef;
+            background: #fff;
+            color: #314155;
+        }
+
+        .kanban-filter-btn:hover {
+            border-color: #c3cfdf;
+            color: #0f172a;
+        }
+
+        .kanban-filter-summary {
+            margin-top: 8px;
+            color: #7b8da6;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .kanban-board {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .kanban-column {
+            border-radius: 22px;
+            border: 1px solid #dfe6f1;
+            background: linear-gradient(180deg, #f7f9fc 0%, #f2f5f9 100%);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+            overflow: hidden;
+        }
+
+        .kanban-column-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 14px 14px 10px;
+            font-weight: 800;
+            color: #52657d;
+        }
+
+        .kanban-column-title {
+            font-size: 15px;
+            color: #243245;
+        }
+
+        .kanban-count {
+            min-width: 26px;
+            height: 26px;
+            border-radius: 999px;
+            background: #e8eef6;
+            color: #8193aa;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 900;
+        }
+
+        .kanban-stack {
+            padding: 0 12px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            min-height: 620px;
+        }
+
+        .kanban-stack .nexum-row {
+            border-top: 0;
+        }
+
+        .kanban-task-card {
+            border-radius: 18px;
+            background: #fff;
+            border: 1px solid rgba(223, 230, 241, 0.9);
+            box-shadow: 0 10px 22px rgba(31, 41, 55, 0.08);
+            padding: 12px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+        }
+
+        .kanban-task-main {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+            flex: 1 1 auto;
+        }
+
+        .kanban-task-toggle {
+            flex: 0 0 auto;
+        }
+
+        .kanban-task-check {
+            width: 24px;
+            height: 24px;
+            border-radius: 999px;
+            border: 2px solid #d6dee9;
+            background: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: transparent;
+            padding: 0;
+        }
+
+        .kanban-task-check.is-done {
+            border-color: #22c58b;
+            background: rgba(34, 197, 139, 0.12);
+            color: #22c58b;
+        }
+
+        .kanban-task-check.is-disabled {
+            cursor: default;
+        }
+
+        .kanban-task-body {
+            min-width: 0;
+        }
+
+        .kanban-task-title {
+            display: block;
+            max-width: 230px;
+            font-size: 15px;
+            font-weight: 800;
+            color: #1f2d3d;
+            text-decoration: none;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .kanban-task-title:hover {
+            text-decoration: underline;
+        }
+
+        .kanban-task-title.is-done {
+            color: #8a97aa;
+            text-decoration: line-through;
+        }
+
+        .kanban-task-assignee {
+            margin-top: 4px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #6c7b90;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .kanban-task-badges {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            flex: 0 0 auto;
+        }
+
+        .kanban-empty {
+            min-height: 132px;
+            border-radius: 18px;
+            border: 1px dashed #d7e0ed;
+            background: rgba(255, 255, 255, 0.52);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            color: #7b8da6;
+            font-size: 13px;
+            font-weight: 700;
+            padding: 24px 18px;
+        }
+
+        .kanban-modal .modal-dialog {
+            max-width: 540px;
+        }
+
+        .kanban-modal .modal-content {
+            border-radius: 18px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .kanban-modal .modal-header,
+        .kanban-modal .modal-footer {
+            border-color: #eef2f7;
+        }
+
+        .kanban-modal .modal-title {
+            font-weight: 900;
+        }
+
+        .kanban-modal .form-select {
+            border-radius: 12px;
+            border-color: #d8e1ee;
+            padding-top: 10px;
+            padding-bottom: 10px;
+        }
+
+        @media (max-width: 1199.98px) {
+            .kanban-board {
+                grid-template-columns: 1fr;
+            }
+
+            .kanban-stack {
+                min-height: auto;
+            }
+        }
+    </style>
+{% endblock %}
 
 {% block content %}
+    <div class="kanban-shell">
+        <div class="kanban-head">
+            <div>
+                <h1 class="nexum-title">{{ title }}</h1>
+                <div class="nexum-subtitle">
+                    {{ isManager ? 'Managers can review every task across every project.' : 'Only your assigned tasks are shown here.' }}
+                </div>
+                <div class="kanban-filter-summary">
+                    {% if selectedProjectId > 0 and selectedProjectName %}
+                        Showing {{ selectedProjectName|plain_text }}
+                    {% elseif not showAllOption and projectChoices is empty %}
+                        No related projects available
+                    {% else %}
+                        Showing {{ allProjectsLabel }}
+                    {% endif %}
+                </div>
+            </div>
 
-    <div class="d-flex min-vh-100 justify-content-center align-items-center">
-        <div class="row g-0 justify-content-center w-100 m-xxl-5 px-xxl-4 m-3">
-            <div class="col-xl-4 col-lg-5 col-md-6">
-                <div class="card overflow-hidden text-center h-100 p-xxl-4 p-3 mb-0">
-                    <a href="/" class="auth-brand mb-3">
-                        <img src="/images/logo-removebg.png" alt="dark logo" height="26" class="logo-dark">
-                        <img src="/images/logo-removebg.png" alt="logo light" height="26" class="logo-light">
+            <div class="kanban-toolbar">
+                <button type="button" class="btn kanban-filter-btn" data-bs-toggle="modal" data-bs-target="#kanbanFilterModal">
+                    <i class="ri-filter-2-line me-1"></i> Filter
+                </button>
+                {% if canCreateTask %}
+                    <a href="{{ createTaskUrl }}" class="btn nexum-btn-primary text-white kanban-add-btn">
+                        <i class="ti ti-plus me-1"></i> Add Task
                     </a>
+                {% endif %}
+            </div>
+        </div>
 
+        <div class="kanban-board">
+            {% for column in columns %}
+                <section class="kanban-column" aria-label="{{ column.label }}">
+                    <div class="kanban-column-head">
+                        <div class="kanban-column-title">{{ column.label }}</div>
+                        <span class="kanban-count">{{ column.tasks|length }}</span>
+                    </div>
+
+                    <div class="kanban-stack">
+                        {% if column.tasks is not empty %}
+                            {% for task in column.tasks %}
+                                {% include 'task/_kanban_card.html.twig' with {
+                                    task: task,
+                                    currentUserId: currentUserId,
+                                    isManager: isManager,
+                                    usersById: usersById,
+                                    avatarUrlById: avatarUrlById,
+                                    taskUrl: path('app_task_show', {id: task.id})
+                                } %}
+                            {% endfor %}
+                        {% else %}
+                            <div class="kanban-empty">No tasks in {{ column.label|lower }}.</div>
+                        {% endif %}
+                    </div>
+                </section>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="modal fade kanban-modal" id="kanbanFilterModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
                     <div>
-                        <h3 class="fw-semibold mb-2">Stay tuned, we're launching very soon</h3>
-                        <p class="text-muted mb-0">We're working on the Kanban module.</p>
+                        <h5 class="modal-title mb-1">Filter Board</h5>
+                        <div class="text-muted small">Choose which project to display on the Kanban board.</div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <form method="get" action="{{ path('apps-kanban') }}">
+                    <div class="modal-body">
+                        <label for="kanbanProjectFilter" class="form-label">Project</label>
+                        <select id="kanbanProjectFilter" name="project" class="form-select">
+                            {% if showAllOption %}
+                                <option value="0" {{ selectedProjectId == 0 ? 'selected' : '' }}>{{ allProjectsLabel }}</option>
+                            {% endif %}
+                            {% for pid, project in projectChoices %}
+                                <option value="{{ pid }}" {{ pid == selectedProjectId ? 'selected' : '' }}>
+                                    {{ project.name|plain_text }}
+                                </option>
+                            {% endfor %}
+                        </select>
                     </div>
 
-                    <div class="row text-center justify-content-center my-4 g-2">
-                        <div class="col-6 col-sm-4 col-md-3 col-lg">
-                            <div class="bg-body-secondary border border-primary-subtle border-dashed p-2 rounded">
-                                <h3 id="days" class="fw-bold text-primary fs-35">00</h3>
-                                <p class="fw-semibold fs-12 mb-0">Days</p>
-                            </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Apply</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade nexum-modal nexum-danger" id="deleteTaskModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-0">
+                    <div class="nexum-danger-head">
+                        <div class="nexum-danger-icon" aria-hidden="true">
+                            <i class="ri-error-warning-line"></i>
                         </div>
-                        <div class="col-6 col-sm-4 col-md-3 col-lg">
-                            <div class="bg-body-secondary border border-primary-subtle border-dashed p-2 rounded">
-                                <h3 id="hours" class="fw-bold text-primary fs-35">00</h3>
-                                <p class="fw-semibold fs-12 mb-0">Hours</p>
-                            </div>
-                        </div>
-                        <div class="col-6 col-sm-4 col-md-3 col-lg">
-                            <div class="bg-body-secondary border border-primary-subtle border-dashed p-2 rounded">
-                                <h3 id="minutes" class="fw-bold text-primary fs-35">00</h3>
-                                <p class="fw-semibold fs-12 mb-0">Minutes</p>
-                            </div>
-                        </div>
-                        <div class="col-6 col-sm-4 col-md-3 col-lg">
-                            <div class="bg-body-secondary border border-primary-subtle border-dashed p-2 rounded">
-                                <h3 id="seconds" class="fw-bold text-primary fs-35">00</h3>
-                                <p class="fw-semibold fs-12 mb-0">Seconds</p>
-                            </div>
+                        <div>
+                            <h5 class="nexum-danger-title">Delete Task?</h5>
+                            <div class="nexum-danger-sub">This action cannot be undone.</div>
                         </div>
                     </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <div class="modal-body pt-0">
+                    <div class="nexum-danger-box">
+                        <div>You are about to permanently delete:</div>
+                        <div class="nexum-danger-task" id="deleteTaskTitle">—</div>
+                        <div class="mt-1 text-muted">This task will be removed from your project.</div>
+                    </div>
+                </div>
+
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <form method="post" action="" id="deleteTaskForm" class="m-0">
+                        <input type="hidden" name="_token" id="deleteTaskToken" value="">
+                        <input type="hidden" name="back" value="{{ app.request.requestUri }}">
+                        <button type="submit" class="btn btn-danger">Delete Task</button>
+                    </form>
                 </div>
             </div>
         </div>
     </div>
 
+    <div class="modal fade nexum-modal" id="editTaskModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" id="editTaskModalContent">
+                <div class="modal-body text-muted small p-4">Loading...</div>
+            </div>
+        </div>
+    </div>
 {% endblock %}
 
 {% block script %}
-	<script src="/js/pages/coming-soon.js"></script>
-{% endblock %}
+    <script>
+        (function () {
+            const delModal = document.getElementById('deleteTaskModal');
+            if (delModal) {
+                delModal.addEventListener('show.bs.modal', function (ev) {
+                    const btn = ev.relatedTarget;
+                    if (!btn) return;
 
+                    const action = btn.getAttribute('data-delete-action') || '';
+                    const token = btn.getAttribute('data-delete-token') || '';
+                    const title = btn.getAttribute('data-task-title') || '—';
+
+                    const form = document.getElementById('deleteTaskForm');
+                    const tokenEl = document.getElementById('deleteTaskToken');
+                    const titleEl = document.getElementById('deleteTaskTitle');
+                    if (form) form.setAttribute('action', action);
+                    if (tokenEl) tokenEl.value = token;
+                    if (titleEl) titleEl.textContent = title;
+                });
+            }
+        })();
+
+        (function () {
+            const editModal = document.getElementById('editTaskModal');
+            const editContent = document.getElementById('editTaskModalContent');
+            if (!editModal || !editContent) return;
+
+            const wireEditForm = function () {
+                const form = editContent.querySelector('form');
+                if (!form) return;
+
+                form.addEventListener('submit', async function (e) {
+                    e.preventDefault();
+                    try {
+                        const res = await fetch(form.action, {
+                            method: form.method || 'POST',
+                            body: new FormData(form),
+                            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                        });
+
+                        if (res.status === 204) {
+                            if (window.bootstrap && bootstrap.Modal) {
+                                bootstrap.Modal.getInstance(editModal)?.hide();
+                            }
+                            window.location.reload();
+                            return;
+                        }
+
+                        const html = await res.text();
+                        editContent.innerHTML = html;
+                        wireEditForm();
+                    } catch (err) {
+                        editContent.innerHTML = '<div class="modal-body p-4 text-danger small">Failed to load the edit form.</div>';
+                    }
+                }, { once: true });
+            };
+
+            editModal.addEventListener('show.bs.modal', async function (ev) {
+                const btn = ev.relatedTarget;
+                const url = btn ? (btn.getAttribute('data-edit-url') || '') : '';
+                editContent.innerHTML = '<div class="modal-body text-muted small p-4">Loading...</div>';
+                if (!url) return;
+
+                try {
+                    const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                    const html = await res.text();
+                    editContent.innerHTML = html;
+                    wireEditForm();
+                } catch (err) {
+                    editContent.innerHTML = '<div class="modal-body p-4 text-danger small">Failed to load the edit form.</div>';
+                }
+            });
+        })();
+    </script>
+{% endblock %}
 
 {% block footer %}{% endblock %}

@@ -196,13 +196,17 @@ class HomeController extends AbstractController
         if ($isManager || $relatedProjectIds !== []) {
             $createTask = new \App\Entity\Tasks\Task();
             $createTaskForm = $this->createForm(TaskQuickCreateType::class, $createTask, [
-                'action' => $this->generateUrl('app_task_index'),
+                'action' => $this->generateUrl('app_task_index', $isManager ? ['dashboard_self' => 1] : []),
                 'method' => 'POST',
                 'is_manager' => $isManager,
                 'allowed_project_ids' => $relatedProjectIds,
+                'force_self_assign' => $isManager,
             ]);
 
-            if ($isManager && $currentUser !== null && $createTaskForm->has('assignedUser')) {
+            if ($isManager && !$createTaskForm->has('assignedUser')) {
+                // Dashboard quick-create for managers behaves like the employee flow:
+                // the task is always created for the logged-in manager.
+            } elseif ($isManager && $currentUser !== null && $createTaskForm->has('assignedUser')) {
                 $createTaskForm->get('assignedUser')->setData($currentUser);
             }
         }
@@ -455,12 +459,6 @@ class HomeController extends AbstractController
     public function projects(): Response
     {
         return $this->redirectToRoute('app_project_index');
-    }
-
-    #[Route('/apps-kanban', name: 'apps-kanban')]
-    public function kanban(): Response
-    {
-        return $this->render('project-management/apps-kanban.html.twig');
     }
 
     #[Route('/apps-task-details', name: 'apps-task-details')]

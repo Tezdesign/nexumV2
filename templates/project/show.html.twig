@@ -922,14 +922,6 @@
                    href="{{ path('app_project_show', {id: project.id, tab: 'tasks'}) }}">Tasks</a>
                 <a class="nexum-tab {{ activeTab == 'kanban' ? 'active' : '' }}"
                    href="{{ path('app_project_show', {id: project.id, tab: 'kanban'}) }}">Kanban</a>
-                <a class="nexum-tab {{ activeTab == 'discussion' ? 'active' : '' }}"
-                   href="{{ path('app_project_show', {id: project.id, tab: 'discussion'}) }}">Discussion</a>
-                <a class="nexum-tab {{ activeTab == 'files' ? 'active' : '' }}"
-                   href="{{ path('app_project_show', {id: project.id, tab: 'files'}) }}">Files</a>
-                <a class="nexum-tab {{ activeTab == 'activity' ? 'active' : '' }}"
-                   href="{{ path('app_project_show', {id: project.id, tab: 'activity'}) }}">Activity</a>
-                <a class="nexum-tab {{ activeTab == 'settings' ? 'active' : '' }}"
-                   href="{{ path('app_project_show', {id: project.id, tab: 'settings'}) }}">Settings</a>
             </div>
         </div>
     </div>
@@ -937,85 +929,11 @@
     <div class="row g-3">
         <div class="col-12 col-xl-8">
             {% if activeTab == 'overview' %}
-                <div class="card nexum-shell-card mb-3">
-                    <div class="card-body">
-                        <h5 class="mb-2">Description</h5>
-                        <p class="text-muted mb-0">
-                            {{ project.description ? (project.description|plain_text) : 'No description provided.' }}
-                        </p>
-                    </div>
-                </div>
-
-                <div class="card nexum-shell-card">
-                    <div class="card-body d-flex align-items-center justify-content-between">
-                        <h5 class="mb-0">Recent Activity</h5>
-                    </div>
-                    <div class="card-body pt-0">
-                        <div class="nexum-activity-list">
-                            {% for activity in recentActivities|default([]) %}
-                                {% set action = (activity.action ?? '')|lower %}
-                                {% set iconClass = action in ['task_created', 'project_created'] ? 'is-create'
-                                    : (action in ['task_deleted', 'project_deleted'] ? 'is-delete'
-                                    : (action in ['members_added'] ? 'is-member' : 'is-update')) %}
-                                {% set iconName = action in ['task_created', 'project_created']
-                                    ? 'ri-add-line'
-                                    : (action in ['task_deleted', 'project_deleted']
-                                    ? 'ri-delete-bin-6-line'
-                                    : (action in ['members_added']
-                                    ? 'ri-user-add-line'
-                                    : 'ri-edit-2-line')) %}
-
-                                <div class="nexum-activity-item">
-                                    <div class="nexum-activity-icon {{ iconClass }}">
-                                        <i class="{{ iconName }}"></i>
-                                    </div>
-                                    <div class="nexum-activity-main min-w-0">
-                                        <div class="nexum-activity-title">
-                                            <span class="actor">{{ activity.actorName|plain_text }}</span>
-                                            <span class="text-muted">{{ activity.message|plain_text }}</span>
-                                        </div>
-                                        <div class="nexum-activity-meta">
-                                            {{ activity.createdAt ? activity.createdAt|date('M d, Y H:i') : '' }}
-                                        </div>
-                                    </div>
-                                </div>
-                            {% else %}
-                                <div class="text-muted small">No recent activity yet.</div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                </div>
+                {% include 'project/tabs/_overview.html.twig' %}
             {% elseif activeTab == 'tasks' %}
-                <div class="card nexum-shell-card">
-                    <div class="card-body d-flex align-items-center justify-content-between">
-                        <h5 class="mb-0">Tasks</h5>
-                        {% if canCreateTask|default(false) %}
-                            <button class="nexum-icon-btn"
-                               type="button"
-                               data-bs-toggle="modal"
-                               data-bs-target="#createTaskModal"
-                               title="Add task"
-                               aria-label="Add task">
-                                <i class="ri-add-line"></i>
-                            </button>
-                        {% endif %}
-                    </div>
-                    <div class="card-body pt-0">
-                        {% for task in (tasks|default([]))|slice(0, 50) %}
-                            {% include 'task/_task_card.html.twig' with {
-                                task: task,
-                                currentUserId: currentUserId,
-                                isManager: isManager,
-                                usersById: membersById,
-                                avatarUrlById: avatarUrlById,
-                                projectName: project.name|default(''),
-                                taskUrl: path('app_task_show', {id: task.id})
-                            } %}
-                        {% else %}
-                            <div class="text-muted small py-2">No tasks for this project yet.</div>
-                        {% endfor %}
-                    </div>
-                </div>
+                {% include 'project/tabs/_tasks.html.twig' %}
+            {% elseif activeTab == 'kanban' %}
+                {% include 'project/tabs/_kanban.html.twig' %}
             {% else %}
                 <div class="card nexum-shell-card">
                     <div class="card-body">
