@@ -431,6 +431,10 @@ final class TaskController extends AbstractController
             $entityManager->flush();
         }
 
+        if ($request->isXmlHttpRequest()) {
+            return new Response('', Response::HTTP_NO_CONTENT);
+        }
+
         // Prefer returning the user to where they clicked from (internal paths only).
         $back = (string) $request->request->get('back', '');
         if ($back !== '' && str_starts_with($back, '/')) {

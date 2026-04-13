@@ -114,6 +114,21 @@
             align-items: center;
             justify-content: space-between;
             gap: 14px;
+            transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+        }
+
+        .kanban-task-card.is-draggable {
+            cursor: grab;
+        }
+
+        .kanban-task-card.is-locked {
+            cursor: default;
+        }
+
+        .kanban-task-card.is-dragging {
+            opacity: 0.55;
+            transform: rotate(1deg) scale(0.99);
+            box-shadow: 0 20px 34px rgba(31, 41, 55, 0.16);
         }
 
         .kanban-task-main {
@@ -149,6 +164,14 @@
 
         .kanban-task-check.is-disabled {
             cursor: default;
+        }
+
+        .kanban-column.is-drop-target .kanban-stack {
+            background: rgba(124, 58, 237, 0.05);
+        }
+
+        .kanban-column.is-updating {
+            opacity: 0.75;
         }
 
         .kanban-task-body {
@@ -278,7 +301,10 @@
 
         <div class="kanban-board">
             {% for column in columns %}
-                <section class="kanban-column" aria-label="{{ column.label }}">
+                <section class="kanban-column"
+                         aria-label="{{ column.label }}"
+                         data-column-key="{{ column.key }}"
+                         data-column-label="{{ column.label }}">
                     <div class="kanban-column-head">
                         <div class="kanban-column-title">{{ column.label }}</div>
                         <span class="kanban-count">{{ column.tasks|length }}</span>
@@ -387,6 +413,193 @@
 
 {% block script %}
     <script>
+        (function () {
+            const board = document.querySelector('.kanban-board');
+            if (!board) return;
+
+            const statusLabels = {
+                todo: 'To Do',
+                in_progress: 'In Progress',
+                done: 'Done'
+            };
+
+            let draggingCard = null;
+            let sourceColumn = null;
+
+            const updateColumnCounts = function () {
+                board.querySelectorAll('[data-column-key]').forEach((column) => {
+                    const count = column.querySelectorAll('[data-task-card]').length;
+                    const badge = column.querySelector('.kanban-count');
+                    if (badge) {
+                        badge.textContent = String(count);
+                    }
+                });
+            };
+
+            const syncEmptyStates = function () {
+                board.querySelectorAll('[data-column-key]').forEach((column) => {
+                    const stack = column.querySelector('.kanban-stack');
+                    if (!stack) return;
+
+                    const hasCards = stack.querySelector('[data-task-card]') !== null;
+                    let empty = stack.querySelector('.kanban-empty');
+
+                    if (!hasCards && !empty) {
+                        empty = document.createElement('div');
+                        empty.className = 'kanban-empty';
+                        empty.textContent = 'No tasks in ' + String(column.getAttribute('data-column-label') || '').toLowerCase() + '.';
+                        stack.appendChild(empty);
+                    }
+
+                    if (hasCards && empty) {
+                        empty.remove();
+                    }
+                });
+            };
+
+            const syncCardVisual = function (card, statusKey) {
+                const checkButton = card.querySelector('[data-check-button]');
+                const title = card.querySelector('[data-task-title]');
+                const statusBadge = card.querySelector('[data-status-badge]');
+                const toggleInput = card.querySelector('[data-toggle-status-input]');
+                const isDone = statusKey === 'done';
+
+                card.setAttribute('data-status-key', statusKey);
+
+                if (statusBadge) {
+                    statusBadge.textContent = statusLabels[statusKey] || 'To Do';
+                    statusBadge.classList.remove('todo', 'in_progress', 'done');
+                    statusBadge.classList.add(statusKey);
+                }
+
+                if (title) {
+                    title.classList.toggle('is-done', isDone);
+                }
+
+                if (checkButton) {
+                    checkButton.classList.toggle('is-done', isDone);
+                    if ('innerHTML' in checkButton) {
+                        checkButton.innerHTML = isDone ? '<i class="ri-check-line"></i>' : '';
+                    }
+                    if (checkButton.tagName === 'BUTTON') {
+                        const nextStatus = isDone ? 'todo' : 'done';
+                        checkButton.setAttribute('title', isDone ? 'Mark as To Do' : 'Mark as Done');
+                        checkButton.setAttribute('aria-label', isDone ? 'Mark as To Do' : 'Mark as Done');
+                        if (toggleInput) {
+                            toggleInput.value = nextStatus;
+                        }
+                    }
+                }
+            };
+
+            const postStatusUpdate = async function (card, statusKey) {
+                const url = card.getAttribute('data-update-url') || '';
+                const csrf = card.getAttribute('data-csrf-token') || '';
+                if (!url || !csrf) {
+                    throw new Error('Missing task status metadata.');
+                }
+
+                const formData = new FormData();
+                formData.append('_token', csrf);
+                formData.append('status', statusKey);
+                formData.append('back', window.location.pathname + window.location.search);
+
+                const res = await fetch(url, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'text/plain, text/html;q=0.9'
+                    }
+                });
+
+                if (res.status === 204) {
+                    return;
+                }
+
+                if (res.status === 403) {
+                    throw new Error('You can update progress only for tasks assigned to you.');
+                }
+
+                if (!res.ok) {
+                    throw new Error('Failed to update task status.');
+                }
+            };
+
+            board.querySelectorAll('[data-task-card]').forEach((card) => {
+                if (card.getAttribute('draggable') !== 'true') {
+                    return;
+                }
+
+                card.addEventListener('dragstart', function () {
+                    draggingCard = card;
+                    sourceColumn = card.closest('[data-column-key]');
+                    card.classList.add('is-dragging');
+                });
+
+                card.addEventListener('dragend', function () {
+                    card.classList.remove('is-dragging');
+                    board.querySelectorAll('[data-column-key]').forEach((column) => {
+                        column.classList.remove('is-drop-target', 'is-updating');
+                    });
+                    draggingCard = null;
+                    sourceColumn = null;
+                });
+            });
+
+            board.querySelectorAll('[data-column-key]').forEach((column) => {
+                const stack = column.querySelector('.kanban-stack');
+                if (!stack) return;
+
+                stack.addEventListener('dragover', function (e) {
+                    if (!draggingCard) return;
+                    e.preventDefault();
+                    column.classList.add('is-drop-target');
+                });
+
+                stack.addEventListener('dragleave', function (e) {
+                    if (!column.contains(e.relatedTarget)) {
+                        column.classList.remove('is-drop-target');
+                    }
+                });
+
+                stack.addEventListener('drop', async function (e) {
+                    if (!draggingCard) return;
+                    e.preventDefault();
+                    column.classList.remove('is-drop-target');
+
+                    const targetStatus = column.getAttribute('data-column-key') || '';
+                    const currentStatus = draggingCard.getAttribute('data-status-key') || '';
+                    if (!targetStatus || targetStatus === currentStatus) {
+                        return;
+                    }
+
+                    column.classList.add('is-updating');
+                    if (sourceColumn) {
+                        sourceColumn.classList.add('is-updating');
+                    }
+
+                    try {
+                        await postStatusUpdate(draggingCard, targetStatus);
+                        stack.appendChild(draggingCard);
+                        syncCardVisual(draggingCard, targetStatus);
+                        syncEmptyStates();
+                        updateColumnCounts();
+                    } catch (err) {
+                        window.alert(err instanceof Error ? err.message : 'Failed to update task status.');
+                    } finally {
+                        column.classList.remove('is-updating');
+                        if (sourceColumn) {
+                            sourceColumn.classList.remove('is-updating');
+                        }
+                    }
+                });
+            });
+
+            syncEmptyStates();
+            updateColumnCounts();
+        })();
+
         (function () {
             const delModal = document.getElementById('deleteTaskModal');
             if (delModal) {
