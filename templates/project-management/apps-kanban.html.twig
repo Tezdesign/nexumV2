@@ -567,30 +567,32 @@
                     if (!draggingCard) return;
                     e.preventDefault();
                     column.classList.remove('is-drop-target');
+                    const movedCard = draggingCard;
+                    const previousColumn = sourceColumn;
 
                     const targetStatus = column.getAttribute('data-column-key') || '';
-                    const currentStatus = draggingCard.getAttribute('data-status-key') || '';
+                    const currentStatus = movedCard.getAttribute('data-status-key') || '';
                     if (!targetStatus || targetStatus === currentStatus) {
                         return;
                     }
 
                     column.classList.add('is-updating');
-                    if (sourceColumn) {
-                        sourceColumn.classList.add('is-updating');
+                    if (previousColumn) {
+                        previousColumn.classList.add('is-updating');
                     }
 
                     try {
-                        await postStatusUpdate(draggingCard, targetStatus);
-                        stack.appendChild(draggingCard);
-                        syncCardVisual(draggingCard, targetStatus);
+                        await postStatusUpdate(movedCard, targetStatus);
+                        stack.appendChild(movedCard);
+                        syncCardVisual(movedCard, targetStatus);
                         syncEmptyStates();
                         updateColumnCounts();
                     } catch (err) {
                         window.alert(err instanceof Error ? err.message : 'Failed to update task status.');
                     } finally {
                         column.classList.remove('is-updating');
-                        if (sourceColumn) {
-                            sourceColumn.classList.remove('is-updating');
+                        if (previousColumn) {
+                            previousColumn.classList.remove('is-updating');
                         }
                     }
                 });
