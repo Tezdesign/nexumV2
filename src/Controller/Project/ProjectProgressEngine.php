@@ -167,11 +167,6 @@ final class ProjectProgressEngine
         });
 
         $taskCount = count($tasks);
-        $projectBudget = self::toFloat($project->getBudget());
-        $budgetUtilization = ($projectBudget !== null && $projectBudget > 0 && $actualTotal > 0)
-            ? round(($actualTotal / $projectBudget) * 100, 1)
-            : null;
-
         return [
             'completion_percentage' => $taskCount > 0 ? (int) round($weightedCompletion / $taskCount) : 0,
             'status_counts' => $statusCounts,
@@ -183,8 +178,6 @@ final class ProjectProgressEngine
             'time_utilization_percentage' => ($estimatedTotal > 0 && $actualTotal > 0)
                 ? (int) round(($actualTotal / $estimatedTotal) * 100)
                 : null,
-            'budget_value' => $projectBudget,
-            'budget_utilization_percentage' => $budgetUtilization,
             'member_productivity' => $memberStats,
             'task_insights' => $taskInsights,
         ];
@@ -204,14 +197,5 @@ final class ProjectProgressEngine
     private static function toDay(?\DateTimeInterface $date): ?\DateTimeImmutable
     {
         return $date ? \DateTimeImmutable::createFromInterface($date)->setTime(0, 0) : null;
-    }
-
-    private static function toFloat(string|int|float|null $value): ?float
-    {
-        if ($value === null || $value === '') {
-            return null;
-        }
-
-        return is_numeric($value) ? (float) $value : null;
     }
 }

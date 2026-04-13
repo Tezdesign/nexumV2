@@ -67,27 +67,6 @@
         </div>
     </div>
 
-    <div class="col-12 col-md-6">
-        <div class="card nexum-shell-card h-100">
-            <div class="card-body">
-                <div class="text-muted small mb-1">Budget Utilization</div>
-                <div class="fw-semibold mb-2">
-                    {% if overview.budget_utilization_percentage is not null %}
-                        {{ overview.budget_utilization_percentage }}%
-                    {% else %}
-                        —
-                    {% endif %}
-                </div>
-                <div class="text-muted small">
-                    {% if overview.budget_value is not null %}
-                        Project budget: {{ overview.budget_value|number_format(2, '.', ' ') }}
-                    {% else %}
-                        Add a project budget and actual task time to unlock this metric.
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
 </div>
 
 <div class="card nexum-shell-card mb-3">
