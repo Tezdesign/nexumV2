@@ -124,6 +124,12 @@ class ProjectBudget
     private ?\DateTimeInterface $transientFiscalStart = null;
     private ?\DateTimeInterface $transientFiscalEnd = null;
 
+    /**
+     * @var Collection<int, ExpenseDraft>
+     */
+    #[ORM\OneToMany(targetEntity: ExpenseDraft::class, mappedBy: 'project_budget_related', orphanRemoval: true)]
+    private Collection $expenseDrafts;
+
     public function setTransientFiscalStart(?\DateTimeInterface $start): self
     {
         $this->transientFiscalStart = $start;
@@ -141,6 +147,7 @@ class ProjectBudget
         $this->transactions = new ArrayCollection();
         $this->actualSpend = '0.00';
         $this->status = 'ON TRACK';
+        $this->expenseDrafts = new ArrayCollection();
     }
 
     /**
@@ -243,6 +250,36 @@ class ProjectBudget
                 ->atPath('total_budget')
                 ->addViolation();
         }
+    }
+
+    /**
+     * @return Collection<int, ExpenseDraft>
+     */
+    public function getExpenseDrafts(): Collection
+    {
+        return $this->expenseDrafts;
+    }
+
+    public function addExpenseDraft(ExpenseDraft $expenseDraft): static
+    {
+        if (!$this->expenseDrafts->contains($expenseDraft)) {
+            $this->expenseDrafts->add($expenseDraft);
+            $expenseDraft->setProjectBudgetRelated($this);
+        }
+
+        return $this;
+    }
+
+    public function removeExpenseDraft(ExpenseDraft $expenseDraft): static
+    {
+        if ($this->expenseDrafts->removeElement($expenseDraft)) {
+            // set the owning side to null (unless already changed)
+            if ($expenseDraft->getProjectBudgetRelated() === $this) {
+                $expenseDraft->setProjectBudgetRelated(null);
+            }
+        }
+
+        return $this;
     }
 }
 

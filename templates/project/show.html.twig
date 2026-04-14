@@ -922,6 +922,8 @@
                    href="{{ path('app_project_show', {id: project.id, tab: 'tasks'}) }}">Tasks</a>
                 <a class="nexum-tab {{ activeTab == 'kanban' ? 'active' : '' }}"
                    href="{{ path('app_project_show', {id: project.id, tab: 'kanban'}) }}">Kanban</a>
+                <a class="nexum-tab {{ activeTab == 'drafts' ? 'active' : '' }}"
+                    href="{{ path('app_project_show', {id: project.id, tab: 'drafts'}) }}">Transaction Drafts</a>
             </div>
         </div>
     </div>
@@ -934,6 +936,8 @@
                 {% include 'project/tabs/_tasks.html.twig' %}
             {% elseif activeTab == 'kanban' %}
                 {% include 'project/tabs/_kanban.html.twig' %}
+            {% elseif activeTab == 'drafts' %}
+                {% include 'project/tabs/_drafts.html.twig' %}
             {% else %}
                 <div class="card nexum-shell-card">
                     <div class="card-body">

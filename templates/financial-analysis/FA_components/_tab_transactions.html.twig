@@ -43,28 +43,28 @@
         </div>
     </div>
 
-    <!-- Extra Component Tabs (40%) -->
+    <!-- Extra Component Tabs -->
     <div class="col-lg-5">
         <div class="card">
             <div class="card-header border-bottom border-dashed d-flex align-items-center">
-                <h4 class="header-title m-0">{{ 'Transaction Details'|trans }}</h4>
+                <h4 class="header-title m-0">{{ 'Advanced Functions'|trans }}</h4>
             </div>
             <div class="card-body p-0">
                 <ul class="nav nav-tabs nav-bordered mb-0">
                     <li class="nav-item">
                         <a href="#subtab1" data-bs-toggle="tab" aria-expanded="true" class="nav-link active">
-                            <span>{{ 'Detail View'|trans }}</span>
+                            <span>{{ 'Draft for Transactions'|trans }}</span>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a href="#subtab2" data-bs-toggle="tab" aria-expanded="false" class="nav-link">
-                            <span>{{ 'Attachments'|trans }}</span>
+                            <span>{{ 'Other'|trans }}</span>
                         </a>
                     </li>
                 </ul>
                 <div class="tab-content p-3">
                     <div class="tab-pane show active" id="subtab1">
-                        <p class="text-muted">{{ 'Select a transaction to view details.'|trans }}</p>
+                        {% include 'financial-analysis/FA_components/_draft_sub_tab.html.twig'%}
                     </div>
                     <div class="tab-pane" id="subtab2">
                         <p class="text-muted">{{ 'No attachments available.'|trans }}</p>

@@ -318,7 +318,7 @@ final class ProjectController extends AbstractController
         }
 
         $tab = strtolower(trim((string) $request->query->get('tab', 'overview')));
-        $allowedTabs = ['overview', 'tasks', 'kanban'];
+        $allowedTabs = ['overview', 'tasks', 'kanban', 'drafts'];
         if (!in_array($tab, $allowedTabs, true)) {
             $tab = 'overview';
         }
@@ -499,7 +499,7 @@ final class ProjectController extends AbstractController
         }
 
         $tab = strtolower(trim((string) $request->request->get('tab', 'overview')));
-        $allowedTabs = ['overview', 'tasks', 'kanban'];
+        $allowedTabs = ['overview', 'tasks', 'kanban', 'drafts'];
         if (!in_array($tab, $allowedTabs, true)) {
             $tab = 'overview';
         }

@@ -50,6 +50,9 @@ foreach ($legacyTables as $table) {
 
     // 3. Strip out DROP FOREIGN KEY commands ONLY for legacy tables
     $content = preg_replace("/\s*\\\$this->addSql\('ALTER TABLE {$table} DROP FOREIGN KEY [^']+'\);\n/", "", $content);
+
+    // 4. Strip out ALTER TABLE commands that try to change columns to INT (e.g. downgrading BIGINT IDs)
+    $content = preg_replace("/\s*\\\$this->addSql\('ALTER TABLE {$table} CHANGE [^']+ INT[^']*'\);\n/i", "", $content);
 }
 
 if ($content !== $originalContent) {
