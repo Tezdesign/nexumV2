@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Controller;
+namespace App\Controller\tasks;
 
 use App\Entity\Tasks\Task;
 use App\Form\Tasks\TaskManagerUpdateType;
@@ -11,6 +11,9 @@ use App\Repository\Projects\ProjectAssignmentRepository;
 use App\Repository\Projects\ProjectRepository;
 use App\Repository\Tasks\TaskRepository;
 use App\Repository\UserHandling\UtilisateurRepository;
+use App\Service\AuthService;
+use App\Service\ProjectActivityLogger;
+use App\Support\UserDisplayName;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormError;
@@ -18,9 +21,6 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
-use App\Service\AuthService;
-use App\Service\ProjectActivityLogger;
-use App\Support\UserDisplayName;
 
 #[Route('/task')]
 final class TaskController extends AbstractController
@@ -66,6 +66,7 @@ final class TaskController extends AbstractController
         $prefillProject = $prefillProjectId > 0 ? $projectRepository->find($prefillProjectId) : null;
         $backUrl = (string) $request->request->get('back', $request->query->get('back', ''));
         $backUrl = ($backUrl !== '' && str_starts_with($backUrl, '/')) ? $backUrl : '';
+        $forceSelfAssign = $isManager && (string) $request->query->get('dashboard_self', '') === '1';
 
         $createTaskMemberIds = [];
         $projectContext = $prefillProject;
@@ -103,11 +104,12 @@ final class TaskController extends AbstractController
         // Modal "quick create" form.
         $createTask = new Task();
         $createForm = $this->createForm(TaskQuickCreateType::class, $createTask, [
-            'action' => $this->generateUrl('app_task_index'),
+            'action' => $this->generateUrl('app_task_index', $forceSelfAssign ? ['dashboard_self' => 1] : []),
             'method' => 'POST',
             'is_manager' => $isManager,
             'allowed_project_ids' => $allowedProjectIds,
             'member_ids' => $createTaskMemberIds,
+            'force_self_assign' => $forceSelfAssign,
         ]);
 
         // Preselect project when arriving from a per-project "+" button.
@@ -116,7 +118,7 @@ final class TaskController extends AbstractController
         }
 
         // Default assignee to the current user (manager can change it).
-        if ($isManager && $currentUser !== null && $createForm->has('assignedUser')) {
+        if ($isManager && !$forceSelfAssign && $currentUser !== null && $createForm->has('assignedUser')) {
             $createForm->get('assignedUser')->setData($currentUser);
         }
         $createForm->handleRequest($request);
@@ -130,7 +132,7 @@ final class TaskController extends AbstractController
                 if ($project === null || $project->getId() === null) {
                     $createForm->get('project')->addError(new FormError('Please select a project.'));
                 } else {
-                    if ($isManager) {
+                    if ($isManager && !$forceSelfAssign) {
                         /** @var \App\Entity\UserHandling\Utilisateur|null $assignedUser */
                         $assignedUser = $createForm->get('assignedUser')->getData();
                         $assignedUserId = $assignedUser?->getId() ?? null;
@@ -166,7 +168,9 @@ final class TaskController extends AbstractController
             if ($canPersist) {
                 /** @var \App\Entity\Projects\Project $project */
                 $project = $createForm->get('project')->getData();
-                $assignedUserId = $isManager ? (int) (($createForm->get('assignedUser')->getData()?->getId()) ?? 0) : (int) $currentUserId;
+                $assignedUserId = ($isManager && !$forceSelfAssign)
+                    ? (int) (($createForm->get('assignedUser')->getData()?->getId()) ?? 0)
+                    : (int) $currentUserId;
 
                 $createTask->setProjectId((int) $project->getId());
                 $createTask->setAssignedTo($assignedUserId > 0 ? $assignedUserId : (int) $currentUserId);
@@ -425,6 +429,10 @@ final class TaskController extends AbstractController
                 sprintf('changed task "%s" status to %s.', (string) $task->getTitle(), $statusLabel)
             );
             $entityManager->flush();
+        }
+
+        if ($request->isXmlHttpRequest()) {
+            return new Response('', Response::HTTP_NO_CONTENT);
         }
 
         // Prefer returning the user to where they clicked from (internal paths only).

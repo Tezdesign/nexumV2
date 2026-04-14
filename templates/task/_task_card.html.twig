@@ -75,6 +75,10 @@
     </div>
 
     <div class="nexum-meta">
+        {% if showProjectPill|default(false) and projectName %}
+            <span class="nexum-tag default" title="{{ projectName|plain_text }}">{{ projectName|plain_text }}</span>
+        {% endif %}
+
         {% if prClass %}
             <span class="nexum-priority {{ prClass }}">{{ prClass|upper }}</span>
         {% endif %}

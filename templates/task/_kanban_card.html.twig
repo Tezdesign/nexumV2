@@ -1,0 +1,70 @@
+{% set completedStatuses = completedStatuses|default(['done', 'completed', 'complete', 'finished']) %}
+{% set inProgressStatuses = inProgressStatuses|default(['in_progress', 'in progress', 'progress', 'doing', 'started']) %}
+{% set st = (task.status ?? '')|plain_text|lower %}
+{% set isDone = st and (st in completedStatuses) %}
+{% set isInProgress = (not isDone) and st and (st in inProgressStatuses) %}
+{% set statusKey = isDone ? 'done' : (isInProgress ? 'in_progress' : 'todo') %}
+{% set statusLabel = statusKey == 'in_progress' ? 'In Progress' : (statusKey == 'done' ? 'Done' : 'To Do') %}
+{% set pr = (task.priority ?? '')|plain_text|lower %}
+{% set prClass = pr in ['high','medium','low'] ? pr : '' %}
+{% set au = task.assignedTo ?? null %}
+{% set u = au is not null ? (usersById[au] ?? null) : null %}
+{% set fullName = u ? ((u.prenom ~ ' ' ~ u.nom)|trim|plain_text) : 'Unassigned' %}
+{% set taskUrl = taskUrl|default(path('app_task_show', {id: task.id})) %}
+{% set updateUrl = path('app_task_status', {id: task.id}) %}
+{% set canUpdateProgress = (au is not null) and (au == (currentUserId|default(0))) %}
+
+<article class="kanban-task-card {{ canUpdateProgress ? 'is-draggable' : 'is-locked' }}"
+         data-task-card="1"
+         data-task-id="{{ task.id }}"
+         data-status-key="{{ statusKey }}"
+         data-update-url="{{ updateUrl }}"
+         data-csrf-token="{{ csrf_token('task_status' ~ task.id) }}"
+         draggable="{{ canUpdateProgress ? 'true' : 'false' }}">
+    <div class="kanban-task-main">
+        <div class="kanban-task-toggle">
+            {% if canUpdateProgress %}
+                <form method="post" action="{{ updateUrl }}" class="m-0">
+                    <input type="hidden" name="_token" value="{{ csrf_token('task_status' ~ task.id) }}">
+                    <input type="hidden" name="status" value="{{ isDone ? 'todo' : 'done' }}" data-toggle-status-input>
+                    <input type="hidden" name="back" value="{{ app.request.requestUri }}">
+                    <button type="submit"
+                            class="kanban-task-check {{ isDone ? 'is-done' : '' }}"
+                            data-check-button
+                            title="{{ isDone ? 'Mark as To Do' : 'Mark as Done' }}"
+                            aria-label="{{ isDone ? 'Mark as To Do' : 'Mark as Done' }}">
+                        {% if isDone %}
+                            <i class="ri-check-line"></i>
+                        {% endif %}
+                    </button>
+                </form>
+            {% else %}
+                <span class="kanban-task-check {{ isDone ? 'is-done' : '' }} is-disabled"
+                      data-check-button
+                      title="Progress can be updated only by the assignee"
+                      aria-hidden="true">
+                    {% if isDone %}
+                        <i class="ri-check-line"></i>
+                    {% endif %}
+                </span>
+            {% endif %}
+        </div>
+
+        <div class="kanban-task-body">
+            <a class="kanban-task-title {{ isDone ? 'is-done' : '' }}"
+               data-task-title
+               href="{{ taskUrl }}"
+               title="{{ task.title|plain_text }}">
+                {{ task.title|plain_text }}
+            </a>
+            <div class="kanban-task-assignee">{{ fullName }}</div>
+        </div>
+    </div>
+
+    <div class="kanban-task-badges">
+        {% if prClass %}
+            <span class="nexum-priority {{ prClass }}">{{ prClass|upper }}</span>
+        {% endif %}
+        <span class="nexum-status {{ statusKey }}" data-status-badge>{{ statusLabel }}</span>
+    </div>
+</article>
