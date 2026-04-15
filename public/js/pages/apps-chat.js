@@ -116,6 +116,18 @@ class ChatApp {
         this.emojiFallbackPicker = null
         this.emojiFallbackCloseButton = null
         this.emojiFallbackItems = []
+        this.emojiTabs = []
+        this.emojiSection = null
+        this.gifSection = null
+        this.emojiCdnHost = null
+        this.emojiFallbackGrid = null
+        this.activeEmojiTab = 'emoji'
+        this.gifSearchInput = null
+        this.gifClearButton = null
+        this.gifResults = null
+        this.gifStatus = null
+        this.gifDebounceTimer = null
+        this.tenorApiKey = 'LIVDSRZULELA'
         this.chatInputSelectionStart = 0
         this.chatInputSelectionEnd = 0
         this.attachmentButton = null
@@ -238,6 +250,15 @@ class ChatApp {
         this.emojiFallbackPicker = document.querySelector('[data-apps-chat="emoji-fallback-picker"]')
         this.emojiFallbackCloseButton = document.querySelector('[data-apps-chat="emoji-fallback-close"]')
         this.emojiFallbackItems = Array.from(document.querySelectorAll('[data-apps-chat="emoji-fallback-item"]'))
+        this.emojiTabs = Array.from(document.querySelectorAll('[data-apps-chat="emoji-tab"]'))
+        this.emojiSection = document.querySelector('[data-apps-chat="emoji-section"]')
+        this.gifSection = document.querySelector('[data-apps-chat="gif-section"]')
+        this.emojiCdnHost = document.querySelector('[data-apps-chat="emoji-cdn-host"]')
+        this.emojiFallbackGrid = document.querySelector('[data-apps-chat="emoji-fallback-grid"]')
+        this.gifSearchInput = document.querySelector('[data-apps-chat="gif-search"]')
+        this.gifClearButton = document.querySelector('[data-apps-chat="gif-clear"]')
+        this.gifResults = document.querySelector('[data-apps-chat="gif-results"]')
+        this.gifStatus = document.querySelector('[data-apps-chat="gif-status"]')
         this.attachmentButton = document.querySelector('[data-apps-chat="attachment-button"]')
         this.attachmentInput = document.querySelector('[data-apps-chat="attachment-input"]')
         if (this.messagesScrollWrapper && window.SimpleBar)
@@ -325,17 +346,8 @@ class ChatApp {
             return
         }
 
-        if (this.emojiUseFallback) {
-            this.emojiFallbackPicker?.classList.add('d-none')
-            this.emojiFallbackPicker?.setAttribute('aria-hidden', 'true')
-            this.emojiPickerVisible = false
-            this.emojiButton.setAttribute('aria-expanded', 'false')
-            return
-        }
-
-        if (this.emojiPickerInstance && this.emojiPickerVisible) {
-            this.emojiPickerInstance.hidePicker()
-        }
+        this.emojiFallbackPicker?.classList.add('d-none')
+        this.emojiFallbackPicker?.setAttribute('aria-hidden', 'true')
 
         this.emojiPickerVisible = false
         this.emojiButton.setAttribute('aria-expanded', 'false')
@@ -346,25 +358,21 @@ class ChatApp {
             return
         }
 
-        if (this.emojiUseFallback) {
-            const isOpen = !!this.emojiFallbackPicker && !this.emojiFallbackPicker.classList.contains('d-none')
-            if (isOpen) {
-                this.closeEmojiPicker()
-                return
-            }
-
-            this.emojiFallbackPicker?.classList.remove('d-none')
-            this.emojiFallbackPicker?.setAttribute('aria-hidden', 'false')
-            this.emojiPickerVisible = true
-            this.emojiButton.setAttribute('aria-expanded', 'true')
+        if (!this.emojiFallbackPicker) {
             return
         }
 
-        if (!this.emojiPickerInstance) {
+        const isOpen = !this.emojiFallbackPicker.classList.contains('d-none')
+        if (isOpen) {
+            this.closeEmojiPicker()
             return
         }
 
-        this.emojiPickerInstance.togglePicker(this.emojiButton)
+        this.setEmojiPanelTab(this.activeEmojiTab || 'emoji')
+        this.emojiFallbackPicker.classList.remove('d-none')
+        this.emojiFallbackPicker.setAttribute('aria-hidden', 'false')
+        this.emojiPickerVisible = true
+        this.emojiButton.setAttribute('aria-expanded', 'true')
     }
 
     initEmojiPicker = () => {
@@ -372,55 +380,235 @@ class ChatApp {
             return
         }
 
-        const setupPickerInstance = (EmojiButtonCtor) => {
-            this.emojiPickerInstance = new EmojiButtonCtor({
-                position: 'top-start',
-                autoHide: true,
-                showSearch: true,
-                showRecents: true,
-                showVariants: true,
-                zIndex: 2000,
-                theme: 'auto',
-            })
+        this.initGifPicker()
 
-            this.emojiPickerInstance.on('emoji', (selection) => {
-                this.insertEmoji(selection?.emoji || '')
-            })
-
-            this.emojiPickerInstance.on('hidden', () => {
-                this.emojiPickerVisible = false
-                this.emojiButton?.setAttribute('aria-expanded', 'false')
-            })
-
-            this.emojiPickerInstance.on('shown', () => {
-                this.emojiPickerVisible = true
-                this.emojiButton?.setAttribute('aria-expanded', 'true')
-            })
-
-            this.emojiUseFallback = false
-        }
-
-        const globalCtor = window.EmojiButton?.EmojiButton || window.EmojiButton
-        if (typeof globalCtor === 'function') {
-            setupPickerInstance(globalCtor)
+        if (!this.emojiCdnHost) {
+            this.emojiUseFallback = true
             return
         }
 
-        this.emojiUseFallback = true
+        import('https://cdn.jsdelivr.net/npm/emoji-picker-element@1.29.1/index.js')
+            .then(() => {
+                if (window.customElements?.get('emoji-picker')) {
+                    const pickerElement = document.createElement('emoji-picker')
+                    pickerElement.setAttribute('style', 'width:100%;height:290px;--border-size:0;')
+                    pickerElement.addEventListener('emoji-click', (event) => {
+                        this.insertEmoji(event?.detail?.unicode || '')
+                    })
 
-        import('https://cdn.jsdelivr.net/npm/@joeattardi/emoji-button@4.6.4/dist/index.min.js')
-            .then((module) => {
-                const moduleCtor = module?.EmojiButton || module?.default
-                if (typeof moduleCtor !== 'function') {
-                    throw new Error('EmojiButton export not found in module.')
+                    this.emojiCdnHost.innerHTML = ''
+                    this.emojiCdnHost.appendChild(pickerElement)
+                    this.emojiFallbackGrid?.classList.add('d-none')
+                    this.emojiUseFallback = false
+                    return
                 }
 
-                setupPickerInstance(moduleCtor)
+                throw new Error('emoji-picker custom element not registered.')
             })
             .catch((error) => {
-                console.warn('Emoji bundle module failed to load. Falling back to local picker.', error)
+                console.warn('Emoji CDN module failed to load. Falling back to local picker.', error)
                 this.emojiUseFallback = true
+                this.emojiFallbackGrid?.classList.remove('d-none')
             })
+    }
+
+    setEmojiPanelTab = (tab) => {
+        const nextTab = tab === 'gif' ? 'gif' : 'emoji'
+        this.activeEmojiTab = nextTab
+
+        this.emojiTabs.forEach((button) => {
+            const isActive = button.dataset.emojiTab === nextTab
+            button.classList.toggle('active', isActive)
+            button.setAttribute('aria-selected', String(isActive))
+        })
+
+        this.emojiSection?.classList.toggle('d-none', nextTab !== 'emoji')
+        this.gifSection?.classList.toggle('d-none', nextTab !== 'gif')
+
+        if (nextTab === 'gif') {
+            this.loadGifResults(this.gifSearchInput?.value || '')
+        }
+    }
+
+    buildTenorSearchEndpoint = (query) => {
+        const q = String(query || '').trim()
+        return `https://tenor.googleapis.com/v2/search?key=${encodeURIComponent(this.tenorApiKey)}&q=${encodeURIComponent(q)}&limit=20&media_filter=gif&contentfilter=low`
+    }
+
+    buildTenorFeaturedEndpoint = () => {
+        return `https://tenor.googleapis.com/v2/featured?key=${encodeURIComponent(this.tenorApiKey)}&limit=20&media_filter=gif&contentfilter=low`
+    }
+
+    extractTenorGifUrl = (gifItem) => {
+        const formats = gifItem?.media_formats || {}
+        return (
+            formats?.gif?.url ||
+            formats?.mediumgif?.url ||
+            formats?.tinygif?.url ||
+            ''
+        )
+    }
+
+    renderGifResults = (gifItems) => {
+        if (!this.gifResults) {
+            return
+        }
+
+        this.gifResults.innerHTML = ''
+
+        if (!Array.isArray(gifItems) || gifItems.length === 0) {
+            const empty = document.createElement('div')
+            empty.className = 'text-muted small'
+            empty.textContent = 'No GIFs found.'
+            this.gifResults.appendChild(empty)
+            return
+        }
+
+        gifItems.forEach((gifItem) => {
+            const gifUrl = this.extractTenorGifUrl(gifItem)
+            if (!gifUrl) {
+                return
+            }
+
+            const button = document.createElement('button')
+            button.type = 'button'
+            button.className = 'chat-gif-item'
+            button.setAttribute('aria-label', `Send GIF ${gifItem?.content_description || ''}`.trim())
+
+            const image = document.createElement('img')
+            image.src = gifUrl
+            image.loading = 'lazy'
+            image.alt = gifItem?.content_description || 'GIF'
+
+            button.appendChild(image)
+            button.addEventListener('click', async () => {
+                await this.sendGifMessage(gifUrl)
+            })
+
+            this.gifResults.appendChild(button)
+        })
+    }
+
+    loadGifResults = async (query = '') => {
+        if (!this.gifResults) {
+            return
+        }
+
+        const q = String(query || '').trim()
+        const endpoint = q.length > 0 ? this.buildTenorSearchEndpoint(q) : this.buildTenorFeaturedEndpoint()
+
+        this.gifStatus && (this.gifStatus.textContent = q.length > 0 ? `Results for "${q}"` : 'Trending GIFs')
+
+        try {
+            const response = await fetch(endpoint, { method: 'GET' })
+            if (!response.ok) {
+                throw new Error('Failed to load GIFs.')
+            }
+
+            const payload = await response.json().catch(() => ({}))
+            const results = Array.isArray(payload?.results) ? payload.results : []
+            this.renderGifResults(results)
+        } catch (error) {
+            this.gifResults.innerHTML = ''
+            const failed = document.createElement('div')
+            failed.className = 'text-muted small'
+            failed.textContent = 'Could not load GIFs right now.'
+            this.gifResults.appendChild(failed)
+        }
+    }
+
+    sendGifMessage = async (gifUrl) => {
+        const cleanUrl = String(gifUrl || '').trim()
+        if (!cleanUrl || !this.activeConversationId) {
+            return
+        }
+
+        this.chatSendButton?.setAttribute('disabled', 'disabled')
+
+        try {
+            const response = await fetch(this.buildConversationMessageStoreEndpoint(this.activeConversationId), {
+                method: 'POST',
+                headers: { 'Accept': 'application/json' },
+                body: new URLSearchParams({ body: cleanUrl }),
+            })
+
+            const payload = await response.json().catch(() => ({}))
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.error || 'Failed to send GIF.')
+            }
+
+            const message = payload.message || null
+            if (!message) {
+                throw new Error('Failed to send GIF.')
+            }
+
+            this.setMessagesState('', false)
+            this.messagesList?.appendChild(this.createMessageNode(message, Date.now()))
+            this.syncConversationItemLastMessage(this.activeConversationItem, message)
+            this.scrollToBottom(true)
+            this.closeEmojiPicker()
+        } catch (error) {
+            this.showBottomNotice(error?.message || 'Failed to send GIF.')
+        } finally {
+            this.chatSendButton?.removeAttribute('disabled')
+        }
+    }
+
+    initGifPicker = () => {
+        this.emojiTabs.forEach((button) => {
+            button.addEventListener('click', (event) => {
+                event.preventDefault()
+                this.setEmojiPanelTab(button.dataset.emojiTab || 'emoji')
+            })
+        })
+
+        this.gifSearchInput?.addEventListener('input', () => {
+            if (this.gifDebounceTimer) {
+                window.clearTimeout(this.gifDebounceTimer)
+            }
+
+            this.gifDebounceTimer = window.setTimeout(() => {
+                this.loadGifResults(this.gifSearchInput?.value || '')
+            }, 220)
+        })
+
+        this.gifClearButton?.addEventListener('click', (event) => {
+            event.preventDefault()
+            if (this.gifSearchInput) {
+                this.gifSearchInput.value = ''
+            }
+            this.loadGifResults('')
+        })
+    }
+
+    isDirectGifUrl = (value) => {
+        const text = String(value || '').trim()
+        return /^https?:\/\/.+\.(gif)(\?.*)?$/i.test(text)
+    }
+
+    isDirectImageUrl = (value) => {
+        const text = String(value || '').trim()
+        return /^https?:\/\/.+\.(gif|png|jpe?g|webp)(\?.*)?$/i.test(text)
+    }
+
+    createInlineMediaNode = (url) => {
+        const wrapper = document.createElement('div')
+        wrapper.className = 'mt-2'
+
+        const link = document.createElement('a')
+        link.href = url
+        link.target = '_blank'
+        link.rel = 'noopener'
+
+        const image = document.createElement('img')
+        image.src = url
+        image.alt = 'GIF'
+        image.className = 'img-fluid rounded-3 border'
+        image.loading = 'lazy'
+
+        link.appendChild(image)
+        wrapper.appendChild(link)
+        return wrapper
     }
 
     applyConversationFilter = (filter) => {
@@ -682,7 +870,8 @@ class ChatApp {
             return
         }
 
-        const previewText = String(message.body || '').trim()
+        const bodyText = String(message.body || '').trim()
+        const previewText = this.isDirectImageUrl(bodyText) ? 'GIF' : bodyText
         const timeLabel = String(message.timeLabel || '--')
 
         const previewNode = item.querySelector('.chat-users + div p span')
@@ -2693,12 +2882,16 @@ class ChatApp {
             : (message.senderAvatarSrc || '')
         const timeLabel = message.timeLabel || '--'
         const body = message.body || ''
+        const trimmedBody = String(body || '').trim()
+        const isInlineImageMessage = this.isDirectImageUrl(trimmedBody)
         const urlsInBody = this.extractMessageUrls(body)
         const bodyWithoutLinks = body.replace(/https?:\/\/[^\s<>"']+/gi, '').replace(/\s{2,}/g, ' ').trim()
         const attachments = Array.isArray(message.attachments) ? message.attachments : []
         const isAttachmentMessage = String(message.kind || '').toUpperCase() === 'ATTACHMENT'
         const fallbackText = body.trim().length > 0 ? body : 'Attachment'
-        const bodyTextToRender = bodyWithoutLinks !== '' ? bodyWithoutLinks : (isAttachmentMessage ? fallbackText : '')
+        const bodyTextToRender = isInlineImageMessage
+            ? ''
+            : bodyWithoutLinks !== '' ? bodyWithoutLinks : (isAttachmentMessage ? fallbackText : '')
         const hasTextBody = bodyTextToRender.trim().length > 0 || isAttachmentMessage
 
         const listItem = document.createElement('li')
@@ -2765,11 +2958,15 @@ class ChatApp {
             chatMessage.appendChild(attachmentContainer)
         }
 
-        if (!isAttachmentMessage && urlsInBody.length > 0) {
+        if (!isAttachmentMessage && !isInlineImageMessage && urlsInBody.length > 0) {
             chatMessage.appendChild(linkPreviewContainer)
             queueMicrotask(() => {
                 this.renderMessageLinkPreviews(urlsInBody, linkPreviewContainer, isOwn)
             })
+        }
+
+        if (!isAttachmentMessage && isInlineImageMessage) {
+            chatMessage.appendChild(this.createInlineMediaNode(trimmedBody))
         }
 
         this.applyEditedBadge(listItem, !!message.isEdited || !!message.editedAt)
@@ -3141,7 +3338,7 @@ class ChatApp {
         })
 
         document.addEventListener('click', (event) => {
-            if (!this.emojiUseFallback || !this.emojiPickerVisible) {
+            if (!this.emojiPickerVisible) {
                 return
             }
 

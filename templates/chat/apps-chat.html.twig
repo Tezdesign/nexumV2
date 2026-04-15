@@ -255,8 +255,8 @@
             position: absolute;
             left: 0;
             bottom: calc(100% + 0.5rem);
-            width: 290px;
-            max-width: min(90vw, 290px);
+            width: 330px;
+            max-width: min(92vw, 330px);
             background: var(--bs-body-bg);
             border: 1px solid var(--bs-border-color);
             border-radius: 1rem;
@@ -272,6 +272,37 @@
             align-items: center;
             justify-content: space-between;
             margin-bottom: 0.55rem;
+        }
+        .chat-emoji-tabs {
+            display: flex;
+            gap: 0.35rem;
+            margin-bottom: 0.55rem;
+        }
+        .chat-emoji-tab {
+            border: 0;
+            border-radius: 999px;
+            padding: 0.24rem 0.7rem;
+            font-size: 0.72rem;
+            font-weight: 600;
+            background: var(--bs-tertiary-bg);
+            color: var(--bs-secondary-color);
+        }
+        .chat-emoji-tab.active {
+            background: rgba(111, 66, 193, 0.16);
+            color: #5b36a4;
+        }
+        .chat-emoji-section.d-none {
+            display: none !important;
+        }
+        .chat-emoji-cdn-host {
+            border-radius: 0.8rem;
+            overflow: hidden;
+            border: 1px solid var(--bs-border-color);
+            min-height: 290px;
+            background: var(--bs-body-bg);
+        }
+        .chat-emoji-cdn-host:empty {
+            display: none;
         }
         .chat-emoji-fallback-title {
             font-size: 0.78rem;
@@ -298,6 +329,7 @@
             display: grid;
             grid-template-columns: repeat(8, minmax(0, 1fr));
             gap: 0.35rem;
+            margin-top: 0.5rem;
         }
         .chat-emoji-fallback-item {
             width: 100%;
@@ -315,6 +347,49 @@
         .chat-emoji-fallback-item:focus-visible {
             background: rgba(111, 66, 193, 0.12);
             outline: none;
+        }
+        .chat-gif-search-wrap {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            margin-bottom: 0.5rem;
+        }
+        .chat-gif-search {
+            flex: 1;
+            min-width: 0;
+        }
+        .chat-gif-status {
+            font-size: 0.72rem;
+            color: var(--bs-secondary-color);
+            margin-bottom: 0.45rem;
+        }
+        .chat-gif-results {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.42rem;
+            max-height: 300px;
+            overflow-y: auto;
+            padding-right: 0.1rem;
+        }
+        .chat-gif-item {
+            border: 0;
+            padding: 0;
+            border-radius: 0.65rem;
+            overflow: hidden;
+            background: var(--bs-tertiary-bg);
+            aspect-ratio: 1.35 / 1;
+            position: relative;
+        }
+        .chat-gif-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .chat-gif-item:hover,
+        .chat-gif-item:focus-visible {
+            outline: 2px solid rgba(111, 66, 193, 0.45);
+            outline-offset: 0;
         }
     </style>
 {% endblock %}
@@ -536,28 +611,45 @@
                                         </button>
                                         <div class="chat-emoji-fallback-picker d-none" data-apps-chat="emoji-fallback-picker" aria-hidden="true">
                                             <div class="chat-emoji-fallback-header">
-                                                <span class="chat-emoji-fallback-title">Quick emojis</span>
+                                                <span class="chat-emoji-fallback-title">Reactions</span>
                                                 <button type="button" class="chat-emoji-fallback-close" data-apps-chat="emoji-fallback-close" aria-label="Close emoji picker">
                                                     <i class="ti ti-x"></i>
                                                 </button>
                                             </div>
-                                            <div class="chat-emoji-fallback-grid">
-                                                <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="😀">😀</button>
-                                                <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="😁">😁</button>
-                                                <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="😂">😂</button>
-                                                <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="🤣">🤣</button>
-                                                <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="😊">😊</button>
-                                                <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="😍">😍</button>
-                                                <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="😘">😘</button>
-                                                <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="😎">😎</button>
-                                                <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="🤔">🤔</button>
-                                                <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="👍">👍</button>
-                                                <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="🙏">🙏</button>
-                                                <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="👏">👏</button>
-                                                <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="🔥">🔥</button>
-                                                <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="💯">💯</button>
-                                                <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="🎉">🎉</button>
-                                                <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="❤️">❤️</button>
+                                            <div class="chat-emoji-tabs" role="tablist" aria-label="Emoji and GIF tabs">
+                                                <button type="button" class="chat-emoji-tab active" data-apps-chat="emoji-tab" data-emoji-tab="emoji" role="tab" aria-selected="true">Emoji</button>
+                                                <button type="button" class="chat-emoji-tab" data-apps-chat="emoji-tab" data-emoji-tab="gif" role="tab" aria-selected="false">GIF</button>
+                                            </div>
+                                            <div class="chat-emoji-section" data-apps-chat="emoji-section">
+                                                <div class="chat-emoji-cdn-host" data-apps-chat="emoji-cdn-host"></div>
+                                                <div class="chat-emoji-fallback-grid" data-apps-chat="emoji-fallback-grid">
+                                                    <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="😀">😀</button>
+                                                    <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="😁">😁</button>
+                                                    <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="😂">😂</button>
+                                                    <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="🤣">🤣</button>
+                                                    <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="😊">😊</button>
+                                                    <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="😍">😍</button>
+                                                    <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="😘">😘</button>
+                                                    <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="😎">😎</button>
+                                                    <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="🤔">🤔</button>
+                                                    <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="👍">👍</button>
+                                                    <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="🙏">🙏</button>
+                                                    <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="👏">👏</button>
+                                                    <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="🔥">🔥</button>
+                                                    <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="💯">💯</button>
+                                                    <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="🎉">🎉</button>
+                                                    <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="❤️">❤️</button>
+                                                </div>
+                                            </div>
+                                            <div class="chat-emoji-section d-none" data-apps-chat="gif-section">
+                                                <div class="chat-gif-search-wrap">
+                                                    <input type="search" class="form-control form-control-sm chat-gif-search" placeholder="Search GIFs" data-apps-chat="gif-search">
+                                                    <button type="button" class="btn btn-sm btn-light" data-apps-chat="gif-clear" title="Clear GIF search">
+                                                        <i class="ti ti-refresh"></i>
+                                                    </button>
+                                                </div>
+                                                <div class="chat-gif-status" data-apps-chat="gif-status">Trending GIFs</div>
+                                                <div class="chat-gif-results" data-apps-chat="gif-results"></div>
                                             </div>
                                         </div>
                                     </div>
