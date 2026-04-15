@@ -27,6 +27,8 @@
 /.cached_plans/
 /FA_project_budgets_plan.md
 /project_budget.md
+/templates/ui-collapse.html.twig
+/templates/form-editors.html.twig
 
 
 # IDEs

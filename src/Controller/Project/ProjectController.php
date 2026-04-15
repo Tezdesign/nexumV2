@@ -286,7 +286,7 @@ final class ProjectController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}', name: 'app_project_show', methods: ['GET'])]
+    #[Route('/{id}', name: 'app_project_show', methods: ['GET', 'POST'])]
     public function show(
         Request $request,
         Project $project,
@@ -295,7 +295,9 @@ final class ProjectController extends AbstractController
         ProjectActivityFeed $activityFeed,
         UtilisateurRepository $utilisateurRepository,
         AuthService $authService,
-        TaskRepository $taskRepository
+        TaskRepository $taskRepository,
+        \App\Repository\FinancialAnalysis\ExpenseDraftRepository $expenseDraftRepository,
+        EntityManagerInterface $entityManager
     ): Response
     {
         $pid = $project->getId();
@@ -400,8 +402,44 @@ final class ProjectController extends AbstractController
             }
         }
 
+        $drafts = [];
+        $draftUserIds = [];
+        $createDraftForm = null;
+
+        if ($tab === 'drafts') {
+            $drafts = $expenseDraftRepository->findByProject($project);
+            foreach ($drafts as $draft) {
+                $cb = $draft->getCreatedBy();
+                if ($cb !== null && $cb->getId() !== null) {
+                    $draftUserIds[(int) $cb->getId()] = true;
+                }
+            }
+
+            // Draft creation logic
+            if ($isManager) {
+                $newDraft = new \App\Entity\FinancialAnalysis\ExpenseDraft();
+                $draftForm = $this->createForm(\App\Form\FinancialAnalysis\ExpenseDraftType::class, $newDraft, [
+                    'project_id' => $pid,
+                ]);
+
+                $draftForm->handleRequest($request);
+
+                if ($draftForm->isSubmitted() && $draftForm->isValid()) {
+                    if ($currentUser) {
+                        $newDraft->setCreatedBy($currentUser);
+                    }
+                    // Status and CreatedAt are set in the constructor
+                    $expenseDraftRepository->save($newDraft, true);
+
+                    return $this->redirectToRoute('app_project_show', ['id' => $pid, 'tab' => 'drafts'], Response::HTTP_SEE_OTHER);
+                }
+
+                $createDraftForm = $draftForm->createView();
+            }
+        }
+
         $memberIds = array_map('intval', array_keys($teamMemberIds));
-        $allUserIds = array_map('intval', array_keys($teamMemberIds + $taskUserIds));
+        $allUserIds = array_map('intval', array_keys($teamMemberIds + $taskUserIds + $draftUserIds));
 
         $membersById = $utilisateurRepository->findNonAdminIndexedByIds($allUserIds);
         $visibleMemberIds = array_values(array_filter(
@@ -460,12 +498,14 @@ final class ProjectController extends AbstractController
             'stats' => $stats,
             'projectOverview' => $projectOverview,
             'tasks' => $tasks,
+            'drafts' => $drafts,
             'activeTab' => $tab,
             'canEditProject' => $canEditProject,
             'canDeleteProject' => $canDeleteProject,
             'canDeleteTask' => $canDeleteTask,
             'canCreateTask' => $canCreateTask,
             'createTaskForm' => $createTaskForm ? $createTaskForm->createView() : null,
+            'createDraftForm' => $createDraftForm,
             'projectProgressPercent' => $projectProgressPercent,
             'recentActivities' => $recentActivities,
         ]);

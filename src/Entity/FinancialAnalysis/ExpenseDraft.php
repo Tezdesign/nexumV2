@@ -6,12 +6,12 @@ use App\Entity\UserHandling\Utilisateur;
 use App\Repository\FinancialAnalysis\ExpenseDraftRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Validator\Constraints as Assert;
+use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 #[ORM\Entity(repositoryClass: ExpenseDraftRepository::class)]
 class ExpenseDraft
 {
-
-
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -21,9 +21,12 @@ class ExpenseDraft
     private ?string $supabaseId = null;
 
     #[ORM\Column]
+    #[Assert\NotBlank(message: 'The amount must be specified.')]
+    #[Assert\Positive(message: 'The amount must be greater than zero.')]
     private ?float $amount = null;
 
     #[ORM\Column(type: Types::TEXT)]
+    #[Assert\NotBlank(message: 'Please provide a description.')]
     private ?string $description = null;
 
     #[ORM\Column(length: 255)]
@@ -33,6 +36,8 @@ class ExpenseDraft
     private ?\DateTimeImmutable $createdAt = null;
 
     #[ORM\Column(length: 255)]
+    #[Assert\NotBlank(message: 'Please select a category.')]
+    #[Assert\Choice(callback: 'getValidCategories', message: 'Select a valid category.')]
     private ?string $category = null;
 
     #[ORM\ManyToOne]
@@ -41,7 +46,13 @@ class ExpenseDraft
 
     #[ORM\ManyToOne(inversedBy: 'expenseDrafts')]
     #[ORM\JoinColumn(nullable: false)]
+    #[Assert\NotBlank(message: 'Please select a project budget.')]
     private ?ProjectBudget $project_budget_related = null;
+
+    #[ORM\Column(length: 255)]
+    #[Assert\NotBlank(message: 'Please provide a subject.')]
+    #[Assert\Length(max: 255, maxMessage: 'The subject cannot be longer than {{ limit }} characters.')]
+    private ?string $subject = null;
 
     public function getId(): ?int
     {
@@ -148,5 +159,55 @@ class ExpenseDraft
     {
         $this->status = 'PENDING';
         $this->createdAt = new \DateTimeImmutable();
+    }
+
+    public function getSubject(): ?string
+    {
+        return $this->subject;
+    }
+
+    public function setSubject(string $subject): static
+    {
+        $this->subject = $subject;
+
+        return $this;
+    }
+
+    public static function getValidCategories(): array
+    {
+        return [
+            'HARDWARE',
+            'SOFTWARE',
+            'SERVICES',
+            'TRAVEL',
+            'MARKETING',
+            'OTHER'
+        ];
+    }
+
+    #[Assert\Callback]
+    public function validateBudget(ExecutionContextInterface $context, mixed $payload): void
+    {
+        if ($this->project_budget_related) {
+            $budget = $this->project_budget_related;
+            
+            if ($budget->getStatus() === 'CLOSED') {
+                $context->buildViolation('Cannot add drafts to a closed budget.')
+                    ->atPath('project_budget_related')
+                    ->addViolation();
+            }
+
+            if ($this->amount !== null) {
+                $totalBudget = (float) $budget->getTotalBudget();
+                $actualSpend = (float) $budget->getActualSpend();
+                $remaining = $totalBudget - $actualSpend;
+
+                if ($this->amount > $remaining) {
+                    $context->buildViolation('The draft amount ($' . number_format($this->amount, 2) . ') exceeds the remaining budget ($' . number_format($remaining, 2) . ').')
+                        ->atPath('amount')
+                        ->addViolation();
+                }
+            }
+        }
     }
 }

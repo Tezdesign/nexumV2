@@ -1,0 +1,150 @@
+{% set draftStatus = (draft.status ?? 'PENDING')|upper %}
+{% set statusColorClass = '' %}
+{% if draftStatus == 'APPROVED' %}
+    {% set statusColorClass = 'text-success border-success bg-success-subtle' %}
+{% elseif draftStatus == 'REJECTED' %}
+    {% set statusColorClass = 'text-danger border-danger bg-danger-subtle' %}
+{% else %}
+    {% set statusColorClass = 'text-warning border-warning bg-warning-subtle' %}
+{% endif %}
+
+{% set cb = draft.createdBy ?? null %}
+{% set u = cb is not null ? (usersById[cb.id] ?? null) : null %}
+{% set fullName = u ? ((u.prenom ~ ' ' ~ u.nom)|trim|plain_text) : 'Unknown' %}
+{% set budgetName = draft.projectBudgetRelated ? draft.projectBudgetRelated.name|plain_text : 'Unknown Budget' %}
+{% set subjectText = draft.subject|default('No Subject')|plain_text %}
+
+<div class="nexum-row nexum-draft-item bg-white border-bottom border-light position-relative" data-search-content="{{ draft.description|plain_text|lower }} {{ draft.category|plain_text|lower }} {{ budgetName|lower }} {{ subjectText|lower }} {{ fullName|lower }}">
+    <div class="w-100">
+        {# Row Level Header #}
+        <div class="d-flex align-items-center justify-content-between w-100">
+            <div class="d-flex align-items-center gap-2 flex-grow-1 min-w-0">
+                <button class="btn btn-sm btn-link p-0 text-decoration-none text-muted draft-toggle-btn flex-shrink-0" type="button" data-bs-toggle="collapse" data-bs-target="#draftCollapse{{ draft.id }}" aria-expanded="false" aria-controls="draftCollapse{{ draft.id }}">
+                    <i class="ri-arrow-down-s-line fs-5"></i>
+                </button>
+                
+                {# This meta data transitions OUT when expanded #}
+                <div class="draft-row-meta-wrapper flex-grow-1 min-w-0">
+                    <div class="draft-row-meta d-flex align-items-center gap-3 w-100">
+                        <div class="d-flex flex-column me-auto min-w-0">
+                            <span class="text-truncate text-dark fw-bold" style="max-width: 250px;" title="{{ subjectText }}">
+                                {{ subjectText }}
+                            </span>
+                            <span class="text-muted small text-truncate" style="max-width: 250px;" title="{{ budgetName }} &bull; {{ draft.category|plain_text }}">
+                                {{ budgetName }} &bull; {{ draft.category|plain_text }}
+                            </span>
+                        </div>
+
+                        <span class="{{ draft.amount < 0 ? 'text-danger' : 'fw-bold' }} flex-shrink-0">
+                            {{ currency_symbol|default('$') }}{{ draft.amount|number_format(2, '.', ',') }}
+                        </span>
+
+                        <span class="badge border {{ statusColorClass }} flex-shrink-0">
+                            {{ draftStatus }}
+                        </span>
+
+                        <span class="d-none d-md-inline-flex align-items-center gap-1 text-muted small flex-shrink-0" title="Created Date">
+                            <i class="ri-calendar-line"></i>
+                            <span>{{ draft.createdAt ? draft.createdAt|date('d M Y') : '—' }}</span>
+                        </span>
+
+                        {% if u %}
+                            {% set ap = avatar_placeholder(fullName) %}
+                            <span class="nexum-assignee flex-shrink-0" title="Created by {{ fullName }}">
+                                <span class="nexum-assignee-dot" style="background: {{ ap.bg }}; color: {{ ap.fg }};">
+                                    {{ ap.initial }}
+                                </span>
+                                <span class="d-none d-sm-inline">{{ fullName }}</span>
+                            </span>
+                        {% else %}
+                            <span class="nexum-assignee is-empty flex-shrink-0">Unknown</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            {# The actions DO NOT transition, they stay static #}
+            <div class="d-flex align-items-center gap-1 ms-3 flex-shrink-0">
+                <button type="button" class="nexum-icon-btn" title="Edit Draft" aria-label="Edit Draft">
+                    <i class="ri-pencil-line"></i>
+                </button>
+                <button type="button" class="nexum-icon-btn" title="Delete Draft" aria-label="Delete Draft">
+                    <i class="ri-delete-bin-line"></i>
+                </button>
+            </div>
+        </div>
+
+        {# The collapsible body: Data transitions IN #}
+        <div class="collapse w-100 draft-collapse-container" id="draftCollapse{{ draft.id }}">
+            <div class="pt-3 ms-4 draft-collapse-inner">
+                
+                <div class="row g-3 mb-3">
+                    {# Column 1: Subject & Created By #}
+                    <div class="col-sm-4">
+                        <div class="mb-3">
+                            <p class="text-muted fs-13 mb-1">Subject</p>
+                            <p class="mb-0 text-dark fs-14">{{ subjectText }}</p>
+                        </div>
+                        <div>
+                            <p class="text-muted fs-13 mb-1">Created By</p>
+                            <div class="d-flex align-items-center gap-2 mt-1">
+                                {% if u %}
+                                    {% set ap = avatar_placeholder(fullName) %}
+                                    <span class="nexum-assignee-dot" style="background: {{ ap.bg }}; color: {{ ap.fg }}; width: 24px; height: 24px; font-size: 11px;">
+                                        {{ ap.initial }}
+                                    </span>
+                                    <span class="text-dark fs-14">{{ fullName }}</span>
+                                {% else %}
+                                    <span class="text-muted fs-14">Unknown</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    {# Column 2: Project Budget & Category #}
+                    <div class="col-sm-4">
+                        <div class="mb-3">
+                            <p class="text-muted fs-13 mb-1">Project Budget</p>
+                            <p class="mb-0 text-dark fs-14">{{ budgetName }}</p>
+                        </div>
+                        <div>
+                            <p class="text-muted fs-13 mb-1">Category</p>
+                            <p class="mb-0 text-dark fs-14">{{ draft.category|plain_text }}</p>
+                        </div>
+                    </div>
+
+                    {# Column 3: Amount & Status/Date #}
+                    <div class="col-sm-4">
+                        <div class="mb-3">
+                            <p class="text-muted fs-13 mb-1">Amount</p>
+                            <p class="mb-0 fs-14 {{ draft.amount < 0 ? 'text-danger' : 'text-dark' }}">
+                                {{ currency_symbol|default('$') }}{{ draft.amount|number_format(2, '.', ',') }}
+                            </p>
+                        </div>
+                        <div>
+                            <p class="text-muted fs-13 mb-1">Status & Date</p>
+                            <div class="d-flex align-items-center gap-2 mt-1">
+                                <span class="badge border {{ statusColorClass }} px-2 py-1">{{ draftStatus }}</span>
+                                <span class="text-muted fs-13">{{ draft.createdAt ? draft.createdAt|date('d M Y') : '—' }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <p class="text-muted fs-13 mb-2">Description</p>
+                    <div class="ql-editor p-0 text-break fs-14 text-dark">
+                        {{ draft.description|raw }}
+                    </div>
+                </div>
+                
+                <div class="mt-3 pt-2 border-top border-dashed">
+                    <h6 class="mb-1 text-danger fs-13">
+                        <i class="ri-error-warning-line me-1"></i>Rejection Reason
+                    </h6>
+                    <p class="mb-0 text-muted fs-13">This draft has not been examined yet.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

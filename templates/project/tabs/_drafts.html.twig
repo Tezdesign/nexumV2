@@ -1,21 +1,37 @@
 <div class="card nexum-shell-card">
-    <div class="card-body d-flex align-items-center justify-content-between">
-        <h5 class="mb-0">Transations Drafts</h5>
-        {% if true|default(true) %}
-            <button class="nexum-icon-btn"
-                    type="button"
-                    data-bs-toggle="modal"
-                    data-bs-target="#createTaskModal"
-                    title="Attribute a Draft"
-                    aria-label="Attribute a Draft">
-                <i class="ri-add-line"></i>
-            </button>
-        {% endif %}
+    <div class="card-body d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <h5 class="mb-0">Transaction Drafts</h5>
+        
+        <div class="d-flex align-items-center gap-2">
+            <div class="position-relative">
+                <input type="text" id="draftSearchInput" class="form-control form-control-sm pe-4" placeholder="Search drafts...">
+                <i class="ri-search-line position-absolute top-50 end-0 translate-middle-y me-2 text-muted"></i>
+            </div>
+            
+            {% if true|default(true) %}
+                <button class="nexum-icon-btn"
+                        type="button"
+                        data-bs-toggle="modal"
+                        data-bs-target="#createDraftModal"
+                        title="Attribute a Draft"
+                        aria-label="Attribute a Draft">
+                    <i class="ri-add-line"></i>
+                </button>
+            {% endif %}
+        </div>
     </div>
-    <div class="card-body pt-0">
-
+    <div class="card-body pt-0" id="draftsListContainer">
+        {% for draft in (drafts|default([])) %}
+            {% include 'project/tabs/_draft_card_v2.html.twig' with {
+                draft: draft,
+                currentUserId: currentUserId,
+                isManager: isManager,
+                usersById: membersById,
+                avatarUrlById: avatarUrlById,
+                projectName: project.name|default('')
+            } %}
+        {% else %}
+            <div class="text-muted small py-2">No transaction drafts for this project yet.</div>
+        {% endfor %}
     </div>
-{#    <div class="card-body">#}
-{#        <div class="text-muted small">This section is coming soon.</div>#}
-{#    </div>#}
 </div>

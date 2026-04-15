@@ -254,3 +254,47 @@
     background-color: #fff !important;
     color: #dc3545 !important;
 }
+
+/* Draft Row Expansion Animations */
+.draft-row-meta-wrapper {
+    display: grid;
+    transition: grid-template-rows 0.25s ease;
+    grid-template-rows: 1fr;
+}
+
+.nexum-draft-item.is-expanded .draft-row-meta-wrapper {
+    grid-template-rows: 0fr;
+}
+
+.draft-row-meta {
+    overflow: hidden;
+    transition: opacity 0.2s ease, transform 0.25s ease;
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.nexum-draft-item.is-expanded .draft-row-meta {
+    opacity: 0;
+    transform: translateY(15px);
+    pointer-events: none;
+}
+
+.draft-collapse-inner {
+    transition: opacity 0.35s ease, transform 0.35s ease;
+    opacity: 0;
+    transform: translateY(-15px);
+}
+
+.nexum-draft-item.is-expanded .draft-collapse-inner {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.draft-toggle-btn i {
+    transition: transform 0.25s ease;
+    display: inline-block;
+}
+
+.nexum-draft-item.is-expanded .draft-toggle-btn i {
+    transform: rotate(180deg);
+}

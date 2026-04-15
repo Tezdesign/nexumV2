@@ -4,6 +4,10 @@
 {% set activeTab = activeTab|default('overview') %}
 
 {% block css %}
+    <link href="/vendor/select2/css/select2.min.css" rel="stylesheet" type="text/css" />
+    <link href="/vendor/quill/quill.core.css" rel="stylesheet" type="text/css"/>
+    <link href="/vendor/quill/quill.bubble.css" rel="stylesheet" type="text/css"/>
+    <link href="/css/FA.css?v={{ random() }}" rel="stylesheet" type="text/css" />
     {% include 'partials/_task_project_design_system.html.twig' %}
     <style>
         :root {
@@ -1057,6 +1061,11 @@
         </div>
     {% endif %}
 
+    {# Draft create popup (Bootstrap modal) #}
+    {% if createDraftForm is defined and createDraftForm is not null %}
+        {% include 'project/tabs/_create_draft_modal.html.twig' %}
+    {% endif %}
+
     {# Edit task popup (shared with Tasks page) #}
         <div class="modal fade nexum-modal" id="editTaskModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
@@ -1701,4 +1710,8 @@
             });
         })();
     </script>
+    <script src="/vendor/select2/js/select2.min.js"></script>
+    <script src="/js/FA_functions.js?v={{ random() }}"></script>
+    <script src="/vendor/quill/quill.js"></script>
+    <script src="{{ asset('js/FA_drafts.js') }}"></script>
 {% endblock %}

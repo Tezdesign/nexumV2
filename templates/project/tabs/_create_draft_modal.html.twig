@@ -1,0 +1,121 @@
+<!-- Create Draft Modal -->
+<div class="modal fade" id="createDraftModal" tabindex="-1" aria-labelledby="createDraftModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header border-bottom border-dashed d-flex align-items-center">
+                <h4 class="modal-title" id="createDraftModalLabel">{{ 'Add Transaction Draft'|trans }}</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            
+            {{ form_start(createDraftForm, {'attr': {'id': 'createDraftForm', 'novalidate': 'novalidate'}}) }}
+            <div class="modal-body p-4">
+
+                <div class="row">
+                    <div class="col-12 mb-3">
+                        {{ form_label(createDraftForm.subject, 'Subject'|trans, {'label_attr': {'class': 'form-label'}}) }}
+                        {{ form_widget(createDraftForm.subject, {'attr': {
+                            'class': 'form-control ' ~ (createDraftForm.subject.vars.valid ? '' : 'is-invalid')
+                        }}) }}
+                        {% if not createDraftForm.subject.vars.valid %}
+                            <div class="text-danger mt-1" style="font-size: 0.875em; display: block;">
+                                {% for error in createDraftForm.subject.vars.errors %}
+                                    <span class="d-block">{{ error.message }}</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        {{ form_label(createDraftForm.category, 'Category'|trans, {'label_attr': {'class': 'form-label'}}) }}
+                        {{ form_widget(createDraftForm.category, {'attr': {
+                            'class': 'form-select ' ~ (createDraftForm.category.vars.valid ? '' : 'is-invalid'),
+                            'data-toggle': 'select2'
+                        }}) }}
+                        {% if not createDraftForm.category.vars.valid %}
+                            <div class="text-danger mt-1" style="font-size: 0.875em; display: block;">
+                                {% for error in createDraftForm.category.vars.errors %}
+                                    <span class="d-block">{{ error.message }}</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        {{ form_label(createDraftForm.amount, 'Amount'|trans, {'label_attr': {'class': 'form-label'}}) }}
+                        <div class="input-group">
+                            <span class="input-group-text" id="draft-amount-addon">$</span>
+                            {{ form_widget(createDraftForm.amount, {'attr': {
+                                'class': 'form-control ' ~ (createDraftForm.amount.vars.valid ? '' : 'is-invalid'),
+                                'aria-describedby': 'draft-amount-addon'
+                            }}) }}
+                        </div>
+                        {% if not createDraftForm.amount.vars.valid %}
+                            <div class="text-danger mt-1" style="font-size: 0.875em; display: block;">
+                                {% for error in createDraftForm.amount.vars.errors %}
+                                    <span class="d-block">{{ error.message }}</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-12 mb-3">
+                        {{ form_label(createDraftForm.project_budget_related, 'Project Budget'|trans, {'label_attr': {'class': 'form-label'}}) }}
+                        {{ form_widget(createDraftForm.project_budget_related, {'attr': {
+                            'class': 'form-select ' ~ (createDraftForm.project_budget_related.vars.valid ? '' : 'is-invalid'),
+                            'data-toggle': 'select2'
+                        }}) }}
+                        {% if not createDraftForm.project_budget_related.vars.valid %}
+                            <div class="text-danger mt-1" style="font-size: 0.875em; display: block;">
+                                {% for error in createDraftForm.project_budget_related.vars.errors %}
+                                    <span class="d-block">{{ error.message }}</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-12 mb-3">
+                        {{ form_label(createDraftForm.description, 'Description'|trans, {'label_attr': {'class': 'form-label'}}) }}
+                        
+                        <div id="draft-description-editor" style="height: 150px; border-radius: 0.375rem; border: 1px solid {{ createDraftForm.description.vars.valid ? '#dee2e6' : '#dc3545' }}; background: #fff;"></div>
+                        
+                        {{ form_widget(createDraftForm.description, {'attr': {
+                            'class': 'd-none draft-description-hidden'
+                        }}) }}
+                        
+                        {% if not createDraftForm.description.vars.valid %}
+                            <div class="text-danger mt-1" style="font-size: 0.875em; display: block;">
+                                {% for error in createDraftForm.description.vars.errors %}
+                                    <span class="d-block">{{ error.message }}</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">{{ 'Cancel'|trans }}</button>
+                <button type="submit" class="btn btn-primary" style="background: var(--nexum-accent); border-color: var(--nexum-accent);">{{ 'Save Draft'|trans }}</button>
+            </div>
+            {{ form_end(createDraftForm) }}
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const modalEl = document.getElementById('createDraftModal');
+        if (modalEl) {
+            {% if createDraftForm is defined and createDraftForm.vars.submitted and not createDraftForm.vars.valid %}
+                const myModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                myModal.show();
+            {% endif %}
+        }
+    });
+</script>

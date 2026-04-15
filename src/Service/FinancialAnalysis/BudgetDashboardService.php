@@ -223,4 +223,53 @@ class BudgetDashboardService
         // 3. Finally delete the Profile itself
         $this->budgetProfileRepository->deleteProfileDql($profile->getId());
     }
+
+    /**
+     * Determines the currency symbol based on the active Fiscal Year (BudgetProfile)
+     * the project falls under.
+     * 
+     * @param \App\Entity\Projects\Project $project
+     * @return string The currency symbol (e.g. $, €, £), abbreviation, or default '$'
+     */
+    public function getCurrencySymbolForProject(\App\Entity\Projects\Project $project): string
+    {
+        // Find the active BudgetProfile for this project's dates
+        $startDate = $project->getStartDate();
+        
+        if (!$startDate) {
+            return '$'; // Fallback if no start date
+        }
+
+        $profile = $this->budgetProfileRepository->createQueryBuilder('bp')
+            ->where('bp.fiscal_year >= :date') // using fiscal_year or start_date based on entity
+            ->setParameter('date', $startDate->format('Y-m-d'))
+            ->andWhere('bp.status = :status')
+            ->setParameter('status', 'ACTIVE')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        if (!$profile) {
+            return '$'; // Fallback if no active profile found
+        }
+
+        $currencyCode = strtoupper($profile->getBaseCurrency() ?? 'USD');
+
+        // Map known currency codes to symbols
+        $currencySymbols = [
+            'USD' => '$',
+            'EUR' => '€',
+            'GBP' => '£',
+            'JPY' => '¥',
+            'CAD' => '$',
+            'AUD' => '$',
+            'CHF' => 'Fr',
+            'CNY' => '¥',
+            'INR' => '₹',
+            'RUB' => '₽',
+            'TND' => 'DT', // Tunisian Dinar
+        ];
+
+        return $currencySymbols[$currencyCode] ?? $currencyCode; // Return abbreviation if symbol unknown
+    }
 }
