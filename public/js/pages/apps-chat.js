@@ -368,7 +368,7 @@ class ChatApp {
             return
         }
 
-        this.setEmojiPanelTab(this.activeEmojiTab || 'emoji')
+        this.setEmojiPanelTab('emoji')
         this.emojiFallbackPicker.classList.remove('d-none')
         this.emojiFallbackPicker.setAttribute('aria-hidden', 'false')
         this.emojiPickerVisible = true
@@ -391,6 +391,7 @@ class ChatApp {
             .then(() => {
                 if (window.customElements?.get('emoji-picker')) {
                     const pickerElement = document.createElement('emoji-picker')
+                    pickerElement.classList.add('light')
                     pickerElement.setAttribute('style', 'width:100%;height:290px;--border-size:0;')
                     pickerElement.addEventListener('emoji-click', (event) => {
                         this.insertEmoji(event?.detail?.unicode || '')
