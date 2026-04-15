@@ -109,6 +109,15 @@ class ChatApp {
         this.chatInput = null
         this.chatSendButton = null
         this.chatSendDefaultHtml = ''
+        this.emojiButton = null
+        this.emojiPickerInstance = null
+        this.emojiPickerVisible = false
+        this.emojiUseFallback = false
+        this.emojiFallbackPicker = null
+        this.emojiFallbackCloseButton = null
+        this.emojiFallbackItems = []
+        this.chatInputSelectionStart = 0
+        this.chatInputSelectionEnd = 0
         this.attachmentButton = null
         this.attachmentInput = null
         this.activeFetchController = null
@@ -225,6 +234,10 @@ class ChatApp {
             this.chatSendButton = this.chatForm.querySelector('[data-apps-chat="chat-send"]')
             this.chatSendDefaultHtml = this.chatSendButton?.innerHTML || ''
         }
+        this.emojiButton = document.querySelector('[data-apps-chat="emoji-button"]')
+        this.emojiFallbackPicker = document.querySelector('[data-apps-chat="emoji-fallback-picker"]')
+        this.emojiFallbackCloseButton = document.querySelector('[data-apps-chat="emoji-fallback-close"]')
+        this.emojiFallbackItems = Array.from(document.querySelectorAll('[data-apps-chat="emoji-fallback-item"]'))
         this.attachmentButton = document.querySelector('[data-apps-chat="attachment-button"]')
         this.attachmentInput = document.querySelector('[data-apps-chat="attachment-input"]')
         if (this.messagesScrollWrapper && window.SimpleBar)
@@ -254,6 +267,160 @@ class ChatApp {
         if (this.chatSendButton) {
             this.chatSendButton.disabled = !enabled
         }
+
+        if (this.emojiButton) {
+            this.emojiButton.disabled = !enabled
+        }
+
+        if (!enabled) {
+            this.closeEmojiPicker()
+        }
+    }
+
+    rememberComposerSelection = () => {
+        if (!this.chatInput) {
+            return
+        }
+
+        const selectionStart = typeof this.chatInput.selectionStart === 'number'
+            ? this.chatInput.selectionStart
+            : this.chatInput.value.length
+        const selectionEnd = typeof this.chatInput.selectionEnd === 'number'
+            ? this.chatInput.selectionEnd
+            : selectionStart
+
+        this.chatInputSelectionStart = selectionStart
+        this.chatInputSelectionEnd = selectionEnd
+    }
+
+    insertEmoji = (emoji) => {
+        if (!this.chatInput || !emoji) {
+            return
+        }
+
+        const value = String(this.chatInput.value || '')
+        const start = typeof this.chatInput.selectionStart === 'number'
+            ? this.chatInput.selectionStart
+            : this.chatInputSelectionStart
+        const end = typeof this.chatInput.selectionEnd === 'number'
+            ? this.chatInput.selectionEnd
+            : this.chatInputSelectionEnd
+
+        const nextValue = `${value.slice(0, start)}${emoji}${value.slice(end)}`
+        const nextCaret = start + String(emoji).length
+
+        this.chatInput.value = nextValue
+        this.chatInput.focus()
+
+        if (typeof this.chatInput.setSelectionRange === 'function') {
+            this.chatInput.setSelectionRange(nextCaret, nextCaret)
+        }
+
+        this.rememberComposerSelection()
+        this.closeEmojiPicker()
+    }
+
+    closeEmojiPicker = () => {
+        if (!this.emojiButton) {
+            return
+        }
+
+        if (this.emojiUseFallback) {
+            this.emojiFallbackPicker?.classList.add('d-none')
+            this.emojiFallbackPicker?.setAttribute('aria-hidden', 'true')
+            this.emojiPickerVisible = false
+            this.emojiButton.setAttribute('aria-expanded', 'false')
+            return
+        }
+
+        if (this.emojiPickerInstance && this.emojiPickerVisible) {
+            this.emojiPickerInstance.hidePicker()
+        }
+
+        this.emojiPickerVisible = false
+        this.emojiButton.setAttribute('aria-expanded', 'false')
+    }
+
+    toggleEmojiPicker = () => {
+        if (!this.emojiButton || this.emojiButton.disabled) {
+            return
+        }
+
+        if (this.emojiUseFallback) {
+            const isOpen = !!this.emojiFallbackPicker && !this.emojiFallbackPicker.classList.contains('d-none')
+            if (isOpen) {
+                this.closeEmojiPicker()
+                return
+            }
+
+            this.emojiFallbackPicker?.classList.remove('d-none')
+            this.emojiFallbackPicker?.setAttribute('aria-hidden', 'false')
+            this.emojiPickerVisible = true
+            this.emojiButton.setAttribute('aria-expanded', 'true')
+            return
+        }
+
+        if (!this.emojiPickerInstance) {
+            return
+        }
+
+        this.emojiPickerInstance.togglePicker(this.emojiButton)
+    }
+
+    initEmojiPicker = () => {
+        if (!this.emojiButton) {
+            return
+        }
+
+        const setupPickerInstance = (EmojiButtonCtor) => {
+            this.emojiPickerInstance = new EmojiButtonCtor({
+                position: 'top-start',
+                autoHide: true,
+                showSearch: true,
+                showRecents: true,
+                showVariants: true,
+                zIndex: 2000,
+                theme: 'auto',
+            })
+
+            this.emojiPickerInstance.on('emoji', (selection) => {
+                this.insertEmoji(selection?.emoji || '')
+            })
+
+            this.emojiPickerInstance.on('hidden', () => {
+                this.emojiPickerVisible = false
+                this.emojiButton?.setAttribute('aria-expanded', 'false')
+            })
+
+            this.emojiPickerInstance.on('shown', () => {
+                this.emojiPickerVisible = true
+                this.emojiButton?.setAttribute('aria-expanded', 'true')
+            })
+
+            this.emojiUseFallback = false
+        }
+
+        const globalCtor = window.EmojiButton?.EmojiButton || window.EmojiButton
+        if (typeof globalCtor === 'function') {
+            setupPickerInstance(globalCtor)
+            return
+        }
+
+        this.emojiUseFallback = true
+
+        import('https://cdn.jsdelivr.net/npm/@joeattardi/emoji-button@4.6.4/dist/index.min.js')
+            .then((module) => {
+                const moduleCtor = module?.EmojiButton || module?.default
+                if (typeof moduleCtor !== 'function') {
+                    throw new Error('EmojiButton export not found in module.')
+                }
+
+                setupPickerInstance(moduleCtor)
+            })
+            .catch((error) => {
+                console.warn('Emoji bundle module failed to load. Falling back to local picker.', error)
+                this.emojiUseFallback = true
+            })
     }
 
     applyConversationFilter = (filter) => {
@@ -2879,6 +3046,7 @@ class ChatApp {
                     this.messagesList?.appendChild(this.createMessageNode(message, Date.now()))
                     this.syncConversationItemLastMessage(this.activeConversationItem, message)
                     this.chatInput.value = ''
+                    this.closeEmojiPicker()
                     this.scrollToBottom(true)
                 })
                 .catch((error) => {
@@ -2929,7 +3097,65 @@ class ChatApp {
             if (event.key === 'Escape' && this.inlineEditMessageId) {
                 event.preventDefault()
                 this.clearInlineEditMode({ resetInput: false })
+                return
             }
+
+            if (event.key === 'Escape' && this.emojiPickerVisible) {
+                event.preventDefault()
+                this.closeEmojiPicker()
+            }
+        })
+
+        this.chatInput?.addEventListener('focus', this.rememberComposerSelection)
+        this.chatInput?.addEventListener('click', this.rememberComposerSelection)
+        this.chatInput?.addEventListener('keyup', this.rememberComposerSelection)
+        this.chatInput?.addEventListener('mouseup', this.rememberComposerSelection)
+        this.chatInput?.addEventListener('select', this.rememberComposerSelection)
+        this.chatInput?.addEventListener('input', this.rememberComposerSelection)
+
+        this.emojiButton?.addEventListener('mousedown', (event) => {
+            event.preventDefault()
+            this.rememberComposerSelection()
+        })
+
+        this.emojiButton?.addEventListener('click', (event) => {
+            event.preventDefault()
+            if (!this.activeConversationId) {
+                return
+            }
+
+            this.toggleEmojiPicker()
+        })
+
+        this.emojiFallbackCloseButton?.addEventListener('click', (event) => {
+            event.preventDefault()
+            this.closeEmojiPicker()
+        })
+
+        this.emojiFallbackItems.forEach((item) => {
+            item.addEventListener('click', (event) => {
+                event.preventDefault()
+                const emoji = item.dataset.emoji || item.textContent || ''
+                this.insertEmoji(emoji)
+            })
+        })
+
+        document.addEventListener('click', (event) => {
+            if (!this.emojiUseFallback || !this.emojiPickerVisible) {
+                return
+            }
+
+            const target = event.target instanceof HTMLElement ? event.target : null
+            if (!target) {
+                this.closeEmojiPicker()
+                return
+            }
+
+            if (target.closest('[data-apps-chat="emoji-fallback-picker"]') || target.closest('[data-apps-chat="emoji-button"]')) {
+                return
+            }
+
+            this.closeEmojiPicker()
         })
 
         this.inlineEditCancelButton?.addEventListener('click', () => {
@@ -3344,6 +3570,7 @@ class ChatApp {
 
     init = () => {
         this.cacheElements();
+        this.initEmojiPicker();
         this.setComposerEnabled(false);
         this.initDetailsDrawer();
         this.initCustomization();
@@ -3353,6 +3580,7 @@ class ChatApp {
         this.initFilters();
         this.initSearch();
         this.initConversationSelection();
+        this.closeEmojiPicker();
         this.initForm();
     }
 }
