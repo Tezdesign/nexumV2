@@ -1010,12 +1010,12 @@ class ChatApp {
         const previewText = this.isDirectImageUrl(bodyText) ? 'GIF' : bodyText
         const timeLabel = String(message.timeLabel || '--')
 
-        const previewNode = item.querySelector('.chat-users + div p span')
+        const previewNode = item.querySelector('[data-apps-chat="conversation-last-preview"]')
         if (previewNode) {
             previewNode.textContent = previewText !== '' ? previewText : 'No messages yet'
         }
 
-        const timeNode = item.querySelector('h5 .float-end')
+        const timeNode = item.querySelector('[data-apps-chat="conversation-last-time"]')
         if (timeNode) {
             timeNode.textContent = timeLabel
         }
