@@ -1020,6 +1020,7 @@ class ChatApp {
             timeNode.textContent = timeLabel
         }
 
+        this.promoteConversationItem(item)
         item.dataset.conversationCreatedAt = item.dataset.conversationCreatedAt || ''
     }
 
