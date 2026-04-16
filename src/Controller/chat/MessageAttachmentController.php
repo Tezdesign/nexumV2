@@ -527,7 +527,7 @@ class MessageAttachmentController extends AbstractController
 		$extension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
 		return match ($extension) {
 			'mp4', 'm4v' => 'video/mp4',
-			'webm' => 'video/webm',
+			'webm' => 'audio/webm',
 			'ogv' => 'video/ogg',
 			'mov' => 'video/quicktime',
 			'avi' => 'video/x-msvideo',

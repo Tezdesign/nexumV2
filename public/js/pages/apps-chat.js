@@ -2833,6 +2833,10 @@ class ChatApp {
             return 'image'
         }
 
+        if (this.isVoiceRecordingAttachment(attachment, fileName, mimeType)) {
+            return 'audio'
+        }
+
         if (mimeType.startsWith('video/')) {
             return this.isPreviewableVideoExtension(extension) ? 'video' : 'file'
         }
@@ -2850,6 +2854,17 @@ class ChatApp {
         }
 
         return 'file'
+    }
+
+    isVoiceRecordingAttachment = (attachment, fileName = '', mimeType = '') => {
+        const safeFileName = String(fileName || attachment?.fileName || '').toLowerCase()
+        const safeMimeType = String(mimeType || attachment?.mimeType || '').toLowerCase()
+
+        if (safeMimeType.startsWith('audio/')) {
+            return true
+        }
+
+        return safeFileName.startsWith('voice-message-') || safeFileName.startsWith('voice-recording-')
     }
 
     getAttachmentExtension = (fileName = '') => {
