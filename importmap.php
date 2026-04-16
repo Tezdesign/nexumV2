@@ -25,4 +25,7 @@ return [
     '@hotwired/turbo' => [
         'version' => '7.3.0',
     ],
+    '@hotwired/hotwire-native-bridge' => [
+        'version' => '1.2.2',
+    ],
 ];

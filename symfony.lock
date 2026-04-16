@@ -259,6 +259,9 @@
             "./templates/base.html.twig"
         ]
     },
+    "symfony/ux-native": {
+        "version": "v2.35.0"
+    },
     "symfony/ux-turbo": {
         "version": "2.34",
         "recipe": {

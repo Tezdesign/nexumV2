@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {{ include('partials/title-meta.html.twig') }}
+    {{ include('partials/head-css.html.twig') }}
+    <link href="/css/FA.css?v={{ random() }}" rel="stylesheet" type="text/css" />
+    {% include 'partials/_task_project_design_system.html.twig' %}
+    {% block css %}{% endblock %}
+    <style>
+        :root {
+            --nexum-accent: #7c3aed;
+        }
+        body {
+            background-color: #f8fafc !important;
+            padding-bottom: env(safe-area-inset-bottom);
+            font-family: "Inter", "Segoe UI", sans-serif;
+        }
+        .mobile-wrapper {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        /* ux-native helpers */
+        .d-native-none {
+            display: block;
+        }
+        [data-native-app] .d-native-none {
+            display: none !important;
+        }
+    </style>
+</head>
+<body class="mobile-layout h-100" {{ stimulus_controller('native-bridge', { title: title|default('Nexum') }) }}>
+    
+    <div class="mobile-wrapper">
+        {% block content %}{% endblock %}
+    </div>
+
+    {{ include('partials/footer-scripts.html.twig') }}
+    {% block script %}{% endblock %}
+</body>
+</html>

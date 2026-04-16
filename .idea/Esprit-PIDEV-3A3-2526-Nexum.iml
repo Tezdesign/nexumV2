@@ -142,6 +142,7 @@
       <excludeFolder url="file://$MODULE_DIR$/vendor/knplabs/knp-paginator-bundle" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/beberlei/doctrineextensions" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/markrogoyski/math-php" />
+      <excludeFolder url="file://$MODULE_DIR$/vendor/symfony/ux-native" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

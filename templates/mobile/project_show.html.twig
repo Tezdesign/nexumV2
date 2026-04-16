@@ -1,0 +1,130 @@
+{% extends 'mobile/layouts/main.html.twig' %}
+
+{% set accent = '#7c3aed' %}
+{% set activeTab = activeTab|default('overview') %}
+{% set title = project.name|plain_text %}
+
+{% block css %}
+    {{ parent() }}
+    <link href="/vendor/quill/quill.core.css" rel="stylesheet" type="text/css"/>
+    <link href="/vendor/quill/quill.bubble.css" rel="stylesheet" type="text/css"/>
+    <style>
+        .mobile-header {
+            padding: 1rem;
+            background: #fff;
+            border-bottom: 1px solid #eee;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .mobile-tabs {
+            display: flex;
+            overflow-x: auto;
+            background: #fff;
+            border-bottom: 1px solid #eee;
+            padding: 0 1rem;
+            gap: 1.5rem;
+            scrollbar-width: none;
+        }
+        .mobile-tabs::-webkit-scrollbar { display: none; }
+        .mobile-tab {
+            padding: 1rem 0;
+            white-space: nowrap;
+            color: #64748b;
+            font-weight: 600;
+            border-bottom: 2px solid transparent;
+            text-decoration: none;
+        }
+        .mobile-tab.active {
+            color: var(--nexum-accent);
+            border-bottom-color: var(--nexum-accent);
+        }
+        .mobile-content {
+            padding: 1rem;
+            /* Safe area support for modern mobile devices */
+            padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+        }
+        .nexum-shell-card {
+            border-radius: 12px;
+            border: 1px solid #eef2f7;
+            margin-bottom: 1rem;
+        }
+        /* Hide web header when in native app if bridge is active */
+        .native-app .mobile-header {
+            display: none;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="mobile-header d-native-none">
+        <div class="d-flex align-items-center gap-2 mb-2">
+            <a href="{{ path('app_mobile_dashboard') }}" class="text-muted" data-turbo-action="restore"><i class="ri-arrow-left-line fs-4"></i></a>
+            <h4 class="mb-0 text-truncate">{{ title }}</h4>
+        </div>
+        <div class="progress" style="height: 6px; border-radius: 999px;">
+            <div class="progress-bar" style="width: {{ projectProgressPercent }}%; background: var(--nexum-accent);"></div>
+        </div>
+    </div>
+
+    <div class="mobile-tabs">
+        <a href="{{ path('app_mobile_project_show', {id: project.id, tab: 'overview'}) }}" 
+           class="mobile-tab {{ activeTab == 'overview' ? 'active' : '' }}"
+           data-turbo-frame="project_tab_content">Overview</a>
+        <a href="{{ path('app_mobile_project_show', {id: project.id, tab: 'tasks'}) }}" 
+           class="mobile-tab {{ activeTab == 'tasks' ? 'active' : '' }}"
+           data-turbo-frame="project_tab_content">Tasks</a>
+        <a href="{{ path('app_mobile_project_show', {id: project.id, tab: 'drafts'}) }}" 
+           class="mobile-tab {{ activeTab == 'drafts' ? 'active' : '' }}"
+           data-turbo-frame="project_tab_content">Drafts</a>
+    </div>
+
+    <turbo-frame id="project_tab_content" class="mobile-content" target="_top">
+        <div class="animate__animated animate__fadeIn animate__faster">
+            {% if activeTab == 'overview' %}
+                {% include 'project/tabs/_overview.html.twig' %}
+            {% elseif activeTab == 'tasks' %}
+                {% include 'project/tabs/_tasks.html.twig' %}
+            {% elseif activeTab == 'drafts' %}
+                {% include 'project/tabs/_drafts.html.twig' %}
+            {% endif %}
+        </div>
+    </turbo-frame>
+
+    {# Modals for creation (reused from desktop) #}
+    {% if createDraftForm is defined and createDraftForm is not null %}
+        {% include 'project/tabs/_create_draft_modal.html.twig' %}
+    {% endif %}
+
+{% endblock %}
+
+{% block script %}
+    {{ parent() }}
+    <script src="/vendor/quill/quill.js"></script>
+    <script src="/js/FA_functions.js?v={{ random() }}"></script>
+    <script src="{{ asset('js/FA_drafts.js') }}"></script>
+    <script>
+        // Adjust modals for mobile feel
+        document.addEventListener('DOMContentLoaded', function() {
+            const modals = document.querySelectorAll('.modal');
+            modals.forEach(m => {
+                m.addEventListener('show.bs.modal', function() {
+                    const dialog = this.querySelector('.modal-dialog');
+                    if (dialog) dialog.classList.add('modal-fullscreen-sm-down');
+                });
+            });
+        });
+
+        // Listen for Turbo frame loads to update active tab state
+        document.addEventListener('turbo:frame-load', function(event) {
+            if (event.target.id === 'project_tab_content') {
+                const url = new URL(event.target.src);
+                const tab = url.searchParams.get('tab') || 'overview';
+                
+                document.querySelectorAll('.mobile-tab').forEach(el => {
+                    el.classList.toggle('active', el.href.includes('tab=' + tab) || (tab === 'overview' && !el.href.includes('tab=')));
+                });
+            }
+        });
+    </script>
+{% endblock %}
