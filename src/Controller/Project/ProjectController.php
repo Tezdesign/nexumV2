@@ -297,6 +297,7 @@ final class ProjectController extends AbstractController
         AuthService $authService,
         TaskRepository $taskRepository,
         \App\Repository\FinancialAnalysis\ExpenseDraftRepository $expenseDraftRepository,
+        \App\Repository\FinancialAnalysis\ProjectBudgetRepository $projectBudgetRepository,
         EntityManagerInterface $entityManager
     ): Response
     {
@@ -486,6 +487,9 @@ final class ProjectController extends AbstractController
             ];
         }
 
+        // Fetch project budgets for the draft update/create modals
+        $projectBudgets = $projectBudgetRepository->findBy(['project' => $project], ['name' => 'ASC']);
+
         return $this->render('project/show.html.twig', [
             'project' => $project,
             'isManager' => $isManager,
@@ -508,6 +512,7 @@ final class ProjectController extends AbstractController
             'createDraftForm' => $createDraftForm,
             'projectProgressPercent' => $projectProgressPercent,
             'recentActivities' => $recentActivities,
+            'projectBudgets' => $projectBudgets,
         ]);
     }
 
@@ -793,6 +798,92 @@ final class ProjectController extends AbstractController
         }
 
         return $this->redirectToRoute('app_project_index', [], Response::HTTP_SEE_OTHER);
+    }
+
+    #[Route('/draft/{id}/update', name: 'app_project_update_draft', methods: ['POST'])]
+    public function updateDraft(
+        Request $request,
+        \App\Entity\FinancialAnalysis\ExpenseDraft $draft,
+        \App\Repository\FinancialAnalysis\ExpenseDraftRepository $expenseDraftRepository,
+        \App\Repository\FinancialAnalysis\ProjectBudgetRepository $projectBudgetRepository,
+        AuthService $authService,
+        \Symfony\Component\Validator\Validator\ValidatorInterface $validator,
+        EntityManagerInterface $entityManager
+    ): Response {
+        if (!$authService->isManager()) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $projectBudgetRelated = $draft->getProjectBudgetRelated();
+        $project = $projectBudgetRelated ? $projectBudgetRelated->getProject() : null;
+        $pid = $project ? $project->getId() : 0;
+
+        $data = $request->request->all('expense_draft');
+        
+        if (isset($data['subject'])) $draft->setSubject($data['subject']);
+        if (isset($data['amount'])) $draft->setAmount((float) $data['amount']);
+        if (isset($data['category'])) $draft->setCategory($data['category']);
+        if (isset($data['description'])) $draft->setDescription($data['description']);
+        
+        if (!empty($data['project_budget_related'])) {
+            $budget = $projectBudgetRepository->find($data['project_budget_related']);
+            if ($budget) {
+                $draft->setProjectBudgetRelated($budget);
+            }
+        }
+
+        if (!$this->isCsrfTokenValid('expense_draft', (string) ($data['_token'] ?? ''))) {
+            $this->addFlash('danger', 'Invalid CSRF token.');
+            return $this->redirectToRoute('app_project_show', ['id' => $pid, 'tab' => 'drafts']);
+        }
+
+        $errors = $validator->validate($draft);
+
+        if (count($errors) > 0) {
+            $this->addFlash('danger', 'Failed to update draft. Please check the errors.');
+            
+            $errorMap = [];
+            foreach ($errors as $error) {
+                $errorMap[$error->getPropertyPath()] = $error->getMessage();
+            }
+            
+            $session = $request->getSession();
+            $session->getFlashBag()->add('draft_errors_' . $draft->getId(), $errorMap);
+            $session->getFlashBag()->add('draft_data_' . $draft->getId(), $data);
+            
+            return $this->redirectToRoute('app_project_show', ['id' => $pid, 'tab' => 'drafts']);
+        }
+
+        $expenseDraftRepository->save($draft, true);
+        $this->addFlash('success', 'Draft updated successfully!');
+
+        return $this->redirectToRoute('app_project_show', ['id' => $pid, 'tab' => 'drafts']);
+    }
+
+    #[Route('/draft/{id}/delete', name: 'app_project_delete_draft', methods: ['POST'])]
+    public function deleteDraft(
+        Request $request,
+        \App\Entity\FinancialAnalysis\ExpenseDraft $draft,
+        AuthService $authService,
+        EntityManagerInterface $entityManager
+    ): Response {
+        if (!$authService->isManager()) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $projectBudget = $draft->getProjectBudgetRelated();
+        $project = $projectBudget ? $projectBudget->getProject() : null;
+        $pid = $project ? $project->getId() : 0;
+
+        if ($this->isCsrfTokenValid('delete_draft' . $draft->getId(), (string) $request->request->get('_token'))) {
+            $entityManager->remove($draft);
+            $entityManager->flush();
+            $this->addFlash('success', 'Draft deleted successfully!');
+        } else {
+            $this->addFlash('danger', 'Invalid CSRF token for deletion.');
+        }
+
+        return $this->redirectToRoute('app_project_show', ['id' => $pid, 'tab' => 'drafts']);
     }
 
     /**

@@ -1,0 +1,32 @@
+<!-- Delete Draft Confirmation Modal for Draft {{ draft.id }} -->
+<div class="modal fade" id="deleteDraftModal_{{ draft.id }}" tabindex="-1" aria-labelledby="deleteDraftModalLabel_{{ draft.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-bottom border-dashed d-flex align-items-center">
+                <h4 class="modal-title" id="deleteDraftModalLabel_{{ draft.id }}">{{ 'Confirm Deletion'|trans }}</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4 text-center">
+                <div class="mb-4">
+                    <i class="ri-delete-bin-line text-danger opacity-75" style="font-size: 5rem;"></i>
+                </div>
+                <h4 class="fw-semibold">{{ 'Are you sure?'|trans }}</h4>
+                <p class="text-muted fs-15">
+                    {{ 'You are about to permanently delete the draft:'|trans }} 
+                    <br>
+                    <span class="fw-bold text-dark">"{{ draft.subject|plain_text }}"</span>
+                </p>
+                <p class="text-muted fs-13 mt-2">
+                    {{ 'This action cannot be undone.'|trans }}
+                </p>
+            </div>
+            <div class="modal-footer">
+                <form action="{{ path('app_project_delete_draft', {id: draft.id}) }}" method="POST">
+                    <input type="hidden" name="_token" value="{{ csrf_token('delete_draft' ~ draft.id) }}">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">{{ 'Cancel'|trans }}</button>
+                    <button type="submit" class="btn btn-danger">{{ 'Delete Draft'|trans }}</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

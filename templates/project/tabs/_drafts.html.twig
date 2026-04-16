@@ -30,6 +30,15 @@
                 avatarUrlById: avatarUrlById,
                 projectName: project.name|default('')
             } %}
+            
+            {# Include modals for this draft #}
+            {% include 'project/tabs/_update_draft_modal.html.twig' with {
+                draft: draft,
+                projectBudgets: projectBudgets|default([])
+            } %}
+            {% include 'project/tabs/_delete_draft_modal.html.twig' with {
+                draft: draft
+            } %}
         {% else %}
             <div class="text-muted small py-2">No transaction drafts for this project yet.</div>
         {% endfor %}

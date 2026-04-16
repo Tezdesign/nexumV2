@@ -1,0 +1,111 @@
+<!-- Update Draft Modal for Draft {{ draft.id }} -->
+{% set draft_errors = app.flashes('draft_errors_' ~ draft.id)|first %}
+{% set draft_data = app.flashes('draft_data_' ~ draft.id)|first %}
+
+<div class="modal fade nexum-update-draft-modal" id="updateDraftModal_{{ draft.id }}" tabindex="-1" aria-labelledby="updateDraftModalLabel_{{ draft.id }}" aria-hidden="true" data-bs-backdrop="static"
+    data-draft-id="{{ draft.id }}"
+    data-has-errors="{{ draft_errors ? 'true' : 'false' }}"
+    data-original-subject="{{ draft.subject|escape('html_attr') }}"
+    data-original-category="{{ draft.category|escape('html_attr') }}"
+    data-original-amount="{{ draft.amount|number_format(2, '.', '') }}"
+    data-original-budget="{{ draft.projectBudgetRelated ? draft.projectBudgetRelated.id : '' }}"
+    data-original-description="{{ draft.description|escape('html_attr') }}"
+>
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header border-bottom border-dashed d-flex align-items-center">
+                <h4 class="modal-title" id="updateDraftModalLabel_{{ draft.id }}">{{ 'Update Transaction Draft'|trans }}</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            
+            <form action="{{ path('app_project_update_draft', {id: draft.id}) }}" method="POST" id="updateDraftForm_{{ draft.id }}" novalidate="novalidate">
+                <div class="modal-body p-4">
+
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            <label class="form-label">{{ 'Subject'|trans }}</label>
+                            {% set subject_val = draft_data ? draft_data.subject|default('') : draft.subject %}
+                            <input type="text" name="expense_draft[subject]" id="draft_subject_{{ draft.id }}" class="form-control {% if draft_errors and draft_errors.subject is defined %}is-invalid{% endif %}" value="{{ subject_val }}" required>
+                            {% if draft_errors and draft_errors.subject is defined %}
+                                <div class="invalid-feedback d-block">{{ draft_errors.subject }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">{{ 'Category'|trans }}</label>
+                            {% set cat_val = draft_data ? draft_data.category|default('') : draft.category %}
+                            <select name="expense_draft[category]" id="draft_cat_{{ draft.id }}" class="form-select select2 {% if draft_errors and draft_errors.category is defined %}is-invalid{% endif %}" data-toggle="select2">
+                                <option value="">{{ 'Select a Category...'|trans }}</option>
+                                {% for category in ['HARDWARE', 'SOFTWARE', 'SERVICES', 'TRAVEL', 'MARKETING', 'OTHER'] %}
+                                    <option value="{{ category }}" {% if cat_val == category %}selected{% endif %}>{{ category|capitalize }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if draft_errors and draft_errors.category is defined %}
+                                <div class="invalid-feedback d-block">{{ draft_errors.category }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">{{ 'Amount'|trans }}</label>
+                            <div class="input-group">
+                                <span class="input-group-text" id="draft-amount-addon-{{ draft.id }}">$</span>
+                                {% set amount_val = draft_data ? draft_data.amount|default('') : draft.amount|number_format(2, '.', '') %}
+                                <input type="number" name="expense_draft[amount]" id="draft_amount_{{ draft.id }}" class="form-control {% if draft_errors and draft_errors.amount is defined %}is-invalid{% endif %}" value="{{ amount_val }}" step="0.01" aria-describedby="draft-amount-addon-{{ draft.id }}" required>
+                            </div>
+                            {% if draft_errors and draft_errors.amount is defined %}
+                                <div class="invalid-feedback d-block">{{ draft_errors.amount }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            <label class="form-label">{{ 'Project Budget'|trans }}</label>
+                            {% set budget_val = draft_data ? draft_data.project_budget_related|default('') : (draft.projectBudgetRelated ? draft.projectBudgetRelated.id : '') %}
+                            <select name="expense_draft[project_budget_related]" id="draft_budget_{{ draft.id }}" class="form-select select2 {% if draft_errors and draft_errors.project_budget_related is defined %}is-invalid{% endif %}" data-toggle="select2">
+                                <option value="">{{ 'Select a budget'|trans }}</option>
+                                {% if projectBudgets is defined %}
+                                    {% for budget in projectBudgets %}
+                                        <option value="{{ budget.id }}" {% if budget_val == budget.id %}selected{% endif %}>{{ budget.name }}</option>
+                                    {% endfor %}
+                                {% endif %}
+                            </select>
+                            {% if draft_errors and draft_errors.project_budget_related is defined %}
+                                <div class="invalid-feedback d-block">{{ draft_errors.project_budget_related }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            <label class="form-label">{{ 'Description'|trans }}</label>
+                            {% set desc_val = draft_data ? draft_data.description|default('') : draft.description %}
+                            
+                            <div id="draft-description-editor-{{ draft.id }}" style="height: 150px; border-radius: 0.375rem; border: 1px solid {% if draft_errors and draft_errors.description is defined %}#dc3545{% else %}#dee2e6{% endif %}; background: #fff;">
+                                {{ desc_val|raw }}
+                            </div>
+                            
+                            <input type="hidden" name="expense_draft[description]" id="draft_desc_hidden_{{ draft.id }}" class="draft-description-hidden" value="{{ desc_val|escape('html_attr') }}">
+                            
+                            {% if draft_errors and draft_errors.description is defined %}
+                                <div class="text-danger mt-1" style="font-size: 0.875em; display: block;">
+                                    {{ draft_errors.description }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <input type="hidden" name="expense_draft[_token]" value="{{ csrf_token('expense_draft') }}">
+
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">{{ 'Cancel'|trans }}</button>
+                    <button type="submit" class="btn btn-primary" style="background: var(--nexum-accent); border-color: var(--nexum-accent);">{{ 'Save Changes'|trans }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+

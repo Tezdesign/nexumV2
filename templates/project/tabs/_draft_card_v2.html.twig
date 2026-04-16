@@ -65,10 +65,10 @@
 
             {# The actions DO NOT transition, they stay static #}
             <div class="d-flex align-items-center gap-1 ms-3 flex-shrink-0">
-                <button type="button" class="nexum-icon-btn" title="Edit Draft" aria-label="Edit Draft">
+                <button type="button" class="nexum-icon-btn" title="Edit Draft" aria-label="Edit Draft" data-bs-toggle="modal" data-bs-target="#updateDraftModal_{{ draft.id }}">
                     <i class="ri-pencil-line"></i>
                 </button>
-                <button type="button" class="nexum-icon-btn" title="Delete Draft" aria-label="Delete Draft">
+                <button type="button" class="nexum-icon-btn" title="Delete Draft" aria-label="Delete Draft" data-bs-toggle="modal" data-bs-target="#deleteDraftModal_{{ draft.id }}">
                     <i class="ri-delete-bin-line"></i>
                 </button>
             </div>
