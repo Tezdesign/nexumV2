@@ -39,4 +39,20 @@ class ExpenseDraftRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    public function findRecentDuplicates(int $budgetId, float $amount): array
+    {
+        $oneWeekAgo = new \DateTimeImmutable('-7 days');
+
+        return $this->createQueryBuilder('e')
+            ->join('e.projectBudgetRelated', 'pb')
+            ->where('pb.id = :budgetId')
+            ->andWhere('e.amount = :amount')
+            ->andWhere('e.createdAt >= :dateLimit') // Assuming you have a createdAt timestamp
+            ->setParameter('budgetId', $budgetId)
+            ->setParameter('amount', $amount)
+            ->setParameter('dateLimit', $oneWeekAgo)
+            ->getQuery()
+            ->getResult();
+    }
 }

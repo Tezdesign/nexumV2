@@ -54,6 +54,11 @@ class ExpenseDraft
     #[Assert\Length(max: 255, maxMessage: 'The subject cannot be longer than {{ limit }} characters.')]
     private ?string $subject = null;
 
+    #[ORM\Column(type:'json', nullable: true)]
+    private ?array $evalData = null;
+
+
+
     public function getId(): ?int
     {
         return $this->id;
@@ -209,5 +214,17 @@ class ExpenseDraft
                 }
             }
         }
+    }
+
+    public function getEvalData(): ?array
+    {
+        return $this->evalData;
+    }
+
+    public function setEvalData(?array $evalData): self
+    {
+        $this->evalData = $evalData;
+
+        return $this;
     }
 }

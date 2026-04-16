@@ -37,6 +37,18 @@ class TransactionRepository extends ServiceEntityRepository
         return $result ? (float) $result : 0.0;
     }
 
+    public function getTransactionsBasedonPB(int $projectBudgetId): array
+    {
+        return $this->createQueryBuilder('t')
+            ->select('t')
+            ->andWhere('t.projectBudget = :pbId')
+            ->setParameter('pbId', $projectBudgetId)
+            ->orderBy('t.cost', 'DESC')
+            ->getQuery()
+            ->getResult();
+
+    }
+
     public function searchByReferenceOrDescriptionDql(int $projectBudgetId, string $searchTerm): array
     {
         return $this->createQueryBuilder('t')
