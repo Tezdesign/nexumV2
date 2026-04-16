@@ -196,6 +196,134 @@ class MessageAttachmentController extends AbstractController
 		]);
 	}
 
+	#[Route('/apps-chat/gifs', name: 'apps-chat-gifs', methods: ['POST'])]
+	public function storeGif(
+		Request $request,
+		UtilisateurRepository $utilisateurRepository,
+		ConversationParticipantRepository $participantRepository,
+		EntityManagerInterface $entityManager,
+	): JsonResponse {
+		$conversationId = (int) $request->request->get('conversationId', 0);
+		$gifUrl = trim((string) $request->request->get('gifUrl', ''));
+
+		if ($conversationId <= 0) {
+			return $this->json([
+				'success' => false,
+				'error' => 'Invalid conversation id.',
+			], 400);
+		}
+
+		if ($gifUrl === '') {
+			return $this->json([
+				'success' => false,
+				'error' => 'GIF URL is required.',
+			], 422);
+		}
+
+		if (!$this->isAllowedGifSourceUrl($gifUrl)) {
+			return $this->json([
+				'success' => false,
+				'error' => 'Unsupported GIF source.',
+			], 422);
+		}
+
+		if (!$participantRepository->isActiveParticipant($conversationId, $this->currentUserId())) {
+			return $this->json([
+				'success' => false,
+				'error' => 'Access denied.',
+			], 403);
+		}
+
+		$conversation = $entityManager->getRepository(Conversation::class)->find($conversationId);
+		if (!$conversation instanceof Conversation) {
+			return $this->json([
+				'success' => false,
+				'error' => 'Conversation not found.',
+			], 404);
+		}
+
+		try {
+			[$gifBinary, $mimeType, $fileName, $fileSize] = $this->downloadRemoteGif($gifUrl);
+		} catch (
+			\Throwable $exception
+		) {
+			$errorMessage = trim($exception->getMessage());
+			if ($errorMessage === '') {
+				$errorMessage = 'Could not download GIF.';
+			}
+
+			return $this->json([
+				'success' => false,
+				'error' => $errorMessage,
+			], 422);
+		}
+
+		$sender = $utilisateurRepository->find($this->currentUserId());
+		$now = new \DateTime();
+
+		try {
+			$message = new Message();
+			$message->setConversationId($conversationId)
+				->setSenderId($this->currentUserId())
+				->setBody('GIF')
+				->setKind('ATTACHMENT')
+				->setCreatedAt($now);
+
+			$entityManager->persist($message);
+			$entityManager->flush();
+
+			$attachment = new MessageAttachment();
+			$attachment->setMessageId((int) $message->getId())
+				->setFileName($fileName)
+				->setMimeType($mimeType)
+				->setSizeBytes($fileSize)
+				->setData($gifBinary)
+				->setCreatedAt($now);
+
+			$entityManager->persist($attachment);
+			$entityManager->flush();
+
+			$conversation->setLastMessageId($message->getId());
+			$conversation->setLastMessageAt($message->getCreatedAt());
+			$entityManager->flush();
+		} catch (\Throwable $exception) {
+			$errorMessage = trim($exception->getMessage());
+			if ($errorMessage === '') {
+				$errorMessage = 'Unexpected GIF upload error.';
+			}
+
+			return $this->json([
+				'success' => false,
+				'error' => $errorMessage,
+			], 500);
+		}
+
+		return $this->json([
+			'success' => true,
+			'message' => [
+				'id' => $message->getId(),
+				'body' => $message->getBody() ?? '',
+				'kind' => 'ATTACHMENT',
+				'senderId' => $this->currentUserId(),
+				'senderName' => $sender !== null
+					? trim(sprintf('%s %s', (string) $sender->getPrenom(), (string) $sender->getNom()))
+					: 'Unknown User',
+				'senderAvatarSrc' => $sender !== null ? $this->toDataUri($sender->getImagelink(), 'image/jpeg') : null,
+				'isOwn' => true,
+				'createdAt' => $message->getCreatedAt()?->format(DATE_ATOM),
+				'timeLabel' => $this->formatMessageTimeLabel($message->getCreatedAt()),
+			],
+			'attachments' => [[
+				'id' => $attachment->getId(),
+				'messageId' => $attachment->getMessageId(),
+				'fileName' => $attachment->getFileName(),
+				'mimeType' => $attachment->getMimeType(),
+				'sizeBytes' => $attachment->getSizeBytes(),
+				'url' => $this->generateUrl('apps-chat-attachment-show', ['attachmentId' => $attachment->getId()]),
+			]],
+		]);
+	}
+
 	private function formatMessageTimeLabel(?DateTimeInterface $createdAt): string
 	{
 		if ($createdAt === null) {
@@ -233,6 +361,120 @@ class MessageAttachmentController extends AbstractController
 	private function currentUserId(): int
 	{
 		return (int) ($this->authService->getCurrentUserId() ?? 0);
+	}
+
+	private function isAllowedGifSourceUrl(string $gifUrl): bool
+	{
+		$scheme = strtolower((string) parse_url($gifUrl, PHP_URL_SCHEME));
+		$host = strtolower((string) parse_url($gifUrl, PHP_URL_HOST));
+		if ($scheme === '' || $host === '') {
+			return false;
+		}
+
+		if (!in_array($scheme, ['http', 'https'], true)) {
+			return false;
+		}
+
+		if (
+			$host === 'localhost'
+			|| $host === '127.0.0.1'
+			|| $host === '::1'
+			|| str_starts_with($host, '10.')
+			|| str_starts_with($host, '192.168.')
+			|| str_starts_with($host, '169.254.')
+		) {
+			return false;
+		}
+
+		if (preg_match('/^172\.(1[6-9]|2\d|3[0-1])\./', $host) === 1) {
+			return false;
+		}
+
+		if (str_ends_with($host, '.local') || str_ends_with($host, '.internal')) {
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * @return array{0:string,1:string,2:string,3:int}
+	 */
+	private function downloadRemoteGif(string $gifUrl): array
+	{
+		$context = stream_context_create([
+			'http' => [
+				'method' => 'GET',
+				'timeout' => 12,
+				'follow_location' => 1,
+				'ignore_errors' => true,
+				'header' => "User-Agent: NexumChat/1.0\r\nAccept: image/gif,image/*;q=0.9,*/*;q=0.8\r\n",
+			],
+			'https' => [
+				'method' => 'GET',
+				'timeout' => 12,
+				'follow_location' => 1,
+				'ignore_errors' => true,
+				'verify_peer' => true,
+				'verify_peer_name' => true,
+				'header' => "User-Agent: NexumChat/1.0\r\nAccept: image/gif,image/*;q=0.9,*/*;q=0.8\r\n",
+			],
+		]);
+
+		$binary = @file_get_contents($gifUrl, false, $context);
+		if ($binary === false || $binary === '') {
+			throw new InvalidArgumentException('Could not download GIF.');
+		}
+
+		$mimeType = $this->extractResponseMimeType($http_response_header ?? []) ?: 'image/gif';
+		if (!str_starts_with($mimeType, 'image/')) {
+			$mimeType = 'image/gif';
+		}
+
+		$fileName = $this->buildGifAttachmentFileName($gifUrl);
+		$fileSize = strlen($binary);
+		if ($fileSize <= 0) {
+			throw new InvalidArgumentException('Could not download GIF.');
+		}
+
+		return [$binary, $mimeType, $fileName, $fileSize];
+	}
+
+	private function buildGifAttachmentFileName(string $gifUrl): string
+	{
+		$path = (string) parse_url($gifUrl, PHP_URL_PATH);
+		$baseName = basename($path);
+		if ($baseName !== '' && str_contains($baseName, '.')) {
+			return $baseName;
+		}
+
+		return sprintf('gif-%s.gif', bin2hex(random_bytes(6)));
+	}
+
+	/**
+	 * @param array<int,string> $headers
+	 */
+	private function extractResponseMimeType(array $headers): ?string
+	{
+		foreach ($headers as $header) {
+			if (!is_string($header)) {
+				continue;
+			}
+
+			if (stripos($header, 'Content-Type:') !== 0) {
+				continue;
+			}
+
+			$mimeType = trim(substr($header, strlen('Content-Type:')));
+			if ($mimeType === '') {
+				return null;
+			}
+
+			$mimeParts = explode(';', $mimeType, 2);
+			return trim($mimeParts[0]);
+		}
+
+		return null;
 	}
 
 	private function formatUploadFailureMessage(UploadedFile $file, ?int $appLimitBytes = null): string

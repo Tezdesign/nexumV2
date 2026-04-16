@@ -127,7 +127,11 @@ class ChatApp {
         this.gifResults = null
         this.gifStatus = null
         this.gifDebounceTimer = null
-        this.tenorApiKey = 'LIVDSRZULELA'
+        this.tenorApiKey = ''
+        this.gifApiProvider = 'kilpy'
+        this.gifApiBaseUrl = 'https://api.klipy.com'
+        this.gifCustomerId = 'guest'
+        this.gifLocale = 'tn'
         this.chatInputSelectionStart = 0
         this.chatInputSelectionEnd = 0
         this.attachmentButton = null
@@ -143,6 +147,11 @@ class ChatApp {
         if (this.root) {
             this.currentUserName = this.root.dataset.currentUserName || this.currentUserName
             this.currentUserAvatar = this.root.dataset.currentUserAvatar || ''
+            this.tenorApiKey = this.root.dataset.gifApiKey || this.tenorApiKey
+            this.gifApiProvider = (this.root.dataset.gifApiProvider || this.gifApiProvider).toLowerCase()
+            this.gifApiBaseUrl = (this.root.dataset.gifApiBaseUrl || this.gifApiBaseUrl).replace(/\/$/, '')
+            this.gifCustomerId = this.root.dataset.gifCustomerId || this.gifCustomerId
+            this.gifLocale = (this.root.dataset.gifLocale || this.gifLocale).toLowerCase()
         }
 
         this.messagesScrollWrapper = document.querySelector(
@@ -433,14 +442,58 @@ class ChatApp {
 
     buildTenorSearchEndpoint = (query) => {
         const q = String(query || '').trim()
+        if (this.gifApiProvider === 'kilpy') {
+            const customerId = String(this.gifCustomerId || 'guest')
+            const locale = String(this.gifLocale || 'tn')
+            return `${this.gifApiBaseUrl}/api/v1/${encodeURIComponent(this.tenorApiKey)}/gifs/search?q=${encodeURIComponent(q)}&limit=24&media_filter=nanogif,tinygif,gif&customer_id=${encodeURIComponent(customerId)}&locale=${encodeURIComponent(locale)}`
+        }
+
+        if (this.gifApiProvider !== 'tenor') {
+            return `https://api.giphy.com/v1/gifs/search?api_key=${encodeURIComponent(this.tenorApiKey)}&q=${encodeURIComponent(q)}&limit=20&rating=pg&lang=en`
+        }
+
         return `https://tenor.googleapis.com/v2/search?key=${encodeURIComponent(this.tenorApiKey)}&q=${encodeURIComponent(q)}&limit=20&media_filter=gif&contentfilter=low`
     }
 
     buildTenorFeaturedEndpoint = () => {
+        if (this.gifApiProvider === 'kilpy') {
+            const customerId = String(this.gifCustomerId || 'guest')
+            const locale = String(this.gifLocale || 'tn')
+            return `${this.gifApiBaseUrl}/api/v1/${encodeURIComponent(this.tenorApiKey)}/gifs/trending?limit=24&media_filter=nanogif,tinygif,gif&customer_id=${encodeURIComponent(customerId)}&locale=${encodeURIComponent(locale)}`
+        }
+
+        if (this.gifApiProvider !== 'tenor') {
+            return `https://api.giphy.com/v1/gifs/trending?api_key=${encodeURIComponent(this.tenorApiKey)}&limit=20&rating=pg`
+        }
+
         return `https://tenor.googleapis.com/v2/featured?key=${encodeURIComponent(this.tenorApiKey)}&limit=20&media_filter=gif&contentfilter=low`
     }
 
     extractTenorGifUrl = (gifItem) => {
+        if (this.gifApiProvider === 'kilpy') {
+            return (
+                gifItem?.media?.tinygif?.url ||
+                gifItem?.media?.gif?.url ||
+                gifItem?.media_formats?.tinygif?.url ||
+                gifItem?.media_formats?.gif?.url ||
+                gifItem?.tinygif?.url ||
+                gifItem?.gif?.url ||
+                gifItem?.media?.preview?.url ||
+                gifItem?.media?.thumbnail?.url ||
+                ''
+            )
+        }
+
+        if (this.gifApiProvider !== 'tenor') {
+            const images = gifItem?.images || {}
+            return (
+                images?.fixed_width?.url ||
+                images?.downsized?.url ||
+                images?.original?.url ||
+                ''
+            )
+        }
+
         const formats = gifItem?.media_formats || {}
         return (
             formats?.gif?.url ||
@@ -471,15 +524,17 @@ class ChatApp {
                 return
             }
 
+            const description = gifItem?.content_description || gifItem?.description || gifItem?.title || ''
+
             const button = document.createElement('button')
             button.type = 'button'
             button.className = 'chat-gif-item'
-            button.setAttribute('aria-label', `Send GIF ${gifItem?.content_description || ''}`.trim())
+            button.setAttribute('aria-label', `Send GIF ${description}`.trim())
 
             const image = document.createElement('img')
             image.src = gifUrl
             image.loading = 'lazy'
-            image.alt = gifItem?.content_description || 'GIF'
+            image.alt = description || 'GIF'
 
             button.appendChild(image)
             button.addEventListener('click', async () => {
@@ -490,8 +545,64 @@ class ChatApp {
         })
     }
 
+    collectKlipyGifItems = (node, out = []) => {
+        if (Array.isArray(node)) {
+            node.forEach((entry) => this.collectKlipyGifItems(entry, out))
+            return out
+        }
+
+        if (!node || typeof node !== 'object') {
+            return out
+        }
+
+        const hasGifUrl = Boolean(
+            node?.media?.tinygif?.url ||
+            node?.media?.gif?.url ||
+            node?.media_formats?.tinygif?.url ||
+            node?.media_formats?.gif?.url ||
+            node?.tinygif?.url ||
+            node?.gif?.url
+        )
+
+        if (hasGifUrl) {
+            out.push(node)
+        }
+
+        Object.values(node).forEach((value) => {
+            this.collectKlipyGifItems(value, out)
+        })
+
+        return out
+    }
+
+    parseKlipyGifResults = (payload) => {
+        if (payload?.success && Array.isArray(payload?.data)) {
+            return payload.data
+        }
+
+        if (Array.isArray(payload?.data)) {
+            return payload.data
+        }
+
+        if (Array.isArray(payload?.results)) {
+            return payload.results
+        }
+
+        return this.collectKlipyGifItems(payload, [])
+    }
+
     loadGifResults = async (query = '') => {
         if (!this.gifResults) {
+            return
+        }
+
+        if (!String(this.tenorApiKey || '').trim()) {
+            this.gifResults.innerHTML = ''
+            const missingKey = document.createElement('div')
+            missingKey.className = 'text-muted small'
+            missingKey.textContent = 'GIF API key is missing. Set KILPY or KLIPY_API_KEY in your environment.'
+            this.gifResults.appendChild(missingKey)
+            this.gifStatus && (this.gifStatus.textContent = 'GIF API unavailable')
             return
         }
 
@@ -503,18 +614,34 @@ class ChatApp {
         try {
             const response = await fetch(endpoint, { method: 'GET' })
             if (!response.ok) {
-                throw new Error('Failed to load GIFs.')
+                if (response.status === 401 || response.status === 403) {
+                    throw new Error('GIF API key was rejected. Check KILPY.')
+                }
+
+                if (response.status === 429) {
+                    throw new Error('GIF API rate limit reached. Try again later.')
+                }
+
+                throw new Error(`Failed to load GIFs (${response.status}).`)
             }
 
             const payload = await response.json().catch(() => ({}))
-            const results = Array.isArray(payload?.results) ? payload.results : []
+            const results = this.gifApiProvider === 'kilpy'
+                ? this.parseKlipyGifResults(payload)
+                : this.gifApiProvider !== 'tenor'
+                ? (Array.isArray(payload?.data) ? payload.data : [])
+                : (Array.isArray(payload?.results) ? payload.results : [])
             this.renderGifResults(results)
         } catch (error) {
+            console.error('GIF load failed:', error)
             this.gifResults.innerHTML = ''
             const failed = document.createElement('div')
             failed.className = 'text-muted small'
-            failed.textContent = 'Could not load GIFs right now.'
+            failed.textContent = error?.message || 'Could not load GIFs right now.'
             this.gifResults.appendChild(failed)
+            if (this.gifStatus) {
+                this.gifStatus.textContent = error?.message || 'GIF load failed'
+            }
         }
     }
 
@@ -527,10 +654,13 @@ class ChatApp {
         this.chatSendButton?.setAttribute('disabled', 'disabled')
 
         try {
-            const response = await fetch(this.buildConversationMessageStoreEndpoint(this.activeConversationId), {
+            const response = await fetch(this.buildGifUploadEndpoint(), {
                 method: 'POST',
                 headers: { 'Accept': 'application/json' },
-                body: new URLSearchParams({ body: cleanUrl }),
+                body: new URLSearchParams({
+                    conversationId: String(this.activeConversationId),
+                    gifUrl: cleanUrl,
+                }),
             })
 
             const payload = await response.json().catch(() => ({}))
@@ -541,6 +671,11 @@ class ChatApp {
             const message = payload.message || null
             if (!message) {
                 throw new Error('Failed to send GIF.')
+            }
+
+            const attachments = Array.isArray(payload.attachments) ? payload.attachments : []
+            if (attachments.length > 0) {
+                message.attachments = attachments
             }
 
             this.setMessagesState('', false)
@@ -1179,6 +1314,10 @@ class ChatApp {
 
     buildAttachmentUploadEndpoint = () => {
         return '/apps-chat/attachments'
+    }
+
+    buildGifUploadEndpoint = () => {
+        return '/apps-chat/gifs'
     }
 
     buildMessageEditEndpoint = (messageId) => {

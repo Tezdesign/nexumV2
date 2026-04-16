@@ -23,7 +23,9 @@ use InvalidArgumentException;
 
 class ConversationController extends AbstractController
 {
-    public function __construct(private readonly AuthService $authService)
+    public function __construct(
+        private readonly AuthService $authService,
+    )
     {
     }
 
@@ -31,10 +33,43 @@ class ConversationController extends AbstractController
     public function index(ConversationSidebarProvider $sidebarProvider): Response
     {
         $sidebarData = $sidebarProvider->getSidebarData($this->currentUserId());
+        $currentUserId = $this->currentUserId();
+        $gifApiKey = trim((string) (
+            $_ENV['KILPY']
+            ?? $_ENV['KLIPY_API_KEY']
+            ?? $_SERVER['KILPY']
+            ?? $_SERVER['KLIPY_API_KEY']
+            ?? getenv('KILPY')
+            ?? getenv('KLIPY_API_KEY')
+            ?? ''
+        ));
+        $gifApiBaseUrl = rtrim((string) (
+            $_ENV['KILPY_BASE_URL']
+            ?? $_ENV['KLIPY_BASE_URL']
+            ?? $_SERVER['KILPY_BASE_URL']
+            ?? $_SERVER['KLIPY_BASE_URL']
+            ?? getenv('KILPY_BASE_URL')
+            ?? getenv('KLIPY_BASE_URL')
+            ?? 'https://api.klipy.com'
+        ), '/');
+        $gifLocale = strtolower(trim((string) (
+            $_ENV['KILPY_LOCALE']
+            ?? $_ENV['KLIPY_LOCALE']
+            ?? $_SERVER['KILPY_LOCALE']
+            ?? $_SERVER['KLIPY_LOCALE']
+            ?? getenv('KILPY_LOCALE')
+            ?? getenv('KLIPY_LOCALE')
+            ?? 'tn'
+        )));
 
         return $this->render('chat/apps-chat.html.twig', [
             'currentUser' => $sidebarData['currentUser'],
             'conversations' => $sidebarData['conversations'],
+            'gifApiKey' => $gifApiKey,
+            'gifApiProvider' => 'kilpy',
+            'gifApiBaseUrl' => $gifApiBaseUrl,
+            'gifCustomerId' => (string) $currentUserId,
+            'gifLocale' => $gifLocale,
         ]);
     }
 
