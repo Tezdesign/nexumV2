@@ -109,6 +109,7 @@ class ChatApp {
         this.chatInput = null
         this.chatSendButton = null
         this.chatSendDefaultHtml = ''
+        this.voiceButton = null
         this.emojiButton = null
         this.emojiPickerInstance = null
         this.emojiPickerVisible = false
@@ -132,6 +133,22 @@ class ChatApp {
         this.gifApiBaseUrl = 'https://api.klipy.com'
         this.gifCustomerId = 'guest'
         this.gifLocale = 'tn'
+        this.voiceState = null
+        this.voiceStateDot = null
+        this.voiceStateLabel = null
+        this.voiceStateTime = null
+        this.voiceRecordingMode = false
+        this.voiceRecordingActive = false
+        this.voiceRecorder = null
+        this.voiceStream = null
+        this.voiceChunks = []
+        this.voiceRecordedBlob = null
+        this.voiceRecordedUrl = ''
+        this.voicePreviewAudio = null
+        this.voicePreviewPlaying = false
+        this.voiceRecordingSeconds = 0
+        this.voiceRecordingTimer = null
+        this.voiceDiscardOnStop = false
         this.chatInputSelectionStart = 0
         this.chatInputSelectionEnd = 0
         this.attachmentButton = null
@@ -255,6 +272,7 @@ class ChatApp {
             this.chatSendButton = this.chatForm.querySelector('[data-apps-chat="chat-send"]')
             this.chatSendDefaultHtml = this.chatSendButton?.innerHTML || ''
         }
+        this.voiceButton = document.querySelector('[data-apps-chat="voice-button"]')
         this.emojiButton = document.querySelector('[data-apps-chat="emoji-button"]')
         this.emojiFallbackPicker = document.querySelector('[data-apps-chat="emoji-fallback-picker"]')
         this.emojiFallbackCloseButton = document.querySelector('[data-apps-chat="emoji-fallback-close"]')
@@ -268,6 +286,10 @@ class ChatApp {
         this.gifClearButton = document.querySelector('[data-apps-chat="gif-clear"]')
         this.gifResults = document.querySelector('[data-apps-chat="gif-results"]')
         this.gifStatus = document.querySelector('[data-apps-chat="gif-status"]')
+        this.voiceState = document.querySelector('[data-apps-chat="voice-state"]')
+        this.voiceStateDot = document.querySelector('[data-apps-chat="voice-state-dot"]')
+        this.voiceStateLabel = document.querySelector('[data-apps-chat="voice-state-label"]')
+        this.voiceStateTime = document.querySelector('[data-apps-chat="voice-state-time"]')
         this.attachmentButton = document.querySelector('[data-apps-chat="attachment-button"]')
         this.attachmentInput = document.querySelector('[data-apps-chat="attachment-input"]')
         if (this.messagesScrollWrapper && window.SimpleBar)
@@ -302,8 +324,13 @@ class ChatApp {
             this.emojiButton.disabled = !enabled
         }
 
+        if (this.voiceButton) {
+            this.voiceButton.disabled = !enabled
+        }
+
         if (!enabled) {
             this.closeEmojiPicker()
+            this.cancelVoiceRecording({ resetComposer: false })
         }
     }
 
@@ -382,6 +409,443 @@ class ChatApp {
         this.emojiFallbackPicker.setAttribute('aria-hidden', 'false')
         this.emojiPickerVisible = true
         this.emojiButton.setAttribute('aria-expanded', 'true')
+    }
+
+    formatVoiceDuration = (seconds) => {
+        const totalSeconds = Math.max(0, Math.floor(Number(seconds) || 0))
+        const minutes = Math.floor(totalSeconds / 60)
+        const remainingSeconds = String(totalSeconds % 60).padStart(2, '0')
+        return `${minutes}:${remainingSeconds}`
+    }
+
+    getPreferredVoiceMimeType = () => {
+        if (!window.MediaRecorder?.isTypeSupported) {
+            return ''
+        }
+
+        const candidates = [
+            'audio/webm;codecs=opus',
+            'audio/webm',
+            'audio/ogg;codecs=opus',
+            'audio/ogg',
+        ]
+
+        return candidates.find((type) => window.MediaRecorder.isTypeSupported(type)) || ''
+    }
+
+    setVoiceComposerUi = () => {
+        const voiceModeEnabled = this.voiceRecordingMode || this.voiceRecordedBlob !== null
+
+        this.voiceState?.classList.toggle('d-none', !voiceModeEnabled)
+        this.voiceState?.classList.toggle('recording', this.voiceRecordingActive)
+        this.chatInput?.classList.toggle('d-none', voiceModeEnabled)
+        
+        // Show voice button always (for both normal state and voice recording control)
+        if (this.voiceButton) {
+            this.voiceButton.style.display = 'inline-flex'
+        }
+        
+        // Hide attachment button whenever in voice mode (recording or hearing/preview)
+        if (this.attachmentButton) {
+            this.attachmentButton.style.display = voiceModeEnabled ? 'none' : 'inline-flex'
+        }
+
+        if (this.voiceStateDot) {
+            this.voiceStateDot.classList.toggle('d-none', !this.voiceRecordingActive)
+        }
+
+        if (this.voiceStateLabel) {
+            if (this.voiceRecordingActive) {
+                this.voiceStateLabel.textContent = 'Recording audio...'
+            } else if (this.voiceRecordedBlob) {
+                this.voiceStateLabel.textContent = 'Voice message ready'
+            } else if (voiceModeEnabled) {
+                this.voiceStateLabel.textContent = 'Voice message'
+            }
+        }
+
+        if (this.voiceStateTime) {
+            this.voiceStateTime.textContent = this.formatVoiceDuration(this.voiceRecordingSeconds)
+        }
+
+        if (this.voiceButton) {
+            this.voiceButton.setAttribute('aria-label', voiceModeEnabled ? 'Cancel voice recording' : 'Start voice recording')
+            this.voiceButton.title = voiceModeEnabled ? 'Cancel voice recording' : 'Voice message'
+            this.voiceButton.innerHTML = voiceModeEnabled
+                ? '<i class="ti ti-x fs-20"></i>'
+                : '<i class="ti ti-microphone fs-20"></i>'
+        }
+
+        if (this.emojiButton) {
+            if (!voiceModeEnabled) {
+                this.emojiButton.innerHTML = '<i class="ti ti-mood-smile fs-20"></i>'
+                this.emojiButton.setAttribute('aria-label', 'Add emoji')
+                this.emojiButton.title = 'Add emoji'
+                return
+            }
+
+            if (this.voiceRecordingActive) {
+                this.emojiButton.innerHTML = '<i class="ti ti-player-stop fs-20"></i>'
+                this.emojiButton.setAttribute('aria-label', 'Stop recording')
+                this.emojiButton.title = 'Stop recording'
+            } else if (this.voiceRecordedBlob) {
+                this.emojiButton.innerHTML = this.voicePreviewPlaying
+                    ? '<i class="ti ti-player-pause fs-20"></i>'
+                    : '<i class="ti ti-player-play fs-20"></i>'
+                this.emojiButton.setAttribute('aria-label', this.voicePreviewPlaying ? 'Pause preview' : 'Play preview')
+                this.emojiButton.title = this.voicePreviewPlaying ? 'Pause preview' : 'Play preview'
+            }
+        }
+
+        if (this.chatSendButton) {
+            this.chatSendButton.disabled = this.voiceRecordingActive || (voiceModeEnabled && !this.voiceRecordedBlob)
+        }
+    }
+
+    clearVoiceRecordingTimer = () => {
+        if (this.voiceRecordingTimer) {
+            window.clearInterval(this.voiceRecordingTimer)
+            this.voiceRecordingTimer = null
+        }
+    }
+
+    stopVoicePreview = () => {
+        if (this.voicePreviewAudio) {
+            this.voicePreviewAudio.pause()
+            this.voicePreviewAudio.currentTime = 0
+        }
+
+        this.voicePreviewPlaying = false
+    }
+
+    releaseVoiceRecordingResources = ({ discardRecording = false } = {}) => {
+        if (discardRecording && this.voiceRecorder && this.voiceRecorder.state !== 'inactive') {
+            this.voiceDiscardOnStop = true
+        }
+
+        this.clearVoiceRecordingTimer()
+
+        if (this.voiceRecorder && this.voiceRecorder.state !== 'inactive') {
+            try {
+                this.voiceRecorder.stop()
+            } catch {
+                // ignore recorder shutdown races
+            }
+        }
+
+        this.voiceRecorder = null
+
+        if (this.voiceStream) {
+            this.voiceStream.getTracks().forEach((track) => track.stop())
+            this.voiceStream = null
+        }
+    }
+
+    resetVoiceRecording = ({ resetComposer = true } = {}) => {
+        this.stopVoicePreview()
+        this.releaseVoiceRecordingResources()
+
+        this.voiceRecordingMode = false
+        this.voiceRecordingActive = false
+        this.voiceChunks = []
+        this.voiceRecordedBlob = null
+        this.voiceRecordingSeconds = 0
+
+        if (this.voiceRecordedUrl) {
+            window.URL.revokeObjectURL(this.voiceRecordedUrl)
+            this.voiceRecordedUrl = ''
+        }
+
+        if (resetComposer) {
+            this.chatInput?.classList.remove('d-none')
+            this.attachmentButton?.classList.remove('d-none')
+            this.voiceState?.classList.add('d-none')
+            if (this.voiceStateLabel) {
+                this.voiceStateLabel.textContent = 'Voice message'
+            }
+            if (this.voiceStateTime) {
+                this.voiceStateTime.textContent = '00:00'
+            }
+        }
+
+        this.setVoiceComposerUi()
+    }
+
+    cancelVoiceRecording = ({ resetComposer = true } = {}) => {
+        this.releaseVoiceRecordingResources({ discardRecording: true })
+
+        this.voiceRecordingMode = false
+        this.voiceRecordingActive = false
+        this.voiceChunks = []
+        this.voiceRecordedBlob = null
+        this.voiceRecordingSeconds = 0
+
+        if (this.voiceRecordedUrl) {
+            window.URL.revokeObjectURL(this.voiceRecordedUrl)
+            this.voiceRecordedUrl = ''
+        }
+
+        this.stopVoicePreview()
+
+        if (resetComposer) {
+            this.voiceState?.classList.add('d-none')
+            this.chatInput?.classList.remove('d-none')
+            this.attachmentButton?.classList.remove('d-none')
+        }
+
+        this.setVoiceComposerUi()
+    }
+
+    startVoiceRecording = async () => {
+        if (this.voiceRecordingActive || this.voiceRecordedBlob) {
+            return
+        }
+
+        if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+            this.showBottomNotice('Voice recording is not supported in this browser.')
+            return
+        }
+
+        this.closeEmojiPicker()
+        this.cancelVoiceRecording({ resetComposer: false })
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+            this.voiceStream = stream
+            this.voiceChunks = []
+            this.voiceRecordingMode = true
+            this.voiceRecordingActive = true
+            this.voiceRecordingSeconds = 0
+
+            const mimeType = this.getPreferredVoiceMimeType()
+            const recorder = mimeType
+                ? new MediaRecorder(stream, { mimeType })
+                : new MediaRecorder(stream)
+
+            this.voiceRecorder = recorder
+            this.setVoiceComposerUi()
+
+            this.voiceRecordingTimer = window.setInterval(() => {
+                this.voiceRecordingSeconds += 1
+                if (this.voiceStateTime) {
+                    this.voiceStateTime.textContent = this.formatVoiceDuration(this.voiceRecordingSeconds)
+                }
+            }, 1000)
+
+            recorder.addEventListener('dataavailable', (event) => {
+                if (event.data && event.data.size > 0) {
+                    this.voiceChunks.push(event.data)
+                }
+            })
+
+            recorder.addEventListener('stop', () => {
+                this.voiceRecordingActive = false
+                this.clearVoiceRecordingTimer()
+                if (this.voiceStream) {
+                    this.voiceStream.getTracks().forEach((track) => track.stop())
+                    this.voiceStream = null
+                }
+
+                if (this.voiceDiscardOnStop) {
+                    this.voiceDiscardOnStop = false
+                    this.voiceChunks = []
+                    this.voiceRecordedBlob = null
+                    this.voiceRecordingMode = false
+                    this.voiceRecordingSeconds = 0
+
+                    if (this.voiceRecordedUrl) {
+                        window.URL.revokeObjectURL(this.voiceRecordedUrl)
+                        this.voiceRecordedUrl = ''
+                    }
+
+                    this.stopVoicePreview()
+                    this.setVoiceComposerUi()
+                    return
+                }
+
+                if (this.voiceChunks.length === 0) {
+                    this.resetVoiceRecording({ resetComposer: true })
+                    return
+                }
+
+                const blobType = recorder.mimeType || mimeType || 'audio/webm'
+                this.voiceRecordedBlob = new Blob(this.voiceChunks, { type: blobType })
+                this.voiceChunks = []
+
+                if (this.voiceRecordedUrl) {
+                    window.URL.revokeObjectURL(this.voiceRecordedUrl)
+                }
+
+                this.voiceRecordedUrl = window.URL.createObjectURL(this.voiceRecordedBlob)
+                if (!this.voicePreviewAudio) {
+                    this.voicePreviewAudio = new Audio()
+                }
+
+                this.voicePreviewAudio.src = this.voiceRecordedUrl
+                this.voicePreviewAudio.preload = 'metadata'
+                this.voicePreviewAudio.onended = () => {
+                    this.voicePreviewPlaying = false
+                    this.setVoiceComposerUi()
+                }
+
+                this.voicePreviewPlaying = false
+                this.voiceDiscardOnStop = false
+                this.setVoiceComposerUi()
+            })
+
+            recorder.start()
+            this.setVoiceComposerUi()
+        } catch (error) {
+            console.error('Voice recording failed:', error)
+            this.showBottomNotice(error?.message || 'Could not start voice recording.')
+            this.resetVoiceRecording({ resetComposer: true })
+        }
+    }
+
+    stopVoiceRecording = () => {
+        if (!this.voiceRecorder || this.voiceRecorder.state === 'inactive') {
+            return
+        }
+
+        try {
+            this.voiceRecorder.stop()
+        } catch (error) {
+            console.error('Voice stop failed:', error)
+            this.showBottomNotice('Could not stop voice recording.')
+        }
+    }
+
+    toggleVoicePreview = async () => {
+        if (!this.voiceRecordedBlob || !this.voicePreviewAudio) {
+            return
+        }
+
+        try {
+            if (this.voicePreviewPlaying) {
+                this.voicePreviewAudio.pause()
+                this.voicePreviewPlaying = false
+                this.setVoiceComposerUi()
+                return
+            }
+
+            this.voicePreviewPlaying = true
+            this.setVoiceComposerUi()
+            await this.voicePreviewAudio.play()
+        } catch (error) {
+            console.error('Voice preview failed:', error)
+            this.voicePreviewPlaying = false
+            this.setVoiceComposerUi()
+        }
+    }
+
+    uploadFilesAsAttachments = async (files) => {
+        if (!this.activeConversationId || !Array.isArray(files) || files.length === 0) {
+            return false
+        }
+
+        const formData = new FormData()
+        formData.append('conversationId', String(this.activeConversationId))
+        files.forEach((file) => {
+            formData.append('files[]', file)
+        })
+
+        this.attachmentButton?.setAttribute('disabled', 'disabled')
+        this.chatSendButton?.setAttribute('disabled', 'disabled')
+
+        try {
+            const response = await fetch(this.buildAttachmentUploadEndpoint(), {
+                method: 'POST',
+                headers: { 'Accept': 'application/json' },
+                body: formData,
+            })
+
+            const payload = await response.json().catch(() => ({}))
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.error || 'Failed to upload file.')
+            }
+
+            const createdMessages = Array.isArray(payload.messages) ? payload.messages : []
+            const createdAttachments = Array.isArray(payload.attachments) ? payload.attachments : []
+            if (createdAttachments.length > 0) {
+                const attachmentsByMessageId = new Map()
+                createdAttachments.forEach((attachment) => {
+                    const key = String(attachment?.messageId || '')
+                    if (!key) {
+                        return
+                    }
+
+                    if (!attachmentsByMessageId.has(key)) {
+                        attachmentsByMessageId.set(key, [])
+                    }
+
+                    attachmentsByMessageId.get(key).push(attachment)
+                })
+
+                createdMessages.forEach((message) => {
+                    const key = String(message?.id || '')
+                    if (!key) {
+                        return
+                    }
+
+                    const attachments = attachmentsByMessageId.get(key)
+                    if (attachments && attachments.length > 0) {
+                        message.attachments = attachments
+                    }
+                })
+            }
+
+            if (createdMessages.length > 0) {
+                this.setMessagesState('', false)
+            }
+
+            createdMessages.forEach((message, index) => {
+                this.messagesList?.appendChild(this.createMessageNode(message, Date.now() + index))
+            })
+
+            const latestMessage = createdMessages[createdMessages.length - 1]
+            if (latestMessage) {
+                this.syncConversationItemLastMessage(this.activeConversationItem, latestMessage)
+            }
+
+            this.scrollToBottom(true)
+            return true
+        } catch (error) {
+            this.showBottomNotice(error?.message || 'Failed to upload file.')
+            return false
+        } finally {
+            this.attachmentButton?.removeAttribute('disabled')
+            this.chatSendButton?.removeAttribute('disabled')
+        }
+    }
+
+    buildVoiceRecordingFile = () => {
+        if (!this.voiceRecordedBlob) {
+            return null
+        }
+
+        const mimeType = this.voiceRecordedBlob.type || 'audio/webm'
+        const extension = mimeType.includes('ogg') ? 'ogg' : 'webm'
+        const fileName = `voice-message-${Date.now()}.${extension}`
+        return new File([this.voiceRecordedBlob], fileName, { type: mimeType })
+    }
+
+    sendVoiceRecording = async () => {
+        if (!this.voiceRecordedBlob) {
+            return
+        }
+
+        const voiceFile = this.buildVoiceRecordingFile()
+        if (!voiceFile) {
+            return
+        }
+
+        this.voicePreviewAudio?.pause()
+        this.voicePreviewPlaying = false
+
+        const success = await this.uploadFilesAsAttachments([voiceFile])
+        if (success) {
+            this.resetVoiceRecording({ resetComposer: true })
+        }
     }
 
     initEmojiPicker = () => {
@@ -1665,79 +2129,10 @@ class ChatApp {
         }
 
         const files = Array.from(this.attachmentInput.files)
-        const formData = new FormData()
-        formData.append('conversationId', String(this.activeConversationId))
-        files.forEach((file) => {
-            formData.append('files[]', file)
-        })
+        await this.uploadFilesAsAttachments(files)
 
-        this.attachmentButton?.setAttribute('disabled', 'disabled')
-        this.chatSendButton?.setAttribute('disabled', 'disabled')
-
-        try {
-            const response = await fetch(this.buildAttachmentUploadEndpoint(), {
-                method: 'POST',
-                headers: { 'Accept': 'application/json' },
-                body: formData,
-            })
-
-            const payload = await response.json().catch(() => ({}))
-            if (!response.ok || !payload.success) {
-                throw new Error(payload.error || 'Failed to upload file.')
-            }
-
-            const createdMessages = Array.isArray(payload.messages) ? payload.messages : []
-            const createdAttachments = Array.isArray(payload.attachments) ? payload.attachments : []
-            if (createdAttachments.length > 0) {
-                const attachmentsByMessageId = new Map()
-                createdAttachments.forEach((attachment) => {
-                    const key = String(attachment?.messageId || '')
-                    if (!key) {
-                        return
-                    }
-
-                    if (!attachmentsByMessageId.has(key)) {
-                        attachmentsByMessageId.set(key, [])
-                    }
-
-                    attachmentsByMessageId.get(key).push(attachment)
-                })
-
-                createdMessages.forEach((message) => {
-                    const key = String(message?.id || '')
-                    if (!key) {
-                        return
-                    }
-
-                    const attachments = attachmentsByMessageId.get(key)
-                    if (attachments && attachments.length > 0) {
-                        message.attachments = attachments
-                    }
-                })
-            }
-
-            if (createdMessages.length > 0) {
-                this.setMessagesState('', false)
-            }
-
-            createdMessages.forEach((message, index) => {
-                this.messagesList?.appendChild(this.createMessageNode(message, Date.now() + index))
-            })
-
-            const latestMessage = createdMessages[createdMessages.length - 1]
-            if (latestMessage) {
-                this.syncConversationItemLastMessage(this.activeConversationItem, latestMessage)
-            }
-
-            this.scrollToBottom(true)
-        } catch (error) {
-            this.showBottomNotice(error?.message || 'Failed to upload file.')
-        } finally {
-            if (this.attachmentInput) {
-                this.attachmentInput.value = ''
-            }
-            this.attachmentButton?.removeAttribute('disabled')
-            this.chatSendButton?.removeAttribute('disabled')
+        if (this.attachmentInput) {
+            this.attachmentInput.value = ''
         }
     }
 
@@ -2012,6 +2407,7 @@ class ChatApp {
     }
 
     resetConversationView = () => {
+        this.cancelVoiceRecording({ resetComposer: true })
         this.activeConversationItem = null
         this.activeConversationId = null
 
@@ -3284,6 +3680,8 @@ class ChatApp {
             return
         }
 
+        this.cancelVoiceRecording({ resetComposer: true })
+
         if (this.inlineEditMessageId) {
             this.clearInlineEditMode({ resetInput: true })
         }
@@ -3345,6 +3743,16 @@ class ChatApp {
             e.preventDefault();
 
             if (!this.activeConversationId || !this.chatInput) {
+                return
+            }
+
+            if (this.voiceRecordingActive) {
+                this.stopVoiceRecording()
+                return
+            }
+
+            if (this.voiceRecordedBlob) {
+                this.sendVoiceRecording()
                 return
             }
 
@@ -3462,7 +3870,34 @@ class ChatApp {
                 return
             }
 
+            if (this.voiceRecordingMode) {
+                if (this.voiceRecordingActive) {
+                    this.stopVoiceRecording()
+                } else if (this.voiceRecordedBlob) {
+                    this.toggleVoicePreview()
+                } else {
+                    this.startVoiceRecording()
+                }
+
+                return
+            }
+
             this.toggleEmojiPicker()
+        })
+
+        this.voiceButton?.addEventListener('click', async (event) => {
+            event.preventDefault()
+
+            if (!this.activeConversationId) {
+                return
+            }
+
+            if (this.voiceRecordingMode) {
+                this.cancelVoiceRecording({ resetComposer: true })
+                return
+            }
+
+            await this.startVoiceRecording()
         })
 
         this.emojiFallbackCloseButton?.addEventListener('click', (event) => {
@@ -3919,6 +4354,7 @@ class ChatApp {
         this.initSearch();
         this.initConversationSelection();
         this.closeEmojiPicker();
+        this.setVoiceComposerUi();
         this.initForm();
     }
 }
