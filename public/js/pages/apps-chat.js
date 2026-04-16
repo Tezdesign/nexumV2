@@ -455,13 +455,7 @@ class ChatApp {
         }
 
         if (this.voiceStateLabel) {
-            if (this.voiceRecordingActive) {
-                this.voiceStateLabel.textContent = 'Recording audio...'
-            } else if (this.voiceRecordedBlob) {
-                this.voiceStateLabel.textContent = 'Voice message ready'
-            } else if (voiceModeEnabled) {
-                this.voiceStateLabel.textContent = 'Voice message'
-            }
+            this.voiceStateLabel.textContent = this.getVoiceStateLabelText()
         }
 
         if (this.voiceStateTime) {
@@ -516,6 +510,23 @@ class ChatApp {
         }
 
         this.voicePreviewPlaying = false
+    }
+
+    getVoiceStateLabelText = () => {
+        if (this.voiceRecordingActive) {
+            return 'Recording audio...'
+        }
+
+        if (this.voicePreviewPlaying) {
+            return 'Listening...'
+        }
+
+        if (this.voiceRecordedBlob) {
+            const duration = this.formatVoiceDuration(this.voiceRecordingSeconds)
+            return this.voiceRecordingSeconds > 0 ? `Tap to listen • ${duration}` : 'Tap to listen'
+        }
+
+        return 'Voice message'
     }
 
     releaseVoiceRecordingResources = ({ discardRecording = false } = {}) => {
@@ -637,7 +648,6 @@ class ChatApp {
                     this.voiceChunks.push(event.data)
                 }
             })
-
             recorder.addEventListener('stop', () => {
                 this.voiceRecordingActive = false
                 this.clearVoiceRecordingTimer()
@@ -2981,15 +2991,18 @@ class ChatApp {
             waveformRow.style.overflow = 'hidden'
             waveformRow.style.backgroundColor = 'rgba(13, 110, 253, 0.08)'
             waveformRow.style.borderRadius = '999px'
+            waveformRow.style.touchAction = 'none'
 
             const waveformSeed = String(attachment?.id || fileName || url)
             const waveformBars = []
             const barCount = 36
+            const baseBarHeights = []
 
             for (let barIndex = 0; barIndex < barCount; barIndex += 1) {
                 const bar = document.createElement('span')
                 const seedChar = waveformSeed.charCodeAt(barIndex % waveformSeed.length) || (barIndex + 17)
                 const normalizedHeightPx = 16 + ((seedChar + barIndex * 17) % 26)
+                baseBarHeights.push(normalizedHeightPx)
 
                 bar.style.width = '6px'
                 bar.style.height = `${normalizedHeightPx}px`
@@ -3019,7 +3032,49 @@ class ChatApp {
             playhead.style.backgroundColor = primaryColor
             playhead.style.transform = 'translateX(-1px)'
 
+            const progressFill = document.createElement('span')
+            progressFill.style.position = 'absolute'
+            progressFill.style.inset = '0 auto 0 0'
+            progressFill.style.width = '0%'
+            progressFill.style.borderRadius = '999px'
+            progressFill.style.background = 'linear-gradient(90deg, rgba(13, 110, 253, 0.28), rgba(13, 110, 253, 0.12))'
+            progressFill.style.pointerEvents = 'none'
+
+            const hoverIndicator = document.createElement('span')
+            hoverIndicator.style.position = 'absolute'
+            hoverIndicator.style.top = '0'
+            hoverIndicator.style.bottom = '0'
+            hoverIndicator.style.width = '2px'
+            hoverIndicator.style.left = '0%'
+            hoverIndicator.style.borderRadius = '999px'
+            hoverIndicator.style.backgroundColor = 'rgba(13, 110, 253, 0.35)'
+            hoverIndicator.style.opacity = '0'
+            hoverIndicator.style.pointerEvents = 'none'
+
+            const hoverTimeChip = document.createElement('span')
+            hoverTimeChip.style.position = 'absolute'
+            hoverTimeChip.style.top = '50%'
+            hoverTimeChip.style.transform = 'translate(-50%, -170%)'
+            hoverTimeChip.style.padding = '2px 6px'
+            hoverTimeChip.style.borderRadius = '999px'
+            hoverTimeChip.style.fontSize = '10px'
+            hoverTimeChip.style.fontWeight = '600'
+            hoverTimeChip.style.color = 'var(--bs-body-color)'
+            hoverTimeChip.style.backgroundColor = 'var(--bs-body-bg)'
+            hoverTimeChip.style.border = '1px solid var(--bs-border-color)'
+            hoverTimeChip.style.boxShadow = '0 4px 14px rgba(15, 23, 42, 0.12)'
+            hoverTimeChip.style.opacity = '0'
+            hoverTimeChip.style.pointerEvents = 'none'
+            hoverTimeChip.textContent = '0:00'
+
+            waveformRow.appendChild(progressFill)
             waveformRow.appendChild(playhead)
+            waveformRow.appendChild(hoverIndicator)
+            waveformRow.appendChild(hoverTimeChip)
+
+            let waveformFrameId = null
+            let isWaveformDragging = false
+            let lastPointerProgress = 0
 
             const timerRow = document.createElement('div')
             timerRow.className = 'd-flex align-items-center justify-content-between mt-1'
@@ -3052,27 +3107,75 @@ class ChatApp {
                 return `${minutes}:${remainingSeconds}`
             }
 
-            const updateProgress = () => {
+            const renderWaveform = (animated = false, previewProgress = null) => {
                 if (!audio.duration || Number.isNaN(audio.duration)) {
                     playhead.style.left = '0%'
+                    progressFill.style.width = '0%'
+                    hoverIndicator.style.opacity = '0'
+                    hoverTimeChip.style.opacity = '0'
                     currentTimeText.textContent = '0:00'
                     return
                 }
 
-                const progress = Math.min(100, Math.max(0, (audio.currentTime / audio.duration) * 100))
+                const progress = Math.min(100, Math.max(0, previewProgress ?? ((audio.currentTime / audio.duration) * 100)))
                 const activeBarCount = Math.max(1, Math.round((progress / 100) * waveformBars.length))
+                const playbackPhase = audio.currentTime * 6.5
+                const currentBarIndex = Math.max(0, Math.min(waveformBars.length - 1, Math.round((progress / 100) * (waveformBars.length - 1))))
 
                 waveformBars.forEach((bar, index) => {
                     const isActive = index < activeBarCount
                     const isCurrent = index === activeBarCount - 1
+                    const distanceFromPlayhead = Math.abs(index - activeBarCount + 1)
+                    const proximity = Math.max(0, 1 - (distanceFromPlayhead / 6))
+                    const pulse = animated ? (Math.sin(playbackPhase + index * 0.55) + 1) / 2 : 0
+                    const heightScale = isActive
+                        ? 0.94 + (proximity * 0.28) + (pulse * 0.22)
+                        : 0.72 + (pulse * 0.08)
 
+                    const hoverBoost = Math.max(0, 1 - (Math.abs(index - currentBarIndex) / 4))
                     bar.style.backgroundColor = isActive ? waveActiveColor : waveIdleColor
-                    bar.style.opacity = isActive ? '1' : '0.65'
-                    bar.style.transform = isCurrent && !audio.paused ? 'scaleY(1.24)' : 'scaleY(1)'
+                    bar.style.opacity = isActive ? String(0.80 + (proximity * 0.20)) : String(0.42 + (hoverBoost * 0.12))
+                    bar.style.transform = `scaleY(${isCurrent && !audio.paused ? Math.max(1.22, heightScale) : heightScale})`
                 })
 
                 playhead.style.left = `${progress}%`
+                progressFill.style.width = `${progress}%`
                 currentTimeText.textContent = formatTime(audio.currentTime)
+
+                if (isWaveformDragging) {
+                    hoverIndicator.style.opacity = '1'
+                    hoverIndicator.style.left = `${progress}%`
+                    hoverTimeChip.style.opacity = '1'
+                    hoverTimeChip.style.left = `${progress}%`
+                    hoverTimeChip.textContent = formatTime((progress / 100) * audio.duration)
+                } else if (animated && !audio.paused) {
+                    hoverIndicator.style.opacity = '0'
+                    hoverTimeChip.style.opacity = '0'
+                }
+            }
+
+            const stopWaveformAnimation = () => {
+                if (waveformFrameId !== null) {
+                    window.cancelAnimationFrame(waveformFrameId)
+                    waveformFrameId = null
+                }
+            }
+
+            const startWaveformAnimation = () => {
+                stopWaveformAnimation()
+
+                const tick = () => {
+                    if (audio.paused || audio.ended) {
+                        waveformFrameId = null
+                        renderWaveform(false)
+                        return
+                    }
+
+                    renderWaveform(true)
+                    waveformFrameId = window.requestAnimationFrame(tick)
+                }
+
+                waveformFrameId = window.requestAnimationFrame(tick)
             }
 
             const updateDuration = () => {
@@ -3090,16 +3193,44 @@ class ChatApp {
                 this.activeAudioElement = audio
             }
 
-            const seekToPointer = (event) => {
+            const getPointerProgress = (event) => {
                 if (!audio.duration || Number.isNaN(audio.duration)) {
-                    return
+                    return 0
                 }
 
                 const rect = waveformRow.getBoundingClientRect()
                 const offset = Math.min(Math.max(0, event.clientX - rect.left), rect.width)
-                const ratio = rect.width > 0 ? offset / rect.width : 0
-                audio.currentTime = ratio * audio.duration
-                updateProgress()
+                return rect.width > 0 ? offset / rect.width : 0
+            }
+
+            const seekToProgress = (progress) => {
+                if (!audio.duration || Number.isNaN(audio.duration)) {
+                    return
+                }
+
+                const safeProgress = Math.min(1, Math.max(0, progress))
+                audio.currentTime = safeProgress * audio.duration
+                renderWaveform(false, safeProgress * 100)
+            }
+
+            const updateHoverState = (event, commit = false) => {
+                if (!audio.duration || Number.isNaN(audio.duration)) {
+                    return
+                }
+
+                const progress = getPointerProgress(event)
+                lastPointerProgress = progress
+                renderWaveform(false, progress * 100)
+
+                hoverIndicator.style.opacity = '1'
+                hoverIndicator.style.left = `${progress * 100}%`
+                hoverTimeChip.style.opacity = '1'
+                hoverTimeChip.style.left = `${progress * 100}%`
+                hoverTimeChip.textContent = formatTime(progress * audio.duration)
+
+                if (commit) {
+                    seekToProgress(progress)
+                }
             }
 
             playButton.addEventListener('click', async () => {
@@ -3117,12 +3248,67 @@ class ChatApp {
                 updatePlayState()
             })
 
-            waveformRow.addEventListener('click', seekToPointer)
+            waveformRow.addEventListener('pointerdown', (event) => {
+                if (!audio.duration || Number.isNaN(audio.duration)) {
+                    return
+                }
 
-            audio.addEventListener('play', updatePlayState)
+                isWaveformDragging = true
+                waveformRow.setPointerCapture?.(event.pointerId)
+                updateHoverState(event, true)
+            })
+
+            waveformRow.addEventListener('pointermove', (event) => {
+                if (!audio.duration || Number.isNaN(audio.duration)) {
+                    return
+                }
+
+                if (!isWaveformDragging && event.buttons !== 1) {
+                    const progress = getPointerProgress(event)
+                    hoverIndicator.style.opacity = '1'
+                    hoverIndicator.style.left = `${progress * 100}%`
+                    hoverTimeChip.style.opacity = '1'
+                    hoverTimeChip.style.left = `${progress * 100}%`
+                    hoverTimeChip.textContent = formatTime(progress * audio.duration)
+                    renderWaveform(audio && !audio.paused, progress * 100)
+                    return
+                }
+
+                updateHoverState(event, true)
+            })
+
+            waveformRow.addEventListener('pointerup', (event) => {
+                if (!audio.duration || Number.isNaN(audio.duration)) {
+                    return
+                }
+
+                updateHoverState(event, true)
+                isWaveformDragging = false
+                waveformRow.releasePointerCapture?.(event.pointerId)
+                if (!audio.paused) {
+                    startWaveformAnimation()
+                }
+            })
+
+            waveformRow.addEventListener('pointerleave', () => {
+                if (isWaveformDragging) {
+                    return
+                }
+
+                hoverIndicator.style.opacity = '0'
+                hoverTimeChip.style.opacity = '0'
+                renderWaveform(!audio.paused)
+            })
+
+            audio.addEventListener('play', () => {
+                updatePlayState()
+                startWaveformAnimation()
+            })
             audio.addEventListener('playing', pauseOtherAudio)
             audio.addEventListener('pause', () => {
                 updatePlayState()
+                stopWaveformAnimation()
+                renderWaveform(false)
                 if (this.activeAudioElement === audio) {
                     this.activeAudioElement = null
                 }
@@ -3130,15 +3316,18 @@ class ChatApp {
             audio.addEventListener('ended', () => {
                 audio.currentTime = 0
                 updatePlayState()
+                stopWaveformAnimation()
+                renderWaveform(false)
                 playhead.style.left = '0%'
                 currentTimeText.textContent = '0:00'
                 if (this.activeAudioElement === audio) {
                     this.activeAudioElement = null
                 }
             })
-            audio.addEventListener('timeupdate', updateProgress)
+            audio.addEventListener('timeupdate', () => renderWaveform(false))
             audio.addEventListener('loadedmetadata', updateDuration)
             audio.addEventListener('error', () => {
+                stopWaveformAnimation()
                 waveformBars.forEach((bar) => {
                     bar.style.backgroundColor = waveIdleColor
                     bar.style.opacity = '0.65'
@@ -3158,6 +3347,7 @@ class ChatApp {
             wrapper.appendChild(bubbleWrapper)
 
             updatePlayState()
+            renderWaveform(false)
             return wrapper
         }
 
