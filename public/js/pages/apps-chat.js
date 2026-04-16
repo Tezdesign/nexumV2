@@ -459,7 +459,7 @@ class ChatApp {
         }
 
         if (this.voiceStateTime) {
-            this.voiceStateTime.textContent = this.formatVoiceDuration(this.voiceRecordingSeconds)
+            this.voiceStateTime.textContent = this.getVoiceStateTimeText()
         }
 
         if (this.voiceButton) {
@@ -518,15 +518,49 @@ class ChatApp {
         }
 
         if (this.voicePreviewPlaying) {
-            return 'Listening...'
+            return 'Playing audio...'
         }
 
         if (this.voiceRecordedBlob) {
-            const duration = this.formatVoiceDuration(this.voiceRecordingSeconds)
-            return this.voiceRecordingSeconds > 0 ? `Tap to listen • ${duration}` : 'Tap to listen'
+            const duration = this.getVoicePreviewDurationSeconds()
+            const remaining = this.getVoicePreviewRemainingSeconds()
+
+            if (this.voicePreviewAudio && !this.voicePreviewAudio.paused && remaining > 0) {
+                return `Playing • ${this.formatVoiceDuration(remaining)} left`
+            }
+
+            return `Tap to play • ${this.formatVoiceDuration(duration)}`
         }
 
         return 'Voice message'
+    }
+
+    getVoicePreviewDurationSeconds = () => {
+        const duration = this.voicePreviewAudio?.duration
+        if (Number.isFinite(duration) && duration > 0) {
+            return duration
+        }
+
+        return this.voiceRecordingSeconds
+    }
+
+    getVoicePreviewRemainingSeconds = () => {
+        const duration = this.getVoicePreviewDurationSeconds()
+        const currentTime = this.voicePreviewAudio?.currentTime || 0
+        return Math.max(0, duration - currentTime)
+    }
+
+    getVoiceStateTimeText = () => {
+        if (this.voiceRecordingActive) {
+            return this.formatVoiceDuration(this.voiceRecordingSeconds)
+        }
+
+        if (this.voiceRecordedBlob) {
+            const remaining = this.getVoicePreviewRemainingSeconds()
+            return `${this.formatVoiceDuration(remaining)} left`
+        }
+
+        return '00:00'
     }
 
     releaseVoiceRecordingResources = ({ discardRecording = false } = {}) => {
