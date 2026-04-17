@@ -85,7 +85,7 @@
                     <div class="modal-body p-4">
                         <p class="text-muted fs-14 mb-3">{{ 'Please select the date for this new transaction.'|trans }}</p>
                         <label class="form-label">{{ 'Transaction Date'|trans }}</label>
-                        <input type="date" name="transaction_date" id="consultant-transaction-date" class="form-control" required>
+                        <input type="text" name="transaction_date" id="consultant-transaction-date" class="form-control flatpickr-input" data-provider="flatpickr" data-date-format="Y-m-d" required placeholder="YYYY-MM-DD">
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-light" data-bs-dismiss="modal">{{ 'Cancel'|trans }}</button>

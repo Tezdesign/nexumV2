@@ -272,7 +272,8 @@ class FinancialDashboardController extends AbstractController
         Request $request,
         \App\Service\AuthService $authService,
         \App\Repository\FinancialAnalysis\ExpenseDraftRepository $expenseDraftRepository,
-        BudgetDashboardService $dashboardService
+        BudgetDashboardService $dashboardService,
+        \Symfony\Component\Validator\Validator\ValidatorInterface $validator
     ): Response {
         $reason = trim((string) $request->request->get('reason', ''));
         $pb = $draft->getProjectBudgetRelated();
@@ -330,6 +331,17 @@ class FinancialDashboardController extends AbstractController
             $transaction->setDateStamp($transactionDate);
             $transaction->setExpenseCategory($draft->getCategory());
             $transaction->setDescription($draft->getDescription());
+
+            // Apply strict validation constraints before persisting
+            $errors = $validator->validate($transaction);
+            if (count($errors) > 0) {
+                $errorMessages = [];
+                foreach ($errors as $error) {
+                    $errorMessages[] = $error->getMessage();
+                }
+                $this->addFlash('danger', 'Validation failed: ' . implode(' ', $errorMessages));
+                return $this->redirectToRoute('apps-financial-analysis-budget-details', ['id' => $pid, '_fragment' => 'transactions-tab']);
+            }
 
             $profile = $dashboardService->getFiscalProfileForBudget($pb);
             $dashboardService->handleTransactionCascade($pb, $transaction, $profile);
