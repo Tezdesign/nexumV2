@@ -18,7 +18,7 @@
         <!-- Breadcrumb -->
         <div class="row align-items-center mb-3">
             <div class="col-12 d-flex justify-content-between align-items-center">
-                <div class="page-title-box mb-0">
+                <div class="page-title-box mb-0 flex-shrink-1">
                     <h4 class="page-title m-0">
                         <nav aria-label="breadcrumb" class="d-inline-block">
                             <ol class="breadcrumb m-0 p-0 bg-transparent align-items-center">
@@ -32,13 +32,15 @@
                         </nav>
                     </h4>
                 </div>
-                <div class="d-flex gap-2 align-items-center">
-                    <span class="text-muted fs-14 fw-medium me-3 d-flex align-items-center">
-                        <i class="ti ti-cash fs-18 me-1"></i>{{ 'Base Currency:'|trans }}&nbsp;<strong class="text-dark me-2" id="current-currency-display">{{ budgetProfile.baseCurrency|default('N/A') }}</strong>
-                        <i class="ti ti-link fs-16 me-1 text-primary" title="{{ 'Live Exchange Rates'|trans }}"></i>
-                        <select id="currency-exchange-select" class="form-select form-select-sm" style="width: 100px;">
+                <div class="d-flex gap-2 align-items-center flex-wrap justify-content-end flex-grow-1">
+                    <span class="text-muted fs-14 text-nowrap fw-medium me-3 d-flex align-items-center">
+                        <i class="ti ti-cash fs-18 me-1 "></i>{{ 'Base Currency:'|trans }}&nbsp;<strong class="text-dark me-2" id="current-currency-display">{{ budgetProfile.baseCurrency|default('N/A') }}</strong>
+                        <i class="ti ti-link fs-16 me-1 text-primary " title="{{ 'Live Exchange Rates'|trans }}"></i>
+                        <div style="width: 150px" >
+                        <select id="currency-exchange-select" class="form-select form-select-sm w-100" >
                             <!-- Options populated via JS -->
                         </select>
+                        </div>
                     </span>
                     <button type="button" class="btn btn-outline-primary rounded-pill px-3 py-1" data-bs-toggle="modal" data-bs-target="#updateProfileModal">
                         <i class="ti ti-pencil me-1"></i> {{ 'Edit Profile'|trans }}
@@ -366,6 +368,8 @@
                     if (response.results && response.results.length > 0) {
                         $currencySelect.select2({
                             data: response.results,
+                            dropdownParent: $('body'),
+                            width: '100px',
                             placeholder: 'Change Currency...',
                             templateResult: function (state) {
                                 if (!state.id) return state.text; // Group header
