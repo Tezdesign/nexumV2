@@ -10,8 +10,10 @@ use App\Repository\Projects\ProjectAssignmentRepository;
 use App\Repository\Projects\ProjectRepository;
 use App\Repository\Tasks\TaskRepository;
 use App\Repository\UserHandling\UtilisateurRepository;
+use App\Service\FinancialAnalysis\CurrencyExchangeService;
 use App\Support\UserDisplayName;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 
@@ -713,5 +715,15 @@ class HomeController extends AbstractController
             'calendarVisibleProjects' => count($projects),
             'calendarVisibleTasks' => count($tasks),
         ]);
+    }
+    #[Route('/test-api', name: 'test_api')]
+    public function testApi(CurrencyExchangeService $currencyService): JsonResponse
+    {
+        // Pass ID 1. If it exists, it uses that profile's currency.
+        // If it doesn't, your code safely defaults to 'TND'.
+        $rawJson = $currencyService->fetchRatesForProfile(11);
+
+        // Decode it so it displays nicely in the browser
+        return new JsonResponse(json_decode($rawJson, true));
     }
 }

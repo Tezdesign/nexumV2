@@ -165,7 +165,8 @@ class FinancialDashboardController extends AbstractController
         ProjectBudget $projectBudget, 
         Request $request, 
         BudgetDashboardService $dashboardService,
-        ProjectBudgetRepository $projectBudgetRepository
+        ProjectBudgetRepository $projectBudgetRepository,
+        \App\Service\AuthService $authService
     ): Response {
         $originalBudget = clone $projectBudget;
         $profile = $dashboardService->getFiscalProfileForBudget($projectBudget);
@@ -211,14 +212,104 @@ class FinancialDashboardController extends AbstractController
             ]);
         }
 
+        // Temporary bypass: allow full access to the consultant interface
+        $isConsultant = true; 
+
         return $this->render('financial-analysis/budget_details.html.twig', [
             'projectBudget' => $dashboardService->formatBudgetDetails($originalBudget),
             'projectBudgetEntity' => $originalBudget,
-            'budgetProfile' => $profile, // Pass the Profile object for breadcrumbs
+            'budgetProfile' => $profile,
             'projectBudgetForm' => $projectBudgetForm->createView(),
             'transactionForm' => $transactionForm->createView(),
             'transactions' => $transactions,
+            'isConsultant' => $isConsultant,
         ]);
+    }
+
+    #[Route('/budget/{id}/consultant-drafts', name: 'apps-financial-analysis-consultant-drafts-list', methods: ['GET'])]
+    public function ajaxConsultantDraftsList(
+        ProjectBudget $projectBudget,
+        Request $request,
+        \App\Service\AuthService $authService,
+        \App\Repository\FinancialAnalysis\ExpenseDraftRepository $expenseDraftRepository
+    ): Response {
+        $filter = $request->query->get('filter', 'flawed');
+        
+        $statuses = [];
+        if ($filter === 'approved') {
+            $statuses = ['APPROVED', 'PASS'];
+        } elseif ($filter === 'flawed') {
+            $statuses = ['FLAGGED', 'PENDING'];
+        } elseif ($filter === 'rejected') {
+            $statuses = ['REJECTED'];
+        }
+
+        $qb = $expenseDraftRepository->createQueryBuilder('d')
+            ->where('d.project_budget_related = :budget')
+            ->setParameter('budget', $projectBudget)
+            ->orderBy('d.createdAt', 'DESC');
+
+        if (!empty($statuses)) {
+            $qb->andWhere('d.status IN (:statuses)')
+               ->setParameter('statuses', $statuses);
+        }
+
+        $drafts = $qb->getQuery()->getResult();
+
+        return $this->render('financial-analysis/FA_components/_draft_list_ajax.html.twig', [
+            'drafts' => $drafts,
+            'active_filter' => $filter,
+            'projectBudgetEntity' => $projectBudget
+        ]);
+    }
+
+    #[Route('/consultant/draft/{id}/{action}', name: 'apps-financial-analysis-consultant-action', methods: ['POST'])]
+    public function consultantAction(
+        \App\Entity\FinancialAnalysis\ExpenseDraft $draft,
+        string $action,
+        Request $request,
+        \App\Service\AuthService $authService,
+        EntityManagerInterface $entityManager
+    ): Response {
+        $payload = json_decode($request->getContent(), true) ?? [];
+        $reason = trim($payload['reason'] ?? '');
+
+        if ($action === 'approve') {
+            $draft->setStatus('APPROVED');
+        } elseif ($action === 'reject') {
+            $draft->setStatus('REJECTED');
+            
+            $evalData = $draft->getEvalData() ?? [];
+            
+            if (empty($reason)) {
+                $generatedReasons = [];
+                if (isset($evalData['tests']['budget_capacity']) && $evalData['tests']['budget_capacity']['status'] !== 'Pass') {
+                    $generatedReasons[] = 'Budget Capacity: ' . ($evalData['tests']['budget_capacity']['message'] ?? 'Failed');
+                }
+                if (isset($evalData['tests']['statistical_anomaly']) && $evalData['tests']['statistical_anomaly']['status'] !== 'Pass') {
+                    $z = $evalData['tests']['statistical_anomaly']['z_score'] ?? 'N/A';
+                    $generatedReasons[] = 'Statistical Anomaly (Z-Score: ' . $z . ')';
+                }
+                if (isset($evalData['tests']['duplicate_check']) && $evalData['tests']['duplicate_check']['status'] !== 'Pass') {
+                    $generatedReasons[] = 'Duplicate Check: ' . ($evalData['tests']['duplicate_check']['message'] ?? 'Failed');
+                }
+                
+                $reason = !empty($generatedReasons) ? implode(' | ', $generatedReasons) : 'Rejected by consultant based on evaluation anomalies.';
+            }
+
+            $evalData['rejection_data'] = [
+                'reason' => $reason,
+                'rejected_at' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
+                'rejected_by' => $authService->getCurrentUserId(),
+            ];
+            $draft->setEvalData($evalData);
+        } else {
+            return $this->json(['success' => false, 'message' => 'Invalid action'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $entityManager->flush();
+
+        return $this->json(['success' => true]);
     }
 
     #[Route('/transaction/{id}/update', name: 'apps-financial-analysis-update-transaction', methods: ['POST'])]

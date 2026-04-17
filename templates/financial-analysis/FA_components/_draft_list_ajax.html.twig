@@ -1,0 +1,12 @@
+{% if drafts is defined and drafts|length > 0 %}
+    <div class="draft-list-wrapper">
+        {% for draft in drafts %}
+            {% include 'financial-analysis/FA_components/_draft_row_ajax.html.twig' with {'draft': draft} %}
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="text-center py-5 text-muted">
+        <i class="ri-inbox-line fs-1 text-secondary opacity-50"></i>
+        <p class="mt-2">{{ 'No drafts available in this category.'|trans }}</p>
+    </div>
+{% endif %}

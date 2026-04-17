@@ -1,0 +1,43 @@
+{% set draftStatus = (draft.status ?? 'PENDING')|upper %}
+{% set statusColorClass = '' %}
+{% if draftStatus == 'APPROVED' %}
+    {% set statusColorClass = 'text-success border-success bg-success-subtle' %}
+{% elseif draftStatus == 'REJECTED' %}
+    {% set statusColorClass = 'text-danger border-danger bg-danger-subtle' %}
+{% elseif draftStatus == 'FLAGGED' %}
+    {% set statusColorClass = 'text-warning border-warning bg-warning-subtle' %}
+{% else %}
+    {% set statusColorClass = 'text-secondary border-secondary bg-secondary-subtle' %}
+{% endif %}
+
+{% set cb = draft.createdBy ?? null %}
+{% set u = cb is not null ? cb : null %}
+{% set fullName = u ? ((u.prenom ~ ' ' ~ u.nom)|trim|plain_text) : 'Unknown' %}
+{% set subjectText = draft.subject|default('No Subject')|plain_text %}
+
+<div class="nexum-row nexum-draft-item bg-white border-bottom border-light cursor-pointer draft-selectable-row" 
+     data-draft-id="{{ draft.id }}" 
+     data-eval='{{ draft.evalData|json_encode|escape('html_attr') }}'>
+    
+    <div class="w-100 p-2">
+        <div class="d-flex align-items-start justify-content-between w-100">
+            <div class="d-flex flex-column me-auto min-w-0 pe-2">
+                <span class="text-truncate text-dark fw-bold fs-14" title="{{ subjectText }}">
+                    {{ subjectText }}
+                </span>
+                <span class="text-muted small text-truncate" title="{{ draft.category|plain_text }} • {{ fullName }}">
+                    {{ draft.category|plain_text }} • {{ fullName }}
+                </span>
+            </div>
+
+            <div class="d-flex flex-column align-items-end flex-shrink-0">
+                <span class="{{ draft.amount < 0 ? 'text-danger' : 'text-dark fw-bold' }} fs-14">
+                    {{ currency_symbol|default('$') }}{{ draft.amount|number_format(2, '.', ',') }}
+                </span>
+                <span class="badge border {{ statusColorClass }} mt-1">
+                    {{ draftStatus }}
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
