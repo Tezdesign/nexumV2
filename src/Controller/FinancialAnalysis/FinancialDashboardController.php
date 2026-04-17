@@ -234,6 +234,19 @@ class FinancialDashboardController extends AbstractController
         ]);
     }
 
+    #[Route('/budget/{id}/analyze', name: 'apps-financial-analysis-analyze-budget', methods: ['POST'])]
+    public function generateAnalysis(
+        ProjectBudget $projectBudget,
+        \App\Service\FinancialAnalysis\OllamaAnalysisService $ollamaService
+    ): Response {
+        $analysisMarkdown = $ollamaService->analyzeProjectBudget($projectBudget);
+        
+        return $this->json([
+            'status' => 'success',
+            'analysis' => $analysisMarkdown
+        ]);
+    }
+
     #[Route('/transaction/{id}/update', name: 'apps-financial-analysis-update-transaction', methods: ['POST'])]
     public function updateTransaction(
         Transaction $transaction,

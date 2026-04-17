@@ -382,4 +382,65 @@ document.addEventListener('DOMContentLoaded', function() {
             allTxCards.forEach(card => card.classList.remove('d-none'));
         });
     }
+
+    /**
+     * ==========================================
+     * AI ANALYSIS TAB LOGIC
+     * ==========================================
+     */
+    const btnGenerateAi = document.getElementById('btn-generate-ai-analysis');
+    const aiActionArea = document.getElementById('ai-generate-action');
+    const aiLoadingState = document.getElementById('ai-loading-state');
+    const aiResultContainer = document.getElementById('ai-result-container');
+    const aiAnalysisContent = document.getElementById('ai-analysis-content');
+
+    if (btnGenerateAi) {
+        btnGenerateAi.addEventListener('click', function() {
+            const projectId = this.getAttribute('data-project-id');
+            
+            // UI State Transition: Hide button, show loading
+            aiActionArea.classList.add('d-none');
+            aiLoadingState.classList.remove('d-none');
+            
+            // Fire the AJAX POST request
+            fetch(`/apps-financial-analysis/budget/${projectId}/analyze`, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                // UI State Transition: Hide loading, show result container
+                aiLoadingState.classList.add('d-none');
+                aiResultContainer.classList.remove('d-none');
+                
+                if (data.status === 'success') {
+                    // Inject the Markdown response. 
+                    // Using basic regex for markdown rendering
+                    let formattedText = data.analysis;
+                    
+                    // Basic Markdown Parsing (Headers, Bold, Lists)
+                    formattedText = formattedText.replace(/^### (.*$)/gim, '<h5 class="text-primary mt-4 mb-2">$1</h5>');
+                    formattedText = formattedText.replace(/^## (.*$)/gim, '<h4 class="mt-4 mb-3">$1</h4>');
+                    formattedText = formattedText.replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>');
+                    formattedText = formattedText.replace(/^\- (.*$)/gim, '<li class="mb-1">$1</li>');
+                    
+                    // Convert line breaks to HTML breaks
+                    formattedText = formattedText.replace(/\n/g, '<br>');
+                    
+                    aiAnalysisContent.innerHTML = formattedText;
+                } else {
+                    aiAnalysisContent.innerHTML = '<div class="alert alert-danger">Failed to generate analysis.</div>';
+                }
+            })
+            .catch(error => {
+                aiLoadingState.classList.add('d-none');
+                aiResultContainer.classList.remove('d-none');
+                aiAnalysisContent.innerHTML = `<div class="alert alert-danger"><h5 class="alert-heading">Connection Error</h5><p>${error.message}</p></div>`;
+                console.error('AI Error:', error);
+            });
+        });
+    }
+
 });
