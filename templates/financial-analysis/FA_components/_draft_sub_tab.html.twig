@@ -10,6 +10,11 @@
                     </a>
                 </li>
                 <li class="nav-item flex-fill text-center">
+                    <a class="nav-link consultant-filter-tab" href="#" data-filter="pending">
+                        <i class="ri-time-line me-1"></i>{{ 'Pending'|trans }}
+                    </a>
+                </li>
+                <li class="nav-item flex-fill text-center">
                     <a class="nav-link consultant-filter-tab" href="#" data-filter="approved">
                         <i class="ri-check-line me-1"></i>{{ 'Approved'|trans }}
                     </a>
@@ -41,32 +46,6 @@
         </div>
     </div>
 
-    <!-- Hidden Template for Evaluation Panel content -->
-    <template id="eval-panel-template">
-        <div class="d-flex flex-column h-100">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="mb-0 fw-bold">{{ 'Evaluation Summary'|trans }}</h5>
-                <span class="badge border badge-status">STATUS</span>
-            </div>
-
-            <div class="eval-content flex-grow-1 overflow-auto pe-1 mb-3" style="max-height: 250px; font-size: 13px;">
-                <!-- Content will be injected here via JS -->
-            </div>
-
-            <!-- Action Buttons -->
-            <div class="mt-auto border-top border-dashed pt-3 d-flex gap-2 consultant-action-buttons">
-                <button type="button" class="btn btn-outline-danger flex-grow-1 btn-reject-draft" data-bs-toggle="modal" data-bs-target="#consultantRejectModal">
-                    <i class="ri-close-circle-line me-1"></i>{{ 'Reject'|trans }}
-                </button>
-                <form method="POST" class="flex-grow-1 form-approve-draft m-0">
-                    <button type="submit" class="btn btn-success w-100">
-                        <i class="ri-check-line me-1"></i>{{ 'Approve'|trans }}
-                    </button>
-                </form>
-            </div>
-        </div>
-    </template>
-
     <!-- Consultant Reject Modal -->
     <div class="modal fade" id="consultantRejectModal" tabindex="-1" aria-labelledby="consultantRejectModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
@@ -86,6 +65,31 @@
                     <div class="modal-footer">
                         <button type="button" class="btn btn-light" data-bs-dismiss="modal">{{ 'Cancel'|trans }}</button>
                         <button type="submit" class="btn btn-danger">{{ 'Confirm Rejection'|trans }}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Consultant Add as Transaction Modal -->
+    <div class="modal fade" id="consultantToTransactionModal" tabindex="-1" aria-labelledby="consultantToTransactionModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-bottom border-dashed d-flex align-items-center">
+                    <h4 class="modal-title text-primary" id="consultantToTransactionModalLabel">
+                        <i class="ri-add-circle-line me-1"></i>{{ 'Convert to Transaction'|trans }}
+                    </h4>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form method="POST" id="form-to-transaction-draft">
+                    <div class="modal-body p-4">
+                        <p class="text-muted fs-14 mb-3">{{ 'Please select the date for this new transaction.'|trans }}</p>
+                        <label class="form-label">{{ 'Transaction Date'|trans }}</label>
+                        <input type="date" name="transaction_date" id="consultant-transaction-date" class="form-control" required>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">{{ 'Cancel'|trans }}</button>
+                        <button type="submit" class="btn btn-primary">{{ 'Confirm Conversion'|trans }}</button>
                     </div>
                 </form>
             </div>

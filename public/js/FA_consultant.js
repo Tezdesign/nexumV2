@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const filterTabs = document.querySelectorAll('.consultant-filter-tab');
     const listContainer = document.getElementById('consultant-draft-list');
     const evalPanel = document.getElementById('consultant-eval-panel');
-    const template = document.getElementById('eval-panel-template');
+    let template = document.getElementById('eval-panel-template');
 
     let activeDraftId = null;
 
@@ -37,6 +37,7 @@ document.addEventListener('DOMContentLoaded', function () {
         .then(response => response.text())
         .then(html => {
             listContainer.innerHTML = html;
+            template = document.getElementById('eval-panel-template');
             resetEvalPanel();
             attachRowListeners();
         })
@@ -154,10 +155,24 @@ document.addEventListener('DOMContentLoaded', function () {
 
         contentArea.innerHTML = html;
 
-        // Action Handlers
+        // Action Handlers (Forms are conditionally rendered by Twig template)
         const formApprove = cardBody.querySelector('.form-approve-draft');
         if (formApprove) {
             formApprove.action = `/apps-financial-analysis/consultant/draft/${draftId}/approve`;
+        }
+
+        const formRevert = cardBody.querySelector('.form-revert-draft');
+        if (formRevert) {
+            formRevert.action = `/apps-financial-analysis/consultant/draft/${draftId}/revert`;
+        }
+
+        const formToTransactionModal = document.getElementById('form-to-transaction-draft');
+        if (formToTransactionModal) {
+            formToTransactionModal.action = `/apps-financial-analysis/consultant/draft/${draftId}/to_transaction`;
+            const dateInput = document.getElementById('consultant-transaction-date');
+            if (dateInput) {
+                dateInput.value = new Date().toISOString().split('T')[0];
+            }
         }
 
         const formReject = document.getElementById('form-reject-draft');

@@ -237,7 +237,9 @@ class FinancialDashboardController extends AbstractController
         
         $statuses = [];
         if ($filter === 'approved') {
-            $statuses = ['APPROVED', 'PASS'];
+            $statuses = ['APPROVED'];
+        } elseif ($filter === 'pending') {
+            $statuses = ['PASS'];
         } elseif ($filter === 'flawed') {
             $statuses = ['FLAGGED', 'PENDING'];
         } elseif ($filter === 'rejected') {
@@ -269,7 +271,8 @@ class FinancialDashboardController extends AbstractController
         string $action,
         Request $request,
         \App\Service\AuthService $authService,
-        \App\Repository\FinancialAnalysis\ExpenseDraftRepository $expenseDraftRepository
+        \App\Repository\FinancialAnalysis\ExpenseDraftRepository $expenseDraftRepository,
+        BudgetDashboardService $dashboardService
     ): Response {
         $reason = trim((string) $request->request->get('reason', ''));
         $pb = $draft->getProjectBudgetRelated();
@@ -278,6 +281,9 @@ class FinancialDashboardController extends AbstractController
         if ($action === 'approve') {
             $expenseDraftRepository->approveDraft($draft);
             $this->addFlash('success', 'Draft approved successfully.');
+        } elseif ($action === 'revert') {
+            $expenseDraftRepository->revertDraft($draft);
+            $this->addFlash('info', 'Draft decision reverted to Flagged.');
         } elseif ($action === 'reject') {
             if (empty($reason)) {
                 $evalData = $draft->getEvalData() ?? [];
@@ -299,6 +305,37 @@ class FinancialDashboardController extends AbstractController
             $expenseDraftRepository->rejectDraft($draft, $reason, $userId);
             
             $this->addFlash('warning', 'Draft has been rejected.');
+        } elseif ($action === 'to_transaction') {
+            $transactionDateStr = $request->request->get('transaction_date');
+            
+            // Fallback: convert the draft's createdAt (which might be immutable) to a mutable \DateTime
+            $transactionDate = $draft->getCreatedAt() ? \DateTime::createFromInterface($draft->getCreatedAt()) : new \DateTime();
+            
+            if ($transactionDateStr) {
+                try {
+                    $transactionDate = new \DateTime($transactionDateStr);
+                } catch (\Exception $e) {
+                    // Keep the fallback date if parsing fails
+                }
+            }
+
+            $transaction = new Transaction();
+            $transaction->setProjectBudget($pb);
+            
+            // Generate strict reference: TX- followed by 6 random digits
+            $randomDigits = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+            $transaction->setReference('TX-' . $randomDigits);
+            
+            $transaction->setCost($draft->getAmount() ?: 0.0);
+            $transaction->setDateStamp($transactionDate);
+            $transaction->setExpenseCategory($draft->getCategory());
+            $transaction->setDescription($draft->getDescription());
+
+            $profile = $dashboardService->getFiscalProfileForBudget($pb);
+            $dashboardService->handleTransactionCascade($pb, $transaction, $profile);
+
+            $expenseDraftRepository->remove($draft, true);
+            $this->addFlash('success', 'Draft converted to a real transaction successfully!');
         }
 
         // Return to the main budget page

@@ -1,0 +1,30 @@
+{% set draftStatus = (draft.status ?? 'PENDING')|upper %}
+
+<div class="mt-auto border-top border-dashed pt-3 d-flex gap-2 consultant-action-buttons w-100">
+    {% if draftStatus == 'APPROVED' %}
+        <button type="button" class="btn btn-outline-danger flex-grow-1 btn-reject-draft" data-bs-toggle="modal" data-bs-target="#consultantRejectModal">
+            <i class="ri-close-circle-line me-1"></i>{{ 'Reject'|trans }}
+        </button>
+        <form action="{{ path('apps-financial-analysis-consultant-action', {id: draft.id, action: 'to_transaction'}) }}" method="POST" class="flex-grow-1 m-0">
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="ri-add-line me-1"></i>{{ 'Add as Transaction'|trans }}
+            </button>
+        </form>
+    {% elseif draftStatus == 'REJECTED' %}
+        <form action="{{ path('apps-financial-analysis-consultant-action', {id: draft.id, action: 'revert'}) }}" method="POST" class="flex-grow-1 m-0">
+            <button type="submit" class="btn btn-outline-warning w-100">
+                <i class="ri-history-line me-1"></i>{{ 'Revert Decision'|trans }}
+            </button>
+        </form>
+    {% else %}
+        {# PASS, FLAGGED, PENDING #}
+        <button type="button" class="btn btn-outline-danger flex-grow-1 btn-reject-draft" data-bs-toggle="modal" data-bs-target="#consultantRejectModal">
+            <i class="ri-close-circle-line me-1"></i>{{ 'Reject'|trans }}
+        </button>
+        <form action="{{ path('apps-financial-analysis-consultant-action', {id: draft.id, action: 'approve'}) }}" method="POST" class="flex-grow-1 m-0">
+            <button type="submit" class="btn btn-success w-100">
+                <i class="ri-check-line me-1"></i>{{ 'Approve'|trans }}
+            </button>
+        </form>
+    {% endif %}
+</div>

@@ -8,6 +8,8 @@ use App\Entity\FinancialAnalysis\Transaction;
 use App\Repository\FinancialAnalysis\BudgetProfileRepository;
 use App\Repository\FinancialAnalysis\ProjectBudgetRepository;
 use App\Repository\FinancialAnalysis\TransactionRepository;
+use DateTime;
+use DateTimeImmutable;
 
 class BudgetDashboardService
 {
@@ -271,5 +273,12 @@ class BudgetDashboardService
         ];
 
         return $currencySymbols[$currencyCode] ?? $currencyCode; // Return abbreviation if symbol unknown
+    }
+
+    function decreaseAndConvert(DateTimeImmutable $immutableDate): DateTime {
+
+        $decreasedDate = $immutableDate->modify('-2 months');
+
+        return DateTime::createFromImmutable($decreasedDate);
     }
 }

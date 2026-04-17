@@ -59,6 +59,11 @@ class ExpenseDraftRepository extends ServiceEntityRepository
     public function approveDraft(ExpenseDraft $draft): void
     {
         $draft->setStatus('APPROVED');
+        
+        $evalData = $draft->getEvalData() ?? [];
+        $evalData['final_decision'] = 'APPROVED';
+        $draft->setEvalData($evalData);
+
         $this->getEntityManager()->persist($draft);
         $this->getEntityManager()->flush();
     }
@@ -68,6 +73,7 @@ class ExpenseDraftRepository extends ServiceEntityRepository
         $draft->setStatus('REJECTED');
         
         $evalData = $draft->getEvalData() ?? [];
+        $evalData['final_decision'] = 'REJECTED';
         $evalData['rejection_data'] = [
             'reason' => $reason ?: 'Rejected by consultant.',
             'rejected_at' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
@@ -77,5 +83,27 @@ class ExpenseDraftRepository extends ServiceEntityRepository
 
         $this->getEntityManager()->persist($draft);
         $this->getEntityManager()->flush();
+    }
+
+    public function revertDraft(ExpenseDraft $draft): void
+    {
+        $draft->setStatus('FLAGGED');
+        
+        $evalData = $draft->getEvalData() ?? [];
+        $evalData['final_decision'] = 'FLAGGED';
+        unset($evalData['rejection_data']);
+        $draft->setEvalData($evalData);
+
+        $this->getEntityManager()->persist($draft);
+        $this->getEntityManager()->flush();
+    }
+
+    public function remove(ExpenseDraft $entity, bool $flush = false): void
+    {
+        $this->getEntityManager()->remove($entity);
+
+        if ($flush) {
+            $this->getEntityManager()->flush();
+        }
     }
 }
