@@ -34,7 +34,11 @@
                 </div>
                 <div class="d-flex gap-2 align-items-center">
                     <span class="text-muted fs-14 fw-medium me-3 d-flex align-items-center">
-                        <i class="ti ti-cash fs-18 me-1"></i>{{ 'Base Currency:'|trans }}&nbsp;<strong class="text-dark">{{ budgetProfile.baseCurrency|default('N/A') }}</strong>
+                        <i class="ti ti-cash fs-18 me-1"></i>{{ 'Base Currency:'|trans }}&nbsp;<strong class="text-dark me-2" id="current-currency-display">{{ budgetProfile.baseCurrency|default('N/A') }}</strong>
+                        <i class="ti ti-link fs-16 me-1 text-primary" title="{{ 'Live Exchange Rates'|trans }}"></i>
+                        <select id="currency-exchange-select" class="form-select form-select-sm" style="width: 100px;">
+                            <!-- Options populated via JS -->
+                        </select>
                     </span>
                     <button type="button" class="btn btn-outline-primary rounded-pill px-3 py-1" data-bs-toggle="modal" data-bs-target="#updateProfileModal">
                         <i class="ti ti-pencil me-1"></i> {{ 'Edit Profile'|trans }}
@@ -75,7 +79,7 @@
                                 <i class="ti ti-trending-up"></i>
                             </span>
                             <div class="text-end">
-                                <h3 class="fw-semibold">{{ currency_symbol|default('$') }}{{ kpi_budget_value|default('5.42M') }}</h3>
+                                <h3 class="fw-semibold kpi-value" data-raw-value="{{ budgetProfile.budgetDisposable }}"><span class="kpi-symbol">{{ currency_symbol|default('$') }}</span><span class="kpi-number">{{ kpi_budget_value|default('5.42M') }}</span></h3>
                                 <p class="text-muted mb-0">{{ kpi_budget_subtitle|default('Since last month'|trans) }}</p>
                             </div>
                         </div>
@@ -113,7 +117,8 @@
                                 <i class="ti ti-trending-up"></i>
                             </span>
                             <div class="text-end">
-                                <h3 class="fw-semibold">{{ currency_symbol|default('$') }}{{ kpi_spending_value|default('1.20M') }}</h3>
+                                {% set raw_spending = budgetProfile.totalExpense|default(0) %}
+                                <h3 class="fw-semibold kpi-value" data-raw-value="{{ raw_spending }}"><span class="kpi-symbol">{{ currency_symbol|default('$') }}</span><span class="kpi-number">{{ kpi_spending_value|default('1.20M') }}</span></h3>
                                 <p class="text-muted mb-0">{{ kpi_spending_subtitle|default('Since last month'|trans) }}</p>
                             </div>
                         </div>
@@ -151,7 +156,8 @@
                                 <i class="ti ti-trending-down"></i>
                             </span>
                             <div class="text-end">
-                                <h3 class="fw-semibold">{{ currency_symbol|default('$') }}{{ kpi_remaining_value|default('4.22M') }}</h3>
+                                {% set raw_remaining = budgetProfile.budgetDisposable - raw_spending %}
+                                <h3 class="fw-semibold kpi-value" data-raw-value="{{ raw_remaining }}"><span class="kpi-symbol">{{ currency_symbol|default('$') }}</span><span class="kpi-number">{{ kpi_remaining_value|default('4.22M') }}</span></h3>
                                 <p class="text-muted mb-0">{{ kpi_remaining_subtitle|default('Since last month'|trans) }}</p>
                             </div>
                         </div>
@@ -227,7 +233,9 @@
                                 <div id="chart-two" data-colors="#f9c851,#F6F7FB"></div>
                             </div>
                             <div class="text-end">
-                                <h3 class="fw-semibold">{{ kpi_cashflow_value|default('45.3k') }}</h3>
+                                {% set raw_allocated = 0 %}
+                                {% set raw_cashflow = budgetProfile.budgetDisposable - raw_allocated %}
+                                <h3 class="fw-semibold kpi-value" data-raw-value="{{ raw_cashflow }}"><span class="kpi-symbol">{{ currency_symbol|default('$') }}</span><span class="kpi-number">{{ kpi_cashflow_value|default('45.3k') }}</span></h3>
                                 <p class="text-muted mb-0">{{ kpi_cashflow_subtitle|default('Since last month'|trans) }}</p>
                             </div>
                         </div>
@@ -334,6 +342,82 @@
             if ($('[data-toggle="select2"]').length) {
                 $('[data-toggle="select2"]').select2();
             }
+
+            // Currency Exchange Logic
+            const profileId = {{ budgetProfile.id }};
+            const $currencySelect = $('#currency-exchange-select');
+            
+            // Format KPI numbers back to k/M representation
+            function formatKpiNumber(num) {
+                if (num >= 1000000 || num <= -1000000) {
+                    return (num / 1000000).toFixed(2) + 'M';
+                }
+                if (num >= 1000 || num <= -1000) {
+                    return (num / 1000).toFixed(1) + 'k';
+                }
+                return num.toFixed(2);
+            }
+
+            // Fetch and initialize the Select2 Exchange Rates
+            $.ajax({
+                url: '/apps-financial-analysis/profile/' + profileId + '/currency-rates',
+                type: 'GET',
+                success: function(response) {
+                    if (response.results && response.results.length > 0) {
+                        $currencySelect.select2({
+                            data: response.results,
+                            placeholder: 'Change Currency...',
+                            templateResult: function (state) {
+                                if (!state.id) return state.text; // Group header
+                                return $('<span>' + state.text + ' (Rate: ' + parseFloat(state.rate).toFixed(3) + ')</span>');
+                            },
+                            templateSelection: function (state) {
+                                if (!state.id) return state.text;
+                                return state.id; // Only display the abbreviation (e.g., 'USD')
+                            }
+                        });
+
+                        // Set default selected to current base currency if possible
+                        const baseCurrency = '{{ budgetProfile.baseCurrency|default('TND') }}';
+                        if ($currencySelect.find("option[value='" + baseCurrency + "']").length) {
+                            $currencySelect.val(baseCurrency).trigger('change');
+                        }
+
+                        // Listen for changes
+                        $currencySelect.on('select2:select', function (e) {
+                            const data = e.params.data;
+                            const rate = parseFloat(data.rate);
+                            const selectedCurrencyCode = data.id;
+
+                            // Determine Currency Symbol
+                            let newSymbol = selectedCurrencyCode;
+                            if (selectedCurrencyCode === 'USD') newSymbol = '$';
+                            else if (selectedCurrencyCode === 'EUR') newSymbol = '€';
+                            else if (selectedCurrencyCode === 'GBP') newSymbol = '£';
+                            else if (selectedCurrencyCode === 'JPY') newSymbol = '¥';
+                            else newSymbol = selectedCurrencyCode + ' ';
+
+                            // Loop through all KPI values and update them based on hidden raw data
+                            $('.kpi-value').each(function() {
+                                const rawValue = parseFloat($(this).attr('data-raw-value'));
+                                if (!isNaN(rawValue)) {
+                                    const convertedValue = rawValue * rate;
+                                    const formattedString = formatKpiNumber(convertedValue);
+                                    
+                                    $(this).find('.kpi-symbol').text(newSymbol);
+                                    $(this).find('.kpi-number').text(formattedString);
+                                }
+                            });
+                        });
+                    } else {
+                        $currencySelect.html('<option disabled>API Error / Unavailable</option>');
+                    }
+                },
+                error: function() {
+                    $currencySelect.html('<option disabled>API Error</option>');
+                }
+            });
+
         });
     </script>
 {% endblock %}

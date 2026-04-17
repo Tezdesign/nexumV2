@@ -45,6 +45,19 @@ class FinancialDashboardController extends AbstractController
         ]);
     }
 
+    #[Route('/profile/{id}/currency-rates', name: 'apps-financial-analysis-currency-rates', methods: ['GET'])]
+    public function getCurrencyRates(
+        BudgetProfile $budgetProfile,
+        \App\Service\FinancialAnalysis\CurrencyExchangeService $currencyExchangeService
+    ): Response {
+        $rawJson = $currencyExchangeService->fetchRatesForProfile($budgetProfile->getId());
+        $selectData = $currencyExchangeService->parseAndGroupRatesForSelect($rawJson);
+        
+        return $this->json([
+            'results' => $selectData
+        ]);
+    }
+
     #[Route('/profile/{id}', name: 'apps-financial-analysis-profile')]
     public function overview(
         BudgetProfile $budgetProfile, 
