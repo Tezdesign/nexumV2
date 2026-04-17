@@ -85,6 +85,7 @@ class MobileHomeController extends AbstractController
         UtilisateurRepository $utilisateurRepository,
         TaskRepository $taskRepository,
         ExpenseDraftRepository $expenseDraftRepository,
+        \App\Service\FinancialAnalysis\BudgetAdvService $budgetAdvService,
         EntityManagerInterface $entityManager
     ): Response {
         if (!$this->authService->isLoggedIn()) {
@@ -161,7 +162,8 @@ class MobileHomeController extends AbstractController
                 if ($currentUser) {
                     $newDraft->setCreatedBy($currentUser);
                 }
-                $expenseDraftRepository->save($newDraft, true);
+                
+                $budgetAdvService->evaluateDraft($newDraft);
 
                 return $this->redirectToRoute('app_mobile_project_show', ['id' => $pid, 'tab' => 'drafts']);
             }

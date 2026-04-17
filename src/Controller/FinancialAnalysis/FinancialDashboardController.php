@@ -269,19 +269,18 @@ class FinancialDashboardController extends AbstractController
         string $action,
         Request $request,
         \App\Service\AuthService $authService,
-        EntityManagerInterface $entityManager
+        \App\Repository\FinancialAnalysis\ExpenseDraftRepository $expenseDraftRepository
     ): Response {
-        $payload = json_decode($request->getContent(), true) ?? [];
-        $reason = trim($payload['reason'] ?? '');
+        $reason = trim((string) $request->request->get('reason', ''));
+        $pb = $draft->getProjectBudgetRelated();
+        $pid = $pb ? $pb->getId() : 0;
 
         if ($action === 'approve') {
-            $draft->setStatus('APPROVED');
+            $expenseDraftRepository->approveDraft($draft);
+            $this->addFlash('success', 'Draft approved successfully.');
         } elseif ($action === 'reject') {
-            $draft->setStatus('REJECTED');
-            
-            $evalData = $draft->getEvalData() ?? [];
-            
             if (empty($reason)) {
+                $evalData = $draft->getEvalData() ?? [];
                 $generatedReasons = [];
                 if (isset($evalData['tests']['budget_capacity']) && $evalData['tests']['budget_capacity']['status'] !== 'Pass') {
                     $generatedReasons[] = 'Budget Capacity: ' . ($evalData['tests']['budget_capacity']['message'] ?? 'Failed');
@@ -293,23 +292,17 @@ class FinancialDashboardController extends AbstractController
                 if (isset($evalData['tests']['duplicate_check']) && $evalData['tests']['duplicate_check']['status'] !== 'Pass') {
                     $generatedReasons[] = 'Duplicate Check: ' . ($evalData['tests']['duplicate_check']['message'] ?? 'Failed');
                 }
-                
                 $reason = !empty($generatedReasons) ? implode(' | ', $generatedReasons) : 'Rejected by consultant based on evaluation anomalies.';
             }
 
-            $evalData['rejection_data'] = [
-                'reason' => $reason,
-                'rejected_at' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
-                'rejected_by' => $authService->getCurrentUserId(),
-            ];
-            $draft->setEvalData($evalData);
-        } else {
-            return $this->json(['success' => false, 'message' => 'Invalid action'], Response::HTTP_BAD_REQUEST);
+            $userId = (int) ($authService->getCurrentUserId() ?? 0);
+            $expenseDraftRepository->rejectDraft($draft, $reason, $userId);
+            
+            $this->addFlash('warning', 'Draft has been rejected.');
         }
 
-        $entityManager->flush();
-
-        return $this->json(['success' => true]);
+        // Return to the main budget page
+        return $this->redirectToRoute('apps-financial-analysis-budget-details', ['id' => $pid, '_fragment' => 'transactions-tab']);
     }
 
     #[Route('/transaction/{id}/update', name: 'apps-financial-analysis-update-transaction', methods: ['POST'])]

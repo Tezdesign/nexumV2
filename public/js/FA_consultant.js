@@ -155,15 +155,16 @@ document.addEventListener('DOMContentLoaded', function () {
         contentArea.innerHTML = html;
 
         // Action Handlers
-        const btnApprove = cardBody.querySelector('.btn-approve-draft');
-        if (btnApprove) {
-            btnApprove.addEventListener('click', () => submitConsultantAction(draftId, 'approve'));
+        const formApprove = cardBody.querySelector('.form-approve-draft');
+        if (formApprove) {
+            formApprove.action = `/apps-financial-analysis/consultant/draft/${draftId}/approve`;
         }
 
-        const btnReject = cardBody.querySelector('.btn-reject-draft');
-        if (btnReject) {
-            // Rejection uses a modal to get reason, so we just set the target ID on a global variable
-            window.consultantDraftRejectId = draftId;
+        const formReject = document.getElementById('form-reject-draft');
+        if (formReject) {
+            formReject.action = `/apps-financial-analysis/consultant/draft/${draftId}/reject`;
+            const reasonInput = document.getElementById('consultant-reject-reason');
+            if (reasonInput) reasonInput.value = '';
         }
     }
 
@@ -176,50 +177,5 @@ document.addEventListener('DOMContentLoaded', function () {
                 <p class="text-muted small mb-0">Click on a draft row to view its evaluation details and take action.</p>
             </div>
         `;
-    }
-
-    function submitConsultantAction(draftId, action, reason = '') {
-        const endpoint = `/apps-financial-analysis/consultant/draft/${draftId}/${action}`;
-        
-        fetch(endpoint, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify({ reason: reason })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Reload current tab
-                const activeTab = document.querySelector('.consultant-filter-tab.active');
-                if (activeTab) loadDrafts(activeTab.getAttribute('data-filter'));
-                
-                // Hide modal if rejecting
-                if (action === 'reject' && typeof bootstrap !== 'undefined') {
-                    const modalEl = document.getElementById('consultantRejectModal');
-                    if (modalEl) bootstrap.Modal.getInstance(modalEl).hide();
-                }
-            } else {
-                alert('Action failed: ' + (data.message || 'Unknown error'));
-            }
-        })
-        .catch(err => {
-            console.error('Action failed:', err);
-            alert('A network error occurred.');
-        });
-    }
-
-    // Global reject handler for the modal submit button
-    const submitRejectBtn = document.getElementById('submit-consultant-reject');
-    if (submitRejectBtn) {
-        submitRejectBtn.addEventListener('click', () => {
-            const reasonInput = document.getElementById('consultant-reject-reason');
-            const reason = reasonInput ? reasonInput.value.trim() : '';
-            if (window.consultantDraftRejectId) {
-                submitConsultantAction(window.consultantDraftRejectId, 'reject', reason);
-            }
-        });
     }
 });

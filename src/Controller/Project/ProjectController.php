@@ -298,6 +298,7 @@ final class ProjectController extends AbstractController
         TaskRepository $taskRepository,
         \App\Repository\FinancialAnalysis\ExpenseDraftRepository $expenseDraftRepository,
         \App\Repository\FinancialAnalysis\ProjectBudgetRepository $projectBudgetRepository,
+        \App\Service\FinancialAnalysis\BudgetAdvService $budgetAdvService,
         EntityManagerInterface $entityManager
     ): Response
     {
@@ -429,8 +430,8 @@ final class ProjectController extends AbstractController
                     if ($currentUser) {
                         $newDraft->setCreatedBy($currentUser);
                     }
-                    // Status and CreatedAt are set in the constructor
-                    $expenseDraftRepository->save($newDraft, true);
+                    
+                    $budgetAdvService->evaluateDraft($newDraft);
 
                     return $this->redirectToRoute('app_project_show', ['id' => $pid, 'tab' => 'drafts'], Response::HTTP_SEE_OTHER);
                 }
@@ -808,6 +809,7 @@ final class ProjectController extends AbstractController
         \App\Repository\FinancialAnalysis\ProjectBudgetRepository $projectBudgetRepository,
         AuthService $authService,
         \Symfony\Component\Validator\Validator\ValidatorInterface $validator,
+        \App\Service\FinancialAnalysis\BudgetAdvService $budgetAdvService,
         EntityManagerInterface $entityManager
     ): Response {
         if (!$authService->isManager()) {
@@ -854,7 +856,7 @@ final class ProjectController extends AbstractController
             return $this->redirectToRoute('app_project_show', ['id' => $pid, 'tab' => 'drafts']);
         }
 
-        $expenseDraftRepository->save($draft, true);
+        $budgetAdvService->evaluateDraft($draft);
         $this->addFlash('success', 'Draft updated successfully!');
 
         return $this->redirectToRoute('app_project_show', ['id' => $pid, 'tab' => 'drafts']);

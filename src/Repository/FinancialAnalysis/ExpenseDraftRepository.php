@@ -45,7 +45,7 @@ class ExpenseDraftRepository extends ServiceEntityRepository
         $oneWeekAgo = new \DateTimeImmutable('-7 days');
 
         return $this->createQueryBuilder('e')
-            ->join('e.projectBudgetRelated', 'pb')
+            ->join('e.project_budget_related', 'pb')
             ->where('pb.id = :budgetId')
             ->andWhere('e.amount = :amount')
             ->andWhere('e.createdAt >= :dateLimit') // Assuming you have a createdAt timestamp
@@ -54,5 +54,28 @@ class ExpenseDraftRepository extends ServiceEntityRepository
             ->setParameter('dateLimit', $oneWeekAgo)
             ->getQuery()
             ->getResult();
+    }
+
+    public function approveDraft(ExpenseDraft $draft): void
+    {
+        $draft->setStatus('APPROVED');
+        $this->getEntityManager()->persist($draft);
+        $this->getEntityManager()->flush();
+    }
+
+    public function rejectDraft(ExpenseDraft $draft, string $reason, int $userId): void
+    {
+        $draft->setStatus('REJECTED');
+        
+        $evalData = $draft->getEvalData() ?? [];
+        $evalData['rejection_data'] = [
+            'reason' => $reason ?: 'Rejected by consultant.',
+            'rejected_at' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
+            'rejected_by' => $userId,
+        ];
+        $draft->setEvalData($evalData);
+
+        $this->getEntityManager()->persist($draft);
+        $this->getEntityManager()->flush();
     }
 }

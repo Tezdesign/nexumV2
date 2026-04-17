@@ -58,9 +58,11 @@
                 <button type="button" class="btn btn-outline-danger flex-grow-1 btn-reject-draft" data-bs-toggle="modal" data-bs-target="#consultantRejectModal">
                     <i class="ri-close-circle-line me-1"></i>{{ 'Reject'|trans }}
                 </button>
-                <button type="button" class="btn btn-success flex-grow-1 btn-approve-draft">
-                    <i class="ri-check-line me-1"></i>{{ 'Approve'|trans }}
-                </button>
+                <form method="POST" class="flex-grow-1 form-approve-draft m-0">
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="ri-check-line me-1"></i>{{ 'Approve'|trans }}
+                    </button>
+                </form>
             </div>
         </div>
     </template>
@@ -75,15 +77,17 @@
                     </h4>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body p-4">
-                    <p class="text-muted fs-14 mb-3">{{ 'Please confirm rejection and generate the reason for the project manager based on the evaluation data.'|trans }}</p>
-                    <label class="form-label">{{ 'Rejection Reason (Generated from Evaluation)'|trans }}</label>
-                    <textarea id="consultant-reject-reason" class="form-control" rows="4" placeholder="e.g. Draft exceeds budget limits..."></textarea>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">{{ 'Cancel'|trans }}</button>
-                    <button type="button" class="btn btn-danger" id="submit-consultant-reject">{{ 'Confirm Rejection'|trans }}</button>
-                </div>
+                <form method="POST" id="form-reject-draft">
+                    <div class="modal-body p-4">
+                        <p class="text-muted fs-14 mb-3">{{ 'Please confirm rejection and generate the reason for the project manager based on the evaluation data.'|trans }}</p>
+                        <label class="form-label">{{ 'Rejection Reason (Generated from Evaluation)'|trans }}</label>
+                        <textarea name="reason" id="consultant-reject-reason" class="form-control" rows="4" placeholder="e.g. Draft exceeds budget limits..."></textarea>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">{{ 'Cancel'|trans }}</button>
+                        <button type="submit" class="btn btn-danger">{{ 'Confirm Rejection'|trans }}</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>

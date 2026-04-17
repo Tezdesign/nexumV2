@@ -87,8 +87,10 @@ class BudgetAdvService{
     public function compareAgainstPB(ExpenseDraft $expenseDraft)
     {
         $projectbudget = $expenseDraft->getProjectBudgetRelated();
-        $remaining = $projectbudget->getTotalBudget() - $projectbudget->getActualSpend();
-        $counter = $expenseDraft->getAmount();
+        $totalBudget = (float) $projectbudget->getTotalBudget();
+        $actualSpend = (float) $projectbudget->getActualSpend();
+        $remaining = $totalBudget - $actualSpend;
+        $counter = (float) $expenseDraft->getAmount();
 
         if($counter > $remaining){
             return [
@@ -100,25 +102,25 @@ class BudgetAdvService{
         }
 
        switch (true){
-           case ($projectbudget->getActualSpend() == 0):
-               if ($counter > $projectbudget->getTotalBudget()*0.35){
+           case ($actualSpend == 0):
+               if ($counter > $totalBudget*0.35){
                    return [
                        'status' => 'Flagged',
                        'reason_code' => 'HIGH_INITIAL_CONCENTRATION',
                        'message' => "As the first transaction, the draft exceeds the 35% safety limit of the total budget.",
-                       'metrics' => ['limit' => $projectbudget->getTotalBudget()*0.35, 'draft_amount' => $counter]
+                       'metrics' => ['limit' => $totalBudget*0.35, 'draft_amount' => $counter]
                    ];
                }
                //
                break;
            default:
-               $bigLimit = $projectbudget->getTotalBudget() * 0.05;
-               if ($counter > $remaining*0.25 and $counter > $bigLimit){
+               $bigLimit = $totalBudget * 0.05;
+               if ($counter > $remaining*0.25 && $counter > $bigLimit){
                    return [
                        'status' => 'Flagged',
                        'reason_code' => 'HIGH_REMAINING_CONCENTRATION',
                        'message' => "The draft consumes an unusually high percentage of the remaining budget.",
-                       'metrics' => ['limit' => $remaining*0.25, 'draft_amount' => $counter, 'remaining' => $remaining]
+                       'metrics' => ['limit' => $remaining*0.25, 'draft_amount' => $counter, 'remaining' => $remaining] 
                    ];
                }
            break;
@@ -134,18 +136,26 @@ class BudgetAdvService{
     public function detectDuplicateDraft(ExpenseDraft $expenseDraft): array
     {
         $budget = $expenseDraft->getProjectBudgetRelated();
-        $amount = $expenseDraft->getAmount();
+        $amount = (float) $expenseDraft->getAmount();
 
-        // Call the repository method we just made
+        // Check for duplicates, but exclude the current draft if it's already saved (e.g. during an update)
         $duplicates = $this->expenseDraftRepository->findRecentDuplicates($budget->getId(), $amount);
 
-        if (count($duplicates) > 0) {
+        $realDuplicates = [];
+        foreach ($duplicates as $dupe) {
+            if ($expenseDraft->getId() !== null && $dupe->getId() === $expenseDraft->getId()) {
+                continue; // Skip itself
+            }
+            $realDuplicates[] = $dupe;
+        }
+
+        if (count($realDuplicates) > 0) {
             return [
                 'status' => 'Flagged',
                 'reason_code' => 'POTENTIAL_DUPLICATE',
-                'message' => "Found " . count($duplicates) . " recent draft(s) with the exact amount of {$amount} for this project.",
+                'message' => "Found " . count($realDuplicates) . " recent draft(s) with the exact amount of {$amount} for this project.",
                 'metrics' => [
-                    'duplicate_count' => count($duplicates),
+                    'duplicate_count' => count($realDuplicates),
                     'timeframe_days' => 7
                 ]
             ];
@@ -161,7 +171,7 @@ class BudgetAdvService{
     /**
      * Master function that orchestrates all automated checks for a new ExpenseDraft.
      * Evaluates Z-score, Budget constraints, and Duplicates, then determines the
-     * final status (PENDING, FLAGGED, or REJECTED) and saves a comprehensive
+     * final status (PASS, FLAGGED, or REJECTED) and saves a comprehensive
      * JSON report to the draft's evalData attribute.
      */
     public function evaluateDraft(ExpenseDraft $draft): void
@@ -170,7 +180,7 @@ class BudgetAdvService{
         $zScoreEval = $this->getZscoreForDraft($draft);
         $duplicateEval = $this->detectDuplicateDraft($draft);
 
-        $finalStatus = 'PENDING';
+        $finalStatus = 'PASS';
 
         if (isset($budgetEval['status']) && strtoupper($budgetEval['status']) === 'REJECTED') {
             $finalStatus = 'REJECTED';
@@ -182,8 +192,9 @@ class BudgetAdvService{
             $finalStatus = 'FLAGGED';
         }
 
+        $evaluatedAt = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
         $evalPayload = [
-            'evaluated_at' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
+            'evaluated_at' => $evaluatedAt,
             'final_decision' => $finalStatus,
             'tests' => [
                 'budget_capacity' => $budgetEval,
@@ -191,6 +202,14 @@ class BudgetAdvService{
                 'duplicate_check' => $duplicateEval
             ]
         ];
+
+        if ($finalStatus === 'REJECTED') {
+            $evalPayload['rejection_data'] = [
+                'reason' => 'Auto-rejected by system: ' . ($budgetEval['message'] ?? 'Insufficient Funds'),
+                'rejected_at' => $evaluatedAt,
+                'rejected_by' => 'System (Auto)',
+            ];
+        }
 
         $draft->setStatus($finalStatus);
         $draft->setEvalData($evalPayload);
