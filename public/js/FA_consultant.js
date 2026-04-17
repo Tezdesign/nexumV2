@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', function () {
             
             // Update active styling
             filterTabs.forEach(t => t.classList.remove('active', 'bg-white', 'shadow-sm'));
-            this.classList.add('active', 'bg-white', 'shadow-sm');
+            this.classList.add('active', 'bg-white', 'shadow-sm','text-primary');
 
             const filter = this.getAttribute('data-filter');
             loadDrafts(filter);
