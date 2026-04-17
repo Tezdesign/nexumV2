@@ -396,12 +396,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const aiAnalysisContent = document.getElementById('ai-analysis-content');
     const aiUserContext = document.getElementById('ai-user-context');
     
-    // Card Elements
-    const aiVarianceText = document.getElementById('ai-variance-text');
-    const aiRiskText = document.getElementById('ai-risk-text');
-    const aiSuccessChart = document.getElementById('ai-success-chart');
-
-    let successChartInstance = null;
+    // Result Elements
+    const resVariance = document.getElementById('res-variance');
+    const resVarianceSub = document.getElementById('res-variance-sub');
+    const resTotal = document.getElementById('res-total');
+    const resDate = document.getElementById('res-date');
+    const resRiskBadge = document.getElementById('res-risk-badge');
+    const resProbRing = document.getElementById('res-prob-ring');
+    const resProbText = document.getElementById('res-prob-text');
 
     if (btnGenerateAi) {
         btnGenerateAi.addEventListener('click', function() {
@@ -429,77 +431,55 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 if (data.status === 'success') {
                     try {
-                        // The model returns a JSON string, we need to parse it
                         const aiData = JSON.parse(data.analysis);
                         
-                        // Populate Text Cards
-                        if (aiVarianceText) aiVarianceText.innerText = aiData.variance_analysis || 'N/A';
-                        if (aiRiskText) {
-                            aiRiskText.innerText = aiData.risk_level || 'N/A';
-                            // Color code risk
-                            aiRiskText.className = 'fw-semibold mt-2 mb-0';
-                            if (aiData.risk_level.toLowerCase().includes('high')) aiRiskText.classList.add('text-danger');
-                            else if (aiData.risk_level.toLowerCase().includes('medium')) aiRiskText.classList.add('text-warning');
-                            else aiRiskText.classList.add('text-success');
+                        // Populate Text Fields
+                        if (resVariance) resVariance.innerText = aiData.variance_amount || 'N/A';
+                        if (resVarianceSub) resVarianceSub.innerText = aiData.variance_status || 'N/A';
+                        if (resTotal) resTotal.innerText = aiData.projected_total || 'N/A';
+                        if (resDate) resDate.innerText = aiData.inflection_date || 'N/A';
+
+                        // Populate Risk Badge
+                        if (resRiskBadge) {
+                            resRiskBadge.innerText = (aiData.risk_level || 'Unknown').toUpperCase() + ' RISK';
+                            resRiskBadge.className = 'badge rounded-pill px-2 py-1 fs-12 ';
+                            if (aiData.risk_level.toLowerCase().includes('high')) {
+                                resRiskBadge.classList.add('bg-danger');
+                            } else if (aiData.risk_level.toLowerCase().includes('medium')) {
+                                resRiskBadge.classList.add('bg-warning');
+                            } else {
+                                resRiskBadge.classList.add('bg-success');
+                            }
                         }
 
-                        // Render Apex Chart for Probability
+                        // Animate SVG Progress Ring
                         const probability = parseInt(aiData.success_probability) || 0;
-                        if (aiSuccessChart) {
-                            // Destroy old chart if it exists
-                            if (successChartInstance) {
-                                successChartInstance.destroy();
+                        if (resProbRing && resProbText) {
+                            // The radius is 60 as defined in the SVG
+                            const circumference = 60 * 2 * Math.PI; // approx 376.99
+                            const offset = circumference - (probability / 100) * circumference;
+                            
+                            // Trigger reflow to ensure CSS animation runs
+                            void resProbRing.offsetWidth; 
+                            
+                            resProbRing.style.strokeDashoffset = offset;
+                            resProbText.innerText = probability + '%';
+                            
+                            // Color code the ring based on probability
+                            if (probability < 40) {
+                                resProbRing.setAttribute('stroke', '#fa5c7c'); // red
+                            } else if (probability < 70) {
+                                resProbRing.setAttribute('stroke', '#f9c851'); // yellow
+                            } else {
+                                resProbRing.setAttribute('stroke', '#10c469'); // green
                             }
-                            
-                            const chartOptions = {
-                                chart: {
-                                    type: 'radialBar',
-                                    height: 250,
-                                    sparkline: { enabled: true }
-                                },
-                                series: [probability],
-                                colors: ['#10c469'],
-                                plotOptions: {
-                                    radialBar: {
-                                        startAngle: -90,
-                                        endAngle: 90,
-                                        hollow: {
-                                            margin: 15,
-                                            size: '65%'
-                                        },
-                                        track: {
-                                            background: "rgba(170, 184, 197, 0.2)",
-                                            margin: 0
-                                        },
-                                        dataLabels: {
-                                            showOn: 'always',
-                                            name: { show: false },
-                                            value: {
-                                                offsetY: 0,
-                                                fontSize: '24px',
-                                                fontWeight: 'bold',
-                                                color: '#313a46',
-                                                formatter: function (val) {
-                                                    return val + "%";
-                                                }
-                                            }
-                                        }
-                                    }
-                                },
-                                stroke: {
-                                    lineCap: 'round'
-                                }
-                            };
-                            
-                            successChartInstance = new ApexCharts(aiSuccessChart, chartOptions);
-                            successChartInstance.render();
                         }
 
                         // Inject the Markdown response. 
                         let formattedText = aiData.recommended_solutions || 'No detailed recommendations provided.';
                         
-                        // Basic Markdown Parsing (Headers, Bold, Lists)
-                        formattedText = formattedText.replace(/^### (.*$)/gim, '<h5 class="text-primary mt-4 mb-2">$1</h5>');
+                        // Basic Markdown Parsing
+                        formattedText = formattedText.replace(/^### (.*$)/gim, '<h5 class="text-primary mt-3 mb-2">$1</h5>');
                         formattedText = formattedText.replace(/^## (.*$)/gim, '<h4 class="mt-4 mb-3">$1</h4>');
                         formattedText = formattedText.replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>');
                         formattedText = formattedText.replace(/^\- (.*$)/gim, '<li class="mb-1">$1</li>');
@@ -529,10 +509,14 @@ document.addEventListener('DOMContentLoaded', function() {
             // Hide result, show action area
             aiResultContainer.classList.add('d-none');
             aiActionArea.classList.remove('d-none');
-            // Clear content
+            
+            // Clear content & reset ring
             aiAnalysisContent.innerHTML = '';
-            if (aiVarianceText) aiVarianceText.innerText = '--';
-            if (aiRiskText) aiRiskText.innerText = '--';
+            if (resVariance) resVariance.innerText = '--';
+            if (resTotal) resTotal.innerText = '--';
+            if (resDate) resDate.innerText = '--';
+            if (resProbRing) resProbRing.style.strokeDashoffset = '376.99';
+            if (resProbText) resProbText.innerText = '--%';
         });
     }
 
