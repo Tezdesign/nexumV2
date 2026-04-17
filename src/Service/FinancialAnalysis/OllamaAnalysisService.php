@@ -27,11 +27,11 @@ class OllamaAnalysisService
                     'stream' => false,
                     'format' => 'json',
                     'options' => [
-                        'num_predict' => 2048, // Generous allowance to prevent truncation
-                        'temperature' => 0.1   // Very low temperature for strict JSON adherence
+                        'num_predict' => 2048,
+                        'temperature' => 0.4   // Give the model more creative freedom to analyze data properly
                     ]
                 ],
-                'timeout' => 60, // Shorter timeout expected since payload and output are lighter
+                'timeout' => 120, // Reverted to 120s since we are sending more data
             ]);
 
             $data = $response->toArray();
@@ -52,15 +52,14 @@ class OllamaAnalysisService
         $status = $budget->getStatus();
         
         $transactions = $budget->getTransactions()->toArray();
-        // Lighten the context window by only sending the 15 most recent transactions
-        $recentTransactions = array_slice(array_reverse($transactions), 0, 15);
+        // Give the model the full context of spending to make accurate projections
         
-        $transactionsData = "Recent Transactions (Max 15):\n";
+        $transactionsData = "Transaction History:\n";
         
-        if (count($recentTransactions) === 0) {
+        if (count($transactions) === 0) {
             $transactionsData .= "No transactions recorded yet.\n";
         } else {
-            foreach ($recentTransactions as $tx) {
+            foreach ($transactions as $tx) {
                 $date = $tx->getDateStamp() ? $tx->getDateStamp()->format('Y-m-d') : 'Unknown Date';
                 $transactionsData .= sprintf("- [%s] %s: $%s (%s)\n", $date, $tx->getExpenseCategory(), $tx->getCost(), $tx->getDescription());
             }
@@ -72,27 +71,27 @@ class OllamaAnalysisService
         }
 
         return <<<PROMPT
-You are an expert Financial Analyst. Analyze this project budget.
+You are an expert Financial Analyst. Thoroughly analyze this project budget and its transaction history to calculate variance, evaluate spending habits, and accurately project the final total spending.
 {$userContextPrompt}
 Project Overview:
 - Name: {$budget->getName()}
-- Total Budget: {$totalBudget}
-- Actual Spend: {$actualSpend}
+- Allocated Budget: {$totalBudget}
+- Current Actual Spend: {$actualSpend}
 - Remaining Budget: {$remaining}
 - Current Status: {$status}
 
 {$transactionsData}
 
-You MUST return your analysis STRICTLY as a valid JSON object matching the exact schema below. Be extremely concise to save processing time.
+You MUST return your analysis STRICTLY as a valid JSON object matching the exact schema below. Use the transaction history to intelligently estimate the "projected_total" spending at completion (which may be higher or lower than the allocated budget).
 Schema:
 {
-  "success_probability": (integer 0-100),
+  "success_probability": (integer 0-100, confidence in staying under budget),
   "variance_amount": "(string) e.g., '+$500' or '-$200'",
   "variance_status": "(string) e.g., 'Over Budget' or 'Under Budget'",
-  "projected_total": "(string) e.g., '$12,000'",
+  "projected_total": "(string) e.g., '$12,000' (your estimate of final total spending)",
   "inflection_date": "(string) e.g., 'Oct 15, 2026' (predicted date funds run out, or 'N/A' if safe)",
   "risk_level": "(string) exactly one of: Low, Medium, High",
-  "recommended_solutions": "(string) max 100 words, markdown formatted text explaining insights and future steps"
+  "recommended_solutions": "(string) detailed markdown text explaining insights, spending trajectory, and future steps"
 }
 PROMPT;
     }

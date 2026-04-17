@@ -1,6 +1,6 @@
-<div class="d-flex flex-column bg-white rounded shadow-sm p-4 mb-4">
+<div class="d-flex flex-column bg-white rounded shadow-sm p-3 mb-3">
     <!-- Header Row -->
-    <div class="d-flex justify-content-between align-items-start border-bottom pb-3 mb-4">
+    <div class="d-flex justify-content-between align-items-start border-bottom pb-2 mb-3">
         <div>
             <h4 class="m-0 fw-semibold text-dark">{{ 'AI Projection Results'|trans }}</h4>
             <p class="text-muted fs-13 m-0">{{ 'Based on local Gemma predictive modeling.'|trans }}</p>
@@ -45,19 +45,21 @@
         </div>
 
         <!-- Column 3 -->
-        <div class="d-flex flex-column align-items-center justify-content-center px-3 position-relative" style="width: 33.33%;">
-            <svg width="144" height="144" viewBox="0 0 144 144" class="circular-progress">
-                <circle class="bg" cx="72" cy="72" r="60" fill="none" stroke="#eef2f7" stroke-width="12"></circle>
-                <circle id="res-prob-ring" class="progress" cx="72" cy="72" r="60" fill="none" stroke="#10c469" stroke-width="12" stroke-dasharray="376.99" stroke-dashoffset="376.99" stroke-linecap="round" style="transform: rotate(-90deg); transform-origin: 50% 50%; transition: stroke-dashoffset 1s ease-in-out;"></circle>
-            </svg>
-            <span id="res-prob-text" class="position-absolute fs-3 fw-bold text-dark" style="top: 50%; left: 50%; transform: translate(-50%, -50%);">--%</span>
+        <div class="d-flex flex-column align-items-center justify-content-center px-3" style="width: 33.33%;">
+            <div class="position-relative d-flex align-items-center justify-content-center" style="width: 144px; height: 144px;">
+                <svg width="144" height="144" viewBox="0 0 144 144" class="circular-progress">
+                    <circle class="bg" cx="72" cy="72" r="60" fill="none" stroke="#eef2f7" stroke-width="12"></circle>
+                    <circle id="res-prob-ring" class="progress" cx="72" cy="72" r="60" fill="none" stroke="#10c469" stroke-width="12" stroke-dasharray="376.99" stroke-dashoffset="376.99" stroke-linecap="round" style="transform: rotate(-90deg); transform-origin: 50% 50%; transition: stroke-dashoffset 1s ease-in-out;"></circle>
+                </svg>
+                <span id="res-prob-text" class="position-absolute fs-3 fw-bold text-dark m-0 p-0" style="top: 50%; left: 50%; transform: translate(-50%, -50%); line-height: 1;">--%</span>
+            </div>
             <span class="text-muted fs-12 mt-2">{{ 'Success Probability'|trans }}</span>
         </div>
     </div>
     
     <!-- Solutions -->
-    <div class="mt-4 pt-3 border-top">
-        <h5 class="fs-14 fw-semibold mb-3">{{ 'AI Recommended Solutions'|trans }}</h5>
+    <div class="mt-2 pt-2 border-top">
+        <h5 class="fs-14 fw-semibold mb-2">{{ 'AI Recommended Solutions'|trans }}</h5>
         <div id="ai-analysis-content" class="text-muted fs-14">
             <!-- Content -->
         </div>

@@ -459,10 +459,17 @@ document.addEventListener('DOMContentLoaded', function() {
                             const circumference = 60 * 2 * Math.PI; // approx 376.99
                             const offset = circumference - (probability / 100) * circumference;
                             
-                            // Trigger reflow to ensure CSS animation runs
+                            // Reset animation explicitly
+                            resProbRing.style.transition = 'none';
+                            resProbRing.style.strokeDashoffset = '376.99';
+                            
+                            // Force reflow
                             void resProbRing.offsetWidth; 
                             
+                            // Trigger animation
+                            resProbRing.style.transition = 'stroke-dashoffset 1s ease-in-out';
                             resProbRing.style.strokeDashoffset = offset;
+                            
                             resProbText.innerText = probability + '%';
                             
                             // Color code the ring based on probability
