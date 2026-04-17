@@ -389,14 +389,24 @@ document.addEventListener('DOMContentLoaded', function() {
      * ==========================================
      */
     const btnGenerateAi = document.getElementById('btn-generate-ai-analysis');
+    const btnRerunAi = document.getElementById('btn-rerun-ai');
     const aiActionArea = document.getElementById('ai-generate-action');
     const aiLoadingState = document.getElementById('ai-loading-state');
     const aiResultContainer = document.getElementById('ai-result-container');
     const aiAnalysisContent = document.getElementById('ai-analysis-content');
+    const aiUserContext = document.getElementById('ai-user-context');
+    
+    // Card Elements
+    const aiVarianceText = document.getElementById('ai-variance-text');
+    const aiRiskText = document.getElementById('ai-risk-text');
+    const aiSuccessChart = document.getElementById('ai-success-chart');
+
+    let successChartInstance = null;
 
     if (btnGenerateAi) {
         btnGenerateAi.addEventListener('click', function() {
             const projectId = this.getAttribute('data-project-id');
+            const contextText = aiUserContext ? aiUserContext.value.trim() : '';
             
             // UI State Transition: Hide button, show loading
             aiActionArea.classList.add('d-none');
@@ -406,8 +416,10 @@ document.addEventListener('DOMContentLoaded', function() {
             fetch(`/apps-financial-analysis/budget/${projectId}/analyze`, {
                 method: 'POST',
                 headers: {
+                    'Content-Type': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest'
-                }
+                },
+                body: JSON.stringify({ userContext: contextText })
             })
             .then(response => response.json())
             .then(data => {
@@ -416,20 +428,89 @@ document.addEventListener('DOMContentLoaded', function() {
                 aiResultContainer.classList.remove('d-none');
                 
                 if (data.status === 'success') {
-                    // Inject the Markdown response. 
-                    // Using basic regex for markdown rendering
-                    let formattedText = data.analysis;
-                    
-                    // Basic Markdown Parsing (Headers, Bold, Lists)
-                    formattedText = formattedText.replace(/^### (.*$)/gim, '<h5 class="text-primary mt-4 mb-2">$1</h5>');
-                    formattedText = formattedText.replace(/^## (.*$)/gim, '<h4 class="mt-4 mb-3">$1</h4>');
-                    formattedText = formattedText.replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>');
-                    formattedText = formattedText.replace(/^\- (.*$)/gim, '<li class="mb-1">$1</li>');
-                    
-                    // Convert line breaks to HTML breaks
-                    formattedText = formattedText.replace(/\n/g, '<br>');
-                    
-                    aiAnalysisContent.innerHTML = formattedText;
+                    try {
+                        // The model returns a JSON string, we need to parse it
+                        const aiData = JSON.parse(data.analysis);
+                        
+                        // Populate Text Cards
+                        if (aiVarianceText) aiVarianceText.innerText = aiData.variance_analysis || 'N/A';
+                        if (aiRiskText) {
+                            aiRiskText.innerText = aiData.risk_level || 'N/A';
+                            // Color code risk
+                            aiRiskText.className = 'fw-semibold mt-2 mb-0';
+                            if (aiData.risk_level.toLowerCase().includes('high')) aiRiskText.classList.add('text-danger');
+                            else if (aiData.risk_level.toLowerCase().includes('medium')) aiRiskText.classList.add('text-warning');
+                            else aiRiskText.classList.add('text-success');
+                        }
+
+                        // Render Apex Chart for Probability
+                        const probability = parseInt(aiData.success_probability) || 0;
+                        if (aiSuccessChart) {
+                            // Destroy old chart if it exists
+                            if (successChartInstance) {
+                                successChartInstance.destroy();
+                            }
+                            
+                            const chartOptions = {
+                                chart: {
+                                    type: 'radialBar',
+                                    height: 250,
+                                    sparkline: { enabled: true }
+                                },
+                                series: [probability],
+                                colors: ['#10c469'],
+                                plotOptions: {
+                                    radialBar: {
+                                        startAngle: -90,
+                                        endAngle: 90,
+                                        hollow: {
+                                            margin: 15,
+                                            size: '65%'
+                                        },
+                                        track: {
+                                            background: "rgba(170, 184, 197, 0.2)",
+                                            margin: 0
+                                        },
+                                        dataLabels: {
+                                            showOn: 'always',
+                                            name: { show: false },
+                                            value: {
+                                                offsetY: 0,
+                                                fontSize: '24px',
+                                                fontWeight: 'bold',
+                                                color: '#313a46',
+                                                formatter: function (val) {
+                                                    return val + "%";
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                stroke: {
+                                    lineCap: 'round'
+                                }
+                            };
+                            
+                            successChartInstance = new ApexCharts(aiSuccessChart, chartOptions);
+                            successChartInstance.render();
+                        }
+
+                        // Inject the Markdown response. 
+                        let formattedText = aiData.recommended_solutions || 'No detailed recommendations provided.';
+                        
+                        // Basic Markdown Parsing (Headers, Bold, Lists)
+                        formattedText = formattedText.replace(/^### (.*$)/gim, '<h5 class="text-primary mt-4 mb-2">$1</h5>');
+                        formattedText = formattedText.replace(/^## (.*$)/gim, '<h4 class="mt-4 mb-3">$1</h4>');
+                        formattedText = formattedText.replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>');
+                        formattedText = formattedText.replace(/^\- (.*$)/gim, '<li class="mb-1">$1</li>');
+                        formattedText = formattedText.replace(/\n/g, '<br>');
+                        
+                        aiAnalysisContent.innerHTML = formattedText;
+                        
+                    } catch (e) {
+                        console.error('Failed to parse AI JSON:', e, data.analysis);
+                        aiAnalysisContent.innerHTML = `<div class="alert alert-danger">Error interpreting AI response. Expected JSON. <br><br>Raw response:<br> ${data.analysis}</div>`;
+                    }
                 } else {
                     aiAnalysisContent.innerHTML = '<div class="alert alert-danger">Failed to generate analysis.</div>';
                 }
@@ -440,6 +521,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 aiAnalysisContent.innerHTML = `<div class="alert alert-danger"><h5 class="alert-heading">Connection Error</h5><p>${error.message}</p></div>`;
                 console.error('AI Error:', error);
             });
+        });
+    }
+
+    if (btnRerunAi) {
+        btnRerunAi.addEventListener('click', function() {
+            // Hide result, show action area
+            aiResultContainer.classList.add('d-none');
+            aiActionArea.classList.remove('d-none');
+            // Clear content
+            aiAnalysisContent.innerHTML = '';
+            if (aiVarianceText) aiVarianceText.innerText = '--';
+            if (aiRiskText) aiRiskText.innerText = '--';
         });
     }
 

@@ -15,9 +15,9 @@ class OllamaAnalysisService
         private HttpClientInterface $httpClient
     ) {}
 
-    public function analyzeProjectBudget(ProjectBudget $budget): string
+    public function analyzeProjectBudget(ProjectBudget $budget, ?string $userContext = null): string
     {
-        $prompt = $this->buildPrompt($budget);
+        $prompt = $this->buildPrompt($budget, $userContext);
 
         try {
             $response = $this->httpClient->request('POST', self::OLLAMA_URL, [
@@ -25,21 +25,26 @@ class OllamaAnalysisService
                     'model' => self::MODEL_NAME,
                     'prompt' => $prompt,
                     'stream' => false,
+                    'format' => 'json',
+                    'options' => [
+                        'num_predict' => 2048, // Prevent truncation
+                        'temperature' => 0.2   // More deterministic JSON
+                    ]
                 ],
                 'timeout' => 120, // Local AI generation takes time
             ]);
 
             $data = $response->toArray();
 
-            return $data['response'] ?? 'Analysis generation failed: No response from model.';
+            return $data['response'] ?? '{"error": "Analysis generation failed: No response from model."}';
         } catch (TransportExceptionInterface $e) {
-            return "Error connecting to local Ollama instance at " . self::OLLAMA_URL . ".\nPlease ensure Ollama is running locally and you have pulled the model (`ollama run " . self::MODEL_NAME . "`).";
+            return json_encode(["error" => "Error connecting to local Ollama instance at " . self::OLLAMA_URL . ".\nPlease ensure Ollama is running locally and you have pulled the model (`ollama run " . self::MODEL_NAME . "`)."]);
         } catch (\Exception $e) {
-            return "An unexpected error occurred during analysis: " . $e->getMessage();
+            return json_encode(["error" => "An unexpected error occurred during analysis: " . $e->getMessage()]);
         }
     }
 
-    private function buildPrompt(ProjectBudget $budget): string
+    private function buildPrompt(ProjectBudget $budget, ?string $userContext): string
     {
         $totalBudget = $budget->getTotalBudget();
         $actualSpend = $budget->getActualSpend();
@@ -58,9 +63,14 @@ class OllamaAnalysisService
             }
         }
 
+        $userContextPrompt = "";
+        if (!empty($userContext)) {
+            $userContextPrompt = "\nUser Context & Future Planned Actions:\n" . $userContext . "\n";
+        }
+
         return <<<PROMPT
 You are an expert Financial Analyst. Analyze this project budget, calculate the variance, evaluate the spending habits based on the transactions, and predict the project's financial success.
-
+{$userContextPrompt}
 Project Overview:
 - Name: {$budget->getName()}
 - Total Budget: {$totalBudget}
@@ -70,15 +80,14 @@ Project Overview:
 
 {$transactionsData}
 
-Please provide a concise analysis structured exactly with these three headings in Markdown format:
-### 1. Budget Variance
-(Calculate and explain the variance based on current spend vs total budget)
-
-### 2. Spending Habits
-(Analyze the transaction categories and descriptions. Where is the money going?)
-
-### 3. Projected Success
-(Provide a brief prediction or confidence assessment on whether this project will finish under budget)
+You MUST return your analysis STRICTLY as a valid JSON object matching the exact schema below. Do not include any markdown formatting, backticks, or extra text outside the JSON object. Keep your "recommended_solutions" concise and properly escaped.
+Schema:
+{
+  "success_probability": 85,
+  "variance_analysis": "string, a brief mathematical summary",
+  "risk_level": "string, exactly one of: Low, Medium, High",
+  "recommended_solutions": "string, markdown formatted text explaining insights and future steps"
+}
 PROMPT;
     }
 }

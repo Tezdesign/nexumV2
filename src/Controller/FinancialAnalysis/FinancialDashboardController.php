@@ -237,13 +237,17 @@ class FinancialDashboardController extends AbstractController
     #[Route('/budget/{id}/analyze', name: 'apps-financial-analysis-analyze-budget', methods: ['POST'])]
     public function generateAnalysis(
         ProjectBudget $projectBudget,
+        Request $request,
         \App\Service\FinancialAnalysis\OllamaAnalysisService $ollamaService
     ): Response {
-        $analysisMarkdown = $ollamaService->analyzeProjectBudget($projectBudget);
+        $payload = json_decode($request->getContent(), true);
+        $userContext = $payload['userContext'] ?? null;
+        
+        $analysisJson = $ollamaService->analyzeProjectBudget($projectBudget, $userContext);
         
         return $this->json([
             'status' => 'success',
-            'analysis' => $analysisMarkdown
+            'analysis' => $analysisJson
         ]);
     }
 

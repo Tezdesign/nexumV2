@@ -10,6 +10,11 @@
                     <p class="text-muted fs-14 mb-4">
                         {{ 'Leverage the local Gemma model to analyze your current project spending habits, calculate variance, and predict project success.'|trans }}
                     </p>
+                    <div class="form-group mb-4 text-start">
+                        <label for="ai-user-context" class="form-label fs-13 fw-medium">{{ 'Optional Context / Future Plans'|trans }}</label>
+                        <textarea class="form-control bg-white" id="ai-user-context" rows="3" placeholder="{{ 'e.g., We are planning to hire 2 more developers next month and cut marketing spend by 50%...'|trans }}"></textarea>
+                        <small class="text-muted">{{ 'Describe any planned changes to spending to help Gemma provide better predictions.'|trans }}</small>
+                    </div>
                     <button class="btn btn-primary rounded-pill px-4 py-2" id="btn-generate-ai-analysis" data-project-id="{{ projectBudgetEntity.id }}">
                         <i class="ti ti-sparkles me-2"></i>{{ 'Generate Analysis'|trans }}
                     </button>
