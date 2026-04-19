@@ -31,6 +31,25 @@ class MessageRepository extends ServiceEntityRepository
     }
 
     /**
+     * @return Message[]
+     */
+    public function findLastByConversationOrdered(int $conversationId, int $limit = 10): array
+    {
+        $safeLimit = max(1, $limit);
+
+        $messages = $this->createQueryBuilder('m')
+            ->andWhere('m.conversation_id = :conversationId')
+            ->setParameter('conversationId', $conversationId)
+            ->orderBy('m.created_at', 'DESC')
+            ->addOrderBy('m.id', 'DESC')
+            ->setMaxResults($safeLimit)
+            ->getQuery()
+            ->getResult();
+
+        return array_reverse($messages);
+    }
+
+    /**
      * @param int[] $conversationIds
      *
      * @return array<int, Message>

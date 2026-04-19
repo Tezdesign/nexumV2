@@ -25,6 +25,9 @@ use Symfony\Component\Routing\Annotation\Route;
 class MessageController extends AbstractController
 {
 	private const LINK_PREVIEW_USER_AGENT = 'Mozilla/5.0 (compatible; NexumChatLinkPreview/1.0; +https://nexum.local)';
+	private const LM_BASE = 'http://localhost:1234/v1';
+	private const LM_CHAT_URL = self::LM_BASE . '/chat/completions';
+	private const LM_MODEL = 'dolphin3.0-llama3.1-8b';
 
 	public function __construct(
 		private readonly HttpClientInterface $httpClient,
@@ -92,9 +95,136 @@ class MessageController extends AbstractController
 		]);
 	}
 
+	#[Route('/apps-chat/conversations/{conversationId}/ai-summary', name: 'apps-chat-conversation-ai-summary', methods: ['POST'])]
+	public function aiSummary(
+		int $conversationId,
+		Request $request,
+		ConversationRepository $conversationRepository,
+		ConversationParticipantRepository $participantRepository,
+		MessageRepository $messageRepository,
+	): JsonResponse {
+		if ($conversationId <= 0) {
+			return $this->json([
+				'success' => false,
+				'error' => 'Invalid conversation id.',
+			], 400);
+		}
+
+		if (!$participantRepository->isActiveParticipant($conversationId, $this->currentUserId())) {
+			return $this->json([
+				'success' => false,
+				'error' => 'Access denied for this conversation.',
+			], 403);
+		}
+
+		$conversation = $conversationRepository->find($conversationId);
+		if (!$conversation instanceof Conversation) {
+			return $this->json([
+				'success' => false,
+				'error' => 'Conversation not found.',
+			], 404);
+		}
+
+		$payload = json_decode((string) $request->getContent(), true);
+		$titleFromRequest = is_array($payload) ? trim((string) ($payload['title'] ?? '')) : '';
+		$conversationTitle = $titleFromRequest !== ''
+			? $titleFromRequest
+			: trim((string) ($conversation->getTitle() ?? ''));
+		if ($conversationTitle === '') {
+			$conversationTitle = 'Conversation';
+		}
+
+		$contextMessages = $messageRepository->findLastByConversationOrdered($conversationId, 10);
+		if ($contextMessages === []) {
+			return $this->json([
+				'success' => true,
+				'summary' => "1) Topic\nNo activity yet.\n\n2) Key points\n- No messages to summarize.\n\n3) Next action\nWait for new messages.",
+			]);
+		}
+
+		try {
+			$summary = $this->lmStudioChatSummary($conversationTitle, $contextMessages);
+
+			return $this->json([
+				'success' => true,
+				'summary' => $summary,
+			]);
+		} catch (\Throwable) {
+			return $this->json([
+				'success' => false,
+				'error' => 'AI summary is unavailable (LM Studio is unreachable).',
+			], 503);
+		}
+	}
+
 	private function currentUserId(): int
 	{
 		return (int) ($this->authService->getCurrentUserId() ?? 0);
+	}
+
+	/**
+	 * @param Message[] $contextMessages
+	 */
+	private function lmStudioChatSummary(string $conversationTitle, array $contextMessages): string
+	{
+		$conversationLines = [];
+		foreach ($contextMessages as $message) {
+			if (!$message instanceof Message) {
+				continue;
+			}
+
+			$body = trim((string) ($message->getBody() ?? ''));
+			if ($body === '') {
+				continue;
+			}
+
+			$isOwn = (int) ($message->getSenderId() ?? 0) === $this->currentUserId();
+			$who = $isOwn ? 'Me' : 'Other';
+			$conversationLines[] = sprintf('%s: %s', $who, $body);
+		}
+
+		$conversationText = implode("\n", $conversationLines);
+		$systemPrompt =
+			"You are an assistant that summarizes chat conversations.\n" .
+			"Return a short summary in English with exactly 3 sections:\n" .
+			"1) Topic (1 line)\n" .
+			"2) Key points (max 3 bullets)\n" .
+			"3) Next action (1 line)\n" .
+			"Be factual and concise.";
+
+		$userPrompt =
+			'Title: ' . $conversationTitle . "\n" .
+			"Messages:\n" . $conversationText;
+
+		$response = $this->httpClient->request('POST', self::LM_CHAT_URL, [
+			'headers' => [
+				'Authorization' => 'Bearer lm-studio',
+				'Content-Type' => 'application/json',
+			],
+			'json' => [
+				'model' => self::LM_MODEL,
+				'temperature' => 0.2,
+				'messages' => [
+					['role' => 'system', 'content' => $systemPrompt],
+					['role' => 'user', 'content' => $userPrompt],
+				],
+			],
+			'timeout' => 45,
+		]);
+
+		$statusCode = $response->getStatusCode();
+		if ($statusCode < 200 || $statusCode >= 300) {
+			throw new \RuntimeException('LM Studio request failed with status ' . $statusCode . '.');
+		}
+
+		$payload = $response->toArray(false);
+		$content = trim((string) ($payload['choices'][0]['message']['content'] ?? ''));
+
+		if ($content === '') {
+			return 'Summary unavailable.';
+		}
+
+		return $content;
 	}
 
 	/**

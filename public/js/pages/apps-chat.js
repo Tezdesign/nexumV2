@@ -157,6 +157,16 @@ class ChatApp {
         this.activeAttachmentControllers = new Map()
         this.activeAudioElement = null
         this.linkPreviewCache = new Map()
+        this.aiSummaryModal = null
+        this.aiSummaryTitle = null
+        this.aiSummaryText = null
+        this.aiSummaryLoading = null
+        this.aiSummarySeenAtUnread = new Map()
+        this.aiSummaryUnreadThreshold = 10
+        this.aiPendingConvId = null
+        this.aiPendingUnreadCount = 0
+        this.aiPendingTitle = 'Conversation'
+        this.aiPendingMessages = []
     }
 
     cacheElements = () => {
@@ -253,6 +263,10 @@ class ChatApp {
         this.messageEditInput = document.querySelector('[data-apps-chat="message-edit-input"]')
         this.messageEditError = document.querySelector('[data-apps-chat="message-edit-error"]')
         this.messageEditSubmitButton = document.querySelector('[data-apps-chat="message-edit-submit"]')
+        this.aiSummaryModal = document.querySelector('[data-apps-chat="ai-summary-modal"]')
+        this.aiSummaryTitle = document.querySelector('[data-apps-chat="ai-summary-title"]')
+        this.aiSummaryText = document.querySelector('[data-apps-chat="ai-summary-text"]')
+        this.aiSummaryLoading = document.querySelector('[data-apps-chat="ai-summary-loading"]')
         this.inlineEditNotice = document.querySelector('[data-apps-chat="inline-edit-notice"]')
         this.inlineEditCancelButton = document.querySelector('[data-apps-chat="inline-edit-cancel"]')
         this.groupCreateModal = document.getElementById('groupCreateModal')
@@ -2854,6 +2868,160 @@ class ChatApp {
         return `${baseEndpoint}${separator}markAsRead=1`
     }
 
+    buildAiSummaryEndpoint = (conversationId) => {
+        return `/apps-chat/conversations/${encodeURIComponent(String(conversationId))}/ai-summary`
+    }
+
+    lastN = (items, n) => {
+        if (!Array.isArray(items) || items.length === 0 || n <= 0) {
+            return []
+        }
+
+        const from = Math.max(0, items.length - n)
+        return items.slice(from)
+    }
+
+    getConversationUnreadCount = (conversationItem) => {
+        if (!conversationItem) {
+            return 0
+        }
+
+        const rawCount = parseInt(String(conversationItem.dataset.conversationUnreadCount || '0'), 10)
+        if (Number.isFinite(rawCount) && rawCount > 0) {
+            return rawCount
+        }
+
+        const badge = conversationItem.querySelector('[data-apps-chat="conversation-unread-badge"]')
+        if (!badge) {
+            return 0
+        }
+
+        const badgeText = String(badge.textContent || '').trim()
+        if (badgeText === '99+') {
+            return 99
+        }
+
+        const parsed = parseInt(badgeText, 10)
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : 0
+    }
+
+    removeAiSummaryChip = () => {
+        this.messagesList?.querySelector('[data-apps-chat="ai-summary-chip-wrap"]')?.remove()
+    }
+
+    addAiSummaryChip = (onClick) => {
+        if (!this.messagesList) {
+            return
+        }
+
+        this.removeAiSummaryChip()
+
+        const item = document.createElement('li')
+        item.className = 'chat-ai-chip-wrap'
+        item.setAttribute('data-apps-chat', 'ai-summary-chip-wrap')
+
+        const chip = document.createElement('button')
+        chip.type = 'button'
+        chip.className = 'chat-ai-chip'
+        chip.textContent = 'AI SUMMARY'
+
+        chip.addEventListener('click', (event) => {
+            event.preventDefault()
+            event.stopPropagation()
+            if (typeof onClick === 'function') {
+                onClick()
+            }
+        })
+
+        item.appendChild(chip)
+        this.messagesList.appendChild(item)
+        this.scrollToBottom(true)
+    }
+
+    openAiSummaryFrom = (title, messages, conversationId, unreadCount) => {
+        this.aiPendingTitle = String(title || '').trim() || 'Conversation'
+        this.aiPendingMessages = this.lastN(Array.isArray(messages) ? messages : [], 10)
+        this.aiPendingConvId = conversationId
+        this.aiPendingUnreadCount = unreadCount
+
+        this.openAiSummary()
+    }
+
+    openAiSummary = async () => {
+        if (!this.aiSummaryModal || !this.aiSummaryText || !this.aiPendingConvId) {
+            return
+        }
+
+        const convIdSnapshot = this.aiPendingConvId
+        const unreadSnapshot = this.aiPendingUnreadCount
+        const titleSnapshot = this.aiPendingTitle || 'Conversation'
+
+        this.aiSummaryTitle && (this.aiSummaryTitle.textContent = 'AI Summary')
+        this.aiSummaryText.textContent = ''
+        this.aiSummaryLoading?.classList.remove('d-none')
+        this.getBootstrapModal(this.aiSummaryModal)?.show()
+
+        try {
+            const response = await fetch(this.buildAiSummaryEndpoint(convIdSnapshot), {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    title: titleSnapshot,
+                }),
+            })
+
+            const payload = await response.json().catch(() => ({}))
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.error || 'Summary is unavailable right now.')
+            }
+
+            if (String(this.activeConversationId || '') !== String(convIdSnapshot)) {
+                return
+            }
+
+            this.aiSummaryText.textContent = String(payload.summary || '').trim() || 'Summary unavailable.'
+        } catch (error) {
+            this.aiSummaryText.textContent = error?.message || 'AI summary is unavailable (LM Studio is unreachable).'
+        } finally {
+            this.aiSummaryLoading?.classList.add('d-none')
+            this.aiSummarySeenAtUnread.set(String(convIdSnapshot), unreadSnapshot)
+            this.removeAiSummaryChip()
+        }
+    }
+
+    maybeShowAiSummaryChip = (conversationId, unreadBefore, conversationTitle, messages) => {
+        if (!conversationId || unreadBefore < this.aiSummaryUnreadThreshold) {
+            this.removeAiSummaryChip()
+            return
+        }
+
+        const convKey = String(conversationId)
+        const seenAt = this.aiSummarySeenAtUnread.get(convKey) || 0
+        if (unreadBefore <= seenAt) {
+            this.removeAiSummaryChip()
+            return
+        }
+
+        const contextMessages = this.lastN(Array.isArray(messages) ? messages : [], 10)
+        if (contextMessages.length === 0) {
+            this.removeAiSummaryChip()
+            return
+        }
+
+        this.aiPendingConvId = conversationId
+        this.aiPendingUnreadCount = unreadBefore
+        this.aiPendingTitle = String(conversationTitle || '').trim() || 'Conversation'
+        this.aiPendingMessages = contextMessages
+
+        this.addAiSummaryChip(() => {
+            this.aiSummarySeenAtUnread.set(convKey, unreadBefore)
+            this.openAiSummaryFrom(this.aiPendingTitle, contextMessages, conversationId, unreadBefore)
+        })
+    }
+
     createAvatarElement = (avatarSrc, fallbackText) => {
         if (avatarSrc) {
             const image = document.createElement('img')
@@ -3836,6 +4004,7 @@ class ChatApp {
         }
 
         conversationItem.dataset.conversationUnread = '0'
+        conversationItem.dataset.conversationUnreadCount = '0'
         const badge = conversationItem.querySelector('[data-apps-chat="conversation-unread-badge"]')
         if (badge) {
             badge.remove()
@@ -3862,10 +4031,15 @@ class ChatApp {
         this.scrollToBottom()
     }
 
-    loadConversationMessages = async (conversationId, endpoint) => {
+    loadConversationMessages = async (conversationId, endpoint, options = {}) => {
         if (!endpoint) {
             return
         }
+
+        const unreadBefore = Number.isFinite(options?.unreadBefore)
+            ? Math.max(0, options.unreadBefore)
+            : 0
+        const conversationTitle = String(options?.conversationTitle || '').trim() || 'Conversation'
 
         if (this.activeFetchController) {
             this.activeFetchController.abort()
@@ -3895,10 +4069,17 @@ class ChatApp {
                 throw new Error(payload.error || 'Failed to load messages')
             }
 
+            const messages = Array.isArray(payload.messages) ? payload.messages : []
+            const readReceipts = Array.isArray(payload.readReceipts) ? payload.readReceipts : []
+
             this.renderMessages(
-                Array.isArray(payload.messages) ? payload.messages : [],
-                Array.isArray(payload.readReceipts) ? payload.readReceipts : []
+                messages,
+                readReceipts
             )
+
+            if (String(this.activeConversationId || '') === String(conversationId)) {
+                this.maybeShowAiSummaryChip(conversationId, unreadBefore, conversationTitle, messages)
+            }
         } catch (error) {
             if (error?.name === 'AbortError') {
                 return
@@ -3928,6 +4109,8 @@ class ChatApp {
         const rawConversationId = item.dataset.conversationId || ''
         const nextConversationId = rawConversationId !== '' ? rawConversationId : null
         const endpoint = this.buildMessagesEndpoint(item, rawConversationId, { markAsRead: true })
+        const unreadBefore = this.getConversationUnreadCount(item)
+        const conversationTitle = String(item.dataset.conversationName || item.dataset.groupTitle || item.dataset.dmName || '').trim() || 'Conversation'
 
         if (!endpoint) {
             return
@@ -3965,7 +4148,10 @@ class ChatApp {
         }
 
         this.clearConversationUnreadState(item)
-        this.loadConversationMessages(nextConversationId, endpoint)
+        await this.loadConversationMessages(nextConversationId, endpoint, {
+            unreadBefore,
+            conversationTitle,
+        })
     }
 
     initConversationSelection = () => {
@@ -4172,6 +4358,13 @@ class ChatApp {
 
         this.inlineEditCancelButton?.addEventListener('click', () => {
             this.clearInlineEditMode({ resetInput: true })
+        })
+
+        this.aiSummaryModal?.addEventListener('hidden.bs.modal', () => {
+            if (this.aiPendingConvId) {
+                this.aiSummarySeenAtUnread.set(String(this.aiPendingConvId), this.aiPendingUnreadCount)
+            }
+            this.aiSummaryLoading?.classList.add('d-none')
         })
 
         this.attachmentButton?.addEventListener('click', (event) => {
