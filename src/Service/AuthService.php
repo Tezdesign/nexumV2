@@ -7,13 +7,18 @@ use App\Repository\UserHandling\UtilisateurRepository;
 use Symfony\Component\HttpFoundation\Session\SessionInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
+use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 
 class AuthService
 {
+    private const FIREWALL_NAME = 'main';
+
     public function __construct(
         private readonly UtilisateurRepository $utilisateurRepository,
         private readonly RequestStack $requestStack,
         private readonly UserPasswordHasherInterface $passwordHasher,
+        private readonly TokenStorageInterface $tokenStorage,
     ) {
     }
 
@@ -33,6 +38,7 @@ class AuthService
         
         if ($utilisateur) {
             $this->refreshSessionUser($utilisateur);
+            $this->authenticateSymfonyUser($utilisateur);
             
             return $utilisateur;
         }
@@ -73,11 +79,18 @@ class AuthService
             return;
         }
         $session->remove('user');
+        $session->remove('_security_' . self::FIREWALL_NAME);
+        $this->tokenStorage->setToken(null);
         $session->invalidate();
     }
 
     public function isLoggedIn(): bool
     {
+        $tokenUser = $this->tokenStorage->getToken()?->getUser();
+        if ($tokenUser instanceof Utilisateur) {
+            return true;
+        }
+
         $session = $this->session();
 
         return $session !== null && $session->has('user');
@@ -120,12 +133,22 @@ class AuthService
 
     public function getCurrentUserId(): ?int
     {
+        $tokenUser = $this->tokenStorage->getToken()?->getUser();
+        if ($tokenUser instanceof Utilisateur) {
+            return $tokenUser->getId();
+        }
+
         $user = $this->getCurrentUser();
         return $user ? $user['id'] : null;
     }
 
     public function getCurrentUserRole(): ?string
     {
+        $tokenUser = $this->tokenStorage->getToken()?->getUser();
+        if ($tokenUser instanceof Utilisateur) {
+            return strtolower(trim((string) $tokenUser->getRole()));
+        }
+
         $user = $this->getCurrentUser();
         return $user ? $user['role'] : null;
     }
@@ -153,5 +176,18 @@ class AuthService
     public function isManager(): bool
     {
         return $this->hasRole('manager') || $this->isAdmin();
+    }
+
+    private function authenticateSymfonyUser(Utilisateur $utilisateur): void
+    {
+        $token = new UsernamePasswordToken($utilisateur, self::FIREWALL_NAME, $utilisateur->getRoles());
+        $this->tokenStorage->setToken($token);
+
+        $session = $this->session();
+        if ($session === null) {
+            return;
+        }
+
+        $session->set('_security_' . self::FIREWALL_NAME, serialize($token));
     }
 }

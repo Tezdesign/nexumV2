@@ -7,6 +7,7 @@ use App\Entity\Dto\Auth\LoginInput;
 use App\Entity\Dto\Auth\RegistrationInput;
 use App\Entity\UserHandling\Utilisateur;
 use App\Service\AuthService;
+use App\Service\Captcha\CaptchaImageService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -17,9 +18,12 @@ class WelcomeController extends AbstractController
 {
     use ValidationFlashTrait;
 
+    private const LOGIN_CAPTCHA_CODE_KEY = 'login_captcha_code';
+
     public function __construct(
         private readonly AuthService $authService,
         private readonly ValidatorInterface $validator,
+        private readonly CaptchaImageService $captchaImageService,
     ) {
     }
 
@@ -43,6 +47,15 @@ class WelcomeController extends AbstractController
         if ($request->isMethod('POST')) {
             $input = LoginInput::fromRequest($request);
             if ($this->flashValidationErrors($this->validator->validate($input))) {
+                $this->ensureLoginCaptcha($request);
+
+                return $this->render('auth/login.html.twig');
+            }
+
+            if (!$this->isLoginCaptchaValid($request)) {
+                $this->addFlash('error', 'Invalid CAPTCHA.');
+                $this->regenerateLoginCaptcha($request);
+
                 return $this->render('auth/login.html.twig');
             }
 
@@ -55,9 +68,45 @@ class WelcomeController extends AbstractController
             }
 
             $this->addFlash('error', 'Email ou mot de passe incorrect.');
+            $this->regenerateLoginCaptcha($request);
         }
 
+        $this->ensureLoginCaptcha($request);
+
         return $this->render('auth/login.html.twig');
+    }
+
+    #[Route('/login/captcha', name: 'login_captcha', methods: ['GET'])]
+    public function loginCaptcha(Request $request): Response
+    {
+        if ($this->authService->isLoggedIn()) {
+            return new Response('', Response::HTTP_FORBIDDEN);
+        }
+
+        $session = $request->getSession();
+        if ($request->query->getBoolean('renew')) {
+            $this->regenerateLoginCaptcha($request);
+        } else {
+            $this->ensureLoginCaptcha($request);
+        }
+
+        $code = (string) $session->get(self::LOGIN_CAPTCHA_CODE_KEY, '');
+        if ($code === '') {
+            $this->regenerateLoginCaptcha($request);
+            $code = (string) $session->get(self::LOGIN_CAPTCHA_CODE_KEY, '');
+        }
+
+        try {
+            $png = $this->captchaImageService->renderPng($code);
+        } catch (\Throwable) {
+            return new Response('Captcha unavailable.', Response::HTTP_SERVICE_UNAVAILABLE);
+        }
+
+        return new Response($png, Response::HTTP_OK, [
+            'Content-Type' => 'image/png',
+            'Cache-Control' => 'private, no-store, no-cache, must-revalidate',
+            'Pragma' => 'no-cache',
+        ]);
     }
 
     #[Route('/signin', name: 'signin')]
@@ -121,5 +170,34 @@ class WelcomeController extends AbstractController
         $this->addFlash('success', 'Session effacée. Veuillez vous reconnecter.');
 
         return $this->redirectToRoute('welcome');
+    }
+
+    private function ensureLoginCaptcha(Request $request): void
+    {
+        $session = $request->getSession();
+        $code = (string) $session->get(self::LOGIN_CAPTCHA_CODE_KEY, '');
+        if ($code === '') {
+            $this->regenerateLoginCaptcha($request);
+        }
+    }
+
+    private function regenerateLoginCaptcha(Request $request): void
+    {
+        $session = $request->getSession();
+        $session->set(self::LOGIN_CAPTCHA_CODE_KEY, $this->captchaImageService->generateCode(5));
+    }
+
+    private function isLoginCaptchaValid(Request $request): bool
+    {
+        $session = $request->getSession();
+        $expected = (string) $session->get(self::LOGIN_CAPTCHA_CODE_KEY, '');
+        $raw = strtoupper(trim((string) $request->request->get('_captcha', '')));
+        $raw = preg_replace('/\s+/', '', $raw) ?? '';
+
+        if ($expected === '' || $raw === '') {
+            return false;
+        }
+
+        return hash_equals(strtoupper($expected), $raw);
     }
 }

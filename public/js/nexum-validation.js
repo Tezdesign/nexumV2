@@ -33,9 +33,13 @@
             var errs = [];
             var email = trim(form.querySelector('[name="_username"]') && form.querySelector('[name="_username"]').value);
             var pw = form.querySelector('[name="_password"]') ? form.querySelector('[name="_password"]').value : '';
+            var captcha = trim(form.querySelector('[name="_captcha"]') && form.querySelector('[name="_captcha"]').value);
             if (!email) errs.push('Email is required.');
             else if (!EMAIL_RE.test(email)) errs.push('Please enter a valid email address.');
             if (!trim(pw)) errs.push('Password is required.');
+            if (!captcha) errs.push('Captcha answer is required.');
+            else if (!/^[A-Za-z0-9]+$/.test(captcha)) errs.push('Captcha must contain only letters and numbers.');
+            else if (captcha.length < 4 || captcha.length > 12) errs.push('Captcha length is invalid.');
             showSummary(form, errs);
             return errs;
         },
