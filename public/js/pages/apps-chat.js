@@ -167,6 +167,8 @@ class ChatApp {
         this.aiPendingUnreadCount = 0
         this.aiPendingTitle = 'Conversation'
         this.aiPendingMessages = []
+        this.aiSummaryPendingByConv = new Set()
+        this.aiSummaryPendingStorageKey = 'apps-chat-ai-summary-pending-v1'
     }
 
     cacheElements = () => {
@@ -2909,6 +2911,39 @@ class ChatApp {
         this.messagesList?.querySelector('[data-apps-chat="ai-summary-chip-wrap"]')?.remove()
     }
 
+    loadAiSummaryPendingState = () => {
+        try {
+            const raw = window.localStorage.getItem(this.aiSummaryPendingStorageKey)
+            if (!raw) {
+                this.aiSummaryPendingByConv = new Set()
+                return
+            }
+
+            const parsed = JSON.parse(raw)
+            if (!Array.isArray(parsed)) {
+                this.aiSummaryPendingByConv = new Set()
+                return
+            }
+
+            this.aiSummaryPendingByConv = new Set(
+                parsed
+                    .map((value) => String(value || '').trim())
+                    .filter((value) => value !== '')
+            )
+        } catch {
+            this.aiSummaryPendingByConv = new Set()
+        }
+    }
+
+    saveAiSummaryPendingState = () => {
+        try {
+            const values = Array.from(this.aiSummaryPendingByConv)
+            window.localStorage.setItem(this.aiSummaryPendingStorageKey, JSON.stringify(values))
+        } catch {
+            // Ignore storage errors to avoid breaking chat UI behavior.
+        }
+    }
+
     addAiSummaryChip = (onClick) => {
         if (!this.messagesList) {
             return
@@ -2954,12 +2989,16 @@ class ChatApp {
 
         const convIdSnapshot = this.aiPendingConvId
         const unreadSnapshot = this.aiPendingUnreadCount
-        const titleSnapshot = this.aiPendingTitle || 'Conversation'
+        const titleSnapshot = this.sanitizeAiSummaryTitleInput(this.aiPendingTitle || 'Conversation')
+        const convKey = String(convIdSnapshot)
+        let summarySucceeded = false
 
         this.aiSummaryTitle && (this.aiSummaryTitle.textContent = 'AI Summary')
         this.aiSummaryText.textContent = ''
         this.aiSummaryLoading?.classList.remove('d-none')
         this.getBootstrapModal(this.aiSummaryModal)?.show()
+        this.aiSummaryPendingByConv.add(convKey)
+        this.saveAiSummaryPendingState()
 
         try {
             const response = await fetch(this.buildAiSummaryEndpoint(convIdSnapshot), {
@@ -2983,30 +3022,61 @@ class ChatApp {
             }
 
             this.aiSummaryText.textContent = String(payload.summary || '').trim() || 'Summary unavailable.'
+            summarySucceeded = true
         } catch (error) {
             this.aiSummaryText.textContent = error?.message || 'AI summary is unavailable (LM Studio is unreachable).'
         } finally {
             this.aiSummaryLoading?.classList.add('d-none')
-            this.aiSummarySeenAtUnread.set(String(convIdSnapshot), unreadSnapshot)
-            this.removeAiSummaryChip()
+
+            if (summarySucceeded) {
+                this.aiSummarySeenAtUnread.set(convKey, unreadSnapshot)
+                this.aiSummaryPendingByConv.delete(convKey)
+                this.saveAiSummaryPendingState()
+                this.removeAiSummaryChip()
+            } else {
+                this.aiSummaryPendingByConv.add(convKey)
+                this.saveAiSummaryPendingState()
+            }
         }
     }
 
+    sanitizeAiSummaryTitleInput = (value) => {
+        if (value === null || value === undefined) {
+            return 'Conversation'
+        }
+
+        const cleaned = String(value)
+            .replace(/[\u0000-\u001F\u007F]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+
+        if (!cleaned) {
+            return 'Conversation'
+        }
+
+        return cleaned.length > 120 ? cleaned.slice(0, 120) : cleaned
+    }
+
     maybeShowAiSummaryChip = (conversationId, unreadBefore, conversationTitle, messages) => {
-        if (!conversationId || unreadBefore < this.aiSummaryUnreadThreshold) {
+        if (!conversationId) {
             this.removeAiSummaryChip()
             return
         }
 
         const convKey = String(conversationId)
+        const hasPending = this.aiSummaryPendingByConv.has(convKey)
         const seenAt = this.aiSummarySeenAtUnread.get(convKey) || 0
-        if (unreadBefore <= seenAt) {
+        const passesUnreadGate = unreadBefore >= this.aiSummaryUnreadThreshold && unreadBefore > seenAt
+
+        if (!hasPending && !passesUnreadGate) {
             this.removeAiSummaryChip()
             return
         }
 
         const contextMessages = this.lastN(Array.isArray(messages) ? messages : [], 10)
         if (contextMessages.length === 0) {
+            this.aiSummaryPendingByConv.delete(convKey)
+            this.saveAiSummaryPendingState()
             this.removeAiSummaryChip()
             return
         }
@@ -3017,7 +3087,6 @@ class ChatApp {
         this.aiPendingMessages = contextMessages
 
         this.addAiSummaryChip(() => {
-            this.aiSummarySeenAtUnread.set(convKey, unreadBefore)
             this.openAiSummaryFrom(this.aiPendingTitle, contextMessages, conversationId, unreadBefore)
         })
     }
@@ -4071,6 +4140,18 @@ class ChatApp {
 
             const messages = Array.isArray(payload.messages) ? payload.messages : []
             const readReceipts = Array.isArray(payload.readReceipts) ? payload.readReceipts : []
+            const conversationState = payload.conversationState || {}
+
+            const serverUnreadBefore = Number.parseInt(String(conversationState.unreadBeforeRead ?? ''), 10)
+            const unreadSnapshot = Number.isFinite(serverUnreadBefore) && serverUnreadBefore >= 0
+                ? serverUnreadBefore
+                : unreadBefore
+
+            const lastReadBefore = Number.parseInt(String(conversationState.lastReadMessageIdBeforeRead ?? '0'), 10)
+            const lastConversationMessageId = Number.parseInt(String(conversationState.lastConversationMessageId ?? '0'), 10)
+            const hasUnreadByMessageId = Number.isFinite(lastConversationMessageId)
+                && Number.isFinite(lastReadBefore)
+                && lastConversationMessageId > lastReadBefore
 
             this.renderMessages(
                 messages,
@@ -4078,7 +4159,8 @@ class ChatApp {
             )
 
             if (String(this.activeConversationId || '') === String(conversationId)) {
-                this.maybeShowAiSummaryChip(conversationId, unreadBefore, conversationTitle, messages)
+                const effectiveUnread = hasUnreadByMessageId ? unreadSnapshot : 0
+                this.maybeShowAiSummaryChip(conversationId, effectiveUnread, conversationTitle, messages)
             }
         } catch (error) {
             if (error?.name === 'AbortError') {
@@ -4361,9 +4443,6 @@ class ChatApp {
         })
 
         this.aiSummaryModal?.addEventListener('hidden.bs.modal', () => {
-            if (this.aiPendingConvId) {
-                this.aiSummarySeenAtUnread.set(String(this.aiPendingConvId), this.aiPendingUnreadCount)
-            }
             this.aiSummaryLoading?.classList.add('d-none')
         })
 
@@ -4775,6 +4854,7 @@ class ChatApp {
 
     init = () => {
         this.cacheElements();
+        this.loadAiSummaryPendingState();
         this.initEmojiPicker();
         this.setComposerEnabled(false);
         this.initDetailsDrawer();
