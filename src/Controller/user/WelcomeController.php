@@ -65,6 +65,13 @@ class WelcomeController extends AbstractController
             $utilisateur = $this->authService->login($input->email, $input->password);
 
             if ($utilisateur) {
+                // Ensure session is saved first
+                $session = $request->getSession();
+                if ($session) {
+                    $session->save();
+                }
+                
+                // Add flash message after session is saved
                 $this->addFlash('success', 'Connexion réussie !');
 
                 return $this->redirectToRoute($this->authService->isAdmin() ? 'admin_home' : 'dashboard');
@@ -220,34 +227,75 @@ class WelcomeController extends AbstractController
                 ], Response::HTTP_BAD_REQUEST);
             }
 
-            // Recognize face using CompreFace
-            $recognizedEmail = $this->compreFaceService->recognizeFace($imageData);
+            // Check if CompreFace service is available
+            try {
+                error_log('Starting face recognition process...');
+                $recognizedEmail = $this->compreFaceService->recognizeFace($imageData);
+                error_log('Face recognition result: ' . ($recognizedEmail ? $recognizedEmail : 'null'));
+            } catch (\Exception $e) {
+                error_log('CompreFace service error: ' . $e->getMessage());
+                return new JsonResponse([
+                    'success' => false,
+                    'message' => 'Face recognition service is currently unavailable. Please use email and password to login.'
+                ], Response::HTTP_SERVICE_UNAVAILABLE);
+            }
             
             if ($recognizedEmail) {
+                error_log('Face recognized, looking up user with email: ' . $recognizedEmail);
                 // Find user by email
                 $utilisateur = $this->authService->getUtilisateurRepository()->findByEmail($recognizedEmail);
+                error_log('User lookup result: ' . ($utilisateur ? 'found' : 'not found'));
                 
-                if ($utilisateur && $utilisateur->getFaceId()) {
-                    // Authenticate the user
-                    $this->authService->refreshSessionUser($utilisateur);
-                    $this->authService->authenticateSymfonyUser($utilisateur);
-                    
-                    return new JsonResponse([
-                        'success' => true,
-                        'message' => 'Face authentication successful',
-                        'redirect_url' => $this->generateUrl($this->authService->isAdmin() ? 'admin_home' : 'dashboard')
-                    ]);
+                if ($utilisateur) {
+                    error_log('User found, checking face_id: ' . ($utilisateur->getFaceId() ? 'exists' : 'null'));
+                    if ($utilisateur->getFaceId()) {
+                        // Authenticate the user
+                        error_log('Authenticating user...');
+                        $this->authService->refreshSessionUser($utilisateur);
+                        $this->authService->authenticateSymfonyUser($utilisateur);
+                        
+                        // Ensure session is saved
+                        $session = $request->getSession();
+                        if ($session) {
+                            $session->save();
+                        }
+                        
+                        error_log('User authenticated successfully');
+                        return new JsonResponse([
+                            'success' => true,
+                            'message' => 'Face authentication successful',
+                            'redirect_url' => $this->generateUrl($this->authService->isAdmin() ? 'admin_home' : 'dashboard')
+                        ]);
+                    } else {
+                        error_log('User found but no face_id registered');
+                        return new JsonResponse([
+                            'success' => false,
+                            'message' => 'User found but face not registered. Please register your face first.'
+                        ]);
+                    }
                 }
+            } else {
+                error_log('Face not recognized by CompreFace');
+                return new JsonResponse([
+                    'success' => false,
+                    'message' => 'Face not recognized. Please try again or use your email and password.'
+                ]);
             }
-
+            
+            // This should not be reached, but add a fallback
+            error_log('Unexpected flow in face authentication');
             return new JsonResponse([
                 'success' => false,
-                'message' => 'Face not recognized. Please try again or use your email and password.'
+                'message' => 'Unexpected error during face authentication. Please try again.'
             ]);
         } catch (\Exception $e) {
+            // Log the actual error for debugging
+            error_log('Face authentication error: ' . $e->getMessage());
+            error_log('Stack trace: ' . $e->getTraceAsString());
+            
             return new JsonResponse([
                 'success' => false,
-                'message' => 'An error occurred during face authentication'
+                'message' => 'Face recognition service is currently unavailable. Please try again later.'
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }

@@ -43,7 +43,8 @@
         padding: 50px 60px;
         display: flex;
         flex-direction: column;
-        justify-content: center;
+        overflow-y: auto;
+        max-height: 550px;
     }
 
     .back-link {
@@ -285,6 +286,54 @@
         border-color: var(--primary-purple);
         background: #faf5ff;
     }
+
+    /* Custom scrollbar for form section */
+    .form-section::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .form-section::-webkit-scrollbar-track {
+        background: rgba(124, 58, 237, 0.1);
+        border-radius: 10px;
+    }
+
+    .form-section::-webkit-scrollbar-thumb {
+        background: linear-gradient(180deg, var(--primary-purple) 0%, #6d28d9 100%);
+        border-radius: 10px;
+        border: 2px solid rgba(124, 58, 237, 0.2);
+        transition: all 0.3s ease;
+    }
+
+    .form-section::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(180deg, #8b5cf6 0%, var(--primary-purple) 100%);
+        border-color: rgba(124, 58, 237, 0.4);
+        transform: scaleY(1.1);
+    }
+
+    /* Firefox scrollbar */
+    .form-section::-moz-scrollbar-thumb {
+        background: var(--primary-purple);
+        border-radius: 10px;
+        border: 2px solid rgba(124, 58, 237, 0.2);
+    }
+
+    .form-section::-moz-scrollbar-track {
+        background: rgba(124, 58, 237, 0.1);
+        border-radius: 10px;
+    }
+
+    /* Face authentication button hover effects */
+    .btn-face-auth:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(124, 58, 237, 0.4);
+        opacity: 0.9;
+    }
+
+    .btn-secondary:hover {
+        border-color: var(--primary-purple);
+        background: #faf5ff;
+        transform: translateY(-1px);
+    }
 </style>
 {% endblock %}
 
@@ -355,14 +404,14 @@
                 <video id="faceAuthVideo" width="320" height="240" style="display: none; border-radius: 10px; margin: 0 auto 10px; display: block;"></video>
                 <canvas id="faceAuthCanvas" width="320" height="240" style="display: none;"></canvas>
                 <div class="face-auth-buttons" style="text-align: center;">
-                    <button type="button" id="startAuthCameraBtn" class="btn-secondary" style="padding: 12px 24px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); cursor: pointer; margin-right: 10px;">
-                        📷 Start Face Authentication
+                    <button type="button" id="startAuthCameraBtn" class="btn-face-auth" style="padding: 14px 28px; border-radius: 12px; border: 2px solid var(--primary-purple); background: linear-gradient(135deg, var(--primary-purple) 0%, #6d28d9 100%); color: white; cursor: pointer; font-size: 15px; font-weight: 600; margin-right: 10px; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3);">
+                        &#x1f4f7; Start Face Authentication
                     </button>
-                    <button type="button" id="authenticateFaceBtn" class="btn-secondary" style="padding: 12px 24px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); cursor: pointer; margin-right: 10px; display: none;">
-                        🔐 Authenticate
+                    <button type="button" id="authenticateFaceBtn" class="btn-face-auth" style="padding: 14px 28px; border-radius: 12px; border: 2px solid var(--primary-purple); background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; cursor: pointer; font-size: 15px; font-weight: 600; margin-right: 10px; display: none; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);">
+                        &#x1f510; Authenticate
                     </button>
-                    <button type="button" id="stopAuthCameraBtn" class="btn-secondary" style="padding: 12px 24px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); cursor: pointer; display: none;">
-                        🛑 Stop Camera
+                    <button type="button" id="stopAuthCameraBtn" class="btn-secondary" style="padding: 12px 24px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); cursor: pointer; display: none; transition: all 0.3s ease;">
+                        &#x1f5d1; Stop Camera
                     </button>
                 </div>
                 <div id="faceAuthResult" style="margin-top: 15px; text-align: center;"></div>
@@ -460,12 +509,17 @@ authenticateFaceBtn.addEventListener('click', function() {
             })
             .then(response => response.json())
             .then(data => {
+                console.log('Face authentication response:', data);
                 if (data.success) {
                     faceAuthResult.innerHTML = '<div class="alert alert-success">Face authentication successful! Redirecting...</div>';
+                    console.log('Redirecting to:', data.redirect_url);
                     setTimeout(() => {
-                        window.location.href = data.redirect_url;
-                    }, 1500);
+                        console.log('Performing redirect to:', data.redirect_url);
+                        // Force a page reload instead of direct navigation to ensure session is properly loaded
+                        window.location.href = data.redirect_url + '?t=' + Date.now();
+                    }, 2000); // Increased delay to 2 seconds
                 } else {
+                    console.log('Face authentication failed:', data.message);
                     faceAuthResult.innerHTML = '<div class="alert alert-danger">' + (data.message || 'Face authentication failed. Please try again.') + '</div>';
                 }
             })

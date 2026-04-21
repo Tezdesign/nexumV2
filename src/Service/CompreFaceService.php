@@ -20,13 +20,6 @@ class CompreFaceService
     public function registerFace(string $imageData, string $subject): ?string
     {
         try {
-            echo "Taille image: " . strlen($imageData) . "\n";
-            
-            // Save temporary file for debugging
-            $tempFile = sys_get_temp_dir() . '/capture_' . time() . '.jpg';
-            file_put_contents($tempFile, $imageData);
-            echo "Image sauvegardée: " . $tempFile . "\n";
-            
             $boundary = uniqid();
             
             $body = "--{$boundary}\r\n";
@@ -46,9 +39,6 @@ class CompreFaceService
             $statusCode = $response->getStatusCode();
             $responseBody = $response->getContent();
             
-            echo "Code: " . $statusCode . "\n";
-            echo "Réponse: " . $responseBody . "\n";
-            
             if ($statusCode === 200 || $statusCode === 201) {
                 $data = json_decode($responseBody, true);
                 
@@ -57,15 +47,11 @@ class CompreFaceService
                     return $data['image_id'];
                 } elseif (isset($data['face_token'])) {
                     return $data['face_token'];
-                } else {
-                    echo "Champ inconnu dans la réponse : " . $responseBody . "\n";
                 }
-            } else {
-                echo "Erreur CompreFace: " . $responseBody . "\n";
             }
         } catch (\Exception $e) {
-            echo "Exception: " . $e->getMessage() . "\n";
-            $e->getTraceAsString();
+            // Log error instead of echoing
+            error_log('CompreFace registerFace error: ' . $e->getMessage());
         }
         
         return null;
@@ -74,8 +60,6 @@ class CompreFaceService
     public function recognizeFace(string $imageData): ?string
     {
         try {
-            echo "Taille image: " . strlen($imageData) . "\n";
-            
             $boundary = uniqid();
             
             $body = "--{$boundary}\r\n";
@@ -95,9 +79,6 @@ class CompreFaceService
             $statusCode = $response->getStatusCode();
             $responseBody = $response->getContent();
             
-            echo "Code: " . $statusCode . "\n";
-            echo "Réponse: " . $responseBody . "\n";
-            
             if ($statusCode === 200) {
                 $data = json_decode($responseBody, true);
                 
@@ -106,8 +87,8 @@ class CompreFaceService
                 }
             }
         } catch (\Exception $e) {
-            echo "Exception: " . $e->getMessage() . "\n";
-            $e->getTraceAsString();
+            // Log error instead of echoing
+            error_log('CompreFace recognizeFace error: ' . $e->getMessage());
         }
         
         return null;
