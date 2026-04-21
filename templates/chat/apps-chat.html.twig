@@ -552,7 +552,7 @@
 
 {% block content %}
 
-    <div class="chat d-flex gap-2 position-relative" data-apps-chat="chat-root" data-current-user-name="{{ currentUser.name|e('html_attr') }}" data-current-user-avatar="{{ (currentUser.avatarSrc ?? '')|e('html_attr') }}" data-gif-api-key="{{ (gifApiKey ?? '')|e('html_attr') }}" data-gif-api-provider="{{ (gifApiProvider ?? 'kilpy')|e('html_attr') }}" data-gif-api-base-url="{{ (gifApiBaseUrl ?? 'https://api.klipy.com')|e('html_attr') }}" data-gif-customer-id="{{ (gifCustomerId ?? 'guest')|e('html_attr') }}" data-gif-locale="{{ (gifLocale ?? 'tn')|e('html_attr') }}">
+    <div class="chat d-flex gap-2 position-relative" data-apps-chat="chat-root" data-current-user-id="{{ currentUser.id ?? 0 }}" data-current-user-name="{{ currentUser.name|e('html_attr') }}" data-current-user-avatar="{{ (currentUser.avatarSrc ?? '')|e('html_attr') }}" data-gif-api-key="{{ (gifApiKey ?? '')|e('html_attr') }}" data-gif-api-provider="{{ (gifApiProvider ?? 'kilpy')|e('html_attr') }}" data-gif-api-base-url="{{ (gifApiBaseUrl ?? 'https://api.klipy.com')|e('html_attr') }}" data-gif-customer-id="{{ (gifCustomerId ?? 'guest')|e('html_attr') }}" data-gif-locale="{{ (gifLocale ?? 'tn')|e('html_attr') }}" data-call-signaling-enabled="{{ callSignalingEnabled ? '1' : '0' }}" data-call-socket-url="{{ (callSocketUrl ?? 'ws://localhost:8090/ws')|e('html_attr') }}" data-call-token-endpoint="{{ (callTokenEndpoint ?? 'http://127.0.0.1:8090/livekit/token')|e('html_attr') }}" data-call-page-endpoint="{{ (callPageEndpoint ?? 'http://127.0.0.1:8090/livekit/call')|e('html_attr') }}" data-call-livekit-url="{{ (callLivekitUrl ?? 'ws://127.0.0.1:7880')|e('html_attr') }}">
         <div class="offcanvas-xxl offcanvas-start" tabindex="-1" id="chatUserList" aria-labelledby="chatUserListLabel">
             <div id="chat-user-list" class="card collapse collapse-horizontal show">
                 <div class="chat-user-list">
@@ -736,10 +736,10 @@
                                 </div>
 
                                 <div class="d-flex align-items-center gap-2">
-                                    <a href="javascript: void(0);" class="btn btn-sm btn-icon btn-ghost-light d-none d-xl-flex" data-bs-toggle="modal" data-bs-target="#userCall" data-bs-toggle="tooltip" data-bs-placement="top" title="Voice Call">
+                                    <a href="javascript: void(0);" class="btn btn-sm btn-icon btn-ghost-light d-none d-xl-flex" data-apps-chat="call-audio" data-bs-toggle="tooltip" data-bs-placement="top" title="Voice Call">
                                         <i class="ti ti-phone-call fs-20"></i>
                                     </a>
-                                    <a href="javascript: void(0);" class="btn btn-sm btn-icon btn-ghost-light d-none d-xl-flex" data-bs-toggle="modal" data-bs-target="#userVideoCall" data-bs-toggle="tooltip" data-bs-placement="top" title="Video Call">
+                                    <a href="javascript: void(0);" class="btn btn-sm btn-icon btn-ghost-light d-none d-xl-flex" data-apps-chat="call-video" data-bs-toggle="tooltip" data-bs-placement="top" title="Video Call">
                                         <i class="ti ti-video fs-20"></i>
                                     </a>
 

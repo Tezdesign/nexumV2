@@ -61,6 +61,43 @@ class ConversationController extends AbstractController
             ?? getenv('KLIPY_LOCALE')
             ?? 'tn'
         )));
+        $callSocketUrl = trim((string) (
+            $_ENV['CHAT_CALL_SOCKET_URL']
+            ?? $_SERVER['CHAT_CALL_SOCKET_URL']
+            ?? getenv('CHAT_CALL_SOCKET_URL')
+            ?? 'ws://localhost:8090/ws'
+        ));
+        $callTokenEndpoint = trim((string) (
+            $_ENV['CHAT_CALL_TOKEN_ENDPOINT']
+            ?? $_SERVER['CHAT_CALL_TOKEN_ENDPOINT']
+            ?? getenv('CHAT_CALL_TOKEN_ENDPOINT')
+            ?? 'http://127.0.0.1:8090/livekit/token'
+        ));
+        $callPageEndpoint = trim((string) (
+            $_ENV['CHAT_CALL_PAGE_ENDPOINT']
+            ?? $_SERVER['CHAT_CALL_PAGE_ENDPOINT']
+            ?? getenv('CHAT_CALL_PAGE_ENDPOINT')
+            ?? 'http://127.0.0.1:8090/livekit/call'
+        ));
+        $callLivekitUrl = trim((string) (
+            $_ENV['CHAT_CALL_LIVEKIT_URL']
+            ?? $_SERVER['CHAT_CALL_LIVEKIT_URL']
+            ?? getenv('CHAT_CALL_LIVEKIT_URL')
+            ?? 'ws://127.0.0.1:7880'
+        ));
+        $callSignalingEnabled = filter_var(
+            (string) (
+                $_ENV['CHAT_CALL_SIGNALING_ENABLED']
+                ?? $_SERVER['CHAT_CALL_SIGNALING_ENABLED']
+                ?? getenv('CHAT_CALL_SIGNALING_ENABLED')
+                ?? '1'
+            ),
+            FILTER_VALIDATE_BOOL,
+            FILTER_NULL_ON_FAILURE
+        );
+        if ($callSignalingEnabled === null) {
+            $callSignalingEnabled = true;
+        }
 
         return $this->render('chat/apps-chat.html.twig', [
             'currentUser' => $sidebarData['currentUser'],
@@ -70,6 +107,11 @@ class ConversationController extends AbstractController
             'gifApiBaseUrl' => $gifApiBaseUrl,
             'gifCustomerId' => (string) $currentUserId,
             'gifLocale' => $gifLocale,
+            'callSignalingEnabled' => $callSignalingEnabled,
+            'callSocketUrl' => $callSocketUrl,
+            'callTokenEndpoint' => $callTokenEndpoint,
+            'callPageEndpoint' => $callPageEndpoint,
+            'callLivekitUrl' => $callLivekitUrl,
         ]);
     }
 
