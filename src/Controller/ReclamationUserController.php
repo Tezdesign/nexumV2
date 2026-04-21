@@ -6,6 +6,7 @@ use App\Controller\Trait\ValidationFlashTrait;
 use App\Entity\UserHandling\Reclamation;
 use App\Repository\UserHandling\ReclamationRepository;
 use App\Service\AuthService;
+use App\Service\TelegramNotificationService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -24,6 +25,7 @@ class ReclamationUserController extends AbstractController
         private readonly ReclamationRepository $reclamationRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly ValidatorInterface $validator,
+        private readonly TelegramNotificationService $telegramNotificationService,
     ) {
     }
 
@@ -108,6 +110,15 @@ class ReclamationUserController extends AbstractController
                 $rec->setFichier($binary);
             }
         }
+
+        $currentUser = $this->authService->getUtilisateurRepository()->find($userId);
+        $fullName = trim((string) (($currentUser?->getPrenom() ?? '') . ' ' . ($currentUser?->getNom() ?? '')));
+        if ($fullName === '') {
+            $fullName = 'User #' . $userId;
+        }
+        $email = trim((string) ($currentUser?->getEmail() ?? 'unknown'));
+        $title = trim((string) ($rec->getTitre() ?? 'No title'));
+        $this->telegramNotificationService->notifyNewReclamation($fullName, $email, $title);
 
         $this->addFlash('success', 'Your reclamation was submitted successfully.');
 
