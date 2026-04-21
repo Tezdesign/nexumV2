@@ -2,6 +2,7 @@
 
 namespace App\Controller\ResourcesManagement;
 
+use App\Repository\ResourcesManagement\ResourceAssignmentRepository;
 use App\Entity\ResourcesManagement\Resource;
 use App\Form\ResourcesManagement\ResourceType;
 use App\Repository\ResourcesManagement\ResourceRepository;
@@ -134,4 +135,88 @@ final class ResourceController extends AbstractController
 
         return $this->redirectToRoute('app_resource_management_index');
     }
+    #[Route('/admin/returns', name: 'admin_active_returns')]
+public function activeReturns(
+    ResourceAssignmentRepository $repo,
+    ResourceRepository $resourceRepository
+): Response {
+
+    $assignments = $repo->createQueryBuilder('a')
+        ->where('a.status = :status')
+        ->andWhere('a.returned = false')
+        ->setParameter('status', 'ACCEPTED')
+        ->getQuery()
+        ->getResult();
+
+    $data = [];
+
+    foreach ($assignments as $assignment) {
+        $resource = $resourceRepository->find($assignment->getResourceId());
+
+        // 🔥 ONLY PHYSICAL
+        if ($resource && $resource->getResourceType() === 'PHYSICAL') {
+            $data[] = [
+                'assignment' => $assignment,
+                'resource' => $resource
+            ];
+        }
+    }
+
+    return $this->render('resources-management/admin-returns.html.twig', [
+        'data' => $data
+    ]);
+}
+#[Route('/admin/return/{id}', name: 'mark_returned')]
+public function markReturned(
+    int $id,
+    ResourceAssignmentRepository $repo,
+    EntityManagerInterface $em
+): Response {
+
+    $assignment = $repo->find($id);
+
+    if (!$assignment) {
+        throw $this->createNotFoundException('Assignment not found.');
+    }
+
+    if ($assignment->isReturned()) {
+        $this->addFlash('info', 'Already returned.');
+        return $this->redirectToRoute('admin_active_returns');
+    }
+
+    $user = $assignment->getUtilisateur();
+
+    $today = new \DateTime();
+    $returnDate = $assignment->getReturnDate();
+
+    // 🔥 SCORE CALCULATION
+    if ($today < $returnDate) {
+        $user->setScore($user->getScore() + 20);
+    } 
+    elseif ($today->format('Y-m-d') === $returnDate->format('Y-m-d')) {
+        $user->setScore($user->getScore() + 10);
+    } 
+    else {
+        $diff = $today->diff($returnDate)->days;
+        $penalty = $diff * 10;
+
+        $newScore = $user->getScore() - $penalty;
+
+        // prevent negative score
+        if ($newScore < 0) {
+            $newScore = 0;
+        }
+
+        $user->setScore($newScore);
+    }
+
+    // ✅ mark returned
+    $assignment->setReturned(true);
+
+    $em->flush();
+
+    $this->addFlash('success', 'Resource marked as returned and score updated.');
+
+    return $this->redirectToRoute('admin_active_returns');
+}
 }

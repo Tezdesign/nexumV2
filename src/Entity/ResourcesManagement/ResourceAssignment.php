@@ -286,5 +286,18 @@ class ResourceAssignment
 
         return $this;
     }
+    #[ORM\Column(type: 'boolean')]
+private $returned = false;
+
+public function isReturned(): bool
+{
+    return $this->returned;
+}
+
+public function setReturned(bool $returned): self
+{
+    $this->returned = $returned;
+    return $this;
+}
 
 }
