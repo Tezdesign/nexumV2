@@ -112,13 +112,15 @@ class ChatApp {
         this.stompConnecting = false
         this.stompConnectRequested = false
         this.stompReconnectTimer = null
-        this.stompSubscriptions = []
+        this.callGlobalSubscription = null
+        this.callConversationSubscription = null
         this.pendingIncomingCall = null
         this.pendingOutgoingCall = null
         this.callSocketUrl = 'ws://localhost:8090/ws'
         this.callTokenEndpoint = 'http://127.0.0.1:8090/livekit/token'
         this.callPageEndpoint = 'http://127.0.0.1:8090/livekit/call'
         this.callLivekitUrl = 'ws://127.0.0.1:7880'
+        this.callAvatarEndpoint = 'http://127.0.0.1:8090/livekit/avatar'
         this.callSignalingEnabled = true
         this.messagesSimplebar = null
         this.chatForm = null
@@ -206,6 +208,7 @@ class ChatApp {
             this.callTokenEndpoint = this.root.dataset.callTokenEndpoint || this.callTokenEndpoint
             this.callPageEndpoint = this.root.dataset.callPageEndpoint || this.callPageEndpoint
             this.callLivekitUrl = this.root.dataset.callLivekitUrl || this.callLivekitUrl
+            this.callAvatarEndpoint = this.root.dataset.callAvatarEndpoint || this.callAvatarEndpoint
             this.callSignalingEnabled = (this.root.dataset.callSignalingEnabled || '1') === '1'
             console.info('Call signaling config:', {
                 currentUserId: this.currentUserId,
@@ -4244,6 +4247,7 @@ class ChatApp {
 
         this.activeConversationItem = item
         this.activeConversationId = nextConversationId
+        this.subscribeCallTopic(nextConversationId)
         this.updateConversationHeader(item)
         this.setComposerEnabled(true)
 
@@ -4959,40 +4963,50 @@ class ChatApp {
         return raw
     }
 
-    getCallSignalTopics = () => {
-        const ids = new Set()
-        this.conversationItems.forEach((item) => {
-            const convId = parseInt(String(item?.dataset?.conversationId || '0'), 10)
-            if (Number.isInteger(convId) && convId > 0) {
-                ids.add(convId)
-            }
-        })
-
-        return Array.from(ids).map((id) => `/topic/call.${id}`)
-    }
-
-    subscribeToCallTopics = () => {
+    subscribeGlobalCallTopic = () => {
         if (!this.stompConnected || !this.stomp) {
             return
         }
 
-        this.stompSubscriptions.forEach((subscription) => {
+        if (this.callGlobalSubscription) {
             try {
-                subscription?.unsubscribe?.()
+                this.callGlobalSubscription.unsubscribe()
             } catch {
-                // ignore stale subscriptions
+                // ignore stale subscription
             }
-        })
-        this.stompSubscriptions = []
+            this.callGlobalSubscription = null
+        }
 
-        const topics = this.getCallSignalTopics()
-        console.info('Subscribing to call topics:', topics)
-        topics.forEach((topic) => {
-            const subscription = this.stomp.subscribe(topic, (frame) => {
-                this.onIncomingSignal(frame?.body || '{}')
-            })
-            this.stompSubscriptions.push(subscription)
+        this.callGlobalSubscription = this.stomp.subscribe('/topic/calls', (frame) => {
+            this.onIncomingSignal(frame?.body || '{}')
         })
+        console.info('Subscribed to global call topic: /topic/calls')
+    }
+
+    subscribeCallTopic = (conversationId) => {
+        if (!this.stompConnected || !this.stomp) {
+            return
+        }
+
+        const convId = parseInt(String(conversationId || '0'), 10)
+        if (!Number.isInteger(convId) || convId <= 0) {
+            return
+        }
+
+        if (this.callConversationSubscription) {
+            try {
+                this.callConversationSubscription.unsubscribe()
+            } catch {
+                // ignore stale subscription
+            }
+            this.callConversationSubscription = null
+        }
+
+        const destination = `/topic/call.${convId}`
+        this.callConversationSubscription = this.stomp.subscribe(destination, (frame) => {
+            this.onIncomingSignal(frame?.body || '{}')
+        })
+        console.info(`Subscribed to conversation call topic: ${destination}`)
     }
 
     sendCallSignal = (destination, payload) => {
@@ -5036,7 +5050,8 @@ class ChatApp {
                 this.stompConnecting = false
                 this.stompConnected = true
                 console.info('STOMP connected via SockJS')
-                this.subscribeToCallTopics()
+                this.subscribeGlobalCallTopic()
+                this.subscribeCallTopic(this.getSelectedConversationId())
                 this.flushPendingCallAction()
             },
             (error) => {
@@ -5289,8 +5304,9 @@ class ChatApp {
 
             const identity = `user-${this.currentUserId}`
             const myName = this.currentUserName || `User ${this.currentUserId}`
+            const myAvatarUrl = `${String(this.callAvatarEndpoint || '').replace(/\/$/, '')}/${this.currentUserId}`
 
-            const tokenUrl = `${this.callTokenEndpoint}?room=${this.enc(roomName)}&identity=${this.enc(identity)}&name=${this.enc(myName)}`
+            const tokenUrl = `${this.callTokenEndpoint}?room=${this.enc(roomName)}&identity=${this.enc(identity)}&name=${this.enc(myName)}&avatar=${this.enc(myAvatarUrl)}`
             const tokenResponse = await fetch(tokenUrl, {
                 method: 'GET',
                 headers: { 'Accept': 'application/json' },

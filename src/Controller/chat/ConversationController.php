@@ -85,6 +85,12 @@ class ConversationController extends AbstractController
             ?? getenv('CHAT_CALL_LIVEKIT_URL')
             ?? 'ws://127.0.0.1:7880'
         ));
+        $callAvatarEndpoint = trim((string) (
+            $_ENV['CHAT_CALL_AVATAR_ENDPOINT']
+            ?? $_SERVER['CHAT_CALL_AVATAR_ENDPOINT']
+            ?? getenv('CHAT_CALL_AVATAR_ENDPOINT')
+            ?? 'http://127.0.0.1:8090/livekit/avatar'
+        ));
         $callSignalingEnabled = filter_var(
             (string) (
                 $_ENV['CHAT_CALL_SIGNALING_ENABLED']
@@ -112,6 +118,7 @@ class ConversationController extends AbstractController
             'callTokenEndpoint' => $callTokenEndpoint,
             'callPageEndpoint' => $callPageEndpoint,
             'callLivekitUrl' => $callLivekitUrl,
+            'callAvatarEndpoint' => $callAvatarEndpoint,
         ]);
     }
 
