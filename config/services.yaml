@@ -28,5 +28,10 @@ services:
 
     Knp\Component\Pager\PaginatorInterface: '@Knp\Component\Pager\Paginator'
 
+    App\Service\MailService:
+        arguments:
+            $mailFrom: '%env(MAILER_FROM_NEXUM)%'
+            $mailDsn: '%env(MAILER_DSN_NEXUM)%'
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

@@ -8,6 +8,7 @@ use App\Repository\UserHandling\ReclamationRepository;
 use App\Repository\UserHandling\UtilisateurRepository;
 use App\Service\AdminPdfExportService;
 use App\Service\AuthService;
+use App\Service\MailService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -28,6 +29,7 @@ class ReclamationManagementController extends AbstractController
         private readonly UtilisateurRepository $utilisateurRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly ValidatorInterface $validator,
+        private readonly MailService $mailService,
     ) {
     }
 
@@ -205,6 +207,7 @@ class ReclamationManagementController extends AbstractController
 
         if ($request->isMethod('POST')) {
             $modal = $this->isModalSubmit($request);
+            $oldStatus = strtolower(trim((string) $rec->getStatut()));
             $this->fillReclamationFromRequest($rec, $request, false);
             if ($this->flashValidationErrors($this->validator->validate($rec, null, ['reclamation_admin']))) {
                 return $modal
@@ -231,6 +234,24 @@ class ReclamationManagementController extends AbstractController
 
             $this->entityManager->flush();
             $this->attachUploadedFileIfAny($rec, $request, true);
+            $newStatus = strtolower(trim((string) $rec->getStatut()));
+
+            if ($oldStatus !== $newStatus) {
+                $owner = $this->utilisateurRepository->find((int) $rec->getIdUser());
+                $ownerEmail = trim((string) ($owner?->getEmail() ?? ''));
+                if ($ownerEmail !== '') {
+                    try {
+                        $this->mailService->sendReclamationStatusEmail(
+                            $ownerEmail,
+                            (string) ($rec->getTitre() ?? ('Reclamation #' . (string) $rec->getIdRec())),
+                            $rec->getProjet(),
+                            $newStatus
+                        );
+                    } catch (\Throwable) {
+                        $this->addFlash('warning', 'Reclamation updated, but status email could not be sent.');
+                    }
+                }
+            }
 
             $this->addFlash('success', 'Reclamation updated.');
 
