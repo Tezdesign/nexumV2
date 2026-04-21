@@ -191,7 +191,11 @@ class ChatApp {
         this.root = document.querySelector('[data-apps-chat="chat-root"]')
         if (this.root) {
             this.currentUserName = this.root.dataset.currentUserName || this.currentUserName
-            this.currentUserId = parseInt(this.root.dataset.currentUserId || '0', 10) || 0
+            const currentUserIdRaw = parseInt(this.root.dataset.currentUserId || '0', 10)
+            const customerIdRaw = parseInt(this.root.dataset.gifCustomerId || '0', 10)
+            this.currentUserId = Number.isInteger(currentUserIdRaw) && currentUserIdRaw > 0
+                ? currentUserIdRaw
+                : (Number.isInteger(customerIdRaw) && customerIdRaw > 0 ? customerIdRaw : 0)
             this.currentUserAvatar = this.root.dataset.currentUserAvatar || ''
             this.tenorApiKey = this.root.dataset.gifApiKey || this.tenorApiKey
             this.gifApiProvider = (this.root.dataset.gifApiProvider || this.gifApiProvider).toLowerCase()
@@ -203,6 +207,11 @@ class ChatApp {
             this.callPageEndpoint = this.root.dataset.callPageEndpoint || this.callPageEndpoint
             this.callLivekitUrl = this.root.dataset.callLivekitUrl || this.callLivekitUrl
             this.callSignalingEnabled = (this.root.dataset.callSignalingEnabled || '1') === '1'
+            console.info('Call signaling config:', {
+                currentUserId: this.currentUserId,
+                callSocketUrl: this.callSocketUrl,
+                enabled: this.callSignalingEnabled,
+            })
         }
 
         this.messagesScrollWrapper = document.querySelector(
@@ -4977,6 +4986,7 @@ class ChatApp {
         this.stompSubscriptions = []
 
         const topics = this.getCallSignalTopics()
+        console.info('Subscribing to call topics:', topics)
         topics.forEach((topic) => {
             const subscription = this.stomp.subscribe(topic, (frame) => {
                 this.onIncomingSignal(frame?.body || '{}')
@@ -5069,6 +5079,7 @@ class ChatApp {
         }
 
         try {
+            console.info('Sending pending call.start payload:', payload)
             this.sendCallSignal('/app/call.start', payload)
             this.showBottomNotice(video ? 'Video call invitation sent.' : 'Audio call invitation sent.')
         } catch (error) {
@@ -5118,6 +5129,7 @@ class ChatApp {
         }
 
         try {
+            console.info('Sending call.start payload:', payload)
             this.sendCallSignal('/app/call.start', payload)
             this.pendingOutgoingCall = { convId, video: false }
             this.showBottomNotice('Audio call invitation sent.')
@@ -5157,6 +5169,7 @@ class ChatApp {
         }
 
         try {
+            console.info('Sending call.start payload:', payload)
             this.sendCallSignal('/app/call.start', payload)
             this.pendingOutgoingCall = { convId, video: true }
             this.showBottomNotice('Video call invitation sent.')
@@ -5175,6 +5188,13 @@ class ChatApp {
             const fromName = String(root?.fromName || `User ${fromUserId}`)
             const callKind = String(root?.callKind || 'AUDIO')
             const video = callKind.toUpperCase() === 'VIDEO'
+
+            console.info('Received call signal:', {
+                type,
+                convId,
+                fromUserId,
+                currentUserId: this.currentUserId,
+            })
 
             if (convId <= 0) {
                 return
