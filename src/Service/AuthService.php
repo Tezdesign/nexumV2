@@ -178,7 +178,12 @@ class AuthService
         return $this->hasRole('manager') || $this->isAdmin();
     }
 
-    private function authenticateSymfonyUser(Utilisateur $utilisateur): void
+    public function getUtilisateurRepository(): UtilisateurRepository
+    {
+        return $this->utilisateurRepository;
+    }
+
+    public function authenticateSymfonyUser(Utilisateur $utilisateur): void
     {
         $token = new UsernamePasswordToken($utilisateur, self::FIREWALL_NAME, $utilisateur->getRoles());
         $this->tokenStorage->setToken($token);

@@ -592,4 +592,151 @@ function stopCamera() {
     }
 }
 </script>
+
+<!-- Face Registration Popup Modal -->
+<div id="faceRegistrationModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
+    <div style="background: white; padding: 30px; border-radius: 15px; max-width: 500px; width: 90%; text-align: center; position: relative;">
+        <h3 style="margin-bottom: 20px; color: var(--text-main);">Register Your Face</h3>
+        <p style="margin-bottom: 20px; color: var(--text-muted); font-size: 14px;">Click "Start Camera" and position your face in the frame, then click "Capture Face".</p>
+        
+        <video id="modalFaceVideo" width="320" height="240" style="display: none; border-radius: 10px; margin: 0 auto 15px; border: 2px solid var(--border-color);"></video>
+        <canvas id="modalFaceCanvas" width="320" height="240" style="display: none;"></canvas>
+        
+        <div id="modalFacePreview" style="margin: 15px 0; min-height: 120px;"></div>
+        
+        <div style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
+            <button type="button" id="modalStartCameraBtn" style="padding: 10px 20px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); cursor: pointer;">
+                Start Camera
+            </button>
+            <button type="button" id="modalCaptureFaceBtn" style="padding: 10px 20px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); cursor: pointer; display: none;">
+                Capture Face
+            </button>
+            <button type="button" id="modalStopCameraBtn" style="padding: 10px 20px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); cursor: pointer; display: none;">
+                Stop Camera
+            </button>
+        </div>
+        
+        <div style="margin-top: 20px; display: flex; justify-content: center; gap: 10px;">
+            <button type="button" id="modalSaveFaceBtn" style="padding: 12px 24px; border-radius: 10px; border: none; background: var(--primary-purple); color: white; cursor: pointer; display: none;">
+                Save Face
+            </button>
+            <button type="button" id="modalCancelBtn" style="padding: 12px 24px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); cursor: pointer;">
+                Cancel
+            </button>
+        </div>
+        
+        <button type="button" id="modalCloseBtn" style="position: absolute; top: 15px; right: 15px; background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-muted);">×</button>
+    </div>
+</div>
+
+<script>
+// Face Registration Modal JavaScript
+let modalStream = null;
+const modalFaceVideo = document.getElementById('modalFaceVideo');
+const modalFaceCanvas = document.getElementById('modalFaceCanvas');
+const modalStartCameraBtn = document.getElementById('modalStartCameraBtn');
+const modalCaptureFaceBtn = document.getElementById('modalCaptureFaceBtn');
+const modalStopCameraBtn = document.getElementById('modalStopCameraBtn');
+const modalSaveFaceBtn = document.getElementById('modalSaveFaceBtn');
+const modalCancelBtn = document.getElementById('modalCancelBtn');
+const modalCloseBtn = document.getElementById('modalCloseBtn');
+const modalFacePreview = document.getElementById('modalFacePreview');
+const faceRegistrationModal = document.getElementById('faceRegistrationModal');
+const openFaceRegistrationBtn = document.getElementById('openFaceRegistrationBtn');
+const faceRegistrationStatus = document.getElementById('faceRegistrationStatus');
+const faceDataInput = document.getElementById('faceDataInput');
+
+// Open modal
+openFaceRegistrationBtn.addEventListener('click', function() {
+    faceRegistrationModal.style.display = 'flex';
+});
+
+// Close modal
+modalCloseBtn.addEventListener('click', closeModal);
+modalCancelBtn.addEventListener('click', closeModal);
+
+function closeModal() {
+    stopModalCamera();
+    faceRegistrationModal.style.display = 'none';
+    modalFacePreview.innerHTML = '';
+    modalSaveFaceBtn.style.display = 'none';
+}
+
+// Start camera in modal
+modalStartCameraBtn.addEventListener('click', async function() {
+    try {
+        modalStream = await navigator.mediaDevices.getUserMedia({ 
+            video: { 
+                width: { ideal: 640 },
+                height: { ideal: 480 },
+                facingMode: 'user'
+            } 
+        });
+        modalFaceVideo.srcObject = modalStream;
+        modalFaceVideo.style.display = 'block';
+        modalFaceVideo.play();
+        
+        modalStartCameraBtn.style.display = 'none';
+        modalCaptureFaceBtn.style.display = 'inline-block';
+        modalStopCameraBtn.style.display = 'inline-block';
+    } catch (err) {
+        console.error('Error accessing camera:', err);
+        alert('Unable to access camera. Please ensure you have granted camera permissions.');
+    }
+});
+
+// Capture face in modal
+modalCaptureFaceBtn.addEventListener('click', function() {
+    const context = modalFaceCanvas.getContext('2d');
+    modalFaceCanvas.width = modalFaceVideo.videoWidth;
+    modalFaceCanvas.height = modalFaceVideo.videoHeight;
+    context.drawImage(modalFaceVideo, 0, 0, modalFaceCanvas.width, modalFaceCanvas.height);
+    
+    modalFaceCanvas.toBlob(function(blob) {
+        const reader = new FileReader();
+        reader.onloadend = function() {
+            const base64data = reader.result;
+            
+            // Show preview
+            const img = document.createElement('img');
+            img.src = base64data;
+            img.style.width = '160px';
+            img.style.height = '120px';
+            img.style.borderRadius = '10px';
+            img.style.border = '2px solid var(--primary-purple)';
+            
+            modalFacePreview.innerHTML = '<p style="margin-bottom: 10px; font-size: 14px; color: var(--text-muted);">Face captured! Review and save.</p>';
+            modalFacePreview.appendChild(img);
+            
+            // Show save button
+            modalSaveFaceBtn.style.display = 'inline-block';
+            
+            // Store face data
+            faceDataInput.value = base64data;
+        };
+        reader.readAsDataURL(blob);
+    }, 'image/jpeg', 0.9);
+});
+
+// Stop camera in modal
+modalStopCameraBtn.addEventListener('click', stopModalCamera);
+
+function stopModalCamera() {
+    if (modalStream) {
+        modalStream.getTracks().forEach(track => track.stop());
+        modalFaceVideo.style.display = 'none';
+        modalFaceCanvas.style.display = 'none';
+        
+        modalStartCameraBtn.style.display = 'inline-block';
+        modalCaptureFaceBtn.style.display = 'none';
+        modalStopCameraBtn.style.display = 'none';
+    }
+}
+
+// Save face and close modal
+modalSaveFaceBtn.addEventListener('click', function() {
+    faceRegistrationStatus.innerHTML = '<span style="color: var(--primary-purple);">Face registered successfully!</span>';
+    closeModal();
+});
+</script>
 {% endblock %}

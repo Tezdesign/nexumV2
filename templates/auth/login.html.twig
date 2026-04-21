@@ -347,6 +347,29 @@
             <button type="submit" class="btn-signin">Sign In</button>
         </form>
 
+        <!-- Face Authentication -->
+        <div style="margin-top: 30px; padding-top: 30px; border-top: 1px solid var(--border-color);">
+            <p style="text-align: center; margin-bottom: 20px; font-size: 14px; color: var(--text-muted);">Or sign in with your face</p>
+            
+            <div class="face-auth-container">
+                <video id="faceAuthVideo" width="320" height="240" style="display: none; border-radius: 10px; margin: 0 auto 10px; display: block;"></video>
+                <canvas id="faceAuthCanvas" width="320" height="240" style="display: none;"></canvas>
+                <div class="face-auth-buttons" style="text-align: center;">
+                    <button type="button" id="startAuthCameraBtn" class="btn-secondary" style="padding: 12px 24px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); cursor: pointer; margin-right: 10px;">
+                        📷 Start Face Authentication
+                    </button>
+                    <button type="button" id="authenticateFaceBtn" class="btn-secondary" style="padding: 12px 24px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); cursor: pointer; margin-right: 10px; display: none;">
+                        🔐 Authenticate
+                    </button>
+                    <button type="button" id="stopAuthCameraBtn" class="btn-secondary" style="padding: 12px 24px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); cursor: pointer; display: none;">
+                        🛑 Stop Camera
+                    </button>
+                </div>
+                <div id="faceAuthResult" style="margin-top: 15px; text-align: center;"></div>
+                <input type="hidden" name="auth_face_data" id="authFaceDataInput">
+            </div>
+        </div>
+
         <p class="footer-text">
             Don't have an account? <a href="{{ path('signin') }}" class="get-started">Get Started</a>
         </p>
@@ -376,5 +399,100 @@
         });
     }
 })();
+
+// Face authentication functionality
+let authStream = null;
+const authVideo = document.getElementById('faceAuthVideo');
+const authCanvas = document.getElementById('faceAuthCanvas');
+const startAuthCameraBtn = document.getElementById('startAuthCameraBtn');
+const authenticateFaceBtn = document.getElementById('authenticateFaceBtn');
+const stopAuthCameraBtn = document.getElementById('stopAuthCameraBtn');
+const faceAuthResult = document.getElementById('faceAuthResult');
+const authFaceDataInput = document.getElementById('authFaceDataInput');
+
+startAuthCameraBtn.addEventListener('click', async function() {
+    try {
+        authStream = await navigator.mediaDevices.getUserMedia({ 
+            video: { 
+                width: { ideal: 640 },
+                height: { ideal: 480 },
+                facingMode: 'user'
+            } 
+        });
+        authVideo.srcObject = authStream;
+        authVideo.style.display = 'block';
+        authVideo.play();
+        
+        startAuthCameraBtn.style.display = 'none';
+        authenticateFaceBtn.style.display = 'inline-block';
+        stopAuthCameraBtn.style.display = 'inline-block';
+    } catch (err) {
+        console.error('Error accessing camera:', err);
+        alert('Unable to access camera. Please ensure you have granted camera permissions.');
+    }
+});
+
+authenticateFaceBtn.addEventListener('click', function() {
+    const context = authCanvas.getContext('2d');
+    authCanvas.width = authVideo.videoWidth;
+    authCanvas.height = authVideo.videoHeight;
+    context.drawImage(authVideo, 0, 0, authCanvas.width, authCanvas.height);
+    
+    authCanvas.toBlob(function(blob) {
+        const reader = new FileReader();
+        reader.onloadend = function() {
+            const base64data = reader.result;
+            authFaceDataInput.value = base64data;
+            
+            // Show loading state
+            faceAuthResult.innerHTML = '<div class="alert alert-info">Authenticating... Please wait.</div>';
+            
+            // Send face data to server for authentication
+            fetch('{{ path("face_authenticate") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    face_data: base64data
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    faceAuthResult.innerHTML = '<div class="alert alert-success">Face authentication successful! Redirecting...</div>';
+                    setTimeout(() => {
+                        window.location.href = data.redirect_url;
+                    }, 1500);
+                } else {
+                    faceAuthResult.innerHTML = '<div class="alert alert-danger">' + (data.message || 'Face authentication failed. Please try again.') + '</div>';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                faceAuthResult.innerHTML = '<div class="alert alert-danger">An error occurred during face authentication. Please try again.</div>';
+            })
+            .finally(() => {
+                stopAuthCamera();
+            });
+        };
+        reader.readAsDataURL(blob);
+    }, 'image/jpeg', 0.9);
+});
+
+stopAuthCameraBtn.addEventListener('click', stopAuthCamera);
+
+function stopAuthCamera() {
+    if (authStream) {
+        authStream.getTracks().forEach(track => track.stop());
+        authVideo.style.display = 'none';
+        authCanvas.style.display = 'none';
+        
+        startAuthCameraBtn.style.display = 'inline-block';
+        authenticateFaceBtn.style.display = 'none';
+        stopAuthCameraBtn.style.display = 'none';
+    }
+}
 </script>
 {% endblock %}

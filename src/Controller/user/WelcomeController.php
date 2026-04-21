@@ -8,8 +8,10 @@ use App\Entity\Dto\Auth\RegistrationInput;
 use App\Entity\UserHandling\Utilisateur;
 use App\Service\AuthService;
 use App\Service\Captcha\CaptchaImageService;
+use App\Service\CompreFaceService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
@@ -24,6 +26,7 @@ class WelcomeController extends AbstractController
         private readonly AuthService $authService,
         private readonly ValidatorInterface $validator,
         private readonly CaptchaImageService $captchaImageService,
+        private readonly CompreFaceService $compreFaceService,
     ) {
     }
 
@@ -140,6 +143,23 @@ class WelcomeController extends AbstractController
                     $utilisateur->setImagelink($imageData);
                 }
 
+                // Handle face registration
+                $faceData = $request->request->get('face_data');
+                if ($faceData && !empty($faceData)) {
+                    // Convert base64 to image data
+                    $imageData = base64_decode(preg_replace('/^data:image\/[a-z]+;base64,/', '', $faceData));
+                    if ($imageData) {
+                        // Register face with CompreFace using email as subject identifier
+                        $faceId = $this->compreFaceService->registerFace($imageData, $input->email);
+                        if ($faceId) {
+                            $utilisateur->setFaceId($faceId);
+                            $this->addFlash('success', 'Face registered successfully!');
+                        } else {
+                            $this->addFlash('warning', 'Face registration failed, but account was created successfully.');
+                        }
+                    }
+                }
+
                 if ($this->authService->register($utilisateur)) {
                     $this->addFlash('success', 'Compte créé avec succès ! Vous pouvez maintenant vous connecter.');
 
@@ -170,6 +190,66 @@ class WelcomeController extends AbstractController
         $this->addFlash('success', 'Session effacée. Veuillez vous reconnecter.');
 
         return $this->redirectToRoute('welcome');
+    }
+
+    #[Route('/face-authenticate', name: 'face_authenticate', methods: ['POST'])]
+    public function faceAuthenticate(Request $request): JsonResponse
+    {
+        if ($this->authService->isLoggedIn()) {
+            return new JsonResponse([
+                'success' => false,
+                'message' => 'Already logged in'
+            ], Response::HTTP_BAD_REQUEST);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        if (!isset($data['face_data']) || empty($data['face_data'])) {
+            return new JsonResponse([
+                'success' => false,
+                'message' => 'No face data provided'
+            ], Response::HTTP_BAD_REQUEST);
+        }
+
+        try {
+            // Convert base64 to image data
+            $imageData = base64_decode(preg_replace('/^data:image\/[a-z]+;base64,/', '', $data['face_data']));
+            if (!$imageData) {
+                return new JsonResponse([
+                    'success' => false,
+                    'message' => 'Invalid face data format'
+                ], Response::HTTP_BAD_REQUEST);
+            }
+
+            // Recognize face using CompreFace
+            $recognizedEmail = $this->compreFaceService->recognizeFace($imageData);
+            
+            if ($recognizedEmail) {
+                // Find user by email
+                $utilisateur = $this->authService->getUtilisateurRepository()->findByEmail($recognizedEmail);
+                
+                if ($utilisateur && $utilisateur->getFaceId()) {
+                    // Authenticate the user
+                    $this->authService->refreshSessionUser($utilisateur);
+                    $this->authService->authenticateSymfonyUser($utilisateur);
+                    
+                    return new JsonResponse([
+                        'success' => true,
+                        'message' => 'Face authentication successful',
+                        'redirect_url' => $this->generateUrl($this->authService->isAdmin() ? 'admin_home' : 'dashboard')
+                    ]);
+                }
+            }
+
+            return new JsonResponse([
+                'success' => false,
+                'message' => 'Face not recognized. Please try again or use your email and password.'
+            ]);
+        } catch (\Exception $e) {
+            return new JsonResponse([
+                'success' => false,
+                'message' => 'An error occurred during face authentication'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
     private function ensureLoginCaptcha(Request $request): void
