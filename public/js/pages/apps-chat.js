@@ -112,7 +112,6 @@ class ChatApp {
         this.stompConnecting = false
         this.stompConnectRequested = false
         this.stompReconnectTimer = null
-        this.callGlobalSubscription = null
         this.callConversationSubscription = null
         this.pendingIncomingCall = null
         this.pendingOutgoingCall = null
@@ -4905,38 +4904,7 @@ class ChatApp {
         this.connectCallSocket()
     }
 
-    loadExternalScript = (src) => {
-        return new Promise((resolve, reject) => {
-            const existing = document.querySelector(`script[src="${src}"]`)
-            if (existing) {
-                existing.addEventListener('load', () => resolve(), { once: true })
-                existing.addEventListener('error', () => reject(new Error(`Failed to load ${src}`)), { once: true })
-                if ((existing.dataset.loaded || '') === '1') {
-                    resolve()
-                }
-                return
-            }
-
-            const script = document.createElement('script')
-            script.src = src
-            script.async = true
-            script.onload = () => {
-                script.dataset.loaded = '1'
-                resolve()
-            }
-            script.onerror = () => reject(new Error(`Failed to load ${src}`))
-            document.head.appendChild(script)
-        })
-    }
-
     ensureStompLibraries = async () => {
-        if (window.SockJS && window.Stomp) {
-            return
-        }
-
-        await this.loadExternalScript('https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js')
-        await this.loadExternalScript('https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js')
-
         if (!window.SockJS || !window.Stomp) {
             throw new Error('SockJS/STOMP libraries are unavailable.')
         }
@@ -4960,27 +4928,15 @@ class ChatApp {
             return `https://${raw.slice('wss://'.length)}`
         }
 
+        if (raw.startsWith('http://')) {
+            return raw
+        }
+
+        if (raw.startsWith('https://')) {
+            return raw
+        }
+
         return raw
-    }
-
-    subscribeGlobalCallTopic = () => {
-        if (!this.stompConnected || !this.stomp) {
-            return
-        }
-
-        if (this.callGlobalSubscription) {
-            try {
-                this.callGlobalSubscription.unsubscribe()
-            } catch {
-                // ignore stale subscription
-            }
-            this.callGlobalSubscription = null
-        }
-
-        this.callGlobalSubscription = this.stomp.subscribe('/topic/calls', (frame) => {
-            this.onIncomingSignal(frame?.body || '{}')
-        })
-        console.info('Subscribed to global call topic: /topic/calls')
     }
 
     subscribeCallTopic = (conversationId) => {
@@ -5039,9 +4995,10 @@ class ChatApp {
         }
 
         const endpoint = this.getSockJsEndpointUrl()
+        console.log('SockJS endpoint =', endpoint)
         const socket = new window.SockJS(endpoint)
         const client = window.Stomp.over(socket)
-        client.debug = () => {}
+        client.debug = (msg) => console.log('[STOMP]', msg)
 
         this.stomp = client
         client.connect(
@@ -5050,12 +5007,12 @@ class ChatApp {
                 this.stompConnecting = false
                 this.stompConnected = true
                 console.info('STOMP connected via SockJS')
-                this.subscribeGlobalCallTopic()
                 this.subscribeCallTopic(this.getSelectedConversationId())
                 this.flushPendingCallAction()
             },
             (error) => {
                 console.error('STOMP error:', error)
+                this.showBottomNotice('STOMP connection failed.')
                 this.stompConnecting = false
                 this.stompConnected = false
                 if (this.stompReconnectTimer) {
@@ -5068,6 +5025,7 @@ class ChatApp {
         )
 
         socket.onclose = () => {
+            console.warn('SockJS socket closed')
             this.stompConnecting = false
             this.stompConnected = false
             if (this.stompReconnectTimer) {
@@ -5093,13 +5051,15 @@ class ChatApp {
             callKind: video ? 'VIDEO' : 'AUDIO',
         }
 
-        try {
-            console.info('Sending pending call.start payload:', payload)
-            this.sendCallSignal('/app/call.start', payload)
-            this.showBottomNotice(video ? 'Video call invitation sent.' : 'Audio call invitation sent.')
-        } catch (error) {
-            console.error('Failed to flush pending call:', error)
+        this.subscribeCallTopic(convId)
+        const ok = this.sendCallSignal('/app/call.start', payload)
+        if (!ok) {
+            this.showBottomNotice('Failed to send call invitation.')
+            return
         }
+
+        console.info('Sent pending call.start payload:', payload)
+        this.showBottomNotice(video ? 'Video call invitation sent.' : 'Audio call invitation sent.')
     }
 
     initCallActions = () => {
@@ -5143,15 +5103,16 @@ class ChatApp {
             callKind: 'AUDIO',
         }
 
-        try {
-            console.info('Sending call.start payload:', payload)
-            this.sendCallSignal('/app/call.start', payload)
-            this.pendingOutgoingCall = { convId, video: false }
-            this.showBottomNotice('Audio call invitation sent.')
-        } catch (error) {
-            console.error('Failed to send audio call invite:', error)
+        this.subscribeCallTopic(convId)
+        const ok = this.sendCallSignal('/app/call.start', payload)
+        if (!ok) {
             this.showBottomNotice('Failed to send call invitation.')
+            return
         }
+
+        console.info('Sending call.start payload:', payload)
+        this.pendingOutgoingCall = { convId, video: false }
+        this.showBottomNotice('Audio call invitation sent.')
     }
 
     handleVideoCall = () => {
@@ -5183,15 +5144,16 @@ class ChatApp {
             callKind: 'VIDEO',
         }
 
-        try {
-            console.info('Sending call.start payload:', payload)
-            this.sendCallSignal('/app/call.start', payload)
-            this.pendingOutgoingCall = { convId, video: true }
-            this.showBottomNotice('Video call invitation sent.')
-        } catch (error) {
-            console.error('Failed to send video call invite:', error)
+        this.subscribeCallTopic(convId)
+        const ok = this.sendCallSignal('/app/call.start', payload)
+        if (!ok) {
             this.showBottomNotice('Failed to send call invitation.')
+            return
         }
+
+        console.info('Sending call.start payload:', payload)
+        this.pendingOutgoingCall = { convId, video: true }
+        this.showBottomNotice('Video call invitation sent.')
     }
 
     onIncomingSignal = (json) => {
