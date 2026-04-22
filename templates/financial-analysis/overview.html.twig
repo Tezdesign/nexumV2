@@ -345,83 +345,8 @@
                 $('[data-toggle="select2"]').select2();
             }
 
-            // Currency Exchange Logic
-            const profileId = {{ budgetProfile.id }};
-            const $currencySelect = $('#currency-exchange-select');
-            
-            // Format KPI numbers back to k/M representation
-            function formatKpiNumber(num) {
-                if (num >= 1000000 || num <= -1000000) {
-                    return (num / 1000000).toFixed(2) + 'M';
-                }
-                if (num >= 1000 || num <= -1000) {
-                    return (num / 1000).toFixed(1) + 'k';
-                }
-                return num.toFixed(2);
-            }
-
-            // Fetch and initialize the Select2 Exchange Rates
-            $.ajax({
-                url: '/apps-financial-analysis/profile/' + profileId + '/currency-rates',
-                type: 'GET',
-                success: function(response) {
-                    if (response.results && response.results.length > 0) {
-                        $currencySelect.select2({
-                            data: response.results,
-                            dropdownParent: $('body'),
-                            width: '100px',
-                            placeholder: 'Change Currency...',
-                            templateResult: function (state) {
-                                if (!state.id) return state.text; // Group header
-                                return $('<span>' + state.text + ' (Rate: ' + parseFloat(state.rate).toFixed(3) + ')</span>');
-                            },
-                            templateSelection: function (state) {
-                                if (!state.id) return state.text;
-                                return state.id; // Only display the abbreviation (e.g., 'USD')
-                            }
-                        });
-
-                        // Set default selected to current base currency if possible
-                        const baseCurrency = '{{ budgetProfile.baseCurrency|default('TND') }}';
-                        if ($currencySelect.find("option[value='" + baseCurrency + "']").length) {
-                            $currencySelect.val(baseCurrency).trigger('change');
-                        }
-
-                        // Listen for changes
-                        $currencySelect.on('select2:select', function (e) {
-                            const data = e.params.data;
-                            const rate = parseFloat(data.rate);
-                            const selectedCurrencyCode = data.id;
-
-                            // Determine Currency Symbol
-                            let newSymbol = selectedCurrencyCode;
-                            if (selectedCurrencyCode === 'USD') newSymbol = '$';
-                            else if (selectedCurrencyCode === 'EUR') newSymbol = '€';
-                            else if (selectedCurrencyCode === 'GBP') newSymbol = '£';
-                            else if (selectedCurrencyCode === 'JPY') newSymbol = '¥';
-                            else newSymbol = selectedCurrencyCode + ' ';
-
-                            // Loop through all KPI values and update them based on hidden raw data
-                            $('.kpi-value').each(function() {
-                                const rawValue = parseFloat($(this).attr('data-raw-value'));
-                                if (!isNaN(rawValue)) {
-                                    const convertedValue = rawValue * rate;
-                                    const formattedString = formatKpiNumber(convertedValue);
-                                    
-                                    $(this).find('.kpi-symbol').text(newSymbol);
-                                    $(this).find('.kpi-number').text(formattedString);
-                                }
-                            });
-                        });
-                    } else {
-                        $currencySelect.html('<option disabled>API Error / Unavailable</option>');
-                    }
-                },
-                error: function() {
-                    $currencySelect.html('<option disabled>API Error</option>');
-                }
-            });
-
+            // Initialize Currency Exchange
+            initializeCurrencyExchange('#currency-exchange-select', {{ budgetProfile.id }}, '{{ budgetProfile.baseCurrency|default('TND') }}');
         });
     </script>
 {% endblock %}

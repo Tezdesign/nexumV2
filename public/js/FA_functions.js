@@ -528,3 +528,89 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
 });
+
+/**
+ * ==========================================
+ * CURRENCY EXCHANGE SYSTEM
+ * ==========================================
+ */
+function formatKpiNumber(num) {
+    if (num >= 1000000 || num <= -1000000) {
+        return (num / 1000000).toFixed(2) + 'M';
+    }
+    if (num >= 1000 || num <= -1000) {
+        return (num / 1000).toFixed(1) + 'k';
+    }
+    return num.toFixed(2);
+}
+
+function initializeCurrencyExchange(selectorId, profileId, defaultCurrency) {
+    const $currencySelect = $(selectorId);
+    if ($currencySelect.length === 0) return;
+
+    $.ajax({
+        url: '/apps-financial-analysis/profile/' + profileId + '/currency-rates',
+        type: 'GET',
+        success: function(response) {
+            if (response.results && response.results.length > 0) {
+                $currencySelect.select2({
+                    data: response.results,
+                    dropdownParent: $('body'),
+                    width: '100px',
+                    placeholder: 'Change Currency...',
+                    templateResult: function (state) {
+                        if (!state.id) return state.text;
+                        return $('<span>' + state.text + ' (Rate: ' + parseFloat(state.rate).toFixed(3) + ')</span>');
+                    },
+                    templateSelection: function (state) {
+                        if (!state.id) return state.text;
+                        return state.id;
+                    }
+                });
+
+                if ($currencySelect.find("option[value='" + defaultCurrency + "']").length) {
+                    $currencySelect.val(defaultCurrency).trigger('change');
+                }
+
+                $currencySelect.on('select2:select', function (e) {
+                    const data = e.params.data;
+                    const rate = parseFloat(data.rate);
+                    const selectedCurrencyCode = data.id;
+
+                    let newSymbol = selectedCurrencyCode;
+                    if (selectedCurrencyCode === 'USD') newSymbol = '$';
+                    else if (selectedCurrencyCode === 'EUR') newSymbol = '€';
+                    else if (selectedCurrencyCode === 'GBP') newSymbol = '£';
+                    else if (selectedCurrencyCode === 'JPY') newSymbol = '¥';
+                    else newSymbol = selectedCurrencyCode + ' ';
+
+                    // Update generic currency-value elements and legacy kpi-value elements
+                    $('.kpi-value, .currency-value').each(function() {
+                        const rawValue = parseFloat($(this).attr('data-raw-value'));
+                        if (!isNaN(rawValue)) {
+                            const convertedValue = rawValue * rate;
+                            const isKpi = $(this).hasClass('kpi-value');
+                            
+                            if (isKpi) {
+                                const formattedString = formatKpiNumber(convertedValue);
+                                $(this).find('.kpi-symbol').text(newSymbol);
+                                $(this).find('.kpi-number').text(formattedString);
+                            } else {
+                                // For generic currency-value, just format to 2 decimal places
+                                const formattedString = convertedValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                                $(this).find('.currency-symbol').text(newSymbol);
+                                $(this).find('.currency-number').text(formattedString);
+                            }
+                        }
+                    });
+                });
+            } else {
+                $currencySelect.html('<option disabled>API Error / Unavailable</option>');
+            }
+        },
+        error: function() {
+            $currencySelect.html('<option disabled>API Error</option>');
+        }
+    });
+}
+

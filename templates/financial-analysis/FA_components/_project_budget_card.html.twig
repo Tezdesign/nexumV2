@@ -10,15 +10,15 @@
         
         <div class="row text-center mt-2 mb-2 g-0">
             <div class="col-4">
-                <h4 class="fw-normal fs-14 m-0 kpi-value" data-raw-value="{{ project.rawTotal|default(0) }}"><span class="kpi-symbol">{{ currency_symbol|default('$') }}</span><span class="kpi-number">{{ project.totalBudget }}</span></h4>
+                <h4 class="fw-normal fs-14 m-0 currency-value" data-raw-value="{{ project.rawTotal|default(0) }}"><span class="currency-symbol">{{ currency_symbol|default('$') }}</span><span class="currency-number">{{ project.totalBudget }}</span></h4>
                 <p class="text-muted mb-0 fs-12">{{ 'Total'|trans }}</p>
             </div>
             <div class="col-4 border-start border-light">
-                <h4 class="fw-normal fs-14 m-0 kpi-value" data-raw-value="{{ project.rawSpend|default(0) }}"><span class="kpi-symbol">{{ currency_symbol|default('$') }}</span><span class="kpi-number">{{ project.actualSpend }}</span></h4>
+                <h4 class="fw-normal fs-14 m-0 currency-value" data-raw-value="{{ project.rawSpend|default(0) }}"><span class="currency-symbol">{{ currency_symbol|default('$') }}</span><span class="currency-number">{{ project.actualSpend }}</span></h4>
                 <p class="text-muted mb-0 fs-12">{{ 'Spend'|trans }}</p>
             </div>
             <div class="col-4 border-start border-light">
-                <h4 class="fw-normal fs-14 m-0 kpi-value" data-raw-value="{{ project.rawRemaining|default(0) }}"><span class="kpi-symbol">{{ currency_symbol|default('$') }}</span><span class="kpi-number">{{ project.remaining }}</span></h4>
+                <h4 class="fw-normal fs-14 m-0 currency-value" data-raw-value="{{ project.rawRemaining|default(0) }}"><span class="currency-symbol">{{ currency_symbol|default('$') }}</span><span class="currency-number">{{ project.remaining }}</span></h4>
                 <p class="text-muted mb-0 fs-12">{{ 'Left'|trans }}</p>
             </div>
         </div>

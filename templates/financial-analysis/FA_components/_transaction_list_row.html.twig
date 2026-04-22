@@ -31,7 +31,7 @@
             
             <!-- Cost -->
             <div class="col-md-2 col-lg-2 text-end mt-2 mt-md-0">
-                <h5 class="fw-semibold text-danger m-0 fs-14">-{{ currency_symbol|default('$') }}{{ transaction.cost|default('299.00') }}</h5>
+                <h5 class="fw-semibold text-danger m-0 fs-14">-<span class="currency-value" data-raw-value="{{ transaction.cost|default(299.00) }}"><span class="currency-symbol">{{ currency_symbol|default('$') }}</span><span class="currency-number">{{ transaction.cost|default('299.00') }}</span></span></h5>
             </div>
             
             <!-- Actions -->

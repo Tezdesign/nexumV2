@@ -31,7 +31,7 @@
                 </div>
                 <div class="col-6">
                     <p class="text-muted mb-1 fs-12">{{ 'Allocated Budget'|trans }}</p>
-                    <h5 class="m-0 fw-semibold text-dark">{{ currency_symbol|default('$') }}{{ projectBudgetEntity.totalBudget|number_format(2) }}</h5>
+                    <h5 class="m-0 fw-semibold text-dark"><span class="currency-value" data-raw-value="{{ projectBudgetEntity.totalBudget }}"><span class="currency-symbol">{{ currency_symbol|default('$') }}</span><span class="currency-number">{{ projectBudgetEntity.totalBudget|number_format(2) }}</span></span></h5>
                 </div>
                 <div class="col-6">
                     <p class="text-muted mb-1 fs-12">{{ 'Inflection Date'|trans }}</p>
