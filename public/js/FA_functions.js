@@ -588,8 +588,7 @@ function initializeCurrencyExchange(selectorId, profileId, defaultCurrency) {
                                 $(this).find('.kpi-symbol').text(newSymbol);
                                 $(this).find('.kpi-number').text(formattedString);
                             } else {
-                                // For generic currency-value, just format to 2 decimal places
-                                const formattedString = convertedValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                                const formattedString = formatKpiNumber(convertedValue);
                                 $(this).find('.currency-symbol').text(newSymbol);
                                 $(this).find('.currency-number').text(formattedString);
                             }
@@ -629,6 +628,13 @@ function initializeCurrencyExchange(selectorId, profileId, defaultCurrency) {
 
                     localStorage.setItem('fa_preferred_currency', selectedCurrencyCode);
                     applyConversion(selectedCurrencyCode, rate);
+                });
+
+                $('#btn-reset-currency').on('click', function(e) {
+                    e.preventDefault();
+                    localStorage.removeItem('fa_preferred_currency');
+                    $currencySelect.val(defaultCurrency).trigger('change');
+                    applyConversion(defaultCurrency, 1);
                 });
             } else {
                 $currencySelect.html('<option disabled>API Error / Unavailable</option>');
