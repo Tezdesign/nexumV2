@@ -184,6 +184,9 @@
                                     {% endif %}
                                 </td>
                                 <td class="text-end text-nowrap" onclick="event.stopPropagation();">
+                                    <a href="{{ path('admin_reclamations_history', {id: r.idRec}) }}" class="btn btn-sm btn-soft-info" title="View History">
+                                        <i class="ri-history-line"></i>
+                                    </a>
                                     <button type="button" class="btn btn-sm btn-soft-primary btn-admin-rec-edit" title="Edit" data-bs-toggle="modal" data-bs-target="#adminRecModal" data-fragment-url="{{ path('admin_reclamations_edit', {id: r.idRec}) }}?fragment=1">
                                         <i class="ri-pencil-line"></i>
                                     </button>

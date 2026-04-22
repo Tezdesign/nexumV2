@@ -151,9 +151,15 @@
                                                 {% if r.has_fichier %}
                                                     <span class="d-block fs-11 text-primary"><i class="ri-attachment-2"></i> Pièce jointe</span>
                                                 {% endif %}
-                                                <form method="post" action="{{ path('mes_reclamations_delete', {id: r.idRec}) }}" class="mt-2" onsubmit="return confirm('Supprimer cette réclamation ?');">
-                                                    <button type="submit" class="btn btn-sm btn-soft-danger"><i class="ri-delete-bin-line"></i></button>
-                                                </form>
+                                                <div class="mt-2">
+                                                    <a href="{{ path('mes_reclamations_history', {id: r.idRec}) }}" class="btn btn-sm btn-soft-info" title="Voir l'historique">
+                                                        <i class="ri-history-line"></i>
+                                                    </a>
+                                                    <form method="post" action="{{ path('mes_reclamations_delete', {id: r.idRec}) }}" class="d-inline" onsubmit="return confirm('Supprimer cette réclamation ?');">
+                                                        <button type="submit" class="btn btn-sm btn-soft-danger"><i class="ri-delete-bin-line"></i>
+                                                        </button>
+                                                    </form>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

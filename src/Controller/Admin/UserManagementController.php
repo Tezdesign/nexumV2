@@ -8,7 +8,7 @@ use App\Entity\UserHandling\Utilisateur;
 use App\Repository\UserHandling\UtilisateurRepository;
 use App\Service\AdminPdfExportService;
 use App\Service\AuthService;
-use App\Service\MailService;
+use App\Service\AdminMailService;
 use Doctrine\DBAL\Exception\TableNotFoundException;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -29,7 +29,7 @@ class UserManagementController extends AbstractController
         private readonly UtilisateurRepository $utilisateurRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly ValidatorInterface $validator,
-        private readonly MailService $mailService,
+        private readonly AdminMailService $adminMailService,
     ) {
     }
 
@@ -173,7 +173,7 @@ class UserManagementController extends AbstractController
 
             if ($temporaryPassword !== '') {
                 try {
-                    $this->mailService->sendInvitationEmail(
+                    $this->adminMailService->sendInvitationEmail(
                         (string) $utilisateur->getEmail(),
                         (string) ($utilisateur->getPrenom() ?? $utilisateur->getNom() ?? 'Utilisateur'),
                         $temporaryPassword
@@ -244,7 +244,7 @@ class UserManagementController extends AbstractController
 
             if ($oldStatus !== $newStatus && trim((string) $utilisateur->getEmail()) !== '') {
                 try {
-                    $this->mailService->sendStatusChangeEmail((string) $utilisateur->getEmail(), $newStatus);
+                    $this->adminMailService->sendStatusChangeEmail((string) $utilisateur->getEmail(), $newStatus);
                 } catch (\Throwable) {
                     $this->addFlash('warning', 'User updated, but status notification email could not be sent.');
                 }
@@ -318,7 +318,7 @@ class UserManagementController extends AbstractController
         $this->entityManager->flush();
         if (trim((string) $utilisateur->getEmail()) !== '') {
             try {
-                $this->mailService->sendStatusChangeEmail((string) $utilisateur->getEmail(), 'active');
+                $this->adminMailService->sendStatusChangeEmail((string) $utilisateur->getEmail(), 'active');
             } catch (\Throwable) {
                 $this->addFlash('warning', 'User activated, but status email could not be sent.');
             }

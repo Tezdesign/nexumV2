@@ -6,6 +6,7 @@ use App\Controller\Trait\ValidationFlashTrait;
 use App\Entity\UserHandling\Reclamation;
 use App\Repository\UserHandling\ReclamationRepository;
 use App\Service\AuthService;
+use App\Service\ReclamationHistoryService;
 use App\Service\TelegramNotificationService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -26,6 +27,7 @@ class ReclamationUserController extends AbstractController
         private readonly EntityManagerInterface $entityManager,
         private readonly ValidatorInterface $validator,
         private readonly TelegramNotificationService $telegramNotificationService,
+        private readonly ReclamationHistoryService $historyService,
     ) {
     }
 
@@ -98,6 +100,14 @@ class ReclamationUserController extends AbstractController
         $this->entityManager->persist($rec);
         $this->entityManager->flush();
 
+        // Log reclamation creation
+        $this->historyService->logActivity($rec->getIdRec(), 'create', [
+            'titre' => $rec->getTitre(),
+            'categorie' => $rec->getCategorie(),
+            'projet' => $rec->getProjet(),
+            'statut' => $rec->getStatut()
+        ]);
+
         $file = $request->files->get('fichier');
         if ($file instanceof UploadedFile && $file->getError() === UPLOAD_ERR_OK) {
             $path = $file->getRealPath() ?: $file->getPathname();
@@ -162,6 +172,13 @@ class ReclamationUserController extends AbstractController
             throw $this->createNotFoundException('Reclamation not found.');
         }
 
+        // Log reclamation deletion before removing
+        $this->historyService->logActivity($rec->getIdRec(), 'delete', [
+            'titre' => $rec->getTitre(),
+            'categorie' => $rec->getCategorie(),
+            'statut' => $rec->getStatut()
+        ]);
+
         $this->entityManager->remove($rec);
         $this->entityManager->flush();
         $this->addFlash('success', 'Reclamation removed.');
@@ -192,6 +209,32 @@ class ReclamationUserController extends AbstractController
             'Content-Type' => $mime,
             'Content-Disposition' => 'inline; filename="reclamation-' . (int) $rec->getIdRec() . '"',
             'Cache-Control' => 'private, max-age=0, must-revalidate',
+        ]);
+    }
+
+    #[Route('/{id}/history', name: 'mes_reclamations_history', requirements: ['id' => '\d+'], methods: ['GET'])]
+    public function history(int $id): Response
+    {
+        if ($r = $this->ensureUser()) {
+            return $r;
+        }
+
+        $userId = $this->authService->getCurrentUserId();
+        if ($userId === null) {
+            return $this->redirectToRoute('welcome');
+        }
+
+        $rec = $this->reclamationRepository->find($id);
+        if (!$rec instanceof Reclamation || $rec->getIdUser() !== $userId) {
+            throw $this->createNotFoundException('Reclamation not found.');
+        }
+
+        $history = $this->historyService->getReclamationHistory($id);
+
+        return $this->render('user/reclamation/history.html.twig', [
+            'reclamation' => $rec,
+            'history' => $history,
+            'historyService' => $this->historyService,
         ]);
     }
 }

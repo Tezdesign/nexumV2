@@ -8,7 +8,8 @@ use App\Repository\UserHandling\ReclamationRepository;
 use App\Repository\UserHandling\UtilisateurRepository;
 use App\Service\AdminPdfExportService;
 use App\Service\AuthService;
-use App\Service\MailService;
+use App\Service\AdminMailService;
+use App\Service\ReclamationHistoryService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -29,7 +30,8 @@ class ReclamationManagementController extends AbstractController
         private readonly UtilisateurRepository $utilisateurRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly ValidatorInterface $validator,
-        private readonly MailService $mailService,
+        private readonly AdminMailService $adminMailService,
+        private readonly ReclamationHistoryService $historyService,
     ) {
     }
 
@@ -175,6 +177,15 @@ class ReclamationManagementController extends AbstractController
             $this->entityManager->flush();
             $this->attachUploadedFileIfAny($rec, $request, true);
 
+            // Log reclamation creation
+            $this->historyService->logActivity($rec->getIdRec(), 'create', [
+                'titre' => $rec->getTitre(),
+                'categorie' => $rec->getCategorie(),
+                'projet' => $rec->getProjet(),
+                'statut' => $rec->getStatut(),
+                'assigned_user' => $rec->getIdUser()
+            ]);
+
             $this->addFlash('success', 'Reclamation created.');
 
             return $modal
@@ -207,7 +218,16 @@ class ReclamationManagementController extends AbstractController
 
         if ($request->isMethod('POST')) {
             $modal = $this->isModalSubmit($request);
-            $oldStatus = strtolower(trim((string) $rec->getStatut()));
+            
+            // Capture old values before changes
+            $oldValues = [
+                'titre' => $rec->getTitre(),
+                'categorie' => $rec->getCategorie(),
+                'projet' => $rec->getProjet(),
+                'statut' => strtolower(trim((string) $rec->getStatut())),
+                'id_user' => $rec->getIdUser()
+            ];
+            
             $this->fillReclamationFromRequest($rec, $request, false);
             if ($this->flashValidationErrors($this->validator->validate($rec, null, ['reclamation_admin']))) {
                 return $modal
@@ -234,21 +254,60 @@ class ReclamationManagementController extends AbstractController
 
             $this->entityManager->flush();
             $this->attachUploadedFileIfAny($rec, $request, true);
-            $newStatus = strtolower(trim((string) $rec->getStatut()));
-
-            if ($oldStatus !== $newStatus) {
-                $owner = $this->utilisateurRepository->find((int) $rec->getIdUser());
-                $ownerEmail = trim((string) ($owner?->getEmail() ?? ''));
-                if ($ownerEmail !== '') {
-                    try {
-                        $this->mailService->sendReclamationStatusEmail(
-                            $ownerEmail,
-                            (string) ($rec->getTitre() ?? ('Reclamation #' . (string) $rec->getIdRec())),
-                            $rec->getProjet(),
-                            $newStatus
-                        );
-                    } catch (\Throwable) {
-                        $this->addFlash('warning', 'Reclamation updated, but status email could not be sent.');
+            
+            // Capture new values and track all changes
+            $newValues = [
+                'titre' => $rec->getTitre(),
+                'categorie' => $rec->getCategorie(),
+                'projet' => $rec->getProjet(),
+                'statut' => strtolower(trim((string) $rec->getStatut())),
+                'id_user' => $rec->getIdUser()
+            ];
+            
+            $changes = [];
+            foreach ($oldValues as $field => $oldValue) {
+                $newValue = $newValues[$field];
+                if ($oldValue !== $newValue) {
+                    $changes[$field] = [
+                        'old' => $oldValue,
+                        'new' => $newValue
+                    ];
+                }
+            }
+            
+            // Log changes if any
+            if (!empty($changes)) {
+                if (isset($changes['statut'])) {
+                    // Status change is special - log it separately
+                    $this->historyService->logActivity($rec->getIdRec(), 'status_change', [
+                        'old_status' => $changes['statut']['old'],
+                        'new_status' => $changes['statut']['new']
+                    ]);
+                    
+                    // Remove status from general changes to avoid duplication
+                    unset($changes['statut']);
+                }
+                
+                if (!empty($changes)) {
+                    // Log other field changes
+                    $this->historyService->logActivity($rec->getIdRec(), 'update', $changes);
+                }
+                
+                // Send status email if status changed
+                if (isset($newValues['statut']) && $oldValues['statut'] !== $newValues['statut']) {
+                    $owner = $this->utilisateurRepository->find((int) $rec->getIdUser());
+                    $ownerEmail = trim((string) ($owner?->getEmail() ?? ''));
+                    if ($ownerEmail !== '') {
+                        try {
+                            $this->adminMailService->sendReclamationStatusEmail(
+                                $ownerEmail,
+                                (string) ($rec->getTitre() ?? ('Reclamation #' . (string) $rec->getIdRec())),
+                                $rec->getProjet(),
+                                $newValues['statut']
+                            );
+                        } catch (\Throwable) {
+                            $this->addFlash('warning', 'Reclamation updated, but status email could not be sent.');
+                        }
                     }
                 }
             }
@@ -297,6 +356,14 @@ class ReclamationManagementController extends AbstractController
         if (!$rec instanceof Reclamation) {
             throw $this->createNotFoundException('Reclamation not found.');
         }
+
+        // Log reclamation deletion before removing
+        $this->historyService->logActivity($rec->getIdRec(), 'delete', [
+            'titre' => $rec->getTitre(),
+            'categorie' => $rec->getCategorie(),
+            'statut' => $rec->getStatut(),
+            'assigned_user' => $rec->getIdUser()
+        ]);
 
         $this->entityManager->remove($rec);
         $this->entityManager->flush();
