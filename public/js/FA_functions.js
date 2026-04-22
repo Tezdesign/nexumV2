@@ -568,15 +568,7 @@ function initializeCurrencyExchange(selectorId, profileId, defaultCurrency) {
                     }
                 });
 
-                if ($currencySelect.find("option[value='" + defaultCurrency + "']").length) {
-                    $currencySelect.val(defaultCurrency).trigger('change');
-                }
-
-                $currencySelect.on('select2:select', function (e) {
-                    const data = e.params.data;
-                    const rate = parseFloat(data.rate);
-                    const selectedCurrencyCode = data.id;
-
+                const applyConversion = function(selectedCurrencyCode, rate) {
                     let newSymbol = selectedCurrencyCode;
                     if (selectedCurrencyCode === 'USD') newSymbol = '$';
                     else if (selectedCurrencyCode === 'EUR') newSymbol = '€';
@@ -603,6 +595,40 @@ function initializeCurrencyExchange(selectorId, profileId, defaultCurrency) {
                             }
                         }
                     });
+                };
+
+                const storedCurrency = localStorage.getItem('fa_preferred_currency');
+                let initialCurrency = defaultCurrency;
+                let initialRate = 1;
+
+                if (storedCurrency && storedCurrency !== defaultCurrency && $currencySelect.find("option[value='" + storedCurrency + "']").length) {
+                    initialCurrency = storedCurrency;
+                }
+
+                if ($currencySelect.find("option[value='" + initialCurrency + "']").length) {
+                    $currencySelect.val(initialCurrency).trigger('change');
+                    
+                    if (initialCurrency !== defaultCurrency) {
+                        response.results.forEach(function(group) {
+                            if (group.children) {
+                                group.children.forEach(function(child) {
+                                    if (child.id === initialCurrency) {
+                                        initialRate = parseFloat(child.rate);
+                                    }
+                                });
+                            }
+                        });
+                        applyConversion(initialCurrency, initialRate);
+                    }
+                }
+
+                $currencySelect.on('select2:select', function (e) {
+                    const data = e.params.data;
+                    const rate = parseFloat(data.rate);
+                    const selectedCurrencyCode = data.id;
+
+                    localStorage.setItem('fa_preferred_currency', selectedCurrencyCode);
+                    applyConversion(selectedCurrencyCode, rate);
                 });
             } else {
                 $currencySelect.html('<option disabled>API Error / Unavailable</option>');
