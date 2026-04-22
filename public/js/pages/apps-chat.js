@@ -112,9 +112,10 @@ class ChatApp {
         this.stompConnecting = false
         this.stompConnectRequested = false
         this.stompReconnectTimer = null
-        this.callConversationSubscription = null
+        this.callConversationSubscriptions = new Map()
         this.pendingIncomingCall = null
         this.pendingOutgoingCall = null
+        this.callPopupWindow = null
         this.callSocketUrl = 'ws://localhost:8090/ws'
         this.callTokenEndpoint = '/apps-chat/livekit/token'
         this.callPageEndpoint = 'http://127.0.0.1:8090/livekit/call'
@@ -4902,6 +4903,78 @@ class ChatApp {
 
         this.stompConnectRequested = true
         this.connectCallSocket()
+        // Disable polling for now to avoid 500 error
+        // this.startGlobalCallPolling()
+    }
+
+    // Java's startGlobalCallPolling equivalent
+    startGlobalCallPolling = () => {
+        if (this.callPollingInterval) {
+            clearInterval(this.callPollingInterval)
+        }
+
+        // Initialize last call message ID to ignore old messages
+        this.lastGlobalCallMsgId = 0
+        this.lastIncomingCallMsgId = 0
+
+        this.callPollingInterval = setInterval(async () => {
+            try {
+                const response = await fetch(`/apps-chat/calls/poll?lastMessageId=${this.lastGlobalCallMsgId}`)
+                if (!response.ok) {
+                    return
+                }
+
+                const data = await response.json()
+                if (!data.success) {
+                    return
+                }
+
+                const { callMessages, lastMessageId } = data
+                
+                // Update watermark
+                if (lastMessageId > this.lastGlobalCallMsgId) {
+                    this.lastGlobalCallMsgId = lastMessageId
+                }
+
+                // Process new call messages
+                for (const callMsg of callMessages) {
+                    // Skip if conversation is currently active (handled by message poller)
+                    if (callMsg.conversationId === this.activeConversationId) {
+                        continue
+                    }
+
+                    // Skip own messages
+                    if (callMsg.senderId === this.currentUserId) {
+                        continue
+                    }
+
+                    // Update incoming call watermark
+                    if (callMsg.id > this.lastIncomingCallMsgId) {
+                        this.lastIncomingCallMsgId = callMsg.id
+                    }
+
+                    // Show incoming call popup
+                    this.showIncomingCallPopup(
+                        callMsg.conversationId,
+                        callMsg.video,
+                        callMsg.room,
+                        `User ${callMsg.senderId}`,
+                        callMsg.id
+                    )
+                }
+
+            } catch (error) {
+                console.error('Call polling error:', error)
+            }
+        }, 1000) // Poll every second like Java
+    }
+
+    stopGlobalCallPolling = () => {
+        if (this.callPollingInterval) {
+            clearInterval(this.callPollingInterval)
+            this.callPollingInterval = null
+            console.log('Call polling stopped for user:', this.currentUserId)
+        }
     }
 
     ensureStompLibraries = async () => {
@@ -4936,30 +5009,39 @@ class ChatApp {
     }
 
     subscribeCallTopic = (conversationId) => {
-        if (!this.stompConnected || !this.stomp) {
-            return
-        }
-
-        const convId = parseInt(String(conversationId || '0'), 10)
-        if (!Number.isInteger(convId) || convId <= 0) {
-            return
-        }
-
-        if (this.callConversationSubscription) {
-            try {
-                this.callConversationSubscription.unsubscribe()
-            } catch {
-                // ignore stale subscription
-            }
-            this.callConversationSubscription = null
-        }
-
-        const destination = `/topic/call.${convId}`
-        this.callConversationSubscription = this.stomp.subscribe(destination, (frame) => {
-            this.onIncomingSignal(frame?.body || '{}')
-        })
-        console.info(`Subscribed to conversation call topic: ${destination}`)
+    if (!this.stompConnected || !this.stomp) {
+        return
     }
+
+    const convId = parseInt(String(conversationId || '0'), 10)
+    if (!Number.isInteger(convId) || convId <= 0) {
+        return
+    }
+
+    if (this.callConversationSubscriptions.has(convId)) {
+        return
+    }
+
+    const destination = `/topic/call.${convId}`
+    const subscription = this.stomp.subscribe(destination, (frame) => {
+        this.onIncomingSignal(frame?.body || '{}')
+    })
+
+    this.callConversationSubscriptions.set(convId, subscription)
+    console.info(`Subscribed to conversation call topic: ${destination}`)
+}
+    subscribeAllCallTopics = () => {
+    if (!this.stompConnected || !this.stomp) {
+        return
+    }
+
+    this.conversationItems.forEach((item) => {
+        const convId = parseInt(String(item?.dataset?.conversationId || '0'), 10)
+        if (Number.isInteger(convId) && convId > 0) {
+            this.subscribeCallTopic(convId)
+        }
+    })
+}
 
     sendCallSignal = (destination, payload) => {
         if (!this.stompConnected || !this.stomp) {
@@ -4976,87 +5058,122 @@ class ChatApp {
     }
 
     connectCallSocket = async () => {
-        if (this.stompConnecting || this.stompConnected) {
-            return
-        }
+    if (this.stompConnecting || this.stompConnected) {
+        return
+    }
 
-        this.stompConnecting = true
+    this.stompConnecting = true
 
-        try {
-            await this.ensureStompLibraries()
-        } catch (error) {
-            console.error('Call libraries failed to load:', error)
+    try {
+        await this.ensureStompLibraries()
+    } catch (error) {
+        console.error('Call libraries failed to load:', error)
+        this.stompConnecting = false
+        this.showBottomNotice('SockJS/STOMP libraries are unavailable.')
+        return
+    }
+
+    const endpoint = this.getSockJsEndpointUrl()
+    console.log('SockJS endpoint =', endpoint)
+
+    const socket = new window.SockJS(endpoint)
+    const client = window.Stomp.over(socket)
+    client.debug = (msg) => console.log('[STOMP]', msg)
+
+    this.stomp = client
+
+    client.connect(
+        {},
+        () => {
             this.stompConnecting = false
-            return
-        }
+            this.stompConnected = true
+            console.info('STOMP connected via SockJS')
 
-        const endpoint = this.getSockJsEndpointUrl()
-        console.log('SockJS endpoint =', endpoint)
-        const socket = new window.SockJS(endpoint)
-        const client = window.Stomp.over(socket)
-        client.debug = (msg) => console.log('[STOMP]', msg)
-
-        this.stomp = client
-        client.connect(
-            {},
-            () => {
-                this.stompConnecting = false
-                this.stompConnected = true
-                console.info('STOMP connected via SockJS')
-                this.subscribeCallTopic(this.getSelectedConversationId())
-                this.flushPendingCallAction()
-            },
-            (error) => {
-                console.error('STOMP error:', error)
-                this.showBottomNotice('STOMP connection failed.')
-                this.stompConnecting = false
-                this.stompConnected = false
-                if (this.stompReconnectTimer) {
-                    window.clearTimeout(this.stompReconnectTimer)
-                }
-                this.stompReconnectTimer = window.setTimeout(() => {
-                    this.connectCallSocket()
-                }, 2500)
-            }
-        )
-
-        socket.onclose = () => {
-            console.warn('SockJS socket closed')
+            this.subscribeAllCallTopics()
+            this.flushPendingCallAction()
+        },
+        (error) => {
+            console.error('STOMP error:', error)
+            this.showBottomNotice('STOMP connection failed.')
             this.stompConnecting = false
             this.stompConnected = false
+
             if (this.stompReconnectTimer) {
                 window.clearTimeout(this.stompReconnectTimer)
             }
+
             this.stompReconnectTimer = window.setTimeout(() => {
                 this.connectCallSocket()
             }, 2500)
         }
+    )
+
+    socket.onclose = () => {
+        console.warn('SockJS socket closed')
+        this.stompConnecting = false
+        this.stompConnected = false
+
+        for (const [, subscription] of this.callConversationSubscriptions.entries()) {
+            try {
+                subscription.unsubscribe()
+            } catch {
+                // ignore stale subscriptions
+            }
+        }
+        this.callConversationSubscriptions.clear()
+
+        if (this.stompReconnectTimer) {
+            window.clearTimeout(this.stompReconnectTimer)
+        }
+
+        this.stompReconnectTimer = window.setTimeout(() => {
+            this.connectCallSocket()
+        }, 2500)
+    }
+}
+
+    flushPendingCallAction = async () => {
+    if (!this.pendingOutgoingCall || !this.stompConnected || !this.stomp) {
+        return
     }
 
-    flushPendingCallAction = () => {
-        if (!this.pendingOutgoingCall || !this.stompConnected) {
-            return
-        }
+    const { convId, video, popupRef } = this.pendingOutgoingCall
+    const room = `conv-${convId}`
 
-        const { convId, video } = this.pendingOutgoingCall
-        const payload = {
-            type: 'RING',
-            conversationId: convId,
-            fromUserId: this.currentUserId,
-            fromName: this.currentUserName || `User ${this.currentUserId}`,
-            callKind: video ? 'VIDEO' : 'AUDIO',
-        }
-
-        this.subscribeCallTopic(convId)
-        const ok = this.sendCallSignal('/app/call.start', payload)
-        if (!ok) {
-            this.showBottomNotice('Failed to send call invitation.')
-            return
-        }
-
-        console.info('Sent pending call.start payload:', payload)
-        this.showBottomNotice(video ? 'Video call invitation sent.' : 'Audio call invitation sent.')
+    const payload = {
+        type: 'RING',
+        conversationId: convId,
+        fromUserId: this.currentUserId,
+        fromName: this.currentUserName || `User ${this.currentUserId}`,
+        callKind: video ? 'VIDEO' : 'AUDIO',
+        room,
     }
+
+    this.subscribeCallTopic(convId)
+
+    const ok = this.sendCallSignal('/app/call.start', payload)
+    if (!ok) {
+        try {
+            popupRef?.close()
+        } catch {
+            // ignore
+        }
+        this.pendingOutgoingCall = null
+        this.showBottomNotice('Failed to send call invitation.')
+        return
+    }
+
+    console.info('Sent call.start payload:', payload)
+
+    try {
+        if (popupRef && !popupRef.closed) {
+            popupRef.focus()
+            popupRef.document.body.innerHTML = '<p style="font-family:system-ui,sans-serif;padding:16px;">Waiting for the other user to accept...</p>'
+        }
+    } catch {
+        // ignore popup DOM access errors
+    }
+}
 
     initCallActions = () => {
         this.callButtonAudio?.addEventListener('click', (event) => {
@@ -5070,150 +5187,333 @@ class ChatApp {
         })
     }
 
-    handleAudioCall = () => {
-        const convId = this.getSelectedConversationId()
-        if (convId <= 0) {
-            this.showBottomNotice('Select a conversation before starting a call.')
-            return
-        }
-
-        if (!this.stomp) {
-            this.stompConnectRequested = true
-            this.connectCallSocket()
-            this.pendingOutgoingCall = { convId, video: false }
-            this.showBottomNotice('Connecting call socket, please wait...')
-            return
-        }
-
-        if (!this.stompConnected) {
-            this.pendingOutgoingCall = { convId, video: false }
-            this.showBottomNotice('Connecting call socket, please wait...')
-            return
-        }
-
-        const payload = {
-            type: 'RING',
-            conversationId: convId,
-            fromUserId: this.currentUserId,
-            fromName: this.currentUserName || `User ${this.currentUserId}`,
-            callKind: 'AUDIO',
-        }
-
-        this.subscribeCallTopic(convId)
-        const ok = this.sendCallSignal('/app/call.start', payload)
-        if (!ok) {
-            this.showBottomNotice('Failed to send call invitation.')
-            return
-        }
-
-        console.info('Sending call.start payload:', payload)
-        this.pendingOutgoingCall = { convId, video: false }
-        this.showBottomNotice('Audio call invitation sent.')
+    handleAudioCall = async () => {
+    console.log('=== AUDIO CALL BUTTON PRESSED ===')
+    
+    const convId = this.getSelectedConversationId()
+    console.log('Selected conversation ID:', convId)
+    
+    if (convId <= 0) {
+        console.log('No conversation selected')
+        this.showBottomNotice('Select a conversation before starting a call.')
+        return
     }
 
-    handleVideoCall = () => {
-        const convId = this.getSelectedConversationId()
-        if (convId <= 0) {
-            this.showBottomNotice('Select a conversation before starting a call.')
-            return
-        }
-
-        if (!this.stomp) {
-            this.stompConnectRequested = true
-            this.connectCallSocket()
-            this.pendingOutgoingCall = { convId, video: true }
-            this.showBottomNotice('Connecting call socket, please wait...')
-            return
-        }
-
-        if (!this.stompConnected) {
-            this.pendingOutgoingCall = { convId, video: true }
-            this.showBottomNotice('Connecting call socket, please wait...')
-            return
-        }
-
-        const payload = {
-            type: 'RING',
-            conversationId: convId,
-            fromUserId: this.currentUserId,
-            fromName: this.currentUserName || `User ${this.currentUserId}`,
-            callKind: 'VIDEO',
-        }
-
-        this.subscribeCallTopic(convId)
-        const ok = this.sendCallSignal('/app/call.start', payload)
-        if (!ok) {
-            this.showBottomNotice('Failed to send call invitation.')
-            return
-        }
-
-        console.info('Sending call.start payload:', payload)
-        this.pendingOutgoingCall = { convId, video: true }
-        this.showBottomNotice('Video call invitation sent.')
+    console.log('Opening popup...')
+    const popup = window.open('', '_blank', 'noopener')
+    if (!popup) {
+        console.log('Popup blocked')
+        this.showBottomNotice('Popup blocked. Allow popups for this site and try again.')
+        return
     }
 
-    onIncomingSignal = (json) => {
-        try {
-            const root = JSON.parse(String(json || '{}'))
-            const type = String(root?.type || '')
-            const convId = parseInt(String(root?.conversationId || '-1'), 10)
-            const fromUserId = parseInt(String(root?.fromUserId || '-1'), 10)
-            const fromName = String(root?.fromName || `User ${fromUserId}`)
-            const callKind = String(root?.callKind || 'AUDIO')
-            const video = callKind.toUpperCase() === 'VIDEO'
+    popup.document.write('<title>Starting call...</title><p style="font-family:system-ui,sans-serif;padding:16px;">Starting audio call...</p>')
+    popup.document.close()
 
-            console.info('Received call signal:', {
-                type,
+    console.log('Sending call invite to conversation:', convId)
+    
+    // Send call invite message (Java pattern)
+    try {
+        const response = await fetch(`/apps-chat/conversations/${convId}/call/invite`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+                'video': 'false'
+            })
+        })
+
+        console.log('Call invite response status:', response.status)
+        
+        if (!response.ok) {
+            throw new Error('Failed to send call invite')
+        }
+
+        const result = await response.json()
+        console.log('Call invite response:', result)
+        
+        if (!result.success) {
+            throw new Error(result.error || 'Failed to send call invite')
+        }
+
+        console.log('Call invite sent successfully, room:', result.room)
+
+        // Store pending call for STOMP signaling
+        this.pendingOutgoingCall = {
+            convId,
+            video: false,
+            popupRef: popup,
+            room: result.room
+        }
+
+        console.log('STOMP connected:', this.stompConnected)
+        
+        // Flush pending action if STOMP is connected
+        if (this.stompConnected && this.stomp) {
+            console.log('Flushing pending call action via STOMP')
+            this.flushPendingCallAction()
+        } else {
+            console.log('STOMP not connected, but call invite was sent via HTTP')
+            // Still open call page even without STOMP
+            this.openCallWindow(convId, false, result.room, popup)
+        }
+
+    } catch (error) {
+        console.error('Failed to send call invite:', error)
+        popup.close()
+        this.showBottomNotice('Failed to start call: ' + error.message)
+    }
+}
+
+    handleVideoCall = async () => {
+    console.log('=== VIDEO CALL BUTTON PRESSED ===')
+    
+    const convId = this.getSelectedConversationId()
+    console.log('Selected conversation ID:', convId)
+    
+    if (convId <= 0) {
+        console.log('No conversation selected')
+        this.showBottomNotice('Select a conversation before starting a call.')
+        return
+    }
+
+    console.log('Opening popup...')
+    const popup = window.open('', '_blank', 'noopener')
+    if (!popup) {
+        console.log('Popup blocked')
+        this.showBottomNotice('Popup blocked. Allow popups for this site and try again.')
+        return
+    }
+
+    popup.document.write('<title>Starting call...</title><p style="font-family:system-ui,sans-serif;padding:16px;">Starting video call...</p>')
+    popup.document.close()
+
+    console.log('Sending call invite to conversation:', convId)
+    
+    // Send call invite message (Java pattern)
+    try {
+        const response = await fetch(`/apps-chat/conversations/${convId}/call/invite`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+                'video': 'true'
+            })
+        })
+
+        console.log('Call invite response status:', response.status)
+        
+        if (!response.ok) {
+            throw new Error('Failed to send call invite')
+        }
+
+        const result = await response.json()
+        console.log('Call invite response:', result)
+        
+        if (!result.success) {
+            throw new Error(result.error || 'Failed to send call invite')
+        }
+
+        console.log('Call invite sent successfully, room:', result.room)
+
+        // Store pending call for STOMP signaling
+        this.pendingOutgoingCall = {
+            convId,
+            video: true,
+            popupRef: popup,
+            room: result.room
+        }
+
+        console.log('STOMP connected:', this.stompConnected)
+        
+        // Flush pending action if STOMP is connected
+        if (this.stompConnected && this.stomp) {
+            console.log('Flushing pending call action via STOMP')
+            this.flushPendingCallAction()
+        } else {
+            console.log('STOMP not connected, but call invite was sent via HTTP')
+            // Still open call page even without STOMP
+            this.openCallWindow(convId, true, result.room, popup)
+        }
+
+    } catch (error) {
+        console.error('Failed to send call invite:', error)
+        popup.close()
+        this.showBottomNotice('Failed to start call: ' + error.message)
+    }
+}
+
+    onIncomingSignal = async (rawBody) => {
+    try {
+        const payload = typeof rawBody === 'string' ? JSON.parse(rawBody) : rawBody
+        if (!payload || typeof payload !== 'object') {
+            return
+        }
+
+        const convId = parseInt(String(payload.conversationId || '0'), 10)
+        if (!Number.isInteger(convId) || convId <= 0) {
+            return
+        }
+
+        const fromUserId = parseInt(String(payload.fromUserId || '0'), 10)
+        if (fromUserId === this.currentUserId) {
+            return
+        }
+
+        const type = String(payload.type || '').toUpperCase()
+        const video = String(payload.callKind || '').toUpperCase() === 'VIDEO'
+        const room = String(payload.room || `conv-${convId}`)
+        const fromName = String(payload.fromName || `User ${fromUserId}`)
+
+        if (type === 'RING') {
+            this.showIncomingCallPopup(convId, video, room, fromName)
+            return
+        }
+
+        if (type === 'ACCEPT') {
+            if (!this.pendingOutgoingCall) {
+                return
+            }
+
+            const pendingConvId = parseInt(String(this.pendingOutgoingCall.convId || '0'), 10)
+            if (pendingConvId !== convId) {
+                return
+            }
+
+            await this.openCallWindow(
                 convId,
-                fromUserId,
-                currentUserId: this.currentUserId,
+                !!this.pendingOutgoingCall.video,
+                room,
+                this.pendingOutgoingCall.popupRef || null
+            )
+            this.pendingOutgoingCall = null
+            return
+        }
+
+        if (type === 'REJECT') {
+            if (this.pendingOutgoingCall?.popupRef && !this.pendingOutgoingCall.popupRef.closed) {
+                try {
+                    this.pendingOutgoingCall.popupRef.close()
+                } catch {
+                    // ignore
+                }
+            }
+
+            this.pendingOutgoingCall = null
+            this.showBottomNotice('Call rejected.')
+        }
+    } catch (error) {
+        console.error('Failed to process incoming call signal:', error)
+    }
+}
+
+    showIncomingCallPopup = (convId, video, room, fromName, inviteMsgId = 0) => {
+    this.pendingIncomingCall = { convId, video, room, fromName, inviteMsgId }
+
+    const kindLabel = video ? 'video' : 'audio'
+    const accepted = window.confirm(`${fromName} is calling you (${kindLabel}). Accept?`)
+
+    if (accepted) {
+        const popup = window.open('', '_blank', 'noopener')
+        if (!popup) {
+            this.showBottomNotice('Popup blocked. Allow popups for this site and try again.')
+            this.sendReject(convId, video)
+            return
+        }
+
+        popup.document.write('<title>Joining call...</title><p style="font-family:system-ui,sans-serif;padding:16px;">Joining call...</p>')
+        popup.document.close()
+
+        // Mark invite as read and accept call (Java pattern)
+        this.markInviteRead(convId, inviteMsgId)
+        this.acceptCall(convId, video)
+        this.openCallWindow(convId, video, room, popup)
+        return
+    }
+
+    // Mark invite as read and reject call (Java pattern)
+    this.markInviteRead(convId, inviteMsgId)
+    this.rejectCall(convId, video)
+}
+
+    // New methods following Java pattern
+    acceptCall = async (convId, video) => {
+        try {
+            const response = await fetch(`/apps-chat/conversations/${convId}/call/accept`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    'video': video.toString()
+                })
             })
 
-            if (convId <= 0) {
-                return
+            if (!response.ok) {
+                throw new Error('Failed to accept call')
             }
 
-            if (fromUserId === this.currentUserId) {
-                return
+            const result = await response.json()
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to accept call')
             }
 
-            const room = `conv_${convId}`
-
-            if (type === 'RING') {
-                this.showIncomingCallPopup(convId, video, room, fromName)
-                return
+            // Send STOMP signal if connected
+            if (this.stompConnected && this.stomp) {
+                this.sendAccept(convId, video)
             }
 
-            if (type === 'ACCEPT') {
-                this.closeIncomingPopup()
-                if (this.pendingOutgoingCall && this.pendingOutgoingCall.convId === convId) {
-                    this.openCallWindow(convId, this.pendingOutgoingCall.video, room)
-                    this.pendingOutgoingCall = null
-                }
-                return
-            }
-
-            if (type === 'REJECT') {
-                this.closeIncomingPopup()
-                this.pendingOutgoingCall = null
-                this.showBottomNotice('Call rejected.')
-            }
         } catch (error) {
-            console.error('Failed to process incoming call signal:', error)
+            console.error('Failed to accept call:', error)
+            this.showBottomNotice('Failed to accept call: ' + error.message)
         }
     }
 
-    showIncomingCallPopup = (convId, video, room, fromName) => {
-        this.pendingIncomingCall = { convId, video, room, fromName }
-        const kindLabel = video ? 'video' : 'audio'
-        const accepted = window.confirm(`${fromName} is calling you (${kindLabel}). Accept?`)
-        if (accepted) {
-            this.sendAccept(convId, video)
-            this.openCallWindow(convId, video, room)
+    rejectCall = async (convId, video) => {
+        try {
+            const response = await fetch(`/apps-chat/conversations/${convId}/call/reject`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    'video': video.toString()
+                })
+            })
+
+            if (!response.ok) {
+                throw new Error('Failed to reject call')
+            }
+
+            const result = await response.json()
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to reject call')
+            }
+
+            // Send STOMP signal if connected
+            if (this.stompConnected && this.stomp) {
+                this.sendReject(convId, video)
+            }
+
+        } catch (error) {
+            console.error('Failed to reject call:', error)
+        }
+    }
+
+    markInviteRead = async (convId, inviteMsgId) => {
+        if (inviteMsgId <= 0) {
             return
         }
 
-        this.sendReject(convId, video)
+        try {
+            await fetch(`/apps-chat/conversations/${convId}/messages/${inviteMsgId}/read`, {
+                method: 'POST'
+            })
+        } catch (error) {
+            console.error('Failed to mark invite as read:', error)
+        }
     }
 
     closeIncomingPopup = () => {
@@ -5250,43 +5550,95 @@ class ChatApp {
         this.sendCallSignal('/app/call.reject', payload)
     }
 
-    openCallWindow = async (convId, videoEnabled, room) => {
-        if (convId <= 0) {
-            return
+    openCallWindow = async (convId, videoEnabled, room, popupRef = null) => {
+    console.log('=== OPENING CALL WINDOW ===')
+    console.log('Conversation ID:', convId)
+    console.log('Video enabled:', videoEnabled)
+    console.log('Room:', room)
+    
+    if (convId <= 0) {
+        console.log('Invalid conversation ID')
+        return
+    }
+
+    let popup = popupRef || this.callPopupWindow || null
+
+    try {
+        const roomName = String(room || '').trim() !== ''
+            ? String(room).trim()
+            : `conv-${convId}`
+
+        const identity = `user-${this.currentUserId}`
+        const myName = this.currentUserName || `User ${this.currentUserId}`
+
+        console.log('Getting token for room:', roomName)
+        console.log('Identity:', identity)
+        console.log('Token endpoint:', this.callTokenEndpoint)
+
+        const tokenUrl = `${this.callTokenEndpoint}?room=${this.enc(roomName)}&identity=${this.enc(identity)}&name=${this.enc(myName)}`
+        console.log('Token URL:', tokenUrl)
+        
+        const tokenResponse = await fetch(tokenUrl, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' },
+        })
+
+        console.log('Token response status:', tokenResponse.status)
+
+        if (!tokenResponse.ok) {
+            const body = await tokenResponse.text()
+            console.log('Token failed:', body)
+            throw new Error(`Token failed: ${body}`)
         }
+
+        const payload = await tokenResponse.json()
+        console.log('Token response payload:', payload)
+        
+        const token = String(payload?.token || '').trim()
+        if (!token) {
+            console.log('Token missing from response')
+            throw new Error('Token response is missing token field.')
+        }
+
+        console.log('Token received successfully')
+
+        const callUrl = `/apps-chat/call?wsUrl=${this.enc(this.callLivekitUrl)}&token=${this.enc(token)}&mic=true&cam=${videoEnabled ? 'true' : 'false'}`
+        console.log('Call page URL:', callUrl)
+
+        if (!popup || popup.closed) {
+            console.log('Creating new popup window')
+            popup = window.open('', '_blank', 'noopener')
+        }
+
+        if (!popup) {
+            console.log('Popup blocked')
+            throw new Error('Popup blocked. Allow popups for this site and try again.')
+        }
+
+        console.log('Navigating popup to call page...')
+        popup.location.href = callUrl
+        try {
+            popup.focus()
+        } catch {
+            // ignore
+        }
+
+        this.callPopupWindow = popup
+        console.log('Call window opened successfully')
+    } catch (error) {
+        console.error('Failed to open call window:', error)
 
         try {
-            const roomName = String(room || '').trim() !== ''
-                ? String(room)
-                : `conv-${convId}`
-
-            const identity = `user-${this.currentUserId}`
-            const myName = this.currentUserName || `User ${this.currentUserId}`
-
-            const tokenUrl = `${this.callTokenEndpoint}?room=${this.enc(roomName)}&identity=${this.enc(identity)}&name=${this.enc(myName)}`
-            const tokenResponse = await fetch(tokenUrl, {
-                method: 'GET',
-                headers: { 'Accept': 'application/json' },
-            })
-
-            if (!tokenResponse.ok) {
-                const body = await tokenResponse.text()
-                throw new Error(`Token failed: ${body}`)
+            if (popup && !popup.closed) {
+                popup.close()
             }
-
-            const payload = await tokenResponse.json()
-            const token = String(payload?.token || '').trim()
-            if (!token) {
-                throw new Error('Token response is missing token field.')
-            }
-
-            const callUrl = `${this.callPageEndpoint}?wsUrl=${this.enc(this.callLivekitUrl)}&token=${this.enc(token)}&mic=true&cam=${videoEnabled ? 'true' : 'false'}`
-            window.open(callUrl, '_blank', 'noopener')
-        } catch (error) {
-            console.error('Failed to open call window:', error)
-            this.showBottomNotice(error?.message || 'Could not start call.')
+        } catch {
+            // ignore
         }
+
+        this.showBottomNotice(error?.message || 'Could not start call.')
     }
+}
 
     init = () => {
         this.cacheElements();

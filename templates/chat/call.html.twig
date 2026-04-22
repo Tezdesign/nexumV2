@@ -1,0 +1,487 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <style>
+    :root{
+      --bg:#ffffff;
+      --border:#e5e7eb;
+      --muted:#9aa0a6;
+      --tile:#ffffff;
+      --purple:#7c3aed;
+      --purple10: rgba(124,58,237,0.10);
+      --purple16: rgba(124,58,237,0.16);
+      --danger:#ef4444;
+      --dangerHover:#dc2626;
+      --shadow: 0 10px 24px rgba(0,0,0,.08);
+    }
+
+    html, body { margin:0; height:100%; background:var(--bg); color:#111; font-family: system-ui, sans-serif; }
+    #root { height:100%; display:flex; flex-direction:column; }
+
+    #topbar{
+      padding:14px 16px;
+      display:flex; align-items:center; gap:10px;
+      border-bottom:1px solid var(--border);
+      background:#fff;
+    }
+    #title{ font-size:14px; font-weight:800; }
+    #status{ font-size:11px; font-weight:600; color:var(--muted); margin-left:auto; }
+
+    #gridWrap{
+      flex:1;
+      padding:12px;
+      background:#fff;
+      overflow:hidden;
+      min-height:0; /* IMPORTANT */
+    }
+
+    /* <= 9 tiles (paged) - dynamic cols/rows */
+    #grid.paged{
+      height:100%;
+      display:grid;
+      gap:12px;
+      grid-template-columns: repeat(var(--cols, 1), minmax(0, 1fr));
+      grid-template-rows: repeat(var(--rows, 1), minmax(0, 1fr));
+    }
+
+    /* > 9 tiles (scroll) */
+    #gridWrap.scrollable{ overflow:auto; }
+    #grid.scroll{
+      display:grid;
+      gap:12px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-auto-rows: var(--tileH, 220px);
+    }
+
+    .tile{
+      position:relative;
+      background:var(--tile);
+      border:1px solid var(--border);
+      border-radius:16px;
+      overflow:hidden;
+      box-shadow:var(--shadow);
+      min-height:0;
+    }
+
+    video{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      display:block;
+      background:#000;
+    }
+
+    .name{
+      position:absolute;
+      left:10px;
+      bottom:10px;
+      background:rgba(255,255,255,.92);
+      border:1px solid var(--border);
+      padding:6px 10px;
+      border-radius:999px;
+      font-size:12px;
+      font-weight:700;
+      color:#111;
+    }
+
+    .avatarWrap{
+      position:absolute;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:linear-gradient(180deg, rgba(0,0,0,.15), rgba(0,0,0,.25));
+    }
+    .avatarCircle{
+      width:110px; height:110px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.35);
+      background:rgba(255,255,255,.12);
+      overflow:hidden;
+      display:grid;
+      place-items:center;
+      box-shadow: 0 10px 26px rgba(0,0,0,.20);
+    }
+    .avatarCircle img{
+      width:100%; height:100%;
+      object-fit:cover;
+      display:block;
+    }
+
+    #controls{
+      padding:12px 16px 16px 16px;
+      display:flex;
+      justify-content:center;
+      background:#fff;
+    }
+    #bar{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      padding:10px 12px;
+      border:1px solid var(--border);
+      border-radius:999px;
+      background:#fff;
+      box-shadow: var(--shadow);
+    }
+    .btn{
+      width:44px; height:44px;
+      border-radius:999px;
+      display:grid; place-items:center;
+      cursor:pointer;
+      user-select:none;
+      border:0;
+      background:var(--purple10);
+    }
+    .btn:hover{ background:var(--purple16); }
+    .btn svg{ width:22px; height:22px; fill:var(--purple); }
+    .btn.danger{ background:var(--danger); }
+    .btn.danger:hover{ background:var(--dangerHover); }
+    .btn.danger svg{ fill:#fff; }
+  </style>
+</head>
+
+<body>
+  <div id="root">
+    <div id="topbar">
+      <div id="title">Call</div>
+      <div id="status">Starting...</div>
+    </div>
+
+    <div id="gridWrap">
+      <div id="grid" class="paged"></div>
+    </div>
+
+    <div id="controls">
+      <div id="bar">
+        <button class="btn" id="micBtn" title="Microphone"></button>
+        <button class="btn" id="camBtn" title="Camera"></button>
+        <button class="btn danger" id="hangBtn" title="Hang up"></button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { Room } from "/livekit/livekit-client.esm.mjs";
+
+    const LIVEKIT_URL = "{{ wsUrl|escape('js') }}";
+    const TOKEN = "{{ token|escape('js') }}";
+    const state = { mic: {{ mic ? 'true' : 'false' }}, cam: {{ cam ? 'true' : 'false' }} };
+
+    const gridWrap = document.getElementById("gridWrap");
+    const grid = document.getElementById("grid");
+    const status = document.getElementById("status");
+
+    const micBtn = document.getElementById("micBtn");
+    const camBtn = document.getElementById("camBtn");
+    const hangBtn = document.getElementById("hangBtn");
+
+    const ICON_MIC_ON  = `<svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>`;
+    const ICON_MIC_OFF = `<svg viewBox="0 0 24 24"><path d="M19 11h-2a5 5 0 0 1-1.25 3.3l1.45 1.45A6.98 6.98 0 0 0 19 11zM4.27 3L3 4.27l6 6V6a3 3 0 0 1 4.95-2.12L15.1 5.03A3 3 0 0 0 9 6v5a3 3 0 0 0 .17 1L4.27 3zM12 14a2.99 2.99 0 0 0 2.12-.88l1.43 1.43A4.98 4.98 0 0 1 7 11H5a7 7 0 0 0 6 6.92V21h2v-3.08a6.97 6.97 0 0 0 3.34-1.5l-1.45-1.45A4.97 4.97 0 0 1 12 14zm7 7l-7-7-7-7 1.27-1.27 14 14L19 21z"/></svg>`;
+    const ICON_CAM_ON  = `<svg viewBox="0 0 24 24"><path d="M17 10.5V7a2 2 0 0 0-2-2H5A2 2 0 0 0 3 7v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3.5l4 4v-11l-4 4z"/></svg>`;
+    const ICON_CAM_OFF = `<svg viewBox="0 0 24 24"><path d="M21 6.5l-4 4V9.27L21 5.5v1zM3.27 2L2 3.27 4.73 6H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-.73l3.73 3.73L22 21.73 3.27 2zM15 18H5V8.27l9.73 9.73H15z"/></svg>`;
+    const ICON_HANG    = `<svg viewBox="0 0 24 24"><path d="M12 9c-4.42 0-8 1.79-8 4v3h5v-2c0-.55.45-1 1-1h4c.55 0 1 .45 1 1v2h5v-3c0-2.21-3.58-4-8-4z"/></svg>`;
+
+    function refreshBtns(){
+      micBtn.innerHTML = state.mic ? ICON_MIC_ON : ICON_MIC_OFF;
+      camBtn.innerHTML = state.cam ? ICON_CAM_ON : ICON_CAM_OFF;
+      hangBtn.innerHTML = ICON_HANG;
+    }
+
+    const DEFAULT_AVATAR = "{{ asset('images/user-default.png') }}";
+
+    function userIdFromIdentity(identity){
+      if (!identity) return "";
+      return String(identity).replace("user-","");
+    }
+
+    function avatarUrlForIdentity(identity){
+      const uid = userIdFromIdentity(identity);
+      return uid ? `/apps-chat/livekit/avatar/${uid}` : DEFAULT_AVATAR;
+    }
+
+    function ensureTile(pid, displayName, avatarUrl){
+      let tile = grid.querySelector(`.tile[data-pid="${pid}"]`);
+      if (tile) return tile;
+
+      tile = document.createElement("div");
+      tile.className = "tile";
+      tile.dataset.pid = pid;
+
+      const v = document.createElement("video");
+      v.autoplay = true;
+      v.playsInline = true;
+
+      const avatarWrap = document.createElement("div");
+      avatarWrap.className = "avatarWrap";
+
+      const circle = document.createElement("div");
+      circle.className = "avatarCircle";
+
+      const img = document.createElement("img");
+      img.src = avatarUrl || DEFAULT_AVATAR;
+      img.onerror = () => { img.src = DEFAULT_AVATAR; };
+
+      circle.appendChild(img);
+      avatarWrap.appendChild(circle);
+
+      const label = document.createElement("div");
+      label.className = "name";
+      label.textContent = displayName || pid;
+
+      tile.appendChild(v);
+      tile.appendChild(avatarWrap);
+      tile.appendChild(label);
+
+      grid.appendChild(tile);
+      updateLayout(); // keep layout in sync
+      return tile;
+    }
+
+    function setAvatarVisible(pid, visible){
+      const tile = grid.querySelector(`.tile[data-pid="${pid}"]`);
+      if (!tile) return;
+      const wrap = tile.querySelector(".avatarWrap");
+      if (!wrap) return;
+      wrap.style.display = visible ? "flex" : "none";
+    }
+
+    // FIX: Avatar visibility follows actual <video> state, not just "track exists"
+    function syncAvatarWithVideo(pid, videoEl){
+      const show = () => setAvatarVisible(pid, true);
+      const hide = () => setAvatarVisible(pid, false);
+
+      show();
+
+      const check = () => {
+        // HAVE_CURRENT_DATA (2+) + not paused => frames are available
+        if (videoEl.readyState >= 2 && !videoEl.paused) hide();
+        else show();
+      };
+
+      videoEl.addEventListener("loadeddata", check);
+      videoEl.addEventListener("playing", check);
+      videoEl.addEventListener("pause", check);
+      videoEl.addEventListener("waiting", check);
+      videoEl.addEventListener("stalled", check);
+      videoEl.addEventListener("emptied", check);
+
+      setTimeout(check, 50);
+      setTimeout(check, 250);
+      setTimeout(check, 800);
+    }
+
+    function calcGrid(n){
+      if (n <= 1) return { cols:1, rows:1 };
+      if (n === 2) return { cols:2, rows:1 };
+      if (n <= 4) return { cols:2, rows:2 };
+      if (n <= 6) return { cols:3, rows:2 };
+      return { cols:3, rows:3 }; // 7..9
+    }
+
+    function updateLayout(){
+      const count = grid.querySelectorAll(".tile").length;
+
+      if (count <= 9){
+        grid.classList.remove("scroll");
+        grid.classList.add("paged");
+        gridWrap.classList.remove("scrollable");
+
+        const { cols, rows } = calcGrid(count);
+        grid.style.setProperty("--cols", cols);
+        grid.style.setProperty("--rows", rows);
+      } else {
+        grid.classList.remove("paged");
+        grid.classList.add("scroll");
+        gridWrap.classList.add("scrollable");
+
+        const wrapH = gridWrap.clientHeight;
+        const gap = 12;
+        const rowsVisible = 3;
+        const tileH = Math.floor((wrapH - gap * (rowsVisible - 1)) / rowsVisible);
+        grid.style.setProperty("--tileH", Math.max(180, tileH) + "px");
+      }
+    }
+
+    function attachVideoIfAny(participant, pid, displayName, avatarUrl, muteVideo){
+      const tile = ensureTile(pid, displayName, avatarUrl);
+      const video = tile.querySelector("video");
+      video.muted = !!muteVideo;
+
+      for (const pub of participant.videoTrackPublications.values()){
+        if (pub.track){
+          pub.track.attach(video);
+          syncAvatarWithVideo(pid, video); // FIX
+          return true;
+        }
+      }
+
+      setAvatarVisible(pid, true);
+      return false;
+    }
+
+    function removeTile(pid){
+      const tile = grid.querySelector(`.tile[data-pid="${pid}"]`);
+      if (tile) tile.remove();
+      updateLayout();
+    }
+
+    const room = new Room();
+
+    room.on("participantConnected", (p) => {
+      const pid = p.identity || "unknown";
+      const name = p.name || p.identity || pid;
+      const avatar = avatarUrlForIdentity(p.identity);
+      attachVideoIfAny(p, pid, name, avatar, false);
+      updateLayout();
+    });
+
+    room.on("participantDisconnected", (p) => {
+                      removeTile(p.identity || "unknown");
+                
+                      // If no remote participants left -> call ended
+                      if (room.remoteParticipants.size === 0){
+                        status.textContent = "Ended";
+                        showCallEnded();
+                      }
+                    });
+
+    room.on("trackSubscribed", (track, pub, participant) => {
+      if (track.kind !== "video") return;
+      const pid = participant.identity || "unknown";
+      const name = participant.name || participant.identity || pid;
+      const avatar = avatarUrlForIdentity(participant.identity);
+      const tile = ensureTile(pid, name, avatar);
+      const video = tile.querySelector("video");
+      track.attach(video);
+      syncAvatarWithVideo(pid, video); // FIX
+    });
+
+    room.on("trackUnsubscribed", (track, pub, participant) => {
+      if (track.kind !== "video") return;
+      const pid = participant.identity || "unknown";
+      setAvatarVisible(pid, true);
+
+      // FIX: clear stale frame / black video state
+      const tile = grid.querySelector(`.tile[data-pid="${pid}"]`);
+      if (tile) {
+        const v = tile.querySelector("video");
+        if (v) v.srcObject = null;
+      }
+    });
+
+    // FIX: if remote toggles cam off/on, reflect it immediately
+    room.on("trackMuted", (pub, participant) => {
+      if (pub.kind !== "video") return;
+      const pid = participant.identity || "unknown";
+      setAvatarVisible(pid, true);
+    });
+
+    room.on("trackUnmuted", (pub, participant) => {
+      if (pub.kind !== "video") return;
+      const pid = participant.identity || "unknown";
+      const tile = grid.querySelector(`.tile[data-pid="${pid}"]`);
+      if (!tile) return;
+      const video = tile.querySelector("video");
+      if (video) syncAvatarWithVideo(pid, video);
+    });
+
+    async function join(){
+      refreshBtns();
+      status.textContent = "Connecting...";
+
+      await room.connect(LIVEKIT_URL, TOKEN);
+
+      await room.localParticipant.setMicrophoneEnabled(state.mic);
+      await room.localParticipant.setCameraEnabled(state.cam);
+
+      const meIdentity = room.localParticipant.identity || "me";
+      const meName = room.localParticipant.name || "Me";
+      const meAvatar = avatarUrlForIdentity(meIdentity);
+
+      ensureTile("me", meName, meAvatar).querySelector("video").muted = true;
+
+      // avatar visible if cam off
+      setAvatarVisible("me", !state.cam);
+
+      attachVideoIfAny(room.localParticipant, "me", meName, meAvatar, true);
+
+      // existing participants
+      room.remoteParticipants.forEach((p) => {
+        const pid = p.identity || "unknown";
+        const name = p.name || p.identity || pid;
+        const avatar = avatarUrlForIdentity(p.identity);
+        attachVideoIfAny(p, pid, name, avatar, false);
+      });
+
+      updateLayout();
+      status.textContent = "Connected";
+    }
+
+    async function setMic(enabled){
+      state.mic = !!enabled;
+      refreshBtns();
+      try { await room.localParticipant.setMicrophoneEnabled(state.mic); } catch(e){ console.error(e); }
+    }
+
+    async function setCam(enabled){
+      state.cam = !!enabled;
+      refreshBtns();
+      try { await room.localParticipant.setCameraEnabled(state.cam); } catch(e){ console.error(e); }
+
+      setAvatarVisible("me", !state.cam);
+
+      if (state.cam){
+        const meIdentity = room.localParticipant.identity || "me";
+        const meName = room.localParticipant.name || "Me";
+        const meAvatar = avatarUrlForIdentity(meIdentity);
+        attachVideoIfAny(room.localParticipant, "me", meName, meAvatar, true);
+      } else {
+        // clear local stale frame when cam off
+        const tile = grid.querySelector(`.tile[data-pid="me"]`);
+        if (tile) {
+          const v = tile.querySelector("video");
+          if (v) v.srcObject = null;
+        }
+      }
+    }
+
+    function showCallEnded(){
+                      grid.innerHTML = "";
+                      gridWrap.classList.remove("scrollable");
+                      gridWrap.classList.remove("scroll");
+                      grid.classList.add("paged");
+                      grid.style.setProperty("--cols", 1);
+                      grid.style.setProperty("--rows", 1);
+                
+                      const ended = document.createElement("div");
+                      ended.style.display = "flex";
+                      ended.style.alignItems = "center";
+                      ended.style.justifyContent = "center";
+                      ended.style.height = "100%";
+                      ended.style.fontSize = "18px";
+                      ended.style.fontWeight = "700";
+                      ended.style.color = "#555";
+                      ended.textContent = "Call ended";
+                
+                      grid.appendChild(ended);
+                    }
+                
+                    function hangup(){
+                      try { room.disconnect(); } catch(e){}
+                      status.textContent = "Ended";
+                      showCallEnded();
+                    }
+
+    micBtn.addEventListener("click", () => setMic(!state.mic));
+    camBtn.addEventListener("click", () => setCam(!state.cam));
+    hangBtn.addEventListener("click", () => hangup());
+
+    window.addEventListener("resize", () => updateLayout());
+
+    join().catch(err => { console.error(err); status.textContent = "Error"; });
+  </script>
+</body>
+</html>

@@ -112,6 +112,25 @@ class MessageRepository extends ServiceEntityRepository
         return (int) $queryBuilder->getQuery()->getSingleScalarResult();
     }
 
+    /**
+     * Find recent CALL messages after a specific message ID
+     * @return Message[]
+     */
+    public function findRecentCallMessages(int $conversationId, int $lastMessageId, int $limit = 20): array
+    {
+        return $this->createQueryBuilder('m')
+            ->andWhere('m.conversation_id = :conversationId')
+            ->andWhere('m.id > :lastMessageId')
+            ->andWhere('m.kind = :kind')
+            ->setParameter('conversationId', $conversationId)
+            ->setParameter('lastMessageId', $lastMessageId)
+            ->setParameter('kind', 'CALL')
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
     //    /**
     //     * @return Message[] Returns an array of Message objects
     //     */
