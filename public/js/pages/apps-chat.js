@@ -116,10 +116,10 @@ class ChatApp {
         this.pendingIncomingCall = null
         this.pendingOutgoingCall = null
         this.callSocketUrl = 'ws://localhost:8090/ws'
-        this.callTokenEndpoint = 'http://127.0.0.1:8090/livekit/token'
+        this.callTokenEndpoint = '/apps-chat/livekit/token'
         this.callPageEndpoint = 'http://127.0.0.1:8090/livekit/call'
         this.callLivekitUrl = 'ws://127.0.0.1:7880'
-        this.callAvatarEndpoint = 'http://127.0.0.1:8090/livekit/avatar'
+        this.callAvatarEndpoint = '/apps-chat/livekit/avatar'
         this.callSignalingEnabled = true
         this.messagesSimplebar = null
         this.chatForm = null
@@ -4928,11 +4928,7 @@ class ChatApp {
             return `https://${raw.slice('wss://'.length)}`
         }
 
-        if (raw.startsWith('http://')) {
-            return raw
-        }
-
-        if (raw.startsWith('https://')) {
+        if (raw.startsWith('http://') || raw.startsWith('https://')) {
             return raw
         }
 
@@ -5266,9 +5262,8 @@ class ChatApp {
 
             const identity = `user-${this.currentUserId}`
             const myName = this.currentUserName || `User ${this.currentUserId}`
-            const myAvatarUrl = `${String(this.callAvatarEndpoint || '').replace(/\/$/, '')}/${this.currentUserId}`
 
-            const tokenUrl = `${this.callTokenEndpoint}?room=${this.enc(roomName)}&identity=${this.enc(identity)}&name=${this.enc(myName)}&avatar=${this.enc(myAvatarUrl)}`
+            const tokenUrl = `${this.callTokenEndpoint}?room=${this.enc(roomName)}&identity=${this.enc(identity)}&name=${this.enc(myName)}`
             const tokenResponse = await fetch(tokenUrl, {
                 method: 'GET',
                 headers: { 'Accept': 'application/json' },

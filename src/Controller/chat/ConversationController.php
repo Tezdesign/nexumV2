@@ -19,12 +19,14 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 use InvalidArgumentException;
 
 class ConversationController extends AbstractController
 {
     public function __construct(
         private readonly AuthService $authService,
+        private readonly HttpClientInterface $httpClient,
     )
     {
     }
@@ -71,7 +73,7 @@ class ConversationController extends AbstractController
             $_ENV['CHAT_CALL_TOKEN_ENDPOINT']
             ?? $_SERVER['CHAT_CALL_TOKEN_ENDPOINT']
             ?? getenv('CHAT_CALL_TOKEN_ENDPOINT')
-            ?? 'http://127.0.0.1:8090/livekit/token'
+            ?? '/apps-chat/livekit/token'
         ));
         $callPageEndpoint = trim((string) (
             $_ENV['CHAT_CALL_PAGE_ENDPOINT']
@@ -89,7 +91,7 @@ class ConversationController extends AbstractController
             $_ENV['CHAT_CALL_AVATAR_ENDPOINT']
             ?? $_SERVER['CHAT_CALL_AVATAR_ENDPOINT']
             ?? getenv('CHAT_CALL_AVATAR_ENDPOINT')
-            ?? 'http://127.0.0.1:8090/livekit/avatar'
+            ?? '/apps-chat/livekit/avatar'
         ));
         $callSignalingEnabled = filter_var(
             (string) (
@@ -120,6 +122,80 @@ class ConversationController extends AbstractController
             'callLivekitUrl' => $callLivekitUrl,
             'callAvatarEndpoint' => $callAvatarEndpoint,
         ]);
+    }
+
+    #[Route('/apps-chat/livekit/token', name: 'apps-chat-livekit-token-proxy', methods: ['GET'])]
+    public function proxyLivekitToken(Request $request): Response
+    {
+        $target = rtrim($this->readEnvSetting([
+            'CHAT_CALL_TOKEN_PROXY_TARGET',
+            'CHAT_CALL_TOKEN_ENDPOINT',
+        ], 'http://127.0.0.1:8090/livekit/token'), '/');
+
+        try {
+            $upstream = $this->httpClient->request('GET', $target, [
+                'query' => $request->query->all(),
+                'headers' => [
+                    'Accept' => 'application/json',
+                ],
+            ]);
+
+            $status = $upstream->getStatusCode();
+            $content = $upstream->getContent(false);
+            $headers = $upstream->getHeaders(false);
+
+            return new Response($content, $status, [
+                'Content-Type' => $headers['content-type'][0] ?? 'application/json',
+            ]);
+        } catch (\Throwable $error) {
+            return $this->json([
+                'success' => false,
+                'error' => 'LiveKit token proxy failed.',
+                'detail' => $error->getMessage(),
+            ], 502);
+        }
+    }
+
+    #[Route('/apps-chat/livekit/avatar/{userId}', name: 'apps-chat-livekit-avatar-proxy', methods: ['GET'])]
+    public function proxyLivekitAvatar(int $userId): Response
+    {
+        $base = rtrim($this->readEnvSetting([
+            'CHAT_CALL_AVATAR_PROXY_TARGET',
+            'CHAT_CALL_AVATAR_ENDPOINT',
+        ], 'http://127.0.0.1:8090/livekit/avatar'), '/');
+
+        $target = sprintf('%s/%d', $base, $userId);
+
+        try {
+            $upstream = $this->httpClient->request('GET', $target);
+            $status = $upstream->getStatusCode();
+            $content = $upstream->getContent(false);
+            $headers = $upstream->getHeaders(false);
+
+            return new Response($content, $status, [
+                'Content-Type' => $headers['content-type'][0] ?? 'application/octet-stream',
+                'Cache-Control' => 'public, max-age=300',
+            ]);
+        } catch (\Throwable $error) {
+            return new Response('', 404);
+        }
+    }
+
+    private function readEnvSetting(array $keys, string $fallback = ''): string
+    {
+        foreach ($keys as $key) {
+            $value = $_ENV[$key] ?? $_SERVER[$key] ?? getenv($key);
+            if ($value === false) {
+                continue;
+            }
+
+            $trimmed = trim((string) $value);
+            if ($trimmed !== '') {
+                return $trimmed;
+            }
+        }
+
+        return trim($fallback);
     }
 
     #[Route('/apps-chat/conversations/{conversationId}/name', name: 'apps-chat-conversation-rename', methods: ['POST'])]
