@@ -5,35 +5,52 @@
     {{ include('partials/head-css.html.twig') }}
     <link href="/css/FA.css?v={{ random() }}" rel="stylesheet" type="text/css" />
     {% include 'partials/_task_project_design_system.html.twig' %}
-    {% block css %}{% endblock %}
+    
     <style>
         :root {
             --nexum-accent: #7c3aed;
         }
         body {
             background-color: #f8fafc !important;
-            padding-bottom: env(safe-area-inset-bottom);
+            /* Adjust padding to prevent content from hiding behind fixed header/footer */
+            padding-top: max(env(safe-area-inset-top), 1rem);
+            padding-bottom: calc(70px + env(safe-area-inset-bottom, 0px));
             font-family: "Inter", "Segoe UI", sans-serif;
         }
-        .mobile-wrapper {
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-        /* ux-native helpers */
-        .d-native-none {
-            display: block;
-        }
-        [data-native-app] .d-native-none {
-            display: none !important;
-        }
+        
+        {% if hide_top_nav|default(false) %}
+        body { padding-top: 0 !important; }
+        {% endif %}
+        
+        {% if hide_bottom_nav|default(false) %}
+        body { padding-bottom: env(safe-area-inset-bottom) !important; }
+        {% endif %}
     </style>
+    {% block css %}{% endblock %}
 </head>
 <body class="mobile-layout h-100" {{ stimulus_controller('native-bridge', { title: title|default('Nexum') }) }}>
     
     <div class="mobile-wrapper">
         {% block content %}{% endblock %}
     </div>
+
+    {% if not hide_bottom_nav|default(false) %}
+    <nav class="mobile-bottom-nav d-native-none">
+        <a href="{{ path('app_mobile_dashboard') }}" class="bottom-nav-item {% if active_nav|default('projects') == 'projects' %}active{% endif %}" data-turbo-action="replace">
+            <i class="ri-folder-open-line"></i>
+            <span>Projects</span>
+        </a>
+        <a href="#" class="bottom-nav-item {% if active_nav|default('') == 'notifications' %}active{% endif %}">
+            <i class="ri-notification-3-line"></i>
+            <span>Alerts</span>
+            <span class="badge">3</span>
+        </a>
+        <a href="{{ path('app_mobile_profile') }}" class="bottom-nav-item {% if active_nav|default('') == 'profile' %}active{% endif %}" data-turbo-action="replace">
+            <i class="ri-settings-4-line"></i>
+            <span>Settings</span>
+        </a>
+    </nav>
+    {% endif %}
 
     {{ include('partials/footer-scripts.html.twig') }}
     {% block script %}{% endblock %}

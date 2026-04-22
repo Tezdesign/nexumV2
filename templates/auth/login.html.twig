@@ -271,8 +271,7 @@
             {% endfor %}
         {% endfor %}
 
-        <form action="{{ path('login') }}" method="post" id="nexum-login-form" novalidate>
-            <div class="js-validation-summary alert alert-danger py-2 px-3 small d-none mb-3" role="alert"></div>
+        <form action="{{ path('login') }}" method="post" id="nexum-login-form">
             <div class="form-group">
                 <label>Email Address</label>
                 <div class="input-wrapper">
@@ -306,14 +305,4 @@
 {% endblock %}
 
 {% block script %}
-<script src="{{ asset('js/nexum-validation.js') }}"></script>
-<script>
-(function () {
-    var form = document.getElementById('nexum-login-form');
-    if (!form || !window.NexumValidate) return;
-    form.addEventListener('submit', function (e) {
-        if (NexumValidate.loginForm(form).length) e.preventDefault();
-    });
-})();
-</script>
 {% endblock %}

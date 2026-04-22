@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Controller;
+namespace App\Controller\MobilePort;
 
 use App\Controller\Project\ProjectProgressEngine;
 use App\Entity\FinancialAnalysis\ExpenseDraft;
@@ -35,12 +35,12 @@ class MobileHomeController extends AbstractController
         TaskRepository $taskRepository
     ): Response {
         if (!$this->authService->isLoggedIn()) {
-            return $this->redirectToRoute('welcome');
+            return $this->redirectToRoute('app_mobile_login');
         }
 
         $role = strtolower((string) ($this->authService->getCurrentUserRole() ?? ''));
         if (!in_array($role, ['project manager', 'employee', 'manager'])) {
-            return $this->redirectToRoute('dashboard');
+            return $this->redirectToRoute('app_mobile_login');
         }
 
         $currentUserId = (int) ($this->authService->getCurrentUserId() ?? 0);
@@ -89,7 +89,7 @@ class MobileHomeController extends AbstractController
         EntityManagerInterface $entityManager
     ): Response {
         if (!$this->authService->isLoggedIn()) {
-            return $this->redirectToRoute('welcome');
+            return $this->redirectToRoute('app_mobile_login');
         }
 
         $currentUserId = (int) ($this->authService->getCurrentUserId() ?? 0);
@@ -197,6 +197,26 @@ class MobileHomeController extends AbstractController
             'projectProgressPercent' => $projectProgressPercent,
             'recentActivities' => $pid !== null ? $activityFeed->findRecentForProject((int) $pid, 6) : [],
             'memberIds' => array_keys($teamMemberIds),
+        ]);
+    }
+
+    #[Route('/mobile/profile', name: 'app_mobile_profile', methods: ['GET'])]
+    public function profile(UtilisateurRepository $utilisateurRepository): Response
+    {
+        if (!$this->authService->isLoggedIn()) {
+            return $this->redirectToRoute('app_mobile_login');
+        }
+
+        $userId = $this->authService->getCurrentUserId();
+        $utilisateur = $utilisateurRepository->find($userId);
+
+        if (!$utilisateur) {
+            $this->authService->logout();
+            return $this->redirectToRoute('app_mobile_login');
+        }
+
+        return $this->render('mobile/profile/settings.html.twig', [
+            'utilisateur' => $utilisateur,
         ]);
     }
 }

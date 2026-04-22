@@ -1,0 +1,76 @@
+{% extends 'mobile/layouts/main.html.twig' %}
+
+{% set title = 'Sign In'|trans %}
+{% set hide_bottom_nav = true %}
+{% set hide_top_nav = true %}
+
+{% block css %}
+    {{ parent() }}
+    <style>
+        .mobile-login-wrapper {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 2rem;
+            background-color: #fff;
+        }
+        .login-logo {
+            width: 80px;
+            height: auto;
+            margin-bottom: 2rem;
+        }
+        .form-floating > label {
+            color: #6c757d;
+        }
+        .form-control:focus {
+            border-color: var(--nexum-accent);
+            box-shadow: 0 0 0 0.25rem rgba(124, 58, 237, 0.25);
+        }
+        .btn-native-primary {
+            background-color: var(--nexum-accent);
+            color: #fff;
+            border-radius: 999px;
+            padding: 0.8rem;
+            font-weight: 600;
+            border: none;
+            width: 100%;
+            margin-top: 1rem;
+        }
+        .btn-native-primary:active {
+            background-color: #6d28d9;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="mobile-login-wrapper" data-native-app>
+        <div class="text-center">
+            <img src="{{ asset('images/logo-sm.png') }}" alt="Logo" class="login-logo">
+            <h2 class="fw-bold mb-1">Welcome Back</h2>
+            <p class="text-muted mb-4">Sign in to continue to Nexum</p>
+        </div>
+
+        {% for message in app.flashes('error') %}
+            <div class="alert alert-danger rounded-pill text-center py-2 shadow-sm mb-3">
+                {{ message }}
+            </div>
+        {% endfor %}
+
+        <form method="post" action="{{ path('app_mobile_login') }}" data-turbo="false">
+            <div class="form-floating mb-3 shadow-sm rounded-3">
+                <input type="email" class="form-control rounded-3" id="email" name="_username" placeholder="name@example.com">
+                <label for="email"><i class="ri-mail-line me-1"></i>Email address</label>
+            </div>
+            
+            <div class="form-floating mb-4 shadow-sm rounded-3">
+                <input type="password" class="form-control rounded-3" id="password" name="_password" placeholder="Password">
+                <label for="password"><i class="ri-lock-line me-1"></i>Password</label>
+            </div>
+
+            <button type="submit" class="btn btn-native-primary shadow-sm">
+                Sign In
+            </button>
+        </form>
+    </div>
+{% endblock %}
