@@ -110,9 +110,13 @@
     {% include 'financial-analysis/FA_components/_update_project_budget_modal.html.twig' %}
     {% include 'financial-analysis/FA_components/_create_transaction_modal.html.twig' %}
     {% include 'financial-analysis/FA_components/_delete_project_budget_modal.html.twig' %}
+    {% include 'financial-analysis/FA_components/_qr_scanner_modal.html.twig' %}
 {% endblock %}
 
 {% block script %}
+    <!-- html5-qrcode library -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
     <!-- Flatpickr js -->
     <script src="/vendor/flatpickr/flatpickr.min.js"></script>
 
@@ -126,6 +130,7 @@
     <!-- Custom FA JS Logic -->
     <script src="/js/FA_custom.js?v={{ random() }}"></script>
     <script src="/js/FA_functions.js?v={{ random() }}"></script>
+    <script src="/js/FA_Qrcode.js?v={{ random() }}"></script>
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {

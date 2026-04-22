@@ -67,7 +67,18 @@
                         <p class="text-muted">{{ 'Select a transaction to view details.'|trans }}</p>
                     </div>
                     <div class="tab-pane" id="subtab2">
-                        <p class="text-muted">{{ 'No attachments available.'|trans }}</p>
+                        <div class="card bg-transparent shadow-none border border-dashed border-2 mb-0">
+                            <div class="card-body p-4 text-center">
+                                <i class="ti ti-qrcode text-muted opacity-50 mb-3" style="font-size: 4rem;"></i>
+                                <h4 class="mb-2 fw-semibold">{{ 'Smart QR Upload'|trans }}</h4>
+                                <p class="text-muted fs-14 mb-4">
+                                    {{ 'Quickly add a new transaction by scanning a QR code containing the transaction details.'|trans }}
+                                </p>
+                                <button type="button" class="btn btn-outline-primary rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#qrScannerModal">
+                                    <i class="ti ti-scan me-1"></i> {{ 'Scan QR Code'|trans }}
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
