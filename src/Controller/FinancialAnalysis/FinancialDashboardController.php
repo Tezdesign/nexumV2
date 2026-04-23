@@ -41,7 +41,7 @@ class FinancialDashboardController extends AbstractController
         $profileTrends = [];
 
         foreach ($budgetProfiles as $profile) {
-            $profileTrends[$profile->getId()] = $trendCacheService->calculateTrends($profile);
+            $profileTrends[$profile->getId()] = $trendCacheService->calculateTrends($profile,(float)$profile->getBudgetDisposable(),(float)$profile->getTotalExpense());
         }
 
         return $this->render('financial-analysis/landing.html.twig', [
@@ -314,8 +314,7 @@ class FinancialDashboardController extends AbstractController
         ProjectBudgetRepository $projectBudgetRepository,
         TransactionRepository $transactionRepository,
         \App\Service\FinancialAnalysis\BudgetProjectStService $projectStService,
-        \App\Service\FinancialAnalysis\BudgetTrendCacheService $trendCacheService
-        ProjectBudgetRepository $projectBudgetRepository,
+        \App\Service\FinancialAnalysis\BudgetTrendCacheService $trendCacheService,
         \App\Service\AuthService $authService
     ): Response {
         $originalBudget = clone $projectBudget;
@@ -385,7 +384,6 @@ class FinancialDashboardController extends AbstractController
             'projectBudget' => $dashboardService->formatBudgetDetails($originalBudget),
             'projectBudgetEntity' => $originalBudget,
             'budgetProfile' => $profile,
-            'budgetProfile' => $profile,
             'projectBudgetForm' => $projectBudgetForm->createView(),
             'transactionForm' => $transactionForm->createView(),
             'transactions' => $transactions,
@@ -409,8 +407,8 @@ class FinancialDashboardController extends AbstractController
 
         return $this->json([
             'status' => 'success',
-            'analysis' => $analysisJson
-            'isConsultant' => $isConsultant,
+            'analysis' => $analysisJson,
+            //'isConsultant' => $isConsultant,
         ]);
     }
 

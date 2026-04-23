@@ -7,7 +7,7 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 class CurrencyExchangeService
 {
     public function __construct(
-        #[Autowire('%env(CURRENCY_API_KEY)%')]
+        #[Autowire('%env.(CURRENCY_API_KEY)%')]
         private string $apiKey,
         private BudgetProfileRepository $budgetProfileRepository,
     ) {}
@@ -29,14 +29,6 @@ class CurrencyExchangeService
         $curlError = curl_error($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
-
-        // DUMP AND DIE: This forces everything to the screen and stops the app
-        dd([
-            '1_attempted_url' => $url,
-            '2_http_status_code' => $httpCode,
-            '3_curl_internal_error' => $curlError,
-            '4_raw_api_response' => $response
-        ]);
 
         // Return the raw API response
         return $response;
