@@ -271,6 +271,44 @@
             font-weight: 900;
             line-height: 1;
         }
+
+        .nexum-ai-task-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+            padding: 14px 16px;
+        }
+
+        .nexum-ai-task-title {
+            font-size: 14px;
+            font-weight: 800;
+            color: #0f172a;
+        }
+
+        .nexum-ai-task-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .nexum-ai-task-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: #eef2ff;
+            color: #4338ca;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: capitalize;
+        }
+
+        .nexum-ai-task-actions .btn {
+            padding: 6px 10px;
+            font-size: 12px;
+        }
     </style>
 {% endblock %}
 
@@ -427,14 +465,37 @@
             const modalEl = document.getElementById('createProjectModal');
             if (!modalEl) return;
 
+            const safeJsonParse = function (value, fallback) {
+                try {
+                    const parsed = JSON.parse(value);
+                    return Array.isArray(parsed) ? parsed : fallback;
+                } catch (e) {
+                    return fallback;
+                }
+            };
+
+            const escapeHtml = function (value) {
+                return String(value || '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+            };
+
             const getState = function () {
                 return {
+                    formEl: modalEl.querySelector('#createProjectForm'),
                     selectEl: modalEl.querySelector('select[data-assigned-select="1"]'),
                     btnAvatars: modalEl.querySelector('[data-assignee-avatars]'),
                     btnName: modalEl.querySelector('[data-assignee-name]'),
                     btnRole: modalEl.querySelector('[data-assignee-role]'),
                     searchEl: modalEl.querySelector('[data-assignee-search]'),
-                    items: Array.from(modalEl.querySelectorAll('[data-assignee-item]'))
+                    items: Array.from(modalEl.querySelectorAll('[data-assignee-item]')),
+                    aiHiddenEl: modalEl.querySelector('[data-ai-task-suggestions="1"]'),
+                    aiStatusEl: modalEl.querySelector('[data-ai-suggest-status="1"]'),
+                    aiListEl: modalEl.querySelector('[data-ai-suggestions-list="1"]'),
+                    aiButtonEl: modalEl.querySelector('[data-ai-suggest-btn="1"]')
                 };
             };
 
@@ -500,9 +561,79 @@
                 }
             };
 
+            const getAiSuggestions = function () {
+                const { aiHiddenEl } = getState();
+                if (!aiHiddenEl) return [];
+                return safeJsonParse(aiHiddenEl.value || '[]', []);
+            };
+
+            const setAiStatus = function (message, tone) {
+                const { aiStatusEl } = getState();
+                if (!aiStatusEl) return;
+                aiStatusEl.textContent = message || '';
+                aiStatusEl.className = 'text-muted small mb-3';
+                if (tone === 'danger') {
+                    aiStatusEl.className = 'text-danger small mb-3';
+                }
+                if (tone === 'success') {
+                    aiStatusEl.className = 'text-success small mb-3';
+                }
+            };
+
+            const formatAiDate = function (value) {
+                if (!value) return 'No due date';
+                const date = new Date(value + 'T00:00:00');
+                if (Number.isNaN(date.getTime())) return value;
+                return date.toLocaleDateString(undefined, {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric'
+                });
+            };
+
+            const renderAiSuggestions = function () {
+                const { aiListEl } = getState();
+                if (!aiListEl) return;
+
+                const tasks = getAiSuggestions();
+                if (!tasks.length) {
+                    aiListEl.innerHTML = '<div class="text-muted small border rounded-3 p-3 bg-light-subtle">No AI task suggestions yet.</div>';
+                    return;
+                }
+
+                aiListEl.innerHTML = tasks.map(function (task, index) {
+                    return [
+                        '<div class="nexum-ai-task-card d-flex justify-content-between align-items-start gap-3">',
+                        '  <div class="flex-grow-1">',
+                        '    <div class="nexum-ai-task-title">' + escapeHtml(task.title || 'Suggested task') + '</div>',
+                        '    <div class="text-muted small mt-1">' + escapeHtml(task.description || 'No description provided.') + '</div>',
+                        '    <div class="nexum-ai-task-meta">',
+                        '      <span class="nexum-ai-task-chip"><i class="ri-flag-line"></i> ' + escapeHtml(task.priority || 'medium') + '</span>',
+                        '      <span class="nexum-ai-task-chip"><i class="ri-calendar-line"></i> ' + escapeHtml(formatAiDate(task.due_date || '')) + '</span>',
+                        '    </div>',
+                        '  </div>',
+                        '  <div class="nexum-ai-task-actions flex-shrink-0">',
+                        '    <button type="button" class="btn btn-outline-danger" data-ai-remove-task="' + index + '">Skip</button>',
+                        '  </div>',
+                        '</div>'
+                    ].join('');
+                }).join('');
+            };
+
+            const syncAiSuggestions = function (tasks, statusMessage, tone) {
+                const { aiHiddenEl } = getState();
+                if (!aiHiddenEl) return;
+                aiHiddenEl.value = JSON.stringify(tasks || []);
+                renderAiSuggestions();
+                if (typeof statusMessage === 'string') {
+                    setAiStatus(statusMessage, tone || 'muted');
+                }
+            };
+
             if (getState().selectEl) {
                 renderButton();
             }
+            renderAiSuggestions();
 
             modalEl.addEventListener('click', function (e) {
                 const it = e.target.closest('[data-assignee-item]');
@@ -515,6 +646,72 @@
                 if (set.has(String(userId))) set.delete(String(userId)); else set.add(String(userId));
                 applySelectedIds(Array.from(set));
                 renderButton();
+            });
+
+            modalEl.addEventListener('click', async function (e) {
+                const removeBtn = e.target.closest('[data-ai-remove-task]');
+                if (removeBtn && modalEl.contains(removeBtn)) {
+                    const index = Number(removeBtn.getAttribute('data-ai-remove-task'));
+                    const tasks = getAiSuggestions();
+                    if (!Number.isNaN(index)) {
+                        tasks.splice(index, 1);
+                        syncAiSuggestions(tasks, tasks.length ? 'AI suggestions updated.' : 'All AI task suggestions were removed.', 'muted');
+                    }
+                    return;
+                }
+
+                const suggestBtn = e.target.closest('[data-ai-suggest-btn="1"]');
+                if (!suggestBtn || !modalEl.contains(suggestBtn)) return;
+
+                const { formEl, aiButtonEl } = getState();
+                if (!formEl || !aiButtonEl) return;
+
+                const nameEl = formEl.querySelector('[name$="[name]"]');
+                const descriptionEl = formEl.querySelector('[name$="[description]"]');
+                const startEl = formEl.querySelector('[name$="[start_date]"]');
+                const endEl = formEl.querySelector('[name$="[end_date]"]');
+
+                const payload = {
+                    name: nameEl ? nameEl.value.trim() : '',
+                    description: descriptionEl ? descriptionEl.value.trim() : '',
+                    start_date: startEl ? startEl.value : '',
+                    end_date: endEl ? endEl.value : ''
+                };
+
+                if (!payload.name || !payload.start_date || !payload.end_date) {
+                    setAiStatus('Fill the project name, start date, and due date before requesting AI suggestions.', 'danger');
+                    return;
+                }
+
+                aiButtonEl.disabled = true;
+                setAiStatus('Generating 5 task suggestions...', 'muted');
+
+                try {
+                    const res = await fetch(aiButtonEl.getAttribute('data-ai-suggest-url'), {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok) {
+                        const message = (data && data.message) || 'AI suggestions are unavailable right now.';
+                        setAiStatus('AI provider error: ' + message, 'danger');
+                        return;
+                    }
+
+                    const tasks = Array.isArray(data.tasks) ? data.tasks : [];
+                    syncAiSuggestions(tasks, '5 AI task suggestions are ready. Remove any you do not want before saving the project.', 'success');
+                } catch (err) {
+                    console.error(err);
+                    setAiStatus('AI provider error: AI suggestions are unavailable right now.', 'danger');
+                } finally {
+                    aiButtonEl.disabled = false;
+                }
             });
 
             modalEl.addEventListener('input', function (e) {
@@ -536,9 +733,15 @@
                 e.preventDefault();
 
                 try {
+                    const { aiHiddenEl } = getState();
+                    const formData = new FormData(form);
+                    if (aiHiddenEl) {
+                        formData.set('ai_task_suggestions', aiHiddenEl.value || '[]');
+                    }
+
                     const res = await fetch(form.action, {
                         method: 'POST',
-                        body: new FormData(form),
+                        body: formData,
                         headers: {
                             'X-Requested-With': 'XMLHttpRequest',
                             'Accept': 'application/json, text/html;q=0.9'
@@ -563,6 +766,7 @@
                             if (nextWrap) {
                                 wrap.outerHTML = nextWrap.outerHTML;
                                 renderButton();
+                                renderAiSuggestions();
                             } else {
                                 window.location.reload();
                             }

@@ -2,12 +2,12 @@
 
 /**
  * Nexum Legacy Migration Cleaner
- * 
+ *
  * This script automatically scans the latest Doctrine migration file
- * and removes "legacy noise" (SQL commands that try to overwrite 
+ * and removes "legacy noise" (SQL commands that try to overwrite
  * existing Java database conventions).
- * 
- * It is specifically scoped ONLY to legacy tables so it does not 
+ *
+ * It is specifically scoped ONLY to legacy tables so it does not
  * accidentally break migrations for newly created Symfony entities!
  */
 
@@ -29,18 +29,17 @@ $content = file_get_contents($latestMigration);
 $originalContent = $content;
 
 /**
- * We only want to protect the existing Java tables from having their 
+ * We only want to protect the existing Java tables from having their
  * custom foreign keys and indexes dropped or renamed by Doctrine.
  * Any table NOT in this list will be ignored by this cleaner.
  */
 $legacyTables = [
-    'budget_profile', 'conversations', 'conversation_participants', 
-    'messages', 'message_attachments', 'project_budget', 'transaction', 
-    'projects', 'project_assignments', 'resources', 'resource_assignment', 
-    'tasks', 'formation', 'participer', 'quiz', 'resultat', 
+    'budget_profile', 'conversations', 'conversation_participants',
+    'messages', 'message_attachments', 'project_budget', 'transaction',
+    'projects', 'project_assignments', 'resources', 'resource_assignment',
+    'tasks', 'formation', 'participer', 'quiz', 'resultat',
     'reclamation', 'utilisateurs'
 ];
-
 foreach ($legacyTables as $table) {
     // 1. Strip out DROP INDEX commands ONLY for legacy tables
     $content = preg_replace("/\s*\\\$this->addSql\('DROP INDEX [^']+ ON {$table}'\);\n/", "", $content);
@@ -50,6 +49,9 @@ foreach ($legacyTables as $table) {
 
     // 3. Strip out DROP FOREIGN KEY commands ONLY for legacy tables
     $content = preg_replace("/\s*\\\$this->addSql\('ALTER TABLE {$table} DROP FOREIGN KEY [^']+'\);\n/", "", $content);
+
+    // 4. Strip out ALTER TABLE commands that try to change columns to INT (e.g. downgrading BIGINT IDs)
+    $content = preg_replace("/\s*\\\$this->addSql\('ALTER TABLE {$table} CHANGE [^']+ INT[^']*'\);\n/i", "", $content);
 }
 
 if ($content !== $originalContent) {

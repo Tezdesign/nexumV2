@@ -1,0 +1,33 @@
+{% set boardId = boardId|default('') %}
+<div class="kanban-board"
+     {% if boardId %}id="{{ boardId }}"{% endif %}
+     data-kanban-board="1">
+    {% for column in columns %}
+        <section class="kanban-column"
+                 aria-label="{{ column.label }}"
+                 data-column-key="{{ column.key }}"
+                 data-column-label="{{ column.label }}">
+            <div class="kanban-column-head">
+                <div class="kanban-column-title">{{ column.label }}</div>
+                <span class="kanban-count">{{ column.tasks|length }}</span>
+            </div>
+
+            <div class="kanban-stack">
+                {% if column.tasks is not empty %}
+                    {% for task in column.tasks %}
+                        {% include 'task/_kanban_card.html.twig' with {
+                            task: task,
+                            currentUserId: currentUserId,
+                            isManager: isManager,
+                            usersById: usersById,
+                            avatarUrlById: avatarUrlById,
+                            taskUrl: path('app_task_show', {id: task.id})
+                        } %}
+                    {% endfor %}
+                {% else %}
+                    <div class="kanban-empty">No tasks in {{ column.label|lower }}.</div>
+                {% endif %}
+            </div>
+        </section>
+    {% endfor %}
+</div>

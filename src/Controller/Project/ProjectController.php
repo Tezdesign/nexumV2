@@ -1,27 +1,30 @@
 <?php
 
-namespace App\Controller;
+namespace App\Controller\Project;
 
 use App\Entity\Projects\Project;
 use App\Entity\Projects\ProjectAssignment;
 use App\Entity\Tasks\Task;
-use App\Form\Tasks\TaskQuickCreateType;
-use App\Form\Projects\ProjectQuickCreateType;
 use App\Form\Projects\ProjectManagerUpdateType;
-use App\Form\Projects\ProjectType;
+use App\Form\Projects\ProjectQuickCreateType;
+use App\Form\Tasks\TaskQuickCreateType;
 use App\Repository\Projects\ProjectAssignmentRepository;
+use App\Repository\Projects\ProjectFileRepository;
 use App\Repository\Projects\ProjectRepository;
 use App\Repository\Tasks\TaskRepository;
 use App\Repository\UserHandling\UtilisateurRepository;
+use App\Service\AuthService;
+use App\Service\Project\AI\ProjectTaskSuggestionService;
+use App\Service\ProjectActivityFeed;
+use App\Service\ProjectActivityLogger;
+use App\Support\UserDisplayName;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
-use App\Service\AuthService;
-use App\Service\ProjectActivityLogger;
-use App\Service\ProjectActivityFeed;
-use App\Support\UserDisplayName;
+use Symfony\UX\Chartjs\Builder\ChartBuilderInterface;
+use Symfony\UX\Chartjs\Model\Chart;
 
 #[Route('/project')]
 final class ProjectController extends AbstractController
@@ -31,9 +34,11 @@ final class ProjectController extends AbstractController
         Request $request,
         ProjectRepository $projectRepository,
         ProjectAssignmentRepository $projectAssignmentRepository,
+        ProjectFileRepository $projectFileRepository,
         TaskRepository $taskRepository,
         UtilisateurRepository $utilisateurRepository,
         AuthService $authService,
+        ProjectTaskSuggestionService $projectTaskSuggestionService,
         ProjectActivityLogger $activityLogger,
         EntityManagerInterface $entityManager
     ): Response
@@ -84,6 +89,7 @@ final class ProjectController extends AbstractController
         $createForm->handleRequest($request);
         $backUrl = (string) $request->request->get('back', $request->query->get('back', ''));
         $backUrl = ($backUrl !== '' && str_starts_with($backUrl, '/')) ? $backUrl : '';
+        $aiTaskSuggestionsJson = (string) $request->request->get('ai_task_suggestions', '[]');
 
         if ($createForm->isSubmitted() && !$isManager) {
             throw $this->createAccessDeniedException();
@@ -132,15 +138,41 @@ final class ProjectController extends AbstractController
                     $entityManager->persist($pa);
                 }
 
+                $suggestedTaskCount = 0;
+                $projectStart = $createProject->getStart_date();
+                $projectEnd = $createProject->getEnd_date();
+                if ($projectStart instanceof \DateTimeInterface && $projectEnd instanceof \DateTimeInterface) {
+                    $suggestions = $projectTaskSuggestionService->normalizeAcceptedSuggestions(
+                        $aiTaskSuggestionsJson,
+                        (string) $createProject->getName(),
+                        $projectStart,
+                        $projectEnd
+                    );
+
+                    foreach ($suggestions as $suggestion) {
+                        $task = (new Task())
+                            ->setTitle($suggestion['title'])
+                            ->setDescription($suggestion['description'])
+                            ->setStatus($suggestion['status'])
+                            ->setPriority($suggestion['priority'])
+                            ->setStart_date(\DateTime::createFromInterface($projectStart))
+                            ->setDue_date(new \DateTime($suggestion['due_date']))
+                            ->setProject_id((int) $pid)
+                            ->setAssigned_to(null)
+                            ->setCreated_by((int) $currentUserId);
+
+                        $entityManager->persist($task);
+                        ++$suggestedTaskCount;
+                    }
+                }
+
                 $actorName = UserDisplayName::format($currentUser, (int) $currentUserId);
                 $memberCount = count($selectedUserIds);
                 $activityLogger->record(
                     (int) $pid,
                     $actorName,
                     'project_created',
-                    $memberCount > 0
-                        ? sprintf('created project "%s" and assigned %d team member(s).', (string) $createProject->getName(), $memberCount)
-                        : sprintf('created project "%s".', (string) $createProject->getName())
+                    $this->buildProjectCreatedMessage((string) $createProject->getName(), $memberCount, $suggestedTaskCount)
                 );
                 $entityManager->flush();
             }
@@ -165,6 +197,7 @@ final class ProjectController extends AbstractController
                 'createForm' => $createForm->createView(),
                 'assignableUsers' => $assignableUsers,
                 'backUrl' => $backUrl !== '' ? $backUrl : $this->generateUrl('app_project_index'),
+                'aiTaskSuggestionsJson' => $aiTaskSuggestionsJson,
             ], new Response('', Response::HTTP_UNPROCESSABLE_ENTITY));
         }
 
@@ -257,6 +290,7 @@ final class ProjectController extends AbstractController
             'createForm' => $createForm->createView(),
             'assignableUsers' => $assignableUsers,
             'isManager' => $isManager,
+            'aiTaskSuggestionsJson' => $aiTaskSuggestionsJson,
         ]);
     }
 
@@ -293,10 +327,12 @@ final class ProjectController extends AbstractController
         Project $project,
         ProjectRepository $projectRepository,
         ProjectAssignmentRepository $projectAssignmentRepository,
+        ProjectFileRepository $projectFileRepository,
         ProjectActivityFeed $activityFeed,
         UtilisateurRepository $utilisateurRepository,
         AuthService $authService,
-        TaskRepository $taskRepository
+        TaskRepository $taskRepository,
+        ChartBuilderInterface $chartBuilder
     ): Response
     {
         $pid = $project->getId();
@@ -319,7 +355,7 @@ final class ProjectController extends AbstractController
         }
 
         $tab = strtolower(trim((string) $request->query->get('tab', 'overview')));
-        $allowedTabs = ['overview', 'tasks', 'kanban', 'discussion', 'files', 'activity', 'settings'];
+        $allowedTabs = ['overview', 'tasks', 'kanban', 'files'];
         if (!in_array($tab, $allowedTabs, true)) {
             $tab = 'overview';
         }
@@ -374,29 +410,112 @@ final class ProjectController extends AbstractController
         }
 
         $projectTasks = $pid !== null ? $taskRepository->findForProject((int) $pid) : [];
-        $progressTotal = count($projectTasks);
-        $progressDoneOrInProgress = 0;
+        $projectOverview = ProjectProgressEngine::build($projectTasks);
+        $projectProgressPercent = (int) ($projectOverview['completion_percentage'] ?? 0);
+        $stats = [
+            'total' => (int) ($projectOverview['tasks_total'] ?? 0),
+            'completed' => (int) ($projectOverview['tasks_completed'] ?? 0),
+            'overdue' => (int) ($projectOverview['tasks_overdue'] ?? 0),
+        ];
+        $statusCounts = [
+            'To Do' => 0,
+            'In Progress' => 0,
+            'Done' => 0,
+        ];
+        $priorityCounts = [
+            'High' => 0,
+            'Medium' => 0,
+            'Low' => 0,
+            'Other' => 0,
+        ];
+
         foreach ($projectTasks as $projectTask) {
-            $status = strtolower(trim((string) ($projectTask->getStatus() ?? '')));
-            if (in_array($status, ['done', 'completed', 'complete', 'finished', 'in_progress', 'in progress', 'progress', 'doing', 'started'], true)) {
-                $progressDoneOrInProgress++;
+            $normalizedStatus = strtolower(trim((string) ($projectTask->getStatus() ?? '')));
+            if (in_array($normalizedStatus, ['done', 'completed', 'complete', 'finished'], true)) {
+                ++$statusCounts['Done'];
+            } elseif (in_array($normalizedStatus, ['in_progress', 'in progress', 'progress', 'doing', 'started'], true)) {
+                ++$statusCounts['In Progress'];
+            } else {
+                ++$statusCounts['To Do'];
+            }
+
+            $normalizedPriority = strtolower(trim((string) ($projectTask->getPriority() ?? '')));
+            if ($normalizedPriority === 'high') {
+                ++$priorityCounts['High'];
+            } elseif ($normalizedPriority === 'medium') {
+                ++$priorityCounts['Medium'];
+            } elseif ($normalizedPriority === 'low') {
+                ++$priorityCounts['Low'];
+            } else {
+                ++$priorityCounts['Other'];
             }
         }
-        $projectProgressPercent = $progressTotal > 0
-            ? (int) round(($progressDoneOrInProgress / $progressTotal) * 100)
-            : 0;
 
-        $stats = ['total' => 0, 'completed' => 0, 'overdue' => 0];
-        if ($pid !== null) {
-            $stats = $taskRepository->getStatsForProject((int) $pid);
-        }
+        $statusChart = $chartBuilder->createChart(Chart::TYPE_DOUGHNUT);
+        $statusChart->setData([
+            'labels' => array_keys($statusCounts),
+            'datasets' => [[
+                'data' => array_values($statusCounts),
+                'backgroundColor' => ['#94a3b8', '#7c3aed', '#10b981'],
+                'borderWidth' => 0,
+            ]],
+        ]);
+        $statusChart->setOptions([
+            'plugins' => [
+                'legend' => ['position' => 'bottom'],
+            ],
+            'maintainAspectRatio' => false,
+        ]);
+
+        $priorityChart = $chartBuilder->createChart(Chart::TYPE_DOUGHNUT);
+        $priorityChart->setData([
+            'labels' => array_keys($priorityCounts),
+            'datasets' => [[
+                'data' => array_values($priorityCounts),
+                'backgroundColor' => ['#ef4444', '#f59e0b', '#22c55e', '#cbd5e1'],
+                'borderWidth' => 0,
+            ]],
+        ]);
+        $priorityChart->setOptions([
+            'plugins' => [
+                'legend' => ['position' => 'bottom'],
+            ],
+            'maintainAspectRatio' => false,
+        ]);
+
+        $completionChart = $chartBuilder->createChart(Chart::TYPE_BAR);
+        $completionChart->setData([
+            'labels' => ['Completed', 'Overdue'],
+            'datasets' => [[
+                'label' => 'Tasks',
+                'data' => [$stats['completed'], $stats['overdue']],
+                'backgroundColor' => ['#10b981', '#ef4444'],
+                'borderRadius' => 10,
+                'maxBarThickness' => 48,
+            ]],
+        ]);
+        $completionChart->setOptions([
+            'plugins' => [
+                'legend' => ['display' => false],
+            ],
+            'scales' => [
+                'y' => [
+                    'beginAtZero' => true,
+                    'ticks' => ['precision' => 0],
+                ],
+            ],
+            'maintainAspectRatio' => false,
+        ]);
 
         $recentActivities = $pid !== null ? $activityFeed->findRecentForProject((int) $pid, 6) : [];
 
         $tasks = [];
+        $projectFiles = [];
+        $kanbanColumns = [];
+        $kanbanTasks = [];
         $taskUserIds = [];
         if ($pid !== null && $tab === 'tasks') {
-            $tasks = $taskRepository->findForProject((int) $pid, 200);
+            $tasks = array_slice($projectTasks, 0, 200);
             foreach ($tasks as $task) {
                 $au = $task->getAssignedTo();
                 if ($au !== null) {
@@ -405,6 +524,61 @@ final class ProjectController extends AbstractController
                 $cb = $task->getCreatedBy();
                 if ($cb !== null) {
                     $taskUserIds[(int) $cb] = true;
+                }
+            }
+        }
+        if ($pid !== null && $tab === 'kanban') {
+            $kanbanTasks = $isManager
+                ? $projectTasks
+                : array_values(array_filter(
+                    $projectTasks,
+                    static fn (Task $task): bool => (int) ($task->getAssignedTo() ?? 0) === $currentUserId
+                ));
+
+            foreach ($kanbanTasks as $task) {
+                $au = $task->getAssignedTo();
+                if ($au !== null) {
+                    $taskUserIds[(int) $au] = true;
+                }
+                $cb = $task->getCreatedBy();
+                if ($cb !== null) {
+                    $taskUserIds[(int) $cb] = true;
+                }
+            }
+
+            $normalizeStatus = static function (?string $status): string {
+                return strtolower(trim((string) $status));
+            };
+            $isCompleted = static function (?string $status) use ($normalizeStatus): bool {
+                return in_array($normalizeStatus($status), ['done', 'completed', 'complete', 'finished'], true);
+            };
+            $isInProgress = static function (?string $status) use ($normalizeStatus): bool {
+                return in_array($normalizeStatus($status), ['in_progress', 'in progress', 'progress', 'doing', 'started'], true);
+            };
+
+            $kanbanColumns = [
+                ['key' => 'todo', 'label' => 'To Do', 'tasks' => []],
+                ['key' => 'in_progress', 'label' => 'In Progress', 'tasks' => []],
+                ['key' => 'done', 'label' => 'Done', 'tasks' => []],
+            ];
+
+            foreach ($kanbanTasks as $task) {
+                $status = $normalizeStatus($task->getStatus());
+                $columnIndex = match (true) {
+                    $isCompleted($status) => 2,
+                    $isInProgress($status) => 1,
+                    default => 0,
+                };
+                $kanbanColumns[$columnIndex]['tasks'][] = $task;
+            }
+        }
+        if ($pid !== null && $tab === 'files') {
+            $projectFiles = $projectFileRepository->findForProject((int) $pid);
+
+            foreach ($projectFiles as $projectFile) {
+                $uploadedBy = $projectFile->getUploaded_by();
+                if ($uploadedBy !== null) {
+                    $taskUserIds[(int) $uploadedBy] = true;
                 }
             }
         }
@@ -426,6 +600,33 @@ final class ProjectController extends AbstractController
                     $avatarUrlById[(int) $uid] = $raw;
                 }
             }
+        }
+
+        if ($projectFiles !== []) {
+            $mappedFiles = [];
+
+            foreach ($projectFiles as $projectFile) {
+                $uploadedBy = (int) ($projectFile->getUploaded_by() ?? 0);
+                $uploader = $uploadedBy > 0 ? ($membersById[$uploadedBy] ?? null) : null;
+                $bytes = $projectFile->getBytes();
+                $mappedFiles[] = [
+                    'id' => $projectFile->getId(),
+                    'original_name' => $projectFile->getOriginal_name(),
+                    'public_id' => $projectFile->getPublic_id(),
+                    'resource_type' => $projectFile->getResource_type(),
+                    'format' => $projectFile->getFormat(),
+                    'bytes' => $bytes,
+                    'size_label' => $this->formatBytes($bytes),
+                    'secure_url' => $projectFile->getSecure_url(),
+                    'created_at' => $projectFile->getCreated_at(),
+                    'uploaded_by' => $uploadedBy > 0 ? $uploadedBy : null,
+                    'uploaded_by_name' => $uploader !== null
+                        ? UserDisplayName::format($uploader, $uploadedBy)
+                        : 'Unknown uploader',
+                ];
+            }
+
+            $projectFiles = $mappedFiles;
         }
 
         // Data for the "add members" modal.
@@ -467,16 +668,48 @@ final class ProjectController extends AbstractController
             'avatarUrlById' => $avatarUrlById,
             'pickableUsers' => $pickableUsers,
             'stats' => $stats,
+            'statusChart' => $statusChart,
+            'priorityChart' => $priorityChart,
+            'completionChart' => $completionChart,
+            'projectOverview' => $projectOverview,
             'tasks' => $tasks,
+            'projectFiles' => $projectFiles,
+            'kanbanColumns' => $kanbanColumns,
             'activeTab' => $tab,
             'canEditProject' => $canEditProject,
             'canDeleteProject' => $canDeleteProject,
             'canDeleteTask' => $canDeleteTask,
             'canCreateTask' => $canCreateTask,
+            'canUploadProjectFiles' => $currentUserId > 0,
+            'projectFileUploadLimit' => (string) ini_get('upload_max_filesize'),
             'createTaskForm' => $createTaskForm ? $createTaskForm->createView() : null,
             'projectProgressPercent' => $projectProgressPercent,
             'recentActivities' => $recentActivities,
         ]);
+    }
+
+    private function formatBytes(?int $bytes): ?string
+    {
+        if ($bytes === null || $bytes < 0) {
+            return null;
+        }
+
+        if ($bytes < 1024) {
+            return $bytes . ' B';
+        }
+
+        $units = ['KB', 'MB', 'GB', 'TB'];
+        $size = $bytes / 1024;
+        $unitIndex = 0;
+
+        while ($size >= 1024 && $unitIndex < count($units) - 1) {
+            $size /= 1024;
+            ++$unitIndex;
+        }
+
+        $precision = $size >= 10 ? 0 : 1;
+
+        return number_format($size, $precision) . ' ' . $units[$unitIndex];
     }
 
     #[Route('/{id}/members', name: 'app_project_add_members', methods: ['POST'])]
@@ -507,7 +740,7 @@ final class ProjectController extends AbstractController
         }
 
         $tab = strtolower(trim((string) $request->request->get('tab', 'overview')));
-        $allowedTabs = ['overview', 'tasks', 'kanban', 'discussion', 'files', 'activity', 'settings'];
+        $allowedTabs = ['overview', 'tasks', 'kanban', 'files'];
         if (!in_array($tab, $allowedTabs, true)) {
             $tab = 'overview';
         }
@@ -780,4 +1013,18 @@ final class ProjectController extends AbstractController
             $projectAssignmentRepository->getProjectIdsByUserId($userId),
         )));
     }
+
+    private function buildProjectCreatedMessage(string $projectName, int $memberCount, int $suggestedTaskCount): string
+    {
+        $base = $memberCount > 0
+            ? sprintf('created project "%s" and assigned %d team member(s).', $projectName, $memberCount)
+            : sprintf('created project "%s".', $projectName);
+
+        if ($suggestedTaskCount <= 0) {
+            return $base;
+        }
+
+        return sprintf('%s Added %d AI-suggested task(s).', $base, $suggestedTaskCount);
+    }
+
 }

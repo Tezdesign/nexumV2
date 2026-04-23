@@ -1,0 +1,217 @@
+(function () {
+    if (window.NexumTaskWorkload) {
+        return;
+    }
+
+    const escapeHtml = function (value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/>/g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    };
+
+    const renderFeedback = function (container, payload) {
+        if (!container) return;
+        const tone = String((payload && payload.tone) || 'muted');
+        const label = String((payload && payload.label) || 'Select an assignee');
+        const message = String((payload && payload.message) || 'Choose a team member to preview workload.');
+        const reasons = Array.isArray(payload && payload.reasons) ? payload.reasons : [];
+        const badgeClass = tone === 'danger'
+            ? 'text-bg-danger'
+            : (tone === 'warning' ? 'text-bg-warning' : (tone === 'success' ? 'text-bg-success' : 'text-bg-secondary'));
+
+        let reasonsHtml = '';
+        if (reasons.length) {
+            reasonsHtml = '<div class="mt-1">' + reasons.map(function (reason) {
+                return '<div>' + escapeHtml(reason) + '</div>';
+            }).join('') + '</div>';
+        }
+
+        container.innerHTML =
+            '<span class="badge ' + badgeClass + '">' + escapeHtml(label) + '</span>' +
+            '<div class="mt-2 text-' + (tone === 'muted' ? 'muted' : tone) + '">' + escapeHtml(message) + '</div>' +
+            reasonsHtml;
+    };
+
+    const collectScopeState = function (scopeEl, options) {
+        if (!scopeEl) return null;
+        const forceRefresh = !!(options && options.forceRefresh);
+
+        const assigneeSelect = scopeEl.querySelector('select[data-task-assignee="1"]');
+        const feedbackEl = scopeEl.querySelector('[data-task-workload-feedback="1"]');
+        if (!assigneeSelect || !feedbackEl) {
+            return null;
+        }
+
+        const priorityEl = scopeEl.querySelector('select[name$="[priority]"]');
+        const statusEl = scopeEl.querySelector('select[name$="[status]"]');
+        const dueDateEl = scopeEl.querySelector('input[name$="[due_date]"]');
+        const projectEl = scopeEl.querySelector('select[name$="[project]"]');
+
+        return {
+            assigneeSelect: assigneeSelect,
+            feedbackEl: feedbackEl,
+            hasServerError: !forceRefresh && feedbackEl.getAttribute('data-server-error') === '1',
+            previewUrl: assigneeSelect.getAttribute('data-workload-preview-url') || '',
+            optionsUrl: assigneeSelect.getAttribute('data-workload-options-url') || '',
+            projectId: projectEl ? (projectEl.value || '') : (feedbackEl.getAttribute('data-project-id') || ''),
+            excludeTaskId: feedbackEl.getAttribute('data-exclude-task-id') || '',
+            priority: priorityEl ? (priorityEl.value || '') : '',
+            status: statusEl ? (statusEl.value || '') : '',
+            dueDate: dueDateEl ? (dueDateEl.value || '') : '',
+        };
+    };
+
+    const clearServerError = function (scopeEl) {
+        if (!scopeEl) return;
+        const feedbackEl = scopeEl.querySelector('[data-task-workload-feedback="1"]');
+        if (!feedbackEl) return;
+
+        feedbackEl.setAttribute('data-server-error', '0');
+    };
+
+    const buildPreviewParams = function (state) {
+        const params = new URLSearchParams();
+        params.set('assigned_user', state.assigneeSelect.value || '');
+        params.set('priority', state.priority || '');
+        params.set('status', state.status || '');
+        params.set('due_date', state.dueDate || '');
+        params.set('project_id', state.projectId || '');
+        if (state.excludeTaskId) {
+            params.set('exclude_task_id', state.excludeTaskId);
+        }
+
+        return params;
+    };
+
+    const preview = async function (scopeEl, options) {
+        const state = collectScopeState(scopeEl, options);
+        if (!state || !state.previewUrl) return;
+        if (state.hasServerError) return;
+
+        if (!state.assigneeSelect.value) {
+            renderFeedback(state.feedbackEl, {
+                tone: 'muted',
+                label: 'Select an assignee',
+                message: 'Choose a team member to preview workload.',
+                reasons: []
+            });
+            return;
+        }
+
+        if (!state.projectId) {
+            renderFeedback(state.feedbackEl, {
+                tone: 'muted',
+                label: 'Select a project',
+                message: 'Choose a project before previewing workload.',
+                reasons: []
+            });
+            return;
+        }
+
+        renderFeedback(state.feedbackEl, {
+            tone: 'muted',
+            label: 'Checking...',
+            message: 'Calculating projected workload.',
+            reasons: []
+        });
+
+        try {
+            const res = await fetch(state.previewUrl + '?' + buildPreviewParams(state).toString(), {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+
+            if (!res.ok) {
+                throw new Error('preview_failed');
+            }
+
+            const payload = await res.json();
+            renderFeedback(state.feedbackEl, payload || {});
+        } catch (e) {
+            renderFeedback(state.feedbackEl, {
+                tone: 'muted',
+                label: 'Unavailable',
+                message: 'Unable to preview workload right now.',
+                reasons: []
+            });
+        }
+    };
+
+    const syncOptions = async function (scopeEl, options) {
+        const state = collectScopeState(scopeEl, options);
+        if (!state || !state.optionsUrl) return;
+        if (state.hasServerError) return;
+
+        const candidateOptions = Array.from(state.assigneeSelect.options).filter(function (option) {
+            return !!option.value;
+        });
+        if (!candidateOptions.length) return;
+
+        candidateOptions.forEach(function (option) {
+            if (!option.dataset.baseLabel) {
+                option.dataset.baseLabel = option.textContent || '';
+            }
+            option.textContent = option.dataset.baseLabel;
+        });
+
+        if (!state.projectId) {
+            return;
+        }
+
+        const params = new URLSearchParams();
+        candidateOptions.forEach(function (option) {
+            params.append('user_ids[]', option.value);
+        });
+        params.set('priority', state.priority || '');
+        params.set('status', state.status || '');
+        params.set('due_date', state.dueDate || '');
+        params.set('project_id', state.projectId || '');
+        if (state.excludeTaskId) {
+            params.set('exclude_task_id', state.excludeTaskId);
+        }
+
+        try {
+            const res = await fetch(state.optionsUrl + '?' + params.toString(), {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+
+            if (!res.ok) {
+                throw new Error('options_failed');
+            }
+
+            const payload = await res.json();
+            const users = Array.isArray(payload && payload.users) ? payload.users : [];
+            const usersById = {};
+            users.forEach(function (user) {
+                usersById[String(user.id)] = user;
+            });
+
+            candidateOptions.forEach(function (option) {
+                const baseLabel = option.dataset.baseLabel || option.textContent || '';
+                const info = usersById[String(option.value)];
+                option.textContent = info
+                    ? baseLabel + ' - ' + String(info.label || '') + ' (' + String(info.score ?? 0) + ')'
+                    : baseLabel;
+            });
+        } catch (e) {
+            candidateOptions.forEach(function (option) {
+                option.textContent = option.dataset.baseLabel || option.textContent || '';
+            });
+        }
+    };
+
+    window.NexumTaskWorkload = {
+        preview: preview,
+        syncOptions: syncOptions,
+        refresh: async function (scopeEl, forceRefresh) {
+            if (forceRefresh) {
+                clearServerError(scopeEl);
+            }
+            const options = { forceRefresh: !!forceRefresh };
+            await syncOptions(scopeEl, options);
+            await preview(scopeEl, options);
+        }
+    };
+})();

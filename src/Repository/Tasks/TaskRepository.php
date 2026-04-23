@@ -194,6 +194,83 @@ class TaskRepository extends ServiceEntityRepository
     }
 
     /**
+     * @return Task[]
+     */
+    public function findActiveAssignedTasksForUser(int $userId, ?int $excludeTaskId = null): array
+    {
+        if ($userId <= 0) {
+            return [];
+        }
+
+        $qb = $this->createQueryBuilder('t')
+            ->andWhere('t.assigned_to = :uid')
+            ->andWhere('(t.status IS NULL OR LOWER(t.status) NOT IN (:completed))')
+            ->setParameter('uid', $userId)
+            ->setParameter('completed', self::COMPLETED_STATUSES)
+            ->orderBy('t.due_date', 'ASC')
+            ->addOrderBy('t.id', 'DESC');
+
+        if ($excludeTaskId !== null && $excludeTaskId > 0) {
+            $qb
+                ->andWhere('t.id != :excludeTaskId')
+                ->setParameter('excludeTaskId', $excludeTaskId);
+        }
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * @param int[] $userIds
+     *
+     * @return array<int, array<int, Task>>
+     */
+    public function findActiveAssignedTasksGroupedByUsers(array $userIds, ?int $excludeTaskId = null): array
+    {
+        $ids = array_values(array_unique(array_filter(
+            array_map('intval', $userIds),
+            static fn (int $id): bool => $id > 0
+        )));
+
+        if ($ids === []) {
+            return [];
+        }
+
+        $qb = $this->createQueryBuilder('t')
+            ->andWhere('t.assigned_to IN (:userIds)')
+            ->andWhere('(t.status IS NULL OR LOWER(t.status) NOT IN (:completed))')
+            ->setParameter('userIds', $ids)
+            ->setParameter('completed', self::COMPLETED_STATUSES)
+            ->orderBy('t.assigned_to', 'ASC')
+            ->addOrderBy('t.due_date', 'ASC')
+            ->addOrderBy('t.id', 'DESC');
+
+        if ($excludeTaskId !== null && $excludeTaskId > 0) {
+            $qb
+                ->andWhere('t.id != :excludeTaskId')
+                ->setParameter('excludeTaskId', $excludeTaskId);
+        }
+
+        $grouped = [];
+        foreach ($ids as $id) {
+            $grouped[$id] = [];
+        }
+
+        foreach ($qb->getQuery()->getResult() as $task) {
+            if (!$task instanceof Task) {
+                continue;
+            }
+
+            $assignedTo = (int) ($task->getAssignedTo() ?? 0);
+            if ($assignedTo > 0) {
+                $grouped[$assignedTo] ??= [];
+                $grouped[$assignedTo][] = $task;
+            }
+        }
+
+        return $grouped;
+    }
+
+    /**
      * @param int[] $projectIds
      * @return array<int, int>
      */
@@ -212,7 +289,7 @@ class TaskRepository extends ServiceEntityRepository
             ->select('t.project_id AS project_id')
             ->addSelect('COUNT(t.id) AS total')
             ->addSelect(
-                'SUM(CASE WHEN (t.status IS NOT NULL AND (LOWER(t.status) IN (:completed) OR LOWER(t.status) IN (:progress))) THEN 1 ELSE 0 END) AS active'
+                'SUM(CASE WHEN (t.status IS NOT NULL AND LOWER(t.status) IN (:completed)) THEN 100 WHEN (t.status IS NOT NULL AND LOWER(t.status) IN (:progress)) THEN 50 ELSE 0 END) AS weighted_progress'
             )
             ->andWhere('t.project_id IN (:ids)')
             ->setParameter('ids', $ids)
@@ -226,9 +303,9 @@ class TaskRepository extends ServiceEntityRepository
         foreach ($rows as $row) {
             $projectId = (int) ($row['project_id'] ?? 0);
             $total = (int) ($row['total'] ?? 0);
-            $active = (int) ($row['active'] ?? 0);
+            $weightedProgress = (int) ($row['weighted_progress'] ?? 0);
             $progressByProjectId[$projectId] = $total > 0
-                ? (int) round(($active / $total) * 100)
+                ? (int) round($weightedProgress / $total)
                 : 0;
         }
 

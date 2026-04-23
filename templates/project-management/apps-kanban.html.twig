@@ -1,61 +1,214 @@
 {% extends 'layouts/vertical.html.twig' %}
 
-{% set title = 'Kanban' %}
+{% set title = isManager ? 'Project Kanban' : 'My Kanban' %}
 
-{% block css %}{% endblock %}
+{% block css %}
+    {% include 'partials/_task_project_design_system.html.twig' %}
+    <style>
+        {% include 'task/_kanban_board_styles.html.twig' %}
+    </style>
+{% endblock %}
 
 {% block content %}
+    <div class="kanban-shell">
+        <div class="kanban-head">
+            <div>
+                <h1 class="nexum-title">{{ title }}</h1>
+                <div class="nexum-subtitle">
+                    {{ isManager ? 'Managers can review every task across every project.' : 'Only your assigned tasks are shown here.' }}
+                </div>
+                <div class="kanban-filter-summary">
+                    {% if selectedProjectId > 0 and selectedProjectName %}
+                        Showing {{ selectedProjectName|plain_text }}
+                    {% elseif not showAllOption and projectChoices is empty %}
+                        No related projects available
+                    {% else %}
+                        Showing {{ allProjectsLabel }}
+                    {% endif %}
+                </div>
+            </div>
 
-    <div class="d-flex min-vh-100 justify-content-center align-items-center">
-        <div class="row g-0 justify-content-center w-100 m-xxl-5 px-xxl-4 m-3">
-            <div class="col-xl-4 col-lg-5 col-md-6">
-                <div class="card overflow-hidden text-center h-100 p-xxl-4 p-3 mb-0">
-                    <a href="/" class="auth-brand mb-3">
-                        <img src="/images/logo-removebg.png" alt="dark logo" height="26" class="logo-dark">
-                        <img src="/images/logo-removebg.png" alt="logo light" height="26" class="logo-light">
+            <div class="kanban-toolbar">
+                <button type="button" class="btn kanban-filter-btn" data-bs-toggle="modal" data-bs-target="#kanbanFilterModal">
+                    <i class="ri-filter-2-line me-1"></i> Filter
+                </button>
+                {% if canCreateTask %}
+                    <a href="{{ createTaskUrl }}" class="btn nexum-btn-primary text-white kanban-add-btn">
+                        <i class="ti ti-plus me-1"></i> Add Task
                     </a>
+                {% endif %}
+            </div>
+        </div>
 
+        {% include 'task/_kanban_board.html.twig' with {
+            columns: columns,
+            currentUserId: currentUserId,
+            isManager: isManager,
+            usersById: usersById,
+            avatarUrlById: avatarUrlById,
+            boardId: 'globalKanbanBoard'
+        } %}
+    </div>
+
+    <div class="modal fade kanban-modal" id="kanbanFilterModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
                     <div>
-                        <h3 class="fw-semibold mb-2">Stay tuned, we're launching very soon</h3>
-                        <p class="text-muted mb-0">We're working on the Kanban module.</p>
+                        <h5 class="modal-title mb-1">Filter Board</h5>
+                        <div class="text-muted small">Choose which project to display on the Kanban board.</div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <form method="get" action="{{ path('apps-kanban') }}">
+                    <div class="modal-body">
+                        <label for="kanbanProjectFilter" class="form-label">Project</label>
+                        <select id="kanbanProjectFilter" name="project" class="form-select">
+                            {% if showAllOption %}
+                                <option value="0" {{ selectedProjectId == 0 ? 'selected' : '' }}>{{ allProjectsLabel }}</option>
+                            {% endif %}
+                            {% for pid, project in projectChoices %}
+                                <option value="{{ pid }}" {{ pid == selectedProjectId ? 'selected' : '' }}>
+                                    {{ project.name|plain_text }}
+                                </option>
+                            {% endfor %}
+                        </select>
                     </div>
 
-                    <div class="row text-center justify-content-center my-4 g-2">
-                        <div class="col-6 col-sm-4 col-md-3 col-lg">
-                            <div class="bg-body-secondary border border-primary-subtle border-dashed p-2 rounded">
-                                <h3 id="days" class="fw-bold text-primary fs-35">00</h3>
-                                <p class="fw-semibold fs-12 mb-0">Days</p>
-                            </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Apply</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade nexum-modal nexum-danger" id="deleteTaskModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-0">
+                    <div class="nexum-danger-head">
+                        <div class="nexum-danger-icon" aria-hidden="true">
+                            <i class="ri-error-warning-line"></i>
                         </div>
-                        <div class="col-6 col-sm-4 col-md-3 col-lg">
-                            <div class="bg-body-secondary border border-primary-subtle border-dashed p-2 rounded">
-                                <h3 id="hours" class="fw-bold text-primary fs-35">00</h3>
-                                <p class="fw-semibold fs-12 mb-0">Hours</p>
-                            </div>
-                        </div>
-                        <div class="col-6 col-sm-4 col-md-3 col-lg">
-                            <div class="bg-body-secondary border border-primary-subtle border-dashed p-2 rounded">
-                                <h3 id="minutes" class="fw-bold text-primary fs-35">00</h3>
-                                <p class="fw-semibold fs-12 mb-0">Minutes</p>
-                            </div>
-                        </div>
-                        <div class="col-6 col-sm-4 col-md-3 col-lg">
-                            <div class="bg-body-secondary border border-primary-subtle border-dashed p-2 rounded">
-                                <h3 id="seconds" class="fw-bold text-primary fs-35">00</h3>
-                                <p class="fw-semibold fs-12 mb-0">Seconds</p>
-                            </div>
+                        <div>
+                            <h5 class="nexum-danger-title">Delete Task?</h5>
+                            <div class="nexum-danger-sub">This action cannot be undone.</div>
                         </div>
                     </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <div class="modal-body pt-0">
+                    <div class="nexum-danger-box">
+                        <div>You are about to permanently delete:</div>
+                        <div class="nexum-danger-task" id="deleteTaskTitle">—</div>
+                        <div class="mt-1 text-muted">This task will be removed from your project.</div>
+                    </div>
+                </div>
+
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <form method="post" action="" id="deleteTaskForm" class="m-0">
+                        <input type="hidden" name="_token" id="deleteTaskToken" value="">
+                        <input type="hidden" name="back" value="{{ app.request.requestUri }}">
+                        <button type="submit" class="btn btn-danger">Delete Task</button>
+                    </form>
                 </div>
             </div>
         </div>
     </div>
 
+    <div class="modal fade nexum-modal" id="editTaskModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" id="editTaskModalContent">
+                <div class="modal-body text-muted small p-4">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    {% include 'task/_show_modal.html.twig' %}
 {% endblock %}
 
 {% block script %}
-	<script src="/js/pages/coming-soon.js"></script>
-{% endblock %}
+    <script>
+        {% include 'task/_kanban_board_script.html.twig' with { boardSelector: '#globalKanbanBoard' } %}
 
+        (function () {
+            const delModal = document.getElementById('deleteTaskModal');
+            if (delModal) {
+                delModal.addEventListener('show.bs.modal', function (ev) {
+                    const btn = ev.relatedTarget;
+                    if (!btn) return;
+
+                    const action = btn.getAttribute('data-delete-action') || '';
+                    const token = btn.getAttribute('data-delete-token') || '';
+                    const title = btn.getAttribute('data-task-title') || '—';
+
+                    const form = document.getElementById('deleteTaskForm');
+                    const tokenEl = document.getElementById('deleteTaskToken');
+                    const titleEl = document.getElementById('deleteTaskTitle');
+                    if (form) form.setAttribute('action', action);
+                    if (tokenEl) tokenEl.value = token;
+                    if (titleEl) titleEl.textContent = title;
+                });
+            }
+        })();
+
+        (function () {
+            const editModal = document.getElementById('editTaskModal');
+            const editContent = document.getElementById('editTaskModalContent');
+            if (!editModal || !editContent) return;
+
+            const wireEditForm = function () {
+                const form = editContent.querySelector('form');
+                if (!form) return;
+
+                form.addEventListener('submit', async function (e) {
+                    e.preventDefault();
+                    try {
+                        const res = await fetch(form.action, {
+                            method: form.method || 'POST',
+                            body: new FormData(form),
+                            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                        });
+
+                        if (res.status === 204) {
+                            if (window.bootstrap && bootstrap.Modal) {
+                                bootstrap.Modal.getInstance(editModal)?.hide();
+                            }
+                            window.location.reload();
+                            return;
+                        }
+
+                        const html = await res.text();
+                        editContent.innerHTML = html;
+                        wireEditForm();
+                    } catch (err) {
+                        editContent.innerHTML = '<div class="modal-body p-4 text-danger small">Failed to load the edit form.</div>';
+                    }
+                }, { once: true });
+            };
+
+            editModal.addEventListener('show.bs.modal', async function (ev) {
+                const btn = ev.relatedTarget;
+                const url = btn ? (btn.getAttribute('data-edit-url') || '') : '';
+                editContent.innerHTML = '<div class="modal-body text-muted small p-4">Loading...</div>';
+                if (!url) return;
+
+                try {
+                    const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                    const html = await res.text();
+                    editContent.innerHTML = html;
+                    wireEditForm();
+                } catch (err) {
+                    editContent.innerHTML = '<div class="modal-body p-4 text-danger small">Failed to load the edit form.</div>';
+                }
+            });
+        })();
+    </script>
+{% endblock %}
 
 {% block footer %}{% endblock %}

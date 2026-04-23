@@ -1,5 +1,6 @@
 {% extends 'layouts/vertical.html.twig' %}
 
+{% set topbar_color = 'light' %}
 {% set title = 'Calendar' %}
 
 {% block css %}
@@ -12,6 +13,33 @@
             --nexum-stone-200: #e7e5e4;
             --nexum-stone-500: #78716c;
             --nexum-stone-900: #1c1917;
+        }
+
+        .app-topbar,
+        .app-topbar .topbar-menu {
+            background: #ffffff !important;
+        }
+
+        .app-topbar .page-title,
+        .app-topbar .topbar-link,
+        .app-topbar .topbar-search,
+        .app-topbar .topbar-search span,
+        .app-topbar .topbar-search i,
+        .app-topbar .sidenav-toggle-button,
+        .app-topbar .topnav-toggle-button {
+            color: #6c757d !important;
+        }
+
+        .app-topbar .topbar-search {
+            background: #eaeff3 !important;
+        }
+
+        .page-content {
+            background: var(--ct-body-bg);
+        }
+
+        .page-container {
+            padding-top: 1rem;
         }
 
         .calendar-shell {
@@ -69,6 +97,7 @@
         .calendar-dot.info { background: #0ea5e9; }
         .calendar-dot.danger { background: #ef4444; }
         .calendar-dot.primary { background: #7c3aed; }
+        .calendar-dot.warning { background: #f59e0b; }
 
         .calendar-wrap {
             padding: 16px;
@@ -162,7 +191,7 @@
         <div>
             <h2 class="calendar-title">Calendar</h2>
             <div class="calendar-subtitle">
-                {{ calendarScopeLabel }} - {{ calendarVisibleProjects }} projects, {{ calendarVisibleTasks }} tasks
+                {{ calendarScopeLabel }} - {{ calendarVisibleProjects }} projects, {{ calendarVisibleTasks }} tasks, public holidays for {{ calendarHolidayCountryCode }}
             </div>
         </div>
 
@@ -170,12 +199,13 @@
             <span class="calendar-chip"><span class="calendar-dot info"></span> Project start</span>
             <span class="calendar-chip"><span class="calendar-dot danger"></span> Project deadline</span>
             <span class="calendar-chip"><span class="calendar-dot primary"></span> Task deadline</span>
+            <span class="calendar-chip"><span class="calendar-dot warning"></span> Public holiday</span>
         </div>
     </div>
 
     <div class="card calendar-shell">
         <div class="calendar-wrap">
-            <div id="calendar"></div>
+            <div id="calendar" data-events-url="{{ calendarEventsUrl }}"></div>
         </div>
     </div>
 
@@ -193,7 +223,9 @@
             const typeEl = document.getElementById('calendarEventType');
             const dateEl = document.getElementById('calendarEventDate');
             const projectEl = document.getElementById('calendarEventProject');
+            const projectWrapEl = document.getElementById('calendarEventProjectWrap');
             const assignedEl = document.getElementById('calendarEventAssignedTo');
+            const assignedWrapEl = document.getElementById('calendarEventAssignedWrap');
             const taskWrapEl = document.getElementById('calendarEventTaskWrap');
             const taskEl = document.getElementById('calendarEventTask');
             const detailsEl = document.getElementById('calendarEventDetails');
@@ -202,7 +234,7 @@
                 return;
             }
 
-            const events = {{ calendarEvents|json_encode|raw }};
+            const eventsUrl = String(calendarEl.dataset.eventsUrl || '');
 
             const calendar = new FullCalendar.Calendar(calendarEl, {
                 initialView: 'dayGridMonth',
@@ -218,7 +250,12 @@
                     week: 'Week',
                     list: 'List'
                 },
-                events: events,
+                events: {
+                    url: eventsUrl,
+                    failure: function () {
+                        console.error('Failed to load calendar events.');
+                    }
+                },
                 eventDisplay: 'block',
                 displayEventTime: false,
                 fixedWeekCount: false,
@@ -234,20 +271,25 @@
                     const title = String(props.roleLabel || event.title || 'Event');
                     const projectName = String(props.projectName || 'Unknown project');
                     const dateLabel = String(props.dateLabel || (event.start ? event.start.toLocaleDateString() : ''));
-                    const details = kind === 'task_deadline'
-                        ? 'Task deadline tracked on the calendar.'
-                        : 'Project milestone tracked on the calendar.';
+                    const isHoliday = kind === 'public_holiday';
+                    const details = String(props.details || (
+                        kind === 'task_deadline'
+                            ? 'Task deadline tracked on the calendar.'
+                            : (isHoliday ? 'Public holiday.' : 'Project milestone tracked on the calendar.')
+                    ));
 
                     if (titleEl) titleEl.textContent = event.title || title;
                     if (typeEl) typeEl.textContent = title;
                     if (dateEl) dateEl.textContent = dateLabel;
-                    if (projectEl) projectEl.textContent = projectName;
-                    if (assignedEl) assignedEl.textContent = String(props.assignedToName || 'Unassigned');
+                    if (projectWrapEl) projectWrapEl.classList.toggle('d-none', isHoliday);
+                    if (projectEl) projectEl.textContent = isHoliday ? '—' : projectName;
+                    if (assignedWrapEl) assignedWrapEl.classList.toggle('d-none', isHoliday);
+                    if (assignedEl) assignedEl.textContent = isHoliday ? '—' : String(props.assignedToName || 'Unassigned');
                     if (detailsEl) detailsEl.textContent = details;
 
                     if (taskWrapEl) {
                         const taskName = String(props.taskName || '');
-                        if (taskName !== '') {
+                        if (!isHoliday && taskName !== '') {
                             taskWrapEl.classList.remove('d-none');
                             if (taskEl) taskEl.textContent = taskName;
                         } else {
@@ -256,7 +298,9 @@
                     }
 
                     if (linkEl) {
-                        linkEl.href = String(props.taskUrl || props.projectUrl || event.url || '#');
+                        const link = String(props.taskUrl || props.projectUrl || event.url || '');
+                        linkEl.href = link || '#';
+                        linkEl.classList.toggle('d-none', link === '');
                     }
 
                     if (modalEl && window.bootstrap && bootstrap.Modal) {

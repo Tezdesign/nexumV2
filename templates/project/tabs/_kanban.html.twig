@@ -1,0 +1,38 @@
+<style>
+    {% include 'task/_kanban_board_styles.html.twig' %}
+</style>
+
+<div class="kanban-shell">
+    <div class="kanban-head">
+        <div>
+            <h4 class="nexum-title mb-1">Project Kanban</h4>
+            <div class="nexum-subtitle">
+                {{ isManager ? 'All tasks from this project grouped by status.' : 'Your tasks from this project grouped by status.' }}
+            </div>
+        </div>
+
+        <div class="kanban-toolbar">
+            {% if canCreateTask and createTaskForm is not null %}
+                <button type="button"
+                        class="btn nexum-btn-primary text-white kanban-add-btn"
+                        data-bs-toggle="modal"
+                        data-bs-target="#createTaskModal">
+                    <i class="ti ti-plus me-1"></i> Add Task
+                </button>
+            {% endif %}
+        </div>
+    </div>
+
+    {% include 'task/_kanban_board.html.twig' with {
+        columns: kanbanColumns|default([]),
+        currentUserId: currentUserId,
+        isManager: isManager,
+        usersById: membersById,
+        avatarUrlById: avatarUrlById,
+        boardId: 'projectKanbanBoard'
+    } %}
+</div>
+
+<script>
+    {% include 'task/_kanban_board_script.html.twig' with { boardSelector: '#projectKanbanBoard' } %}
+</script>

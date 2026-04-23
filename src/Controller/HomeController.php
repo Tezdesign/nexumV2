@@ -2,7 +2,6 @@
 
 namespace App\Controller;
 
-use App\Service\AuthService;
 use App\Entity\Projects\Project;
 use App\Form\Projects\ProjectQuickCreateType;
 use App\Form\Tasks\TaskQuickCreateType;
@@ -10,6 +9,8 @@ use App\Repository\Projects\ProjectAssignmentRepository;
 use App\Repository\Projects\ProjectRepository;
 use App\Repository\Tasks\TaskRepository;
 use App\Repository\UserHandling\UtilisateurRepository;
+use App\Service\AuthService;
+use App\Service\Project\Calendar\CalendarEventProvider;
 use App\Support\UserDisplayName;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
@@ -196,13 +197,17 @@ class HomeController extends AbstractController
         if ($isManager || $relatedProjectIds !== []) {
             $createTask = new \App\Entity\Tasks\Task();
             $createTaskForm = $this->createForm(TaskQuickCreateType::class, $createTask, [
-                'action' => $this->generateUrl('app_task_index'),
+                'action' => $this->generateUrl('app_task_index', $isManager ? ['dashboard_self' => 1] : []),
                 'method' => 'POST',
                 'is_manager' => $isManager,
                 'allowed_project_ids' => $relatedProjectIds,
+                'force_self_assign' => $isManager,
             ]);
 
-            if ($isManager && $currentUser !== null && $createTaskForm->has('assignedUser')) {
+            if ($isManager && !$createTaskForm->has('assignedUser')) {
+                // Dashboard quick-create for managers behaves like the employee flow:
+                // the task is always created for the logged-in manager.
+            } elseif ($isManager && $currentUser !== null && $createTaskForm->has('assignedUser')) {
                 $createTaskForm->get('assignedUser')->setData($currentUser);
             }
         }
@@ -457,12 +462,6 @@ class HomeController extends AbstractController
         return $this->redirectToRoute('app_project_index');
     }
 
-    #[Route('/apps-kanban', name: 'apps-kanban')]
-    public function kanban(): Response
-    {
-        return $this->render('project-management/apps-kanban.html.twig');
-    }
-
     #[Route('/apps-task-details', name: 'apps-task-details')]
     public function taskDetails(): Response
     {
@@ -482,238 +481,22 @@ class HomeController extends AbstractController
     }
 
     #[Route('/apps-calendar', name: 'apps-calendar')]
-    public function calendar(
-        ProjectRepository $projectRepository,
-        ProjectAssignmentRepository $projectAssignmentRepository,
-        TaskRepository $taskRepository,
-        UtilisateurRepository $utilisateurRepository
-    ): Response
+    public function calendar(CalendarEventProvider $calendarEventProvider): Response
     {
+        if (!$this->authService->isLoggedIn()) {
+            return $this->redirectToRoute('welcome');
+        }
+
         $currentUserId = (int) ($this->authService->getCurrentUserId() ?? 0);
-        $currentUser = $currentUserId > 0 ? $utilisateurRepository->find($currentUserId) : null;
-        $role = strtolower((string) ($this->authService->getCurrentUserRole() ?? ''));
         $isManager = $this->authService->isManager();
-        $implicitManagerIds = [];
-        foreach ($utilisateurRepository->findManagerUsers() as $managerUser) {
-            $managerId = $managerUser->getId();
-            if ($managerId !== null) {
-                $implicitManagerIds[(int) $managerId] = true;
-            }
-        }
-
-        $accessibleProjectIds = $isManager ? [] : array_values(array_unique(array_merge(
-            $projectRepository->getProjectIdsForUser($currentUserId),
-            $projectAssignmentRepository->getProjectIdsByUserId($currentUserId),
-        )));
-        $accessibleProjectSet = array_fill_keys($accessibleProjectIds, true);
-
-        $projects = $isManager
-            ? $projectRepository->findForIndex()
-            : array_values(array_filter(
-                $projectRepository->findIndexedByIds($accessibleProjectIds),
-                static fn (Project $project): bool => $project->getId() !== null
-            ));
-
-        $tasks = $isManager
-            ? $taskRepository->findForManager()
-            : $taskRepository->findForUser($currentUserId);
-
-        $taskProjectIds = [];
-        foreach ($tasks as $task) {
-            $pid = (int) ($task->getProjectId() ?? 0);
-            if ($pid > 0) {
-                $taskProjectIds[$pid] = true;
-            }
-        }
-
-        $projectsById = $projectRepository->findIndexedByIds(array_values(array_unique(array_merge(
-            array_keys($accessibleProjectSet),
-            array_keys($taskProjectIds)
-        ))));
-
-        $projectMemberIdsByProjectId = $projectAssignmentRepository->getUserIdsByProjectIds(array_map(
-            static fn (Project $project): int => (int) ($project->getId() ?? 0),
-            $projects
-        ));
-
-        $userIds = [];
-        foreach ($projects as $project) {
-            $createdBy = $project->getCreatedBy();
-            if ($createdBy !== null) {
-                $userIds[(int) $createdBy] = true;
-            }
-
-            $assignedTo = $project->getAssignedTo();
-            if ($assignedTo !== null) {
-                $userIds[(int) $assignedTo] = true;
-            }
-
-            $pid = (int) ($project->getId() ?? 0);
-            foreach (($projectMemberIdsByProjectId[$pid] ?? []) as $uid) {
-                $userIds[(int) $uid] = true;
-            }
-        }
-
-        foreach ($implicitManagerIds as $managerId => $_) {
-            $userIds[(int) $managerId] = true;
-        }
-        foreach ($tasks as $task) {
-            $assignedTo = $task->getAssignedTo();
-            if ($assignedTo !== null) {
-                $userIds[(int) $assignedTo] = true;
-            }
-        }
-
-        $usersById = $utilisateurRepository->findNonAdminIndexedByIds(array_keys($userIds));
-
-        $formatUserName = static function (int $uid) use ($usersById): string {
-            return isset($usersById[$uid])
-                ? UserDisplayName::format($usersById[$uid], $uid)
-                : 'Unknown user';
-        };
-
-        $formatProjectMembers = static function (Project $project) use ($projectMemberIdsByProjectId, $formatUserName, $implicitManagerIds): string {
-            $pid = (int) ($project->getId() ?? 0);
-            if ($pid <= 0) {
-                return 'Unassigned';
-            }
-
-            $memberIds = [];
-            $createdBy = $project->getCreatedBy();
-            if ($createdBy !== null) {
-                $memberIds[(int) $createdBy] = true;
-            }
-
-            $assignedTo = $project->getAssignedTo();
-            if ($assignedTo !== null) {
-                $memberIds[(int) $assignedTo] = true;
-            }
-
-            foreach (($projectMemberIdsByProjectId[$pid] ?? []) as $uid) {
-                $memberIds[(int) $uid] = true;
-            }
-
-            foreach ($implicitManagerIds as $managerId => $_) {
-                $memberIds[(int) $managerId] = true;
-            }
-
-            $names = [];
-            foreach (array_keys($memberIds) as $uid) {
-                $names[] = $formatUserName((int) $uid);
-            }
-
-            $names = array_values(array_unique($names));
-            sort($names, SORT_NATURAL | SORT_FLAG_CASE);
-
-            return $names !== [] ? implode(', ', $names) : 'Unassigned';
-        };
-
-        $events = [];
-        foreach ($projects as $project) {
-            $pid = $project->getId();
-            if ($pid === null) {
-                continue;
-            }
-
-            if (!$isManager && !isset($accessibleProjectSet[$pid])) {
-                continue;
-            }
-
-            $projectName = trim((string) $project->getName());
-            $projectName = $projectName !== '' ? $projectName : ('Project #' . $pid);
-            $projectUrl = $this->generateUrl('app_project_show', ['id' => $pid, 'tab' => 'overview']);
-
-            $startDate = $project->getStartDate();
-            if ($startDate instanceof \DateTimeInterface) {
-                $events[] = [
-                    'title' => 'Project start: ' . $projectName,
-                    'start' => $startDate->format('Y-m-d'),
-                    'allDay' => true,
-                    'backgroundColor' => '#0ea5e9',
-                    'borderColor' => '#0ea5e9',
-                    'textColor' => '#ffffff',
-                    'url' => $projectUrl,
-                    'extendedProps' => [
-                        'kind' => 'project_start',
-                        'projectName' => $projectName,
-                        'projectUrl' => $projectUrl,
-                        'dateLabel' => $startDate->format('M d, Y'),
-                        'roleLabel' => 'Project start',
-                        'assignedToName' => $formatProjectMembers($project),
-                    ],
-                ];
-            }
-
-            $endDate = $project->getEndDate();
-            if ($endDate instanceof \DateTimeInterface) {
-                $events[] = [
-                    'title' => 'Project deadline: ' . $projectName,
-                    'start' => $endDate->format('Y-m-d'),
-                    'allDay' => true,
-                    'backgroundColor' => '#ef4444',
-                    'borderColor' => '#ef4444',
-                    'textColor' => '#ffffff',
-                    'url' => $projectUrl,
-                    'extendedProps' => [
-                        'kind' => 'project_deadline',
-                        'projectName' => $projectName,
-                        'projectUrl' => $projectUrl,
-                        'dateLabel' => $endDate->format('M d, Y'),
-                        'roleLabel' => 'Project deadline',
-                        'assignedToName' => $formatProjectMembers($project),
-                    ],
-                ];
-            }
-        }
-
-        foreach ($tasks as $task) {
-            $pid = (int) ($task->getProjectId() ?? 0);
-            if ($pid <= 0) {
-                continue;
-            }
-
-            $dueDate = $task->getDueDate();
-            if (!$dueDate instanceof \DateTimeInterface) {
-                continue;
-            }
-
-            $taskName = trim((string) $task->getTitle());
-            $taskName = $taskName !== '' ? $taskName : ('Task #' . ($task->getId() ?? 0));
-
-            $events[] = [
-                'title' => 'Task deadline: ' . $taskName,
-                'start' => $dueDate->format('Y-m-d'),
-                'allDay' => true,
-                'backgroundColor' => '#7c3aed',
-                'borderColor' => '#7c3aed',
-                'textColor' => '#ffffff',
-                'url' => $this->generateUrl('app_task_show', ['id' => (int) $task->getId()]),
-                'extendedProps' => [
-                    'kind' => 'task_deadline',
-                    'taskId' => (int) $task->getId(),
-                    'taskName' => $taskName,
-                    'projectId' => $pid,
-                    'projectName' => trim((string) ($projectsById[$pid]->getName() ?? '')) !== ''
-                        ? (string) $projectsById[$pid]->getName()
-                        : ('Project #' . $pid),
-                    'taskUrl' => $this->generateUrl('app_task_show', ['id' => (int) $task->getId()]),
-                    'dateLabel' => $dueDate->format('M d, Y'),
-                    'roleLabel' => 'Task deadline',
-                    'status' => (string) ($task->getStatus() ?? 'todo'),
-                    'assignedToName' => $formatUserName((int) ($task->getAssignedTo() ?? 0)),
-                ],
-            ];
-        }
-
-        usort($events, static function (array $a, array $b): int {
-            return strcmp((string) ($a['start'] ?? ''), (string) ($b['start'] ?? ''));
-        });
+        $summary = $calendarEventProvider->getSummary($currentUserId, $isManager);
 
         return $this->render('project-management/apps-calendar.html.twig', [
-            'calendarEvents' => $events,
-            'calendarScopeLabel' => $isManager ? 'Manager view' : 'Member view',
-            'calendarVisibleProjects' => count($projects),
-            'calendarVisibleTasks' => count($tasks),
+            'calendarEventsUrl' => $this->generateUrl('api_calendar_events'),
+            'calendarScopeLabel' => $summary['scopeLabel'],
+            'calendarVisibleProjects' => $summary['visibleProjects'],
+            'calendarVisibleTasks' => $summary['visibleTasks'],
+            'calendarHolidayCountryCode' => $calendarEventProvider->getHolidayCountryCode(),
         ]);
     }
 }

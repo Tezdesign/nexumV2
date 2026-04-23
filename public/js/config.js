@@ -55,6 +55,16 @@
 
     if (savedConfig !== null) {
         config = JSON.parse(savedConfig);
+
+        var explicitTopbarColor = this.html.getAttribute('data-topbar-color');
+        if (explicitTopbarColor !== null) {
+            config['topbar']['color'] = explicitTopbarColor;
+        }
+
+        var explicitMenuColor = this.html.getAttribute('data-menu-color');
+        if (explicitMenuColor !== null) {
+            config['menu']['color'] = explicitMenuColor;
+        }
     }
 
     window.config = config;

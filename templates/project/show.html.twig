@@ -149,6 +149,23 @@
             color: #be123c;
         }
 
+        .nexum-chart-card {
+            border: 1px solid #eef2f7;
+            border-radius: 14px;
+            background: #fff;
+            padding: 14px;
+        }
+
+        .nexum-chart-box {
+            height: 220px;
+        }
+
+        .nexum-chart-note {
+            color: #64748b;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+
         .nexum-activity-list {
             display: flex;
             flex-direction: column;
@@ -862,6 +879,12 @@
                         <h2 class="mb-2 text-truncate flex-grow-1">{{ project.name|plain_text }}</h2>
 
                         <div class="d-flex gap-2 flex-shrink-0">
+                            <a class="btn btn-sm btn-outline-secondary"
+                               href="{{ path('app_rapport_index', {projetId: project.id}) }}">
+                                <i class="ti ti-file-analytics me-1"></i>
+                                AI Report
+                            </a>
+
                             {% if canEditProject|default(false) %}
                                 <button class="nexum-icon-btn"
                                         type="button"
@@ -922,100 +945,37 @@
                    href="{{ path('app_project_show', {id: project.id, tab: 'tasks'}) }}">Tasks</a>
                 <a class="nexum-tab {{ activeTab == 'kanban' ? 'active' : '' }}"
                    href="{{ path('app_project_show', {id: project.id, tab: 'kanban'}) }}">Kanban</a>
-                <a class="nexum-tab {{ activeTab == 'discussion' ? 'active' : '' }}"
-                   href="{{ path('app_project_show', {id: project.id, tab: 'discussion'}) }}">Discussion</a>
                 <a class="nexum-tab {{ activeTab == 'files' ? 'active' : '' }}"
                    href="{{ path('app_project_show', {id: project.id, tab: 'files'}) }}">Files</a>
-                <a class="nexum-tab {{ activeTab == 'activity' ? 'active' : '' }}"
-                   href="{{ path('app_project_show', {id: project.id, tab: 'activity'}) }}">Activity</a>
-                <a class="nexum-tab {{ activeTab == 'settings' ? 'active' : '' }}"
-                   href="{{ path('app_project_show', {id: project.id, tab: 'settings'}) }}">Settings</a>
             </div>
         </div>
     </div>
 
     <div class="row g-3">
         <div class="col-12 col-xl-8">
+            {% for label, messages in app.flashes %}
+                {% set alertClass = {
+                    success: 'alert-success',
+                    danger: 'alert-danger',
+                    warning: 'alert-warning',
+                    info: 'alert-info'
+                }[label]|default('alert-secondary') %}
+                {% for message in messages %}
+                    <div class="alert {{ alertClass }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endfor %}
+
             {% if activeTab == 'overview' %}
-                <div class="card nexum-shell-card mb-3">
-                    <div class="card-body">
-                        <h5 class="mb-2">Description</h5>
-                        <p class="text-muted mb-0">
-                            {{ project.description ? (project.description|plain_text) : 'No description provided.' }}
-                        </p>
-                    </div>
-                </div>
-
-                <div class="card nexum-shell-card">
-                    <div class="card-body d-flex align-items-center justify-content-between">
-                        <h5 class="mb-0">Recent Activity</h5>
-                    </div>
-                    <div class="card-body pt-0">
-                        <div class="nexum-activity-list">
-                            {% for activity in recentActivities|default([]) %}
-                                {% set action = (activity.action ?? '')|lower %}
-                                {% set iconClass = action in ['task_created', 'project_created'] ? 'is-create'
-                                    : (action in ['task_deleted', 'project_deleted'] ? 'is-delete'
-                                    : (action in ['members_added'] ? 'is-member' : 'is-update')) %}
-                                {% set iconName = action in ['task_created', 'project_created']
-                                    ? 'ri-add-line'
-                                    : (action in ['task_deleted', 'project_deleted']
-                                    ? 'ri-delete-bin-6-line'
-                                    : (action in ['members_added']
-                                    ? 'ri-user-add-line'
-                                    : 'ri-edit-2-line')) %}
-
-                                <div class="nexum-activity-item">
-                                    <div class="nexum-activity-icon {{ iconClass }}">
-                                        <i class="{{ iconName }}"></i>
-                                    </div>
-                                    <div class="nexum-activity-main min-w-0">
-                                        <div class="nexum-activity-title">
-                                            <span class="actor">{{ activity.actorName|plain_text }}</span>
-                                            <span class="text-muted">{{ activity.message|plain_text }}</span>
-                                        </div>
-                                        <div class="nexum-activity-meta">
-                                            {{ activity.createdAt ? activity.createdAt|date('M d, Y H:i') : '' }}
-                                        </div>
-                                    </div>
-                                </div>
-                            {% else %}
-                                <div class="text-muted small">No recent activity yet.</div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                </div>
+                {% include 'project/tabs/_overview.html.twig' %}
             {% elseif activeTab == 'tasks' %}
-                <div class="card nexum-shell-card">
-                    <div class="card-body d-flex align-items-center justify-content-between">
-                        <h5 class="mb-0">Tasks</h5>
-                        {% if canCreateTask|default(false) %}
-                            <button class="nexum-icon-btn"
-                               type="button"
-                               data-bs-toggle="modal"
-                               data-bs-target="#createTaskModal"
-                               title="Add task"
-                               aria-label="Add task">
-                                <i class="ri-add-line"></i>
-                            </button>
-                        {% endif %}
-                    </div>
-                    <div class="card-body pt-0">
-                        {% for task in (tasks|default([]))|slice(0, 50) %}
-                            {% include 'task/_task_card.html.twig' with {
-                                task: task,
-                                currentUserId: currentUserId,
-                                isManager: isManager,
-                                usersById: membersById,
-                                avatarUrlById: avatarUrlById,
-                                projectName: project.name|default(''),
-                                taskUrl: path('app_task_show', {id: task.id})
-                            } %}
-                        {% else %}
-                            <div class="text-muted small py-2">No tasks for this project yet.</div>
-                        {% endfor %}
-                    </div>
-                </div>
+                {% include 'project/tabs/_tasks.html.twig' %}
+            {% elseif activeTab == 'kanban' %}
+                {% include 'project/tabs/_kanban.html.twig' %}
+            {% elseif activeTab == 'files' %}
+                {% include 'project/tabs/_files.html.twig' %}
             {% else %}
                 <div class="card nexum-shell-card">
                     <div class="card-body">
@@ -1047,6 +1007,47 @@
                     </div>
                 </div>
             </div>
+
+            {% if activeTab == 'overview' %}
+                <div class="card nexum-shell-card mb-3">
+                    <div class="card-body">
+                        <h5 class="mb-3">Project Analytics</h5>
+
+                        <div class="d-flex flex-column gap-3">
+                            <div class="nexum-chart-card">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <div class="fw-semibold">Tasks by status</div>
+                                    <div class="small text-muted">{{ stats.total }} total</div>
+                                </div>
+                                <div class="nexum-chart-box">
+                                    {{ render_chart(statusChart) }}
+                                </div>
+                            </div>
+                            <div class="nexum-chart-card">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <div class="fw-semibold">Tasks by priority</div>
+                                    <div class="small text-muted">Project workload mix</div>
+                                </div>
+                                <div class="nexum-chart-box">
+                                    {{ render_chart(priorityChart) }}
+                                </div>
+                            </div>
+                            <div class="nexum-chart-card">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <div class="fw-semibold">Completed vs overdue tasks</div>
+                                    <div class="small text-muted">Execution health</div>
+                                </div>
+                                <div class="nexum-chart-box">
+                                    {{ render_chart(completionChart) }}
+                                </div>
+                                <div class="nexum-chart-note">
+                                    {{ stats.completed }} completed task(s), {{ stats.overdue }} overdue task(s).
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
 
             <div class="card nexum-shell-card">
                 <div class="card-body d-flex align-items-center justify-content-between">
@@ -1143,6 +1144,8 @@
             </div>
         </div>
     </div>
+
+    {% include 'task/_show_modal.html.twig' %}
 
     {# Add members popup (Bootstrap modal) #}
     {% if canEditProject|default(false) %}
@@ -1313,6 +1316,7 @@
 {% block script %}
     {{ parent() }}
     <script>
+        {% include 'task/_workload_modal_script.html.twig' %}
         (function () {
             const delModal = document.getElementById('deleteTaskModal');
             if (!delModal) return;
@@ -1393,6 +1397,7 @@
             const modalEl = document.getElementById('createTaskModal');
             if (!modalEl) return;
 
+            const workloadUI = window.NexumTaskWorkload;
             const assigneesEndpoint = {{ path('app_task_assignees')|json_encode|raw }};
 
             async function refreshAssignees(projectId) {
@@ -1425,8 +1430,10 @@
                     if (prev) {
                         assigneeSelect.value = prev;
                     }
+                    await workloadUI?.refresh(modalEl, true);
                 } catch (e) {
                     assigneeSelect.innerHTML = '<option value="">Select team ...</option>';
+                    await workloadUI?.refresh(modalEl, true);
                 }
             }
 
@@ -1434,6 +1441,15 @@
                 const t = e.target;
                 if (t && t.matches && t.matches('select[data-task-project="1"]')) {
                     refreshAssignees(t.value);
+                    return;
+                }
+                if (t && t.matches && (
+                    t.matches('select[data-task-assignee="1"]')
+                    || t.matches('select[name$="[priority]"]')
+                    || t.matches('select[name$="[status]"]')
+                    || t.matches('input[name$="[due_date]"]')
+                )) {
+                    workloadUI?.refresh(modalEl, true);
                 }
             });
 
@@ -1466,6 +1482,7 @@
                             const nextWrap = doc.getElementById('createTaskModalContent');
                             if (nextWrap) {
                                 wrap.outerHTML = nextWrap.outerHTML;
+                                await workloadUI?.refresh(modalEl);
                             } else {
                                 window.location.reload();
                             }
@@ -1486,16 +1503,34 @@
             if (projectSelect && projectSelect.value) {
                 refreshAssignees(projectSelect.value);
             }
+            const initialAssignee = modalEl.querySelector('select[data-task-assignee="1"]');
+            if (initialAssignee) {
+                workloadUI?.refresh(modalEl);
+            }
         })();
 
         (function () {
             const editModal = document.getElementById('editTaskModal');
             const editContent = document.getElementById('editTaskModalContent');
             if (!editModal || !editContent) return;
+            const workloadUI = window.NexumTaskWorkload;
 
             const wireEditForm = function () {
                 const form = editContent.querySelector('form');
                 if (!form) return;
+
+                form.addEventListener('change', function (e) {
+                    const t = e.target;
+                    if (!t || !t.matches) return;
+                    if (
+                        t.matches('select[data-task-assignee="1"]')
+                        || t.matches('select[name$="[priority]"]')
+                        || t.matches('select[name$="[status]"]')
+                        || t.matches('input[name$="[due_date]"]')
+                    ) {
+                        workloadUI?.refresh(editContent, true);
+                    }
+                });
 
                 form.addEventListener('submit', async function (e) {
                     e.preventDefault();
@@ -1521,6 +1556,8 @@
                         editContent.innerHTML = '<div class="modal-body p-4 text-danger small">Failed to load the edit form.</div>';
                     }
                 }, { once: true });
+
+                workloadUI?.refresh(editContent);
             };
 
             editModal.addEventListener('show.bs.modal', async function (ev) {

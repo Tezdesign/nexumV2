@@ -1,0 +1,344 @@
+{% extends 'layouts/vertical.html.twig' %}
+
+{% set backendStatus = rapportBackendStatus|default({
+    backend: 'lmstudio',
+    label: 'LM Studio local',
+    available: false,
+    message: 'Statut du backend indisponible.'
+}) %}
+
+{% block css %}
+    <style>
+        :root {
+            --rapport-ink: #132238;
+            --rapport-muted: #61758a;
+            --rapport-line: rgba(19, 34, 56, 0.08);
+            --rapport-accent: #0f766e;
+            --rapport-accent-soft: rgba(15, 118, 110, 0.12);
+            --rapport-paper: linear-gradient(180deg, #fffdf8 0%, #ffffff 100%);
+        }
+
+        .rapport-breadcrumb {
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        .rapport-breadcrumb a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .rapport-breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        .rapport-shell {
+            border-radius: 18px;
+            border: 1px solid var(--rapport-line);
+            background: var(--rapport-paper);
+            box-shadow: 0 18px 50px rgba(15, 23, 42, 0.05);
+        }
+
+        .rapport-pulse {
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+            background: var(--rapport-accent);
+            box-shadow: 0 0 0 0 rgba(15, 118, 110, 0.5);
+            animation: rapport-pulse 1.6s infinite;
+        }
+
+        .rapport-pulse.is-offline {
+            background: #dc2626;
+            box-shadow: none;
+            animation: none;
+        }
+
+        @keyframes rapport-pulse {
+            0% { box-shadow: 0 0 0 0 rgba(15, 118, 110, 0.45); }
+            70% { box-shadow: 0 0 0 14px rgba(15, 118, 110, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(15, 118, 110, 0); }
+        }
+
+        .rapport-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: #f8fafc;
+            color: var(--rapport-muted);
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .rapport-report {
+            min-height: 420px;
+            white-space: pre-wrap;
+            font-size: 15px;
+            line-height: 1.8;
+            color: var(--rapport-ink);
+            background:
+                linear-gradient(transparent calc(1.8em - 1px), rgba(148, 163, 184, 0.12) calc(1.8em - 1px)) 0 0 / 100% 1.8em,
+                #fff;
+            border: 1px solid var(--rapport-line);
+            border-radius: 16px;
+            padding: 24px 24px 24px 28px;
+            font-family: Georgia, "Times New Roman", serif;
+        }
+
+        .rapport-sidebar-card {
+            border: 1px solid var(--rapport-line);
+            border-radius: 16px;
+            background: #fff;
+        }
+
+        .rapport-list {
+            margin: 0;
+            padding-left: 18px;
+            color: var(--rapport-muted);
+        }
+
+        .rapport-list li + li {
+            margin-top: 8px;
+        }
+
+        .rapport-toolbar .btn {
+            border-radius: 999px;
+            padding-inline: 16px;
+        }
+
+        .rapport-spinner {
+            display: none;
+        }
+
+        .rapport-spinner.is-visible {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--rapport-muted);
+            font-size: 13px;
+            font-weight: 600;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="rapport-breadcrumb mb-3">
+        <a href="{{ path('app_project_index') }}">Projects</a>
+        <span class="px-2">›</span>
+        <a href="{{ path('app_project_show', {id: project.id}) }}">{{ project.name|plain_text }}</a>
+        <span class="px-2">›</span>
+        <span class="text-dark">Rapport IA</span>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-12">
+            <div class="card rapport-shell">
+                <div class="card-body p-4 p-lg-5">
+                    <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
+                        <div class="me-3">
+                            <div class="d-inline-flex align-items-center gap-2 mb-3">
+                                <span class="rapport-pulse {{ backendStatus.available ? '' : 'is-offline' }}"></span>
+                                <span class="text-uppercase text-muted small fw-semibold">{{ backendStatus.label }}</span>
+                            </div>
+                            <h2 class="mb-2">Rapport IA du projet</h2>
+                            <p class="text-muted mb-0">
+                                Generez une synthese detaillee en francais a partir des donnees reelles du projet et de ses taches.
+                            </p>
+                        </div>
+
+                        <div class="rapport-toolbar d-flex flex-wrap gap-2">
+                            <button type="button" class="btn btn-success" id="rapport-start" {% if not backendStatus.available %}disabled{% endif %}>
+                                <i class="ti ti-sparkles me-1"></i>
+                                Generer le rapport IA
+                            </button>
+                            <button type="button" class="btn btn-outline-danger d-none" id="rapport-stop">
+                                <i class="ti ti-player-stop me-1"></i>
+                                Stop
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" id="rapport-export">
+                                <i class="ti ti-download me-1"></i>
+                                Export texte
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-4">
+                        <span class="rapport-chip"><i class="ti ti-folder"></i>{{ rapportProject.nom }}</span>
+                        <span class="rapport-chip"><i class="ti ti-list-check"></i>{{ rapportTasks|length }} tache(s)</span>
+                        <span class="rapport-chip"><i class="ti ti-chart-pie"></i>{{ rapportProject.progression }}% progression</span>
+                        <span class="rapport-chip {{ backendStatus.available ? '' : 'text-danger' }}">
+                            <i class="ti {{ backendStatus.available ? 'ti-plug-connected' : 'ti-plug-connected-x' }}"></i>{{ backendStatus.available ? 'Backend pret' : 'Backend indisponible' }}
+                        </span>
+                    </div>
+
+                    <div id="rapport-spinner" class="rapport-spinner mb-3">
+                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        <span>Generation en cours via {{ backendStatus.label }}...</span>
+                    </div>
+
+                    <div class="alert alert-warning mb-3 {% if backendStatus.available %}d-none{% endif %}" id="rapport-status" role="alert">
+                        {{ backendStatus.message }}
+                    </div>
+
+                    <div class="alert alert-danger d-none" id="rapport-error" role="alert"></div>
+
+                    <div class="rapport-report" id="rapport-output">
+{% if backendStatus.available %}
+Cliquez sur "Generer le rapport IA" pour lancer l analyse locale du projet.
+{% else %}
+Le backend IA n est pas pret. Corrigez le probleme ci-dessus avant de lancer la generation.
+{% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block script %}
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const startButton = document.getElementById('rapport-start');
+            const stopButton = document.getElementById('rapport-stop');
+            const exportButton = document.getElementById('rapport-export');
+            const spinner = document.getElementById('rapport-spinner');
+            const output = document.getElementById('rapport-output');
+            const errorBox = document.getElementById('rapport-error');
+            const statusBox = document.getElementById('rapport-status');
+            const backendAvailable = {{ backendStatus.available ? 'true' : 'false' }};
+            const streamUrl = {{ path('app_rapport_stream', {projetId: project.id})|json_encode|raw }};
+            const exportFilename = {{ ('rapport-projet-' ~ project.id ~ '.txt')|json_encode|raw }};
+
+            let source = null;
+            let hasReceivedContent = false;
+            let streamCompleted = false;
+            let stopRequested = false;
+
+            const setGeneratingState = (isGenerating) => {
+                startButton.disabled = isGenerating;
+                stopButton.classList.toggle('d-none', !isGenerating);
+                spinner.classList.toggle('is-visible', isGenerating);
+            };
+
+            const closeSource = () => {
+                if (source) {
+                    source.close();
+                    source = null;
+                }
+            };
+
+            const showError = (message) => {
+                errorBox.textContent = message;
+                errorBox.classList.remove('d-none');
+            };
+
+            const clearError = () => {
+                errorBox.textContent = '';
+                errorBox.classList.add('d-none');
+            };
+
+            startButton.addEventListener('click', () => {
+                if (!backendAvailable) {
+                    showError(statusBox ? statusBox.textContent : 'Le backend IA est indisponible.');
+                    return;
+                }
+
+                closeSource();
+                clearError();
+                output.textContent = '';
+                hasReceivedContent = false;
+                streamCompleted = false;
+                stopRequested = false;
+                setGeneratingState(true);
+
+                source = new EventSource(streamUrl);
+
+                source.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        if (data.token) {
+                            hasReceivedContent = true;
+                            output.textContent += data.token;
+                        }
+                    } catch (error) {
+                        showError('Flux LM Studio invalide recu depuis le serveur.');
+                        setGeneratingState(false);
+                        closeSource();
+                    }
+                };
+
+                source.addEventListener('done', () => {
+                    streamCompleted = true;
+                    setGeneratingState(false);
+                    closeSource();
+                });
+
+                source.addEventListener('server-error', (event) => {
+                    setGeneratingState(false);
+                    closeSource();
+
+                    try {
+                        const data = JSON.parse(event.data);
+                        showError(data.message || 'LM Studio a retourne une erreur.');
+                    } catch (error) {
+                        showError('LM Studio a retourne une erreur.');
+                    }
+                });
+
+                source.onerror = () => {
+                    if (!source) {
+                        return;
+                    }
+
+                    const interruptedAfterPartialContent = hasReceivedContent && !streamCompleted;
+                    const userStoppedStream = stopRequested;
+
+                    setGeneratingState(false);
+                    closeSource();
+
+                    if (streamCompleted || userStoppedStream) {
+                        return;
+                    }
+
+                    if (interruptedAfterPartialContent) {
+                        showError('La generation du rapport a ete interrompue avant la fin. Le texte affiche est partiel. Verifiez LM Studio et les logs Symfony.');
+                        return;
+                    }
+
+                    showError('Impossible d etablir ou de maintenir le flux du rapport. Verifiez que LM Studio est bien demarre.');
+                };
+            });
+
+            stopButton.addEventListener('click', () => {
+                stopRequested = true;
+                closeSource();
+                setGeneratingState(false);
+            });
+
+            exportButton.addEventListener('click', () => {
+                const reportText = output.textContent.trim();
+
+                if (reportText === '' || reportText.startsWith('Cliquez sur "Generer le rapport IA"')) {
+                    showError('Generez d abord un rapport avant de l exporter.');
+                    return;
+                }
+
+                clearError();
+
+                const blob = new Blob([reportText], { type: 'text/plain;charset=utf-8' });
+                const downloadUrl = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+
+                link.href = downloadUrl;
+                link.download = exportFilename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                URL.revokeObjectURL(downloadUrl);
+            });
+        });
+    </script>
+{% endblock %}

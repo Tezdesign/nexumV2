@@ -1,0 +1,189 @@
+(function () {
+    const board = document.querySelector({{ boardSelector|json_encode|raw }});
+    if (!board || board.dataset.kanbanWired === '1') return;
+    board.dataset.kanbanWired = '1';
+
+    const statusLabels = {
+        todo: 'To Do',
+        in_progress: 'In Progress',
+        done: 'Done'
+    };
+
+    let draggingCard = null;
+    let sourceColumn = null;
+
+    const updateColumnCounts = function () {
+        board.querySelectorAll('[data-column-key]').forEach((column) => {
+            const count = column.querySelectorAll('[data-task-card]').length;
+            const badge = column.querySelector('.kanban-count');
+            if (badge) {
+                badge.textContent = String(count);
+            }
+        });
+    };
+
+    const syncEmptyStates = function () {
+        board.querySelectorAll('[data-column-key]').forEach((column) => {
+            const stack = column.querySelector('.kanban-stack');
+            if (!stack) return;
+
+            const hasCards = stack.querySelector('[data-task-card]') !== null;
+            let empty = stack.querySelector('.kanban-empty');
+
+            if (!hasCards && !empty) {
+                empty = document.createElement('div');
+                empty.className = 'kanban-empty';
+                empty.textContent = 'No tasks in ' + String(column.getAttribute('data-column-label') || '').toLowerCase() + '.';
+                stack.appendChild(empty);
+            }
+
+            if (hasCards && empty) {
+                empty.remove();
+            }
+        });
+    };
+
+    const syncCardVisual = function (card, statusKey) {
+        const checkButton = card.querySelector('[data-check-button]');
+        const title = card.querySelector('[data-task-title]');
+        const statusBadge = card.querySelector('[data-status-badge]');
+        const toggleInput = card.querySelector('[data-toggle-status-input]');
+        const isDone = statusKey === 'done';
+
+        card.setAttribute('data-status-key', statusKey);
+
+        if (statusBadge) {
+            statusBadge.textContent = statusLabels[statusKey] || 'To Do';
+            statusBadge.classList.remove('todo', 'in_progress', 'done');
+            statusBadge.classList.add(statusKey);
+        }
+
+        if (title) {
+            title.classList.toggle('is-done', isDone);
+        }
+
+        if (checkButton) {
+            checkButton.classList.toggle('is-done', isDone);
+            if ('innerHTML' in checkButton) {
+                checkButton.innerHTML = isDone ? '<i class="ri-check-line"></i>' : '';
+            }
+            if (checkButton.tagName === 'BUTTON') {
+                const nextStatus = isDone ? 'todo' : 'done';
+                checkButton.setAttribute('title', isDone ? 'Mark as To Do' : 'Mark as Done');
+                checkButton.setAttribute('aria-label', isDone ? 'Mark as To Do' : 'Mark as Done');
+                if (toggleInput) {
+                    toggleInput.value = nextStatus;
+                }
+            }
+        }
+    };
+
+    const postStatusUpdate = async function (card, statusKey) {
+        const url = card.getAttribute('data-update-url') || '';
+        const csrf = card.getAttribute('data-csrf-token') || '';
+        if (!url || !csrf) {
+            throw new Error('Missing task status metadata.');
+        }
+
+        const formData = new FormData();
+        formData.append('_token', csrf);
+        formData.append('status', statusKey);
+        formData.append('back', window.location.pathname + window.location.search);
+
+        const res = await fetch(url, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'text/plain, text/html;q=0.9'
+            }
+        });
+
+        if (res.status === 204) {
+            return;
+        }
+
+        if (res.status === 403) {
+            throw new Error('You can update progress only for tasks assigned to you.');
+        }
+
+        if (!res.ok) {
+            throw new Error('Failed to update task status.');
+        }
+    };
+
+    board.querySelectorAll('[data-task-card]').forEach((card) => {
+        if (card.getAttribute('draggable') !== 'true') {
+            return;
+        }
+
+        card.addEventListener('dragstart', function () {
+            draggingCard = card;
+            sourceColumn = card.closest('[data-column-key]');
+            card.classList.add('is-dragging');
+        });
+
+        card.addEventListener('dragend', function () {
+            card.classList.remove('is-dragging');
+            board.querySelectorAll('[data-column-key]').forEach((column) => {
+                column.classList.remove('is-drop-target', 'is-updating');
+            });
+            draggingCard = null;
+            sourceColumn = null;
+        });
+    });
+
+    board.querySelectorAll('[data-column-key]').forEach((column) => {
+        const stack = column.querySelector('.kanban-stack');
+        if (!stack) return;
+
+        stack.addEventListener('dragover', function (e) {
+            if (!draggingCard) return;
+            e.preventDefault();
+            column.classList.add('is-drop-target');
+        });
+
+        stack.addEventListener('dragleave', function (e) {
+            if (!column.contains(e.relatedTarget)) {
+                column.classList.remove('is-drop-target');
+            }
+        });
+
+        stack.addEventListener('drop', async function (e) {
+            if (!draggingCard) return;
+            e.preventDefault();
+            column.classList.remove('is-drop-target');
+            const movedCard = draggingCard;
+            const previousColumn = sourceColumn;
+
+            const targetStatus = column.getAttribute('data-column-key') || '';
+            const currentStatus = movedCard.getAttribute('data-status-key') || '';
+            if (!targetStatus || targetStatus === currentStatus) {
+                return;
+            }
+
+            column.classList.add('is-updating');
+            if (previousColumn) {
+                previousColumn.classList.add('is-updating');
+            }
+
+            try {
+                await postStatusUpdate(movedCard, targetStatus);
+                stack.appendChild(movedCard);
+                syncCardVisual(movedCard, targetStatus);
+                syncEmptyStates();
+                updateColumnCounts();
+            } catch (err) {
+                window.alert(err instanceof Error ? err.message : 'Failed to update task status.');
+            } finally {
+                column.classList.remove('is-updating');
+                if (previousColumn) {
+                    previousColumn.classList.remove('is-updating');
+                }
+            }
+        });
+    });
+
+    syncEmptyStates();
+    updateColumnCounts();
+})();

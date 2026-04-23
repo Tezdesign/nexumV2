@@ -6,6 +6,7 @@
 {% set headingSubtitle = headingSubtitle|default('Start a new initiative for your team') %}
 {% set formAction = formAction|default(null) %}
 {% set formMethod = formMethod|default(null) %}
+{% set aiTaskSuggestionsJson = aiTaskSuggestionsJson|default('[]') %}
 
 <div class="modal-content" id="{{ contentId }}">
     {{ form_start(projectForm, {
@@ -14,6 +15,10 @@
         attr: { id: formId, novalidate: 'novalidate' }
     }) }}
     <input type="hidden" name="back" value="{{ backUrl|default('') }}">
+    <input type="hidden"
+           name="ai_task_suggestions"
+           value="{{ aiTaskSuggestionsJson|e('html_attr') }}"
+           data-ai-task-suggestions="1">
 
     <div class="modal-header">
         <div>
@@ -49,6 +54,23 @@
                 {{ form_widget(projectForm.end_date, { attr: { class: 'form-control' } }) }}
                 {{ form_errors(projectForm.end_date) }}
             </div>
+        </div>
+
+        <div class="mt-4">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+                <div>
+                    <div class="fw-semibold">AI Task Suggestions</div>
+                    <div class="text-muted small">Generate 5 starter tasks from the project brief before saving.</div>
+                </div>
+                <button type="button"
+                        class="btn btn-outline-secondary"
+                        data-ai-suggest-btn="1"
+                        data-ai-suggest-url="{{ path('app_project_ai_task_suggestions') }}">
+                    <i class="ri-magic-line me-1"></i> Suggest 5 Tasks
+                </button>
+            </div>
+            <div class="text-muted small mb-3" data-ai-suggest-status="1"></div>
+            <div class="d-flex flex-column gap-2" data-ai-suggestions-list="1"></div>
         </div>
 
         {% include 'project/_team_dropdown.html.twig' with {

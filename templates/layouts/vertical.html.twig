@@ -1,10 +1,11 @@
 <!DOCTYPE html>
-<html>
+<html data-topbar-color="{{ topbar_color|default('brand') }}" data-menu-color="{{ menu_color|default('light') }}">
 
 <head>
     {{ include('partials/title-meta.html.twig') }}
     {{ include('partials/head-css.html.twig') }}
     {% block css %}{% endblock %}
+    {% block importmap %}{{ importmap('app') }}{% endblock %}
     <!-- Material Design Icons -->
     <link href="https://cdn.materialdesignicons.com/6.6.96/css/materialdesignicons.min.css" rel="stylesheet">
 </head>
