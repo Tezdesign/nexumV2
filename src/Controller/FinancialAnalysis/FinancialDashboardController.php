@@ -22,7 +22,7 @@ use Symfony\Component\Routing\Annotation\Route;
 class FinancialDashboardController extends AbstractController
 {
     #[Route('', name: 'apps-financial-analysis-landing')]
-    public function index(Request $request, EntityManagerInterface $entityManager, BudgetProfileRepository $budgetProfileRepository): Response
+    public function index(Request $request, EntityManagerInterface $entityManager, BudgetProfileRepository $budgetProfileRepository, \App\Service\FinancialAnalysis\BudgetTrendCacheService $trendCacheService): Response
     {
         $budgetProfile = new BudgetProfile();
         $form = $this->createForm(BudgetProfileType::class, $budgetProfile);
@@ -38,9 +38,15 @@ class FinancialDashboardController extends AbstractController
         }
 
         $budgetProfiles = $budgetProfileRepository->findAll();
+        $profileTrends = [];
+
+        foreach ($budgetProfiles as $profile) {
+            $profileTrends[$profile->getId()] = $trendCacheService->calculateTrends($profile);
+        }
 
         return $this->render('financial-analysis/landing.html.twig', [
             'budgetProfiles' => $budgetProfiles,
+            'profileTrends' => $profileTrends,
             'form' => $form->createView(),
         ]);
     }
@@ -64,7 +70,8 @@ class FinancialDashboardController extends AbstractController
         BudgetDashboardService $dashboardService, 
         Request $request, 
         EntityManagerInterface $entityManager, 
-        ProjectBudgetRepository $projectBudgetRepository
+        ProjectBudgetRepository $projectBudgetRepository,
+        \App\Service\FinancialAnalysis\BudgetTrendCacheService $trendCacheService
     ): Response {
         $originalProfile = clone $budgetProfile;
 
@@ -72,6 +79,9 @@ class FinancialDashboardController extends AbstractController
         $form->handleRequest($request);
 
         if ($form->isSubmitted()) {
+            // Snapshot state before updating the profile
+            $trendCacheService->savePreUpdateState($budgetProfile);
+
             if ($budgetProfile->getStartDate() && $budgetProfile->getEndDate()) {
                 $totals = $projectBudgetRepository->getTotalsForFiscalYear($budgetProfile->getStartDate(), $budgetProfile->getEndDate());
                 $budgetProfile->setTransientAllocatedBudgets($totals['allocated']);
@@ -98,10 +108,14 @@ class FinancialDashboardController extends AbstractController
         $projectBudgetForm->handleRequest($request);
 
         if ($projectBudgetForm->isSubmitted() && $projectBudgetForm->isValid()) {
+            // Snapshot state because adding a budget changes allocated/remaining totals
+            $trendCacheService->savePreUpdateState($budgetProfile);
+
             $projectBudgetRepository->save($projectBudget, true);
             $this->addFlash('success', 'Project Budget created successfully!');
             return $this->redirectToRoute('apps-financial-analysis-profile', ['id' => $budgetProfile->getId()]);
         }
+
 
         $projects = [];
         if ($originalProfile->getStartDate() && $originalProfile->getEndDate()) {
@@ -118,19 +132,54 @@ class FinancialDashboardController extends AbstractController
         
         $remainingVal = $budgetVal - $totals['expenses'];
         $utilizationPercent = $budgetVal > 0 ? round(($totals['expenses'] / $budgetVal) * 100, 1) : 0;
+        $cashFlowVal = $budgetVal - $totals['allocated'];
+
+        // Calculate Trends for all 5 KPI Widgets
+        $trends = $trendCacheService->calculateTrends($originalProfile, $totals['allocated'], $totals['expenses']);
 
         return $this->render('financial-analysis/overview.html.twig', [
             'budgetProfile' => $originalProfile,
             'projects' => array_slice($projects, 0, 6), // Show only top 6 on dashboard
             'form' => $form->createView(),
             'projectBudgetForm' => $projectBudgetForm->createView(),
+            
+            // Values
             'kpi_budget_value' => number_format($budgetVal / 1000, 1) . 'k',
             'kpi_spending_value' => number_format($totals['expenses'] / 1000, 1) . 'k',
             'kpi_remaining_value' => number_format($remainingVal / 1000, 1) . 'k',
             'kpi_utilization_value' => $utilizationPercent . '%',
-            'kpi_cashflow_value' => number_format(($budgetVal - $totals['allocated']) / 1000, 1) . 'k',
+            'kpi_cashflow_value' => number_format($cashFlowVal / 1000, 1) . 'k',
+            
+            // Badges & Trends (Managing the variables for overview.html.twig)
+            'kpi_budget_badge' => $trends['budget']['badge'],
+            'kpi_budget_class' => $trends['budget']['class'],
+            'kpi_budget_icon' => 'ti ti-trending-' . $trends['budget']['direction'],
+            
+            'kpi_spending_badge' => $trends['spending']['badge'],
+            'kpi_spending_class' => $trends['spending']['class'],
+            'kpi_spending_icon' => 'ti ti-trending-' . $trends['spending']['direction'],
+            
+            'kpi_remaining_badge' => $trends['remaining']['badge'],
+            'kpi_remaining_class' => $trends['remaining']['class'],
+            'kpi_remaining_icon' => 'ti ti-trending-' . $trends['remaining']['direction'],
+            
+            'kpi_utilization_badge' => $trends['utilization']['badge'],
+            'kpi_utilization_class' => $trends['utilization']['class'],
+            'kpi_utilization_icon' => 'ti ti-trending-' . $trends['utilization']['direction'],
+            
+            'kpi_cashflow_badge' => $trends['cashflow']['badge'],
+            'kpi_cashflow_class' => $trends['cashflow']['class'],
+            'kpi_cashflow_icon' => 'ti ti-trending-' . $trends['cashflow']['direction'],
+
+            // Progress Bars
+            'kpi_budget_progress' => 100, // Budget limit is the 100% baseline
+            'kpi_spending_progress' => $utilizationPercent,
+            'kpi_remaining_progress' => 100 - $utilizationPercent,
+            'kpi_utilization_progress' => $utilizationPercent,
+
             'currency_type' => $originalProfile->getBaseCurrency(),
         ]);
+
     }
 
     #[Route('/profile/{id}/projects', name: 'apps-financial-analysis-profile-projects')]
@@ -138,7 +187,8 @@ class FinancialDashboardController extends AbstractController
         BudgetProfile $budgetProfile, 
         BudgetDashboardService $dashboardService, 
         Request $request, 
-        ProjectBudgetRepository $projectBudgetRepository
+        ProjectBudgetRepository $projectBudgetRepository,
+        \App\Service\FinancialAnalysis\BudgetTrendCacheService $trendCacheService
     ): Response {
         $projectBudget = new ProjectBudget();
         if ($budgetProfile->getStartDate() && $budgetProfile->getEndDate()) {
@@ -153,10 +203,14 @@ class FinancialDashboardController extends AbstractController
         $projectBudgetForm->handleRequest($request);
 
         if ($projectBudgetForm->isSubmitted() && $projectBudgetForm->isValid()) {
+            // Snapshot profile because adding a budget affects the allocated aggregates
+            $trendCacheService->savePreUpdateState($budgetProfile);
+
             $projectBudgetRepository->save($projectBudget, true);
             $this->addFlash('success', 'Project Budget created successfully!');
             return $this->redirectToRoute('apps-financial-analysis-profile-projects', ['id' => $budgetProfile->getId()]);
         }
+
 
         $projects = [];
         if ($budgetProfile->getStartDate() && $budgetProfile->getEndDate()) {
@@ -180,7 +234,8 @@ class FinancialDashboardController extends AbstractController
         BudgetDashboardService $dashboardService,
         ProjectBudgetRepository $projectBudgetRepository,
         TransactionRepository $transactionRepository,
-        \App\Service\FinancialAnalysis\BudgetProjectStService $projectStService
+        \App\Service\FinancialAnalysis\BudgetProjectStService $projectStService,
+        \App\Service\FinancialAnalysis\BudgetTrendCacheService $trendCacheService
     ): Response {
         $originalBudget = clone $projectBudget;
         $profile = $dashboardService->getFiscalProfileForBudget($projectBudget);
@@ -200,11 +255,17 @@ class FinancialDashboardController extends AbstractController
         $projectBudgetForm->handleRequest($request);
 
         if ($projectBudgetForm->isSubmitted() && $projectBudgetForm->isValid()) {
+            // Snapshot profile because changing budget affects the allocated share
+            if ($profile) {
+                $trendCacheService->savePreUpdateState($profile);
+            }
+
             $projectBudget->calculateStatus();
             $projectBudgetRepository->updateBudgetDql($projectBudget);
             $this->addFlash('success', 'Project Budget updated successfully!');
             return $this->redirectToRoute('apps-financial-analysis-budget-details', ['id' => $projectBudget->getId()]);
         }
+
 
         $transaction = new Transaction();
         $transactionForm = $this->createForm(TransactionType::class, $transaction);

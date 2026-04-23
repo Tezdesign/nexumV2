@@ -8,13 +8,15 @@ use App\Entity\FinancialAnalysis\Transaction;
 use App\Repository\FinancialAnalysis\BudgetProfileRepository;
 use App\Repository\FinancialAnalysis\ProjectBudgetRepository;
 use App\Repository\FinancialAnalysis\TransactionRepository;
+use App\Service\FinancialAnalysis\BudgetTrendCacheService;
 
 class BudgetDashboardService
 {
     public function __construct(
         private ProjectBudgetRepository $projectBudgetRepository,
         private BudgetProfileRepository $budgetProfileRepository,
-        private TransactionRepository $transactionRepository
+        private TransactionRepository $transactionRepository,
+        private BudgetTrendCacheService $trendCacheService
     ) {
     }
 
@@ -122,6 +124,11 @@ class BudgetDashboardService
      */
     public function handleTransactionCascade(ProjectBudget $projectBudget, Transaction $transaction, ?BudgetProfile $profile): void
     {
+        if ($profile) {
+            $totals = $this->projectBudgetRepository->getTotalsForFiscalYear($profile->getStartDate(), $profile->getEndDate());
+            $this->trendCacheService->savePreUpdateState($profile, $totals['allocated'], $totals['expenses']);
+        }
+        
         // 1. Save Transaction
         $this->transactionRepository->save($transaction, true);
         
@@ -147,6 +154,11 @@ class BudgetDashboardService
      */
     public function handleTransactionUpdateCascade(ProjectBudget $projectBudget, Transaction $transaction, ?BudgetProfile $profile): void
     {
+        if ($profile) {
+            $totals = $this->projectBudgetRepository->getTotalsForFiscalYear($profile->getStartDate(), $profile->getEndDate());
+            $this->trendCacheService->savePreUpdateState($profile, $totals['allocated'], $totals['expenses']);
+        }
+
         // 1. Execute the transaction update via DQL
         $this->transactionRepository->updateTransactionDql($transaction);
         
@@ -172,6 +184,11 @@ class BudgetDashboardService
      */
     public function handleBulkDeleteCascade(ProjectBudget $projectBudget, array $ids, ?BudgetProfile $profile): void
     {
+        if ($profile) {
+            $totals = $this->projectBudgetRepository->getTotalsForFiscalYear($profile->getStartDate(), $profile->getEndDate());
+            $this->trendCacheService->savePreUpdateState($profile, $totals['allocated'], $totals['expenses']);
+        }
+
         // 1. Execute bulk delete via DQL
         $this->transactionRepository->bulkDeleteDql($ids);
         
@@ -197,6 +214,11 @@ class BudgetDashboardService
      */
     public function handleProjectBudgetDeletionCascade(ProjectBudget $budget, ?BudgetProfile $profile): void
     {
+        if ($profile) {
+            $totals = $this->projectBudgetRepository->getTotalsForFiscalYear($profile->getStartDate(), $profile->getEndDate());
+            $this->trendCacheService->savePreUpdateState($profile, $totals['allocated'], $totals['expenses']);
+        }
+
         // 1. Delete all associated transactions
         $this->transactionRepository->deleteByProjectBudgetDql($budget->getId());
 

@@ -3,7 +3,7 @@
         <div class="card h-100 mb-0">
             <div class="card-body widget-user">
                 <div class="text-center">
-                    <h2 class="fw-normal text-primary" data-plugin="counterup">{{ budgetStats.ranking.display|default('N/A') }}</h2>
+                    <h2 class="fw-normal text-primary">{{ budgetStats.ranking.display|default('N/A') }}</h2>
                     <p class="mb-0 fw-semibold">{{ 'Project Spending Rank'|trans }}</p>
                 </div>
             </div>
@@ -14,7 +14,7 @@
         <div class="card h-100 mb-0">
             <div class="card-body widget-user">
                 <div class="text-center">
-                    <h2 class="text-danger" data-plugin="counterup">{{ budgetStats.allocatedShare.display|default('0%') }}</h2>
+                    <h2 class="text-danger">{{ budgetStats.allocatedShare.display|default('0%') }}</h2>
                     <p class="mb-0 fw-semibold">{{ 'Share of Project Budget'|trans }}</p>
                 </div>
             </div>
@@ -25,7 +25,7 @@
         <div class="card h-100 mb-0">
             <div class="card-body widget-user">
                 <div class="text-center">
-                    <h2 class="fw-semibold text-warning" data-plugin="counterup">{{ budgetStats.spentShare.display|default('0%') }}</h2>
+                    <h2 class="fw-semibold text-warning">{{ budgetStats.spentShare.display|default('0%') }}</h2>
                     <p class="mb-0 fw-semibold">{{ 'Share of Project Spend'|trans }}</p>
                 </div>
             </div>
@@ -36,7 +36,7 @@
         <div class="card h-100 mb-0">
             <div class="card-body widget-user">
                 <div class="text-center">
-                    <h2 class="fw-bold text-{{ budgetStats.prediction.class|default('secondary') }}" data-plugin="counterup">
+                    <h2 class="fw-bold text-{{ budgetStats.prediction.class|default('secondary') }}">
                         {{ budgetStats.prediction.displayPercentage|default('0%') }}
                     </h2>
                     <p class="mb-0 fw-semibold">{{ budgetStats.prediction.status|default('UNKNOWN')|trans }} {{ 'Prediction'|trans }}</p>
