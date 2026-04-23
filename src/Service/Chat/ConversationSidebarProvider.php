@@ -39,6 +39,7 @@ class ConversationSidebarProvider
     private function emptyCurrentUser(): array
     {
         return [
+            'id' => 0,
             'name' => 'Unknown User',
             'role' => 'Member',
             'avatarSrc' => null,
@@ -54,6 +55,7 @@ class ConversationSidebarProvider
         $name = trim(sprintf('%s %s', (string) $user->getPrenom(), (string) $user->getNom()));
 
         return [
+            'id' => (int) ($user->getId() ?? 0),
             'name' => $name !== '' ? $name : 'Unnamed User',
             'role' => $user->getRole() ?? 'Member',
             'avatarSrc' => $this->toDataUri($user->getImagelink(), 'image/jpeg'),

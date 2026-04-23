@@ -14,7 +14,7 @@ use App\Repository\Chat\MessageAttachmentRepository;
 #[ORM\Index(name: "index_attachment_message", columns: ["message_id"])]
 class MessageAttachment
 {
-    public const MAX_FILE_SIZE_BYTES = 20971520;
+    public const MAX_FILE_SIZE_BYTES = 31457280;
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -88,7 +88,7 @@ class MessageAttachment
         return $this;
     }
 
-    #[ORM\Column(type: 'blob', nullable: false)]
+    #[ORM\Column(type: 'blob', columnDefinition: 'LONGBLOB', nullable: false)]
     private $data = null;
 
     public function getData(): mixed
@@ -98,6 +98,11 @@ class MessageAttachment
 
     public function setData(mixed $data): self
     {
+        if (is_resource($data)) {
+            $this->data = $data;
+            return $this;
+        }
+
         if (!is_string($data) || $data === '') {
             throw new \InvalidArgumentException('File content is empty.');
         }
@@ -182,7 +187,7 @@ class MessageAttachment
         }
 
         if ($size_bytes > self::MAX_FILE_SIZE_BYTES) {
-            throw new \InvalidArgumentException('File is too big. Maximum size is 20 MB.');
+            throw new \InvalidArgumentException('File is too big. Maximum size is 30 MB.');
         }
 
         $this->size_bytes = $size_bytes;

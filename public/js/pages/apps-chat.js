@@ -6,6 +6,7 @@ class ChatApp {
         this.messagesList = null
         this.messagesState = null
         this.conversationItems = []
+        this.conversationItemsContainer = null
         this.activeConversationItem = null
         this.activeConversationId = null
         this.filterButtons = []
@@ -102,25 +103,118 @@ class ChatApp {
         this.bottomNotice = null
         this.bottomNoticeTimer = null
         this.currentUserName = 'You'
+        this.currentUserId = 0
         this.currentUserAvatar = ''
+        this.callButtonAudio = null
+        this.callButtonVideo = null
+        this.stomp = null
+        this.stompConnected = false
+        this.stompConnecting = false
+        this.stompConnectRequested = false
+        this.stompReconnectTimer = null
+        this.callConversationSubscriptions = new Map()
+        this.pendingIncomingCall = null
+        this.pendingOutgoingCall = null
+        this.callPopupWindow = null
+        this.callSocketUrl = 'ws://localhost:8090/ws'
+        this.callTokenEndpoint = '/apps-chat/livekit/token'
+        this.callPageEndpoint = 'http://127.0.0.1:8090/livekit/call'
+        this.callLivekitUrl = 'ws://127.0.0.1:7880'
+        this.callAvatarEndpoint = '/apps-chat/livekit/avatar'
+        this.callSignalingEnabled = true
         this.messagesSimplebar = null
         this.chatForm = null
         this.chatInput = null
         this.chatSendButton = null
         this.chatSendDefaultHtml = ''
+        this.voiceButton = null
+        this.emojiButton = null
+        this.emojiPickerInstance = null
+        this.emojiPickerVisible = false
+        this.emojiUseFallback = false
+        this.emojiFallbackPicker = null
+        this.emojiFallbackCloseButton = null
+        this.emojiFallbackItems = []
+        this.emojiTabs = []
+        this.emojiSection = null
+        this.gifSection = null
+        this.emojiCdnHost = null
+        this.emojiFallbackGrid = null
+        this.activeEmojiTab = 'emoji'
+        this.gifSearchInput = null
+        this.gifClearButton = null
+        this.gifResults = null
+        this.gifStatus = null
+        this.gifDebounceTimer = null
+        this.tenorApiKey = ''
+        this.gifApiProvider = 'kilpy'
+        this.gifApiBaseUrl = 'https://api.klipy.com'
+        this.gifCustomerId = 'guest'
+        this.gifLocale = 'tn'
+        this.voiceState = null
+        this.voiceStateDot = null
+        this.voiceStateLabel = null
+        this.voiceStateTime = null
+        this.voiceRecordingMode = false
+        this.voiceRecordingActive = false
+        this.voiceRecorder = null
+        this.voiceStream = null
+        this.voiceChunks = []
+        this.voiceRecordedBlob = null
+        this.voiceRecordedUrl = ''
+        this.voicePreviewAudio = null
+        this.voicePreviewPlaying = false
+        this.voiceRecordingSeconds = 0
+        this.voiceRecordingTimer = null
+        this.voiceDiscardOnStop = false
+        this.chatInputSelectionStart = 0
+        this.chatInputSelectionEnd = 0
         this.attachmentButton = null
         this.attachmentInput = null
         this.activeFetchController = null
         this.activeAttachmentControllers = new Map()
         this.activeAudioElement = null
         this.linkPreviewCache = new Map()
+        this.aiSummaryModal = null
+        this.aiSummaryTitle = null
+        this.aiSummaryText = null
+        this.aiSummaryLoading = null
+        this.aiSummarySeenAtUnread = new Map()
+        this.aiSummaryUnreadThreshold = 10
+        this.aiPendingConvId = null
+        this.aiPendingUnreadCount = 0
+        this.aiPendingTitle = 'Conversation'
+        this.aiPendingMessages = []
+        this.aiSummaryPendingByConv = new Set()
+        this.aiSummaryPendingStorageKey = 'apps-chat-ai-summary-pending-v1'
     }
 
     cacheElements = () => {
         this.root = document.querySelector('[data-apps-chat="chat-root"]')
         if (this.root) {
             this.currentUserName = this.root.dataset.currentUserName || this.currentUserName
+            const currentUserIdRaw = parseInt(this.root.dataset.currentUserId || '0', 10)
+            const customerIdRaw = parseInt(this.root.dataset.gifCustomerId || '0', 10)
+            this.currentUserId = Number.isInteger(currentUserIdRaw) && currentUserIdRaw > 0
+                ? currentUserIdRaw
+                : (Number.isInteger(customerIdRaw) && customerIdRaw > 0 ? customerIdRaw : 0)
             this.currentUserAvatar = this.root.dataset.currentUserAvatar || ''
+            this.tenorApiKey = this.root.dataset.gifApiKey || this.tenorApiKey
+            this.gifApiProvider = (this.root.dataset.gifApiProvider || this.gifApiProvider).toLowerCase()
+            this.gifApiBaseUrl = (this.root.dataset.gifApiBaseUrl || this.gifApiBaseUrl).replace(/\/$/, '')
+            this.gifCustomerId = this.root.dataset.gifCustomerId || this.gifCustomerId
+            this.gifLocale = (this.root.dataset.gifLocale || this.gifLocale).toLowerCase()
+            this.callSocketUrl = this.root.dataset.callSocketUrl || this.callSocketUrl
+            this.callTokenEndpoint = this.root.dataset.callTokenEndpoint || this.callTokenEndpoint
+            this.callPageEndpoint = this.root.dataset.callPageEndpoint || this.callPageEndpoint
+            this.callLivekitUrl = this.root.dataset.callLivekitUrl || this.callLivekitUrl
+            this.callAvatarEndpoint = this.root.dataset.callAvatarEndpoint || this.callAvatarEndpoint
+            this.callSignalingEnabled = (this.root.dataset.callSignalingEnabled || '1') === '1'
+            console.info('Call signaling config:', {
+                currentUserId: this.currentUserId,
+                callSocketUrl: this.callSocketUrl,
+                enabled: this.callSignalingEnabled,
+            })
         }
 
         this.messagesScrollWrapper = document.querySelector(
@@ -131,6 +225,7 @@ class ChatApp {
         this.conversationItems = Array.from(
             document.querySelectorAll('[data-apps-chat="conversation-item"]')
         )
+        this.conversationItemsContainer = document.querySelector('[data-apps-chat="conversation-items"]')
         this.filterButtons = Array.from(
             document.querySelectorAll('[data-chat-filter]')
         )
@@ -147,6 +242,8 @@ class ChatApp {
         this.activeConversationAvatarFallback = document.querySelector('[data-apps-chat="active-conversation-avatar-fallback"]')
         this.activeConversationName = document.querySelector('[data-apps-chat="active-conversation-name"]')
         this.activeConversationMeta = document.querySelector('[data-apps-chat="active-conversation-meta"]')
+        this.callButtonAudio = document.querySelector('[data-apps-chat="call-audio"]')
+        this.callButtonVideo = document.querySelector('[data-apps-chat="call-video"]')
         this.detailsDrawer = document.querySelector('[data-apps-chat="details-drawer"]')
         this.detailsBackdrop = document.querySelector('[data-apps-chat="details-backdrop"]')
         this.detailsToggleButton = document.querySelector('[data-apps-chat="details-toggle"]')
@@ -204,6 +301,10 @@ class ChatApp {
         this.messageEditInput = document.querySelector('[data-apps-chat="message-edit-input"]')
         this.messageEditError = document.querySelector('[data-apps-chat="message-edit-error"]')
         this.messageEditSubmitButton = document.querySelector('[data-apps-chat="message-edit-submit"]')
+        this.aiSummaryModal = document.querySelector('[data-apps-chat="ai-summary-modal"]')
+        this.aiSummaryTitle = document.querySelector('[data-apps-chat="ai-summary-title"]')
+        this.aiSummaryText = document.querySelector('[data-apps-chat="ai-summary-text"]')
+        this.aiSummaryLoading = document.querySelector('[data-apps-chat="ai-summary-loading"]')
         this.inlineEditNotice = document.querySelector('[data-apps-chat="inline-edit-notice"]')
         this.inlineEditCancelButton = document.querySelector('[data-apps-chat="inline-edit-cancel"]')
         this.groupCreateModal = document.getElementById('groupCreateModal')
@@ -223,6 +324,24 @@ class ChatApp {
             this.chatSendButton = this.chatForm.querySelector('[data-apps-chat="chat-send"]')
             this.chatSendDefaultHtml = this.chatSendButton?.innerHTML || ''
         }
+        this.voiceButton = document.querySelector('[data-apps-chat="voice-button"]')
+        this.emojiButton = document.querySelector('[data-apps-chat="emoji-button"]')
+        this.emojiFallbackPicker = document.querySelector('[data-apps-chat="emoji-fallback-picker"]')
+        this.emojiFallbackCloseButton = document.querySelector('[data-apps-chat="emoji-fallback-close"]')
+        this.emojiFallbackItems = Array.from(document.querySelectorAll('[data-apps-chat="emoji-fallback-item"]'))
+        this.emojiTabs = Array.from(document.querySelectorAll('[data-apps-chat="emoji-tab"]'))
+        this.emojiSection = document.querySelector('[data-apps-chat="emoji-section"]')
+        this.gifSection = document.querySelector('[data-apps-chat="gif-section"]')
+        this.emojiCdnHost = document.querySelector('[data-apps-chat="emoji-cdn-host"]')
+        this.emojiFallbackGrid = document.querySelector('[data-apps-chat="emoji-fallback-grid"]')
+        this.gifSearchInput = document.querySelector('[data-apps-chat="gif-search"]')
+        this.gifClearButton = document.querySelector('[data-apps-chat="gif-clear"]')
+        this.gifResults = document.querySelector('[data-apps-chat="gif-results"]')
+        this.gifStatus = document.querySelector('[data-apps-chat="gif-status"]')
+        this.voiceState = document.querySelector('[data-apps-chat="voice-state"]')
+        this.voiceStateDot = document.querySelector('[data-apps-chat="voice-state-dot"]')
+        this.voiceStateLabel = document.querySelector('[data-apps-chat="voice-state-label"]')
+        this.voiceStateTime = document.querySelector('[data-apps-chat="voice-state-time"]')
         this.attachmentButton = document.querySelector('[data-apps-chat="attachment-button"]')
         this.attachmentInput = document.querySelector('[data-apps-chat="attachment-input"]')
         if (this.messagesScrollWrapper && window.SimpleBar)
@@ -252,6 +371,940 @@ class ChatApp {
         if (this.chatSendButton) {
             this.chatSendButton.disabled = !enabled
         }
+
+        if (this.emojiButton) {
+            this.emojiButton.disabled = !enabled
+        }
+
+        if (this.voiceButton) {
+            this.voiceButton.disabled = !enabled
+        }
+
+        if (!enabled) {
+            this.closeEmojiPicker()
+            this.cancelVoiceRecording({ resetComposer: false })
+        }
+    }
+
+    rememberComposerSelection = () => {
+        if (!this.chatInput) {
+            return
+        }
+
+        const selectionStart = typeof this.chatInput.selectionStart === 'number'
+            ? this.chatInput.selectionStart
+            : this.chatInput.value.length
+        const selectionEnd = typeof this.chatInput.selectionEnd === 'number'
+            ? this.chatInput.selectionEnd
+            : selectionStart
+
+        this.chatInputSelectionStart = selectionStart
+        this.chatInputSelectionEnd = selectionEnd
+    }
+
+    insertEmoji = (emoji) => {
+        if (!this.chatInput || !emoji) {
+            return
+        }
+
+        const value = String(this.chatInput.value || '')
+        const start = typeof this.chatInput.selectionStart === 'number'
+            ? this.chatInput.selectionStart
+            : this.chatInputSelectionStart
+        const end = typeof this.chatInput.selectionEnd === 'number'
+            ? this.chatInput.selectionEnd
+            : this.chatInputSelectionEnd
+
+        const nextValue = `${value.slice(0, start)}${emoji}${value.slice(end)}`
+        const nextCaret = start + String(emoji).length
+
+        this.chatInput.value = nextValue
+        this.chatInput.focus()
+
+        if (typeof this.chatInput.setSelectionRange === 'function') {
+            this.chatInput.setSelectionRange(nextCaret, nextCaret)
+        }
+
+        this.rememberComposerSelection()
+        this.closeEmojiPicker()
+    }
+
+    closeEmojiPicker = () => {
+        if (!this.emojiButton) {
+            return
+        }
+
+        this.emojiFallbackPicker?.classList.add('d-none')
+        this.emojiFallbackPicker?.setAttribute('aria-hidden', 'true')
+
+        this.emojiPickerVisible = false
+        this.emojiButton.setAttribute('aria-expanded', 'false')
+    }
+
+    toggleEmojiPicker = () => {
+        if (!this.emojiButton || this.emojiButton.disabled) {
+            return
+        }
+
+        if (!this.emojiFallbackPicker) {
+            return
+        }
+
+        const isOpen = !this.emojiFallbackPicker.classList.contains('d-none')
+        if (isOpen) {
+            this.closeEmojiPicker()
+            return
+        }
+
+        this.setEmojiPanelTab('emoji')
+        this.emojiFallbackPicker.classList.remove('d-none')
+        this.emojiFallbackPicker.setAttribute('aria-hidden', 'false')
+        this.emojiPickerVisible = true
+        this.emojiButton.setAttribute('aria-expanded', 'true')
+    }
+
+    formatVoiceDuration = (seconds) => {
+        const totalSeconds = Math.max(0, Math.floor(Number(seconds) || 0))
+        const minutes = Math.floor(totalSeconds / 60)
+        const remainingSeconds = String(totalSeconds % 60).padStart(2, '0')
+        return `${minutes}:${remainingSeconds}`
+    }
+
+    getPreferredVoiceMimeType = () => {
+        if (!window.MediaRecorder?.isTypeSupported) {
+            return ''
+        }
+
+        const candidates = [
+            'audio/webm;codecs=opus',
+            'audio/webm',
+            'audio/ogg;codecs=opus',
+            'audio/ogg',
+        ]
+
+        return candidates.find((type) => window.MediaRecorder.isTypeSupported(type)) || ''
+    }
+
+    setVoiceComposerUi = () => {
+        const voiceModeEnabled = this.voiceRecordingMode || this.voiceRecordedBlob !== null
+
+        this.voiceState?.classList.toggle('d-none', !voiceModeEnabled)
+        this.voiceState?.classList.toggle('recording', this.voiceRecordingActive)
+        this.chatInput?.classList.toggle('d-none', voiceModeEnabled)
+        
+        // Show voice button always (for both normal state and voice recording control)
+        if (this.voiceButton) {
+            this.voiceButton.style.display = 'inline-flex'
+        }
+        
+        // Hide attachment button whenever in voice mode (recording or hearing/preview)
+        if (this.attachmentButton) {
+            this.attachmentButton.style.display = voiceModeEnabled ? 'none' : 'inline-flex'
+        }
+
+        if (this.voiceStateDot) {
+            this.voiceStateDot.classList.toggle('d-none', !this.voiceRecordingActive)
+        }
+
+        if (this.voiceStateLabel) {
+            this.voiceStateLabel.textContent = this.getVoiceStateLabelText()
+        }
+
+        if (this.voiceStateTime) {
+            this.voiceStateTime.textContent = this.getVoiceStateTimeText()
+        }
+
+        if (this.voiceButton) {
+            this.voiceButton.setAttribute('aria-label', voiceModeEnabled ? 'Cancel voice recording' : 'Start voice recording')
+            this.voiceButton.title = voiceModeEnabled ? 'Cancel voice recording' : 'Voice message'
+            this.voiceButton.innerHTML = voiceModeEnabled
+                ? '<i class="ti ti-x fs-20"></i>'
+                : '<i class="ti ti-microphone fs-20"></i>'
+        }
+
+        if (this.emojiButton) {
+            if (!voiceModeEnabled) {
+                this.emojiButton.innerHTML = '<i class="ti ti-mood-smile fs-20"></i>'
+                this.emojiButton.setAttribute('aria-label', 'Add emoji')
+                this.emojiButton.title = 'Add emoji'
+                return
+            }
+
+            if (this.voiceRecordingActive) {
+                this.emojiButton.innerHTML = '<i class="ti ti-player-stop fs-20"></i>'
+                this.emojiButton.setAttribute('aria-label', 'Stop recording')
+                this.emojiButton.title = 'Stop recording'
+            } else if (this.voiceRecordedBlob) {
+                this.emojiButton.innerHTML = this.voicePreviewPlaying
+                    ? '<i class="ti ti-player-pause fs-20"></i>'
+                    : '<i class="ti ti-player-play fs-20"></i>'
+                this.emojiButton.setAttribute('aria-label', this.voicePreviewPlaying ? 'Pause preview' : 'Play preview')
+                this.emojiButton.title = this.voicePreviewPlaying ? 'Pause preview' : 'Play preview'
+            }
+        }
+
+        if (this.chatSendButton) {
+            this.chatSendButton.disabled = this.voiceRecordingActive || (voiceModeEnabled && !this.voiceRecordedBlob)
+        }
+    }
+
+    clearVoiceRecordingTimer = () => {
+        if (this.voiceRecordingTimer) {
+            window.clearInterval(this.voiceRecordingTimer)
+            this.voiceRecordingTimer = null
+        }
+    }
+
+    stopVoicePreview = () => {
+        if (this.voicePreviewAudio) {
+            this.voicePreviewAudio.pause()
+            this.voicePreviewAudio.currentTime = 0
+        }
+
+        this.voicePreviewPlaying = false
+    }
+
+    getVoiceStateLabelText = () => {
+        if (this.voiceRecordingActive) {
+            return 'Recording audio...'
+        }
+
+        if (this.voicePreviewPlaying) {
+            return 'Playing audio...'
+        }
+
+        if (this.voiceRecordedBlob) {
+            const duration = this.getVoicePreviewDurationSeconds()
+            const remaining = this.getVoicePreviewRemainingSeconds()
+
+            if (this.voicePreviewAudio && !this.voicePreviewAudio.paused && remaining > 0) {
+                return `Playing • ${this.formatVoiceDuration(remaining)} left`
+            }
+
+            return `Tap to play • ${this.formatVoiceDuration(duration)}`
+        }
+
+        return 'Voice message'
+    }
+
+    getVoicePreviewDurationSeconds = () => {
+        const duration = this.voicePreviewAudio?.duration
+        if (Number.isFinite(duration) && duration > 0) {
+            return duration
+        }
+
+        return this.voiceRecordingSeconds
+    }
+
+    getVoicePreviewRemainingSeconds = () => {
+        const duration = this.getVoicePreviewDurationSeconds()
+        const currentTime = this.voicePreviewAudio?.currentTime || 0
+        return Math.max(0, duration - currentTime)
+    }
+
+    getVoiceStateTimeText = () => {
+        if (this.voiceRecordingActive) {
+            return this.formatVoiceDuration(this.voiceRecordingSeconds)
+        }
+
+        if (this.voiceRecordedBlob) {
+            const remaining = this.getVoicePreviewRemainingSeconds()
+            return `${this.formatVoiceDuration(remaining)} left`
+        }
+
+        return '00:00'
+    }
+
+    releaseVoiceRecordingResources = ({ discardRecording = false } = {}) => {
+        if (discardRecording && this.voiceRecorder && this.voiceRecorder.state !== 'inactive') {
+            this.voiceDiscardOnStop = true
+        }
+
+        this.clearVoiceRecordingTimer()
+
+        if (this.voiceRecorder && this.voiceRecorder.state !== 'inactive') {
+            try {
+                this.voiceRecorder.stop()
+            } catch {
+                // ignore recorder shutdown races
+            }
+        }
+
+        this.voiceRecorder = null
+
+        if (this.voiceStream) {
+            this.voiceStream.getTracks().forEach((track) => track.stop())
+            this.voiceStream = null
+        }
+    }
+
+    resetVoiceRecording = ({ resetComposer = true } = {}) => {
+        this.stopVoicePreview()
+        this.releaseVoiceRecordingResources()
+
+        this.voiceRecordingMode = false
+        this.voiceRecordingActive = false
+        this.voiceChunks = []
+        this.voiceRecordedBlob = null
+        this.voiceRecordingSeconds = 0
+
+        if (this.voiceRecordedUrl) {
+            window.URL.revokeObjectURL(this.voiceRecordedUrl)
+            this.voiceRecordedUrl = ''
+        }
+
+        if (resetComposer) {
+            this.chatInput?.classList.remove('d-none')
+            this.attachmentButton?.classList.remove('d-none')
+            this.voiceState?.classList.add('d-none')
+            if (this.voiceStateLabel) {
+                this.voiceStateLabel.textContent = 'Voice message'
+            }
+            if (this.voiceStateTime) {
+                this.voiceStateTime.textContent = '00:00'
+            }
+        }
+
+        this.setVoiceComposerUi()
+    }
+
+    cancelVoiceRecording = ({ resetComposer = true } = {}) => {
+        this.releaseVoiceRecordingResources({ discardRecording: true })
+
+        this.voiceRecordingMode = false
+        this.voiceRecordingActive = false
+        this.voiceChunks = []
+        this.voiceRecordedBlob = null
+        this.voiceRecordingSeconds = 0
+
+        if (this.voiceRecordedUrl) {
+            window.URL.revokeObjectURL(this.voiceRecordedUrl)
+            this.voiceRecordedUrl = ''
+        }
+
+        this.stopVoicePreview()
+
+        if (resetComposer) {
+            this.voiceState?.classList.add('d-none')
+            this.chatInput?.classList.remove('d-none')
+            this.attachmentButton?.classList.remove('d-none')
+        }
+
+        this.setVoiceComposerUi()
+    }
+
+    startVoiceRecording = async () => {
+        if (this.voiceRecordingActive || this.voiceRecordedBlob) {
+            return
+        }
+
+        if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+            this.showBottomNotice('Voice recording is not supported in this browser.')
+            return
+        }
+
+        this.closeEmojiPicker()
+        this.cancelVoiceRecording({ resetComposer: false })
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+            this.voiceStream = stream
+            this.voiceChunks = []
+            this.voiceRecordingMode = true
+            this.voiceRecordingActive = true
+            this.voiceRecordingSeconds = 0
+
+            const mimeType = this.getPreferredVoiceMimeType()
+            const recorder = mimeType
+                ? new MediaRecorder(stream, { mimeType })
+                : new MediaRecorder(stream)
+
+            this.voiceRecorder = recorder
+            this.setVoiceComposerUi()
+
+            this.voiceRecordingTimer = window.setInterval(() => {
+                this.voiceRecordingSeconds += 1
+                if (this.voiceStateTime) {
+                    this.voiceStateTime.textContent = this.formatVoiceDuration(this.voiceRecordingSeconds)
+                }
+            }, 1000)
+
+            recorder.addEventListener('dataavailable', (event) => {
+                if (event.data && event.data.size > 0) {
+                    this.voiceChunks.push(event.data)
+                }
+            })
+            recorder.addEventListener('stop', () => {
+                this.voiceRecordingActive = false
+                this.clearVoiceRecordingTimer()
+                if (this.voiceStream) {
+                    this.voiceStream.getTracks().forEach((track) => track.stop())
+                    this.voiceStream = null
+                }
+
+                if (this.voiceDiscardOnStop) {
+                    this.voiceDiscardOnStop = false
+                    this.voiceChunks = []
+                    this.voiceRecordedBlob = null
+                    this.voiceRecordingMode = false
+                    this.voiceRecordingSeconds = 0
+
+                    if (this.voiceRecordedUrl) {
+                        window.URL.revokeObjectURL(this.voiceRecordedUrl)
+                        this.voiceRecordedUrl = ''
+                    }
+
+                    this.stopVoicePreview()
+                    this.setVoiceComposerUi()
+                    return
+                }
+
+                if (this.voiceChunks.length === 0) {
+                    this.resetVoiceRecording({ resetComposer: true })
+                    return
+                }
+
+                const blobType = recorder.mimeType || mimeType || 'audio/webm'
+                this.voiceRecordedBlob = new Blob(this.voiceChunks, { type: blobType })
+                this.voiceChunks = []
+
+                if (this.voiceRecordedUrl) {
+                    window.URL.revokeObjectURL(this.voiceRecordedUrl)
+                }
+
+                this.voiceRecordedUrl = window.URL.createObjectURL(this.voiceRecordedBlob)
+                if (!this.voicePreviewAudio) {
+                    this.voicePreviewAudio = new Audio()
+                }
+
+                this.voicePreviewAudio.src = this.voiceRecordedUrl
+                this.voicePreviewAudio.preload = 'metadata'
+                this.voicePreviewAudio.onended = () => {
+                    this.voicePreviewPlaying = false
+                    this.setVoiceComposerUi()
+                }
+
+                this.voicePreviewPlaying = false
+                this.voiceDiscardOnStop = false
+                this.setVoiceComposerUi()
+            })
+
+            recorder.start()
+            this.setVoiceComposerUi()
+        } catch (error) {
+            console.error('Voice recording failed:', error)
+            this.showBottomNotice(error?.message || 'Could not start voice recording.')
+            this.resetVoiceRecording({ resetComposer: true })
+        }
+    }
+
+    stopVoiceRecording = () => {
+        if (!this.voiceRecorder || this.voiceRecorder.state === 'inactive') {
+            return
+        }
+
+        try {
+            this.voiceRecorder.stop()
+        } catch (error) {
+            console.error('Voice stop failed:', error)
+            this.showBottomNotice('Could not stop voice recording.')
+        }
+    }
+
+    toggleVoicePreview = async () => {
+        if (!this.voiceRecordedBlob || !this.voicePreviewAudio) {
+            return
+        }
+
+        try {
+            if (this.voicePreviewPlaying) {
+                this.voicePreviewAudio.pause()
+                this.voicePreviewPlaying = false
+                this.setVoiceComposerUi()
+                return
+            }
+
+            this.voicePreviewPlaying = true
+            this.setVoiceComposerUi()
+            await this.voicePreviewAudio.play()
+        } catch (error) {
+            console.error('Voice preview failed:', error)
+            this.voicePreviewPlaying = false
+            this.setVoiceComposerUi()
+        }
+    }
+
+    uploadFilesAsAttachments = async (files) => {
+        if (!this.activeConversationId || !Array.isArray(files) || files.length === 0) {
+            return false
+        }
+
+        const formData = new FormData()
+        formData.append('conversationId', String(this.activeConversationId))
+        files.forEach((file) => {
+            formData.append('files[]', file)
+        })
+
+        this.attachmentButton?.setAttribute('disabled', 'disabled')
+        this.chatSendButton?.setAttribute('disabled', 'disabled')
+
+        try {
+            const response = await fetch(this.buildAttachmentUploadEndpoint(), {
+                method: 'POST',
+                headers: { 'Accept': 'application/json' },
+                body: formData,
+            })
+
+            const payload = await response.json().catch(() => ({}))
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.error || 'Failed to upload file.')
+            }
+
+            const createdMessages = Array.isArray(payload.messages) ? payload.messages : []
+            const createdAttachments = Array.isArray(payload.attachments) ? payload.attachments : []
+            if (createdAttachments.length > 0) {
+                const attachmentsByMessageId = new Map()
+                createdAttachments.forEach((attachment) => {
+                    const key = String(attachment?.messageId || '')
+                    if (!key) {
+                        return
+                    }
+
+                    if (!attachmentsByMessageId.has(key)) {
+                        attachmentsByMessageId.set(key, [])
+                    }
+
+                    attachmentsByMessageId.get(key).push(attachment)
+                })
+
+                createdMessages.forEach((message) => {
+                    const key = String(message?.id || '')
+                    if (!key) {
+                        return
+                    }
+
+                    const attachments = attachmentsByMessageId.get(key)
+                    if (attachments && attachments.length > 0) {
+                        message.attachments = attachments
+                    }
+                })
+            }
+
+            if (createdMessages.length > 0) {
+                this.setMessagesState('', false)
+            }
+
+            createdMessages.forEach((message, index) => {
+                this.messagesList?.appendChild(this.createMessageNode(message, Date.now() + index))
+            })
+
+            const latestMessage = createdMessages[createdMessages.length - 1]
+            if (latestMessage) {
+                this.syncConversationItemLastMessage(this.activeConversationItem, latestMessage)
+            }
+
+            this.scrollToBottom(true)
+            return true
+        } catch (error) {
+            this.showBottomNotice(error?.message || 'Failed to upload file.')
+            return false
+        } finally {
+            this.attachmentButton?.removeAttribute('disabled')
+            this.chatSendButton?.removeAttribute('disabled')
+        }
+    }
+
+    buildVoiceRecordingFile = () => {
+        if (!this.voiceRecordedBlob) {
+            return null
+        }
+
+        const mimeType = this.voiceRecordedBlob.type || 'audio/webm'
+        const extension = mimeType.includes('ogg') ? 'ogg' : 'webm'
+        const fileName = `voice-message-${Date.now()}.${extension}`
+        return new File([this.voiceRecordedBlob], fileName, { type: mimeType })
+    }
+
+    sendVoiceRecording = async () => {
+        if (!this.voiceRecordedBlob) {
+            return
+        }
+
+        const voiceFile = this.buildVoiceRecordingFile()
+        if (!voiceFile) {
+            return
+        }
+
+        this.voicePreviewAudio?.pause()
+        this.voicePreviewPlaying = false
+
+        const success = await this.uploadFilesAsAttachments([voiceFile])
+        if (success) {
+            this.resetVoiceRecording({ resetComposer: true })
+        }
+    }
+
+    initEmojiPicker = () => {
+        if (!this.emojiButton) {
+            return
+        }
+
+        this.initGifPicker()
+
+        if (!this.emojiCdnHost) {
+            this.emojiUseFallback = true
+            return
+        }
+
+        import('https://cdn.jsdelivr.net/npm/emoji-picker-element@1.29.1/index.js')
+            .then(() => {
+                if (window.customElements?.get('emoji-picker')) {
+                    const pickerElement = document.createElement('emoji-picker')
+                    pickerElement.classList.add('light')
+                    pickerElement.setAttribute('style', 'width:100%;height:290px;--border-size:0;')
+                    pickerElement.addEventListener('emoji-click', (event) => {
+                        this.insertEmoji(event?.detail?.unicode || '')
+                    })
+
+                    this.emojiCdnHost.innerHTML = ''
+                    this.emojiCdnHost.appendChild(pickerElement)
+                    this.emojiFallbackGrid?.classList.add('d-none')
+                    this.emojiUseFallback = false
+                    return
+                }
+
+                throw new Error('emoji-picker custom element not registered.')
+            })
+            .catch((error) => {
+                console.warn('Emoji CDN module failed to load. Falling back to local picker.', error)
+                this.emojiUseFallback = true
+                this.emojiFallbackGrid?.classList.remove('d-none')
+            })
+    }
+
+    setEmojiPanelTab = (tab) => {
+        const nextTab = tab === 'gif' ? 'gif' : 'emoji'
+        this.activeEmojiTab = nextTab
+
+        this.emojiTabs.forEach((button) => {
+            const isActive = button.dataset.emojiTab === nextTab
+            button.classList.toggle('active', isActive)
+            button.setAttribute('aria-selected', String(isActive))
+        })
+
+        this.emojiSection?.classList.toggle('d-none', nextTab !== 'emoji')
+        this.gifSection?.classList.toggle('d-none', nextTab !== 'gif')
+
+        if (nextTab === 'gif') {
+            this.loadGifResults(this.gifSearchInput?.value || '')
+        }
+    }
+
+    buildTenorSearchEndpoint = (query) => {
+        const q = String(query || '').trim()
+        if (this.gifApiProvider === 'kilpy') {
+            const customerId = String(this.gifCustomerId || 'guest')
+            const locale = String(this.gifLocale || 'tn')
+            return `${this.gifApiBaseUrl}/api/v1/${encodeURIComponent(this.tenorApiKey)}/gifs/search?q=${encodeURIComponent(q)}&limit=24&media_filter=nanogif,tinygif,gif&customer_id=${encodeURIComponent(customerId)}&locale=${encodeURIComponent(locale)}`
+        }
+
+        if (this.gifApiProvider !== 'tenor') {
+            return `https://api.giphy.com/v1/gifs/search?api_key=${encodeURIComponent(this.tenorApiKey)}&q=${encodeURIComponent(q)}&limit=20&rating=pg&lang=en`
+        }
+
+        return `https://tenor.googleapis.com/v2/search?key=${encodeURIComponent(this.tenorApiKey)}&q=${encodeURIComponent(q)}&limit=20&media_filter=gif&contentfilter=low`
+    }
+
+    buildTenorFeaturedEndpoint = () => {
+        if (this.gifApiProvider === 'kilpy') {
+            const customerId = String(this.gifCustomerId || 'guest')
+            const locale = String(this.gifLocale || 'tn')
+            return `${this.gifApiBaseUrl}/api/v1/${encodeURIComponent(this.tenorApiKey)}/gifs/trending?limit=24&media_filter=nanogif,tinygif,gif&customer_id=${encodeURIComponent(customerId)}&locale=${encodeURIComponent(locale)}`
+        }
+
+        if (this.gifApiProvider !== 'tenor') {
+            return `https://api.giphy.com/v1/gifs/trending?api_key=${encodeURIComponent(this.tenorApiKey)}&limit=20&rating=pg`
+        }
+
+        return `https://tenor.googleapis.com/v2/featured?key=${encodeURIComponent(this.tenorApiKey)}&limit=20&media_filter=gif&contentfilter=low`
+    }
+
+    extractTenorGifUrl = (gifItem) => {
+        if (this.gifApiProvider === 'kilpy') {
+            return (
+                gifItem?.media?.tinygif?.url ||
+                gifItem?.media?.gif?.url ||
+                gifItem?.media_formats?.tinygif?.url ||
+                gifItem?.media_formats?.gif?.url ||
+                gifItem?.tinygif?.url ||
+                gifItem?.gif?.url ||
+                gifItem?.media?.preview?.url ||
+                gifItem?.media?.thumbnail?.url ||
+                ''
+            )
+        }
+
+        if (this.gifApiProvider !== 'tenor') {
+            const images = gifItem?.images || {}
+            return (
+                images?.fixed_width?.url ||
+                images?.downsized?.url ||
+                images?.original?.url ||
+                ''
+            )
+        }
+
+        const formats = gifItem?.media_formats || {}
+        return (
+            formats?.gif?.url ||
+            formats?.mediumgif?.url ||
+            formats?.tinygif?.url ||
+            ''
+        )
+    }
+
+    renderGifResults = (gifItems) => {
+        if (!this.gifResults) {
+            return
+        }
+
+        this.gifResults.innerHTML = ''
+
+        if (!Array.isArray(gifItems) || gifItems.length === 0) {
+            const empty = document.createElement('div')
+            empty.className = 'text-muted small'
+            empty.textContent = 'No GIFs found.'
+            this.gifResults.appendChild(empty)
+            return
+        }
+
+        gifItems.forEach((gifItem) => {
+            const gifUrl = this.extractTenorGifUrl(gifItem)
+            if (!gifUrl) {
+                return
+            }
+
+            const description = gifItem?.content_description || gifItem?.description || gifItem?.title || ''
+
+            const button = document.createElement('button')
+            button.type = 'button'
+            button.className = 'chat-gif-item'
+            button.setAttribute('aria-label', `Send GIF ${description}`.trim())
+
+            const image = document.createElement('img')
+            image.src = gifUrl
+            image.loading = 'lazy'
+            image.alt = description || 'GIF'
+
+            button.appendChild(image)
+            button.addEventListener('click', async () => {
+                await this.sendGifMessage(gifUrl)
+            })
+
+            this.gifResults.appendChild(button)
+        })
+    }
+
+    collectKlipyGifItems = (node, out = []) => {
+        if (Array.isArray(node)) {
+            node.forEach((entry) => this.collectKlipyGifItems(entry, out))
+            return out
+        }
+
+        if (!node || typeof node !== 'object') {
+            return out
+        }
+
+        const hasGifUrl = Boolean(
+            node?.media?.tinygif?.url ||
+            node?.media?.gif?.url ||
+            node?.media_formats?.tinygif?.url ||
+            node?.media_formats?.gif?.url ||
+            node?.tinygif?.url ||
+            node?.gif?.url
+        )
+
+        if (hasGifUrl) {
+            out.push(node)
+        }
+
+        Object.values(node).forEach((value) => {
+            this.collectKlipyGifItems(value, out)
+        })
+
+        return out
+    }
+
+    parseKlipyGifResults = (payload) => {
+        if (payload?.success && Array.isArray(payload?.data)) {
+            return payload.data
+        }
+
+        if (Array.isArray(payload?.data)) {
+            return payload.data
+        }
+
+        if (Array.isArray(payload?.results)) {
+            return payload.results
+        }
+
+        return this.collectKlipyGifItems(payload, [])
+    }
+
+    loadGifResults = async (query = '') => {
+        if (!this.gifResults) {
+            return
+        }
+
+        if (!String(this.tenorApiKey || '').trim()) {
+            this.gifResults.innerHTML = ''
+            const missingKey = document.createElement('div')
+            missingKey.className = 'text-muted small'
+            missingKey.textContent = 'GIF API key is missing. Set KILPY or KLIPY_API_KEY in your environment.'
+            this.gifResults.appendChild(missingKey)
+            this.gifStatus && (this.gifStatus.textContent = 'GIF API unavailable')
+            return
+        }
+
+        const q = String(query || '').trim()
+        const endpoint = q.length > 0 ? this.buildTenorSearchEndpoint(q) : this.buildTenorFeaturedEndpoint()
+
+        this.gifStatus && (this.gifStatus.textContent = q.length > 0 ? `Results for "${q}"` : 'Trending GIFs')
+
+        try {
+            const response = await fetch(endpoint, { method: 'GET' })
+            if (!response.ok) {
+                if (response.status === 401 || response.status === 403) {
+                    throw new Error('GIF API key was rejected. Check KILPY.')
+                }
+
+                if (response.status === 429) {
+                    throw new Error('GIF API rate limit reached. Try again later.')
+                }
+
+                throw new Error(`Failed to load GIFs (${response.status}).`)
+            }
+
+            const payload = await response.json().catch(() => ({}))
+            const results = this.gifApiProvider === 'kilpy'
+                ? this.parseKlipyGifResults(payload)
+                : this.gifApiProvider !== 'tenor'
+                ? (Array.isArray(payload?.data) ? payload.data : [])
+                : (Array.isArray(payload?.results) ? payload.results : [])
+            this.renderGifResults(results)
+        } catch (error) {
+            console.error('GIF load failed:', error)
+            this.gifResults.innerHTML = ''
+            const failed = document.createElement('div')
+            failed.className = 'text-muted small'
+            failed.textContent = error?.message || 'Could not load GIFs right now.'
+            this.gifResults.appendChild(failed)
+            if (this.gifStatus) {
+                this.gifStatus.textContent = error?.message || 'GIF load failed'
+            }
+        }
+    }
+
+    sendGifMessage = async (gifUrl) => {
+        const cleanUrl = String(gifUrl || '').trim()
+        if (!cleanUrl || !this.activeConversationId) {
+            return
+        }
+
+        this.chatSendButton?.setAttribute('disabled', 'disabled')
+
+        try {
+            const response = await fetch(this.buildGifUploadEndpoint(), {
+                method: 'POST',
+                headers: { 'Accept': 'application/json' },
+                body: new URLSearchParams({
+                    conversationId: String(this.activeConversationId),
+                    gifUrl: cleanUrl,
+                }),
+            })
+
+            const payload = await response.json().catch(() => ({}))
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.error || 'Failed to send GIF.')
+            }
+
+            const message = payload.message || null
+            if (!message) {
+                throw new Error('Failed to send GIF.')
+            }
+
+            const attachments = Array.isArray(payload.attachments) ? payload.attachments : []
+            if (attachments.length > 0) {
+                message.attachments = attachments
+            }
+
+            this.setMessagesState('', false)
+            this.messagesList?.appendChild(this.createMessageNode(message, Date.now()))
+            this.syncConversationItemLastMessage(this.activeConversationItem, message)
+            this.scrollToBottom(true)
+            this.closeEmojiPicker()
+        } catch (error) {
+            this.showBottomNotice(error?.message || 'Failed to send GIF.')
+        } finally {
+            this.chatSendButton?.removeAttribute('disabled')
+        }
+    }
+
+    initGifPicker = () => {
+        this.emojiTabs.forEach((button) => {
+            button.addEventListener('click', (event) => {
+                event.preventDefault()
+                this.setEmojiPanelTab(button.dataset.emojiTab || 'emoji')
+            })
+        })
+
+        this.gifSearchInput?.addEventListener('input', () => {
+            if (this.gifDebounceTimer) {
+                window.clearTimeout(this.gifDebounceTimer)
+            }
+
+            this.gifDebounceTimer = window.setTimeout(() => {
+                this.loadGifResults(this.gifSearchInput?.value || '')
+            }, 220)
+        })
+
+        this.gifClearButton?.addEventListener('click', (event) => {
+            event.preventDefault()
+            if (this.gifSearchInput) {
+                this.gifSearchInput.value = ''
+            }
+            this.loadGifResults('')
+        })
+    }
+
+    isDirectGifUrl = (value) => {
+        const text = String(value || '').trim()
+        return /^https?:\/\/.+\.(gif)(\?.*)?$/i.test(text)
+    }
+
+    isDirectImageUrl = (value) => {
+        const text = String(value || '').trim()
+        return /^https?:\/\/.+\.(gif|png|jpe?g|webp)(\?.*)?$/i.test(text)
+    }
+
+    createInlineMediaNode = (url) => {
+        const wrapper = document.createElement('div')
+        wrapper.className = 'mt-2'
+
+        const link = document.createElement('a')
+        link.href = url
+        link.target = '_blank'
+        link.rel = 'noopener'
+
+        const image = document.createElement('img')
+        image.src = url
+        image.alt = 'GIF'
+        image.className = 'img-fluid rounded-3 border'
+        image.loading = 'lazy'
+
+        link.appendChild(image)
+        wrapper.appendChild(link)
+        return wrapper
     }
 
     applyConversationFilter = (filter) => {
@@ -495,11 +1548,16 @@ class ChatApp {
     }
 
     promoteConversationItem = (item) => {
-        if (!item || !item.parentElement) {
+        if (!item) {
             return
         }
 
-        item.parentElement.prepend(item)
+        const targetContainer = this.conversationItemsContainer || item.parentElement
+        if (!targetContainer) {
+            return
+        }
+
+        targetContainer.prepend(item)
         this.conversationItems = [item, ...this.conversationItems.filter((conversationItem) => conversationItem !== item)]
     }
 
@@ -508,21 +1566,22 @@ class ChatApp {
             return
         }
 
-        const previewText = String(message.body || '').trim()
+        const bodyText = String(message.body || '').trim()
+        const previewText = this.isDirectImageUrl(bodyText) ? 'GIF' : bodyText
         const timeLabel = String(message.timeLabel || '--')
 
-        const previewNode = item.querySelector('.chat-users + div p span')
+        const previewNode = item.querySelector('[data-apps-chat="conversation-last-preview"]')
         if (previewNode) {
             previewNode.textContent = previewText !== '' ? previewText : 'No messages yet'
         }
 
-        const timeNode = item.querySelector('h5 .float-end')
+        const timeNode = item.querySelector('[data-apps-chat="conversation-last-time"]')
         if (timeNode) {
             timeNode.textContent = timeLabel
         }
 
-        item.dataset.conversationCreatedAt = item.dataset.conversationCreatedAt || ''
         this.promoteConversationItem(item)
+        item.dataset.conversationCreatedAt = item.dataset.conversationCreatedAt || ''
     }
 
     setDetailsDrawerOpen = (open) => {
@@ -816,6 +1875,10 @@ class ChatApp {
 
     buildAttachmentUploadEndpoint = () => {
         return '/apps-chat/attachments'
+    }
+
+    buildGifUploadEndpoint = () => {
+        return '/apps-chat/gifs'
     }
 
     buildMessageEditEndpoint = (messageId) => {
@@ -1162,50 +2225,10 @@ class ChatApp {
         }
 
         const files = Array.from(this.attachmentInput.files)
-        const formData = new FormData()
-        formData.append('conversationId', String(this.activeConversationId))
-        files.forEach((file) => {
-            formData.append('files[]', file)
-        })
+        await this.uploadFilesAsAttachments(files)
 
-        this.attachmentButton?.setAttribute('disabled', 'disabled')
-        this.chatSendButton?.setAttribute('disabled', 'disabled')
-
-        try {
-            const response = await fetch(this.buildAttachmentUploadEndpoint(), {
-                method: 'POST',
-                headers: { 'Accept': 'application/json' },
-                body: formData,
-            })
-
-            const payload = await response.json().catch(() => ({}))
-            if (!response.ok || !payload.success) {
-                throw new Error(payload.error || 'Failed to upload file.')
-            }
-
-            const createdMessages = Array.isArray(payload.messages) ? payload.messages : []
-            if (createdMessages.length > 0) {
-                this.setMessagesState('', false)
-            }
-
-            createdMessages.forEach((message, index) => {
-                this.messagesList?.appendChild(this.createMessageNode(message, Date.now() + index))
-            })
-
-            const latestMessage = createdMessages[createdMessages.length - 1]
-            if (latestMessage) {
-                this.syncConversationItemLastMessage(this.activeConversationItem, latestMessage)
-            }
-
-            this.scrollToBottom(true)
-        } catch (error) {
-            this.showBottomNotice(error?.message || 'Failed to upload file.')
-        } finally {
-            if (this.attachmentInput) {
-                this.attachmentInput.value = ''
-            }
-            this.attachmentButton?.removeAttribute('disabled')
-            this.chatSendButton?.removeAttribute('disabled')
+        if (this.attachmentInput) {
+            this.attachmentInput.value = ''
         }
     }
 
@@ -1480,6 +2503,7 @@ class ChatApp {
     }
 
     resetConversationView = () => {
+        this.cancelVoiceRecording({ resetComposer: true })
         this.activeConversationItem = null
         this.activeConversationId = null
 
@@ -1882,6 +2906,227 @@ class ChatApp {
         return `${baseEndpoint}${separator}markAsRead=1`
     }
 
+    buildAiSummaryEndpoint = (conversationId) => {
+        return `/apps-chat/conversations/${encodeURIComponent(String(conversationId))}/ai-summary`
+    }
+
+    lastN = (items, n) => {
+        if (!Array.isArray(items) || items.length === 0 || n <= 0) {
+            return []
+        }
+
+        const from = Math.max(0, items.length - n)
+        return items.slice(from)
+    }
+
+    getConversationUnreadCount = (conversationItem) => {
+        if (!conversationItem) {
+            return 0
+        }
+
+        const rawCount = parseInt(String(conversationItem.dataset.conversationUnreadCount || '0'), 10)
+        if (Number.isFinite(rawCount) && rawCount > 0) {
+            return rawCount
+        }
+
+        const badge = conversationItem.querySelector('[data-apps-chat="conversation-unread-badge"]')
+        if (!badge) {
+            return 0
+        }
+
+        const badgeText = String(badge.textContent || '').trim()
+        if (badgeText === '99+') {
+            return 99
+        }
+
+        const parsed = parseInt(badgeText, 10)
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : 0
+    }
+
+    removeAiSummaryChip = () => {
+        this.messagesList?.querySelector('[data-apps-chat="ai-summary-chip-wrap"]')?.remove()
+    }
+
+    loadAiSummaryPendingState = () => {
+        try {
+            const raw = window.localStorage.getItem(this.aiSummaryPendingStorageKey)
+            if (!raw) {
+                this.aiSummaryPendingByConv = new Set()
+                return
+            }
+
+            const parsed = JSON.parse(raw)
+            if (!Array.isArray(parsed)) {
+                this.aiSummaryPendingByConv = new Set()
+                return
+            }
+
+            this.aiSummaryPendingByConv = new Set(
+                parsed
+                    .map((value) => String(value || '').trim())
+                    .filter((value) => value !== '')
+            )
+        } catch {
+            this.aiSummaryPendingByConv = new Set()
+        }
+    }
+
+    saveAiSummaryPendingState = () => {
+        try {
+            const values = Array.from(this.aiSummaryPendingByConv)
+            window.localStorage.setItem(this.aiSummaryPendingStorageKey, JSON.stringify(values))
+        } catch {
+            // Ignore storage errors to avoid breaking chat UI behavior.
+        }
+    }
+
+    addAiSummaryChip = (onClick) => {
+        if (!this.messagesList) {
+            return
+        }
+
+        this.removeAiSummaryChip()
+
+        const item = document.createElement('li')
+        item.className = 'chat-ai-chip-wrap'
+        item.setAttribute('data-apps-chat', 'ai-summary-chip-wrap')
+
+        const chip = document.createElement('button')
+        chip.type = 'button'
+        chip.className = 'chat-ai-chip'
+        chip.textContent = 'AI SUMMARY'
+
+        chip.addEventListener('click', (event) => {
+            event.preventDefault()
+            event.stopPropagation()
+            if (typeof onClick === 'function') {
+                onClick()
+            }
+        })
+
+        item.appendChild(chip)
+        this.messagesList.appendChild(item)
+        this.scrollToBottom(true)
+    }
+
+    openAiSummaryFrom = (title, messages, conversationId, unreadCount) => {
+        this.aiPendingTitle = String(title || '').trim() || 'Conversation'
+        this.aiPendingMessages = this.lastN(Array.isArray(messages) ? messages : [], 10)
+        this.aiPendingConvId = conversationId
+        this.aiPendingUnreadCount = unreadCount
+
+        this.openAiSummary()
+    }
+
+    openAiSummary = async () => {
+        if (!this.aiSummaryModal || !this.aiSummaryText || !this.aiPendingConvId) {
+            return
+        }
+
+        const convIdSnapshot = this.aiPendingConvId
+        const unreadSnapshot = this.aiPendingUnreadCount
+        const titleSnapshot = this.sanitizeAiSummaryTitleInput(this.aiPendingTitle || 'Conversation')
+        const convKey = String(convIdSnapshot)
+        let summarySucceeded = false
+
+        this.aiSummaryTitle && (this.aiSummaryTitle.textContent = 'AI Summary')
+        this.aiSummaryText.textContent = ''
+        this.aiSummaryLoading?.classList.remove('d-none')
+        this.getBootstrapModal(this.aiSummaryModal)?.show()
+        this.aiSummaryPendingByConv.add(convKey)
+        this.saveAiSummaryPendingState()
+
+        try {
+            const response = await fetch(this.buildAiSummaryEndpoint(convIdSnapshot), {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    title: titleSnapshot,
+                }),
+            })
+
+            const payload = await response.json().catch(() => ({}))
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.error || 'Summary is unavailable right now.')
+            }
+
+            if (String(this.activeConversationId || '') !== String(convIdSnapshot)) {
+                return
+            }
+
+            this.aiSummaryText.textContent = String(payload.summary || '').trim() || 'Summary unavailable.'
+            summarySucceeded = true
+        } catch (error) {
+            this.aiSummaryText.textContent = error?.message || 'AI summary is unavailable (LM Studio is unreachable).'
+        } finally {
+            this.aiSummaryLoading?.classList.add('d-none')
+
+            if (summarySucceeded) {
+                this.aiSummarySeenAtUnread.set(convKey, unreadSnapshot)
+                this.aiSummaryPendingByConv.delete(convKey)
+                this.saveAiSummaryPendingState()
+                this.removeAiSummaryChip()
+            } else {
+                this.aiSummaryPendingByConv.add(convKey)
+                this.saveAiSummaryPendingState()
+            }
+        }
+    }
+
+    sanitizeAiSummaryTitleInput = (value) => {
+        if (value === null || value === undefined) {
+            return 'Conversation'
+        }
+
+        const cleaned = String(value)
+            .replace(/[\u0000-\u001F\u007F]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+
+        if (!cleaned) {
+            return 'Conversation'
+        }
+
+        return cleaned.length > 120 ? cleaned.slice(0, 120) : cleaned
+    }
+
+    maybeShowAiSummaryChip = (conversationId, unreadBefore, conversationTitle, messages) => {
+        if (!conversationId) {
+            this.removeAiSummaryChip()
+            return
+        }
+
+        const convKey = String(conversationId)
+        const hasPending = this.aiSummaryPendingByConv.has(convKey)
+        const seenAt = this.aiSummarySeenAtUnread.get(convKey) || 0
+        const passesUnreadGate = unreadBefore >= this.aiSummaryUnreadThreshold && unreadBefore > seenAt
+
+        if (!hasPending && !passesUnreadGate) {
+            this.removeAiSummaryChip()
+            return
+        }
+
+        const contextMessages = this.lastN(Array.isArray(messages) ? messages : [], 10)
+        if (contextMessages.length === 0) {
+            this.aiSummaryPendingByConv.delete(convKey)
+            this.saveAiSummaryPendingState()
+            this.removeAiSummaryChip()
+            return
+        }
+
+        this.aiPendingConvId = conversationId
+        this.aiPendingUnreadCount = unreadBefore
+        this.aiPendingTitle = String(conversationTitle || '').trim() || 'Conversation'
+        this.aiPendingMessages = contextMessages
+
+        this.addAiSummaryChip(() => {
+            this.openAiSummaryFrom(this.aiPendingTitle, contextMessages, conversationId, unreadBefore)
+        })
+    }
+
     createAvatarElement = (avatarSrc, fallbackText) => {
         if (avatarSrc) {
             const image = document.createElement('img')
@@ -1900,16 +3145,25 @@ class ChatApp {
     getAttachmentKind = (attachment) => {
         const mimeType = String(attachment?.mimeType || '').toLowerCase()
         const fileName = String(attachment?.fileName || '').toLowerCase()
+        const extension = this.getAttachmentExtension(fileName)
         if (mimeType.startsWith('image/')) {
             return 'image'
         }
 
+        if (this.isVoiceRecordingAttachment(attachment, fileName, mimeType)) {
+            return 'audio'
+        }
+
         if (mimeType.startsWith('video/')) {
-            return 'video'
+            return this.isPreviewableVideoExtension(extension) ? 'video' : 'file'
         }
 
         if (mimeType.startsWith('audio/')) {
             return 'audio'
+        }
+
+        if (this.isPreviewableVideoExtension(extension)) {
+            return 'video'
         }
 
         if (fileName.endsWith('.mp3') || fileName.endsWith('.wav') || fileName.endsWith('.ogg') || fileName.endsWith('.m4a') || fileName.endsWith('.aac') || fileName.endsWith('.flac') || fileName.endsWith('.webm')) {
@@ -1917,6 +3171,27 @@ class ChatApp {
         }
 
         return 'file'
+    }
+
+    isVoiceRecordingAttachment = (attachment, fileName = '', mimeType = '') => {
+        const safeFileName = String(fileName || attachment?.fileName || '').toLowerCase()
+        const safeMimeType = String(mimeType || attachment?.mimeType || '').toLowerCase()
+
+        if (safeMimeType.startsWith('audio/')) {
+            return true
+        }
+
+        return safeFileName.startsWith('voice-message-') || safeFileName.startsWith('voice-recording-')
+    }
+
+    getAttachmentExtension = (fileName = '') => {
+        const safeFileName = String(fileName || '').toLowerCase()
+        const parts = safeFileName.split('.')
+        return parts.length > 1 ? parts[parts.length - 1] : ''
+    }
+
+    isPreviewableVideoExtension = (extension) => {
+        return ['mp4', 'm4v', 'webm', 'ogv', 'ogg'].includes(String(extension || '').toLowerCase())
     }
 
     createAttachmentNode = (attachment, index) => {
@@ -1950,6 +3225,26 @@ class ChatApp {
             video.src = url
             video.className = 'w-100 rounded-3 border bg-black'
             video.setAttribute('playsinline', 'playsinline')
+
+            video.addEventListener('error', () => {
+                const fallback = document.createElement('a')
+                fallback.href = url
+                fallback.target = '_blank'
+                fallback.rel = 'noopener'
+                fallback.className = 'd-inline-flex align-items-center gap-2 text-decoration-none border rounded-3 px-3 py-2 bg-body-tertiary text-body'
+
+                const icon = document.createElement('span')
+                icon.textContent = '▶'
+                icon.className = 'fw-semibold'
+
+                const text = document.createElement('span')
+                text.textContent = `${fileName} (open video)`
+
+                fallback.appendChild(icon)
+                fallback.appendChild(text)
+
+                wrapper.replaceChildren(fallback)
+            })
 
             wrapper.appendChild(video)
             return wrapper
@@ -2003,15 +3298,18 @@ class ChatApp {
             waveformRow.style.overflow = 'hidden'
             waveformRow.style.backgroundColor = 'rgba(13, 110, 253, 0.08)'
             waveformRow.style.borderRadius = '999px'
+            waveformRow.style.touchAction = 'none'
 
             const waveformSeed = String(attachment?.id || fileName || url)
             const waveformBars = []
             const barCount = 36
+            const baseBarHeights = []
 
             for (let barIndex = 0; barIndex < barCount; barIndex += 1) {
                 const bar = document.createElement('span')
                 const seedChar = waveformSeed.charCodeAt(barIndex % waveformSeed.length) || (barIndex + 17)
                 const normalizedHeightPx = 16 + ((seedChar + barIndex * 17) % 26)
+                baseBarHeights.push(normalizedHeightPx)
 
                 bar.style.width = '6px'
                 bar.style.height = `${normalizedHeightPx}px`
@@ -2041,7 +3339,49 @@ class ChatApp {
             playhead.style.backgroundColor = primaryColor
             playhead.style.transform = 'translateX(-1px)'
 
+            const progressFill = document.createElement('span')
+            progressFill.style.position = 'absolute'
+            progressFill.style.inset = '0 auto 0 0'
+            progressFill.style.width = '0%'
+            progressFill.style.borderRadius = '999px'
+            progressFill.style.background = 'linear-gradient(90deg, rgba(13, 110, 253, 0.28), rgba(13, 110, 253, 0.12))'
+            progressFill.style.pointerEvents = 'none'
+
+            const hoverIndicator = document.createElement('span')
+            hoverIndicator.style.position = 'absolute'
+            hoverIndicator.style.top = '0'
+            hoverIndicator.style.bottom = '0'
+            hoverIndicator.style.width = '2px'
+            hoverIndicator.style.left = '0%'
+            hoverIndicator.style.borderRadius = '999px'
+            hoverIndicator.style.backgroundColor = 'rgba(13, 110, 253, 0.35)'
+            hoverIndicator.style.opacity = '0'
+            hoverIndicator.style.pointerEvents = 'none'
+
+            const hoverTimeChip = document.createElement('span')
+            hoverTimeChip.style.position = 'absolute'
+            hoverTimeChip.style.top = '50%'
+            hoverTimeChip.style.transform = 'translate(-50%, -170%)'
+            hoverTimeChip.style.padding = '2px 6px'
+            hoverTimeChip.style.borderRadius = '999px'
+            hoverTimeChip.style.fontSize = '10px'
+            hoverTimeChip.style.fontWeight = '600'
+            hoverTimeChip.style.color = 'var(--bs-body-color)'
+            hoverTimeChip.style.backgroundColor = 'var(--bs-body-bg)'
+            hoverTimeChip.style.border = '1px solid var(--bs-border-color)'
+            hoverTimeChip.style.boxShadow = '0 4px 14px rgba(15, 23, 42, 0.12)'
+            hoverTimeChip.style.opacity = '0'
+            hoverTimeChip.style.pointerEvents = 'none'
+            hoverTimeChip.textContent = '0:00'
+
+            waveformRow.appendChild(progressFill)
             waveformRow.appendChild(playhead)
+            waveformRow.appendChild(hoverIndicator)
+            waveformRow.appendChild(hoverTimeChip)
+
+            let waveformFrameId = null
+            let isWaveformDragging = false
+            let lastPointerProgress = 0
 
             const timerRow = document.createElement('div')
             timerRow.className = 'd-flex align-items-center justify-content-between mt-1'
@@ -2074,27 +3414,75 @@ class ChatApp {
                 return `${minutes}:${remainingSeconds}`
             }
 
-            const updateProgress = () => {
+            const renderWaveform = (animated = false, previewProgress = null) => {
                 if (!audio.duration || Number.isNaN(audio.duration)) {
                     playhead.style.left = '0%'
+                    progressFill.style.width = '0%'
+                    hoverIndicator.style.opacity = '0'
+                    hoverTimeChip.style.opacity = '0'
                     currentTimeText.textContent = '0:00'
                     return
                 }
 
-                const progress = Math.min(100, Math.max(0, (audio.currentTime / audio.duration) * 100))
+                const progress = Math.min(100, Math.max(0, previewProgress ?? ((audio.currentTime / audio.duration) * 100)))
                 const activeBarCount = Math.max(1, Math.round((progress / 100) * waveformBars.length))
+                const playbackPhase = audio.currentTime * 6.5
+                const currentBarIndex = Math.max(0, Math.min(waveformBars.length - 1, Math.round((progress / 100) * (waveformBars.length - 1))))
 
                 waveformBars.forEach((bar, index) => {
                     const isActive = index < activeBarCount
                     const isCurrent = index === activeBarCount - 1
+                    const distanceFromPlayhead = Math.abs(index - activeBarCount + 1)
+                    const proximity = Math.max(0, 1 - (distanceFromPlayhead / 6))
+                    const pulse = animated ? (Math.sin(playbackPhase + index * 0.55) + 1) / 2 : 0
+                    const heightScale = isActive
+                        ? 0.94 + (proximity * 0.28) + (pulse * 0.22)
+                        : 0.72 + (pulse * 0.08)
 
+                    const hoverBoost = Math.max(0, 1 - (Math.abs(index - currentBarIndex) / 4))
                     bar.style.backgroundColor = isActive ? waveActiveColor : waveIdleColor
-                    bar.style.opacity = isActive ? '1' : '0.65'
-                    bar.style.transform = isCurrent && !audio.paused ? 'scaleY(1.24)' : 'scaleY(1)'
+                    bar.style.opacity = isActive ? String(0.80 + (proximity * 0.20)) : String(0.42 + (hoverBoost * 0.12))
+                    bar.style.transform = `scaleY(${isCurrent && !audio.paused ? Math.max(1.22, heightScale) : heightScale})`
                 })
 
                 playhead.style.left = `${progress}%`
+                progressFill.style.width = `${progress}%`
                 currentTimeText.textContent = formatTime(audio.currentTime)
+
+                if (isWaveformDragging) {
+                    hoverIndicator.style.opacity = '1'
+                    hoverIndicator.style.left = `${progress}%`
+                    hoverTimeChip.style.opacity = '1'
+                    hoverTimeChip.style.left = `${progress}%`
+                    hoverTimeChip.textContent = formatTime((progress / 100) * audio.duration)
+                } else if (animated && !audio.paused) {
+                    hoverIndicator.style.opacity = '0'
+                    hoverTimeChip.style.opacity = '0'
+                }
+            }
+
+            const stopWaveformAnimation = () => {
+                if (waveformFrameId !== null) {
+                    window.cancelAnimationFrame(waveformFrameId)
+                    waveformFrameId = null
+                }
+            }
+
+            const startWaveformAnimation = () => {
+                stopWaveformAnimation()
+
+                const tick = () => {
+                    if (audio.paused || audio.ended) {
+                        waveformFrameId = null
+                        renderWaveform(false)
+                        return
+                    }
+
+                    renderWaveform(true)
+                    waveformFrameId = window.requestAnimationFrame(tick)
+                }
+
+                waveformFrameId = window.requestAnimationFrame(tick)
             }
 
             const updateDuration = () => {
@@ -2112,16 +3500,44 @@ class ChatApp {
                 this.activeAudioElement = audio
             }
 
-            const seekToPointer = (event) => {
+            const getPointerProgress = (event) => {
                 if (!audio.duration || Number.isNaN(audio.duration)) {
-                    return
+                    return 0
                 }
 
                 const rect = waveformRow.getBoundingClientRect()
                 const offset = Math.min(Math.max(0, event.clientX - rect.left), rect.width)
-                const ratio = rect.width > 0 ? offset / rect.width : 0
-                audio.currentTime = ratio * audio.duration
-                updateProgress()
+                return rect.width > 0 ? offset / rect.width : 0
+            }
+
+            const seekToProgress = (progress) => {
+                if (!audio.duration || Number.isNaN(audio.duration)) {
+                    return
+                }
+
+                const safeProgress = Math.min(1, Math.max(0, progress))
+                audio.currentTime = safeProgress * audio.duration
+                renderWaveform(false, safeProgress * 100)
+            }
+
+            const updateHoverState = (event, commit = false) => {
+                if (!audio.duration || Number.isNaN(audio.duration)) {
+                    return
+                }
+
+                const progress = getPointerProgress(event)
+                lastPointerProgress = progress
+                renderWaveform(false, progress * 100)
+
+                hoverIndicator.style.opacity = '1'
+                hoverIndicator.style.left = `${progress * 100}%`
+                hoverTimeChip.style.opacity = '1'
+                hoverTimeChip.style.left = `${progress * 100}%`
+                hoverTimeChip.textContent = formatTime(progress * audio.duration)
+
+                if (commit) {
+                    seekToProgress(progress)
+                }
             }
 
             playButton.addEventListener('click', async () => {
@@ -2139,12 +3555,67 @@ class ChatApp {
                 updatePlayState()
             })
 
-            waveformRow.addEventListener('click', seekToPointer)
+            waveformRow.addEventListener('pointerdown', (event) => {
+                if (!audio.duration || Number.isNaN(audio.duration)) {
+                    return
+                }
 
-            audio.addEventListener('play', updatePlayState)
+                isWaveformDragging = true
+                waveformRow.setPointerCapture?.(event.pointerId)
+                updateHoverState(event, true)
+            })
+
+            waveformRow.addEventListener('pointermove', (event) => {
+                if (!audio.duration || Number.isNaN(audio.duration)) {
+                    return
+                }
+
+                if (!isWaveformDragging && event.buttons !== 1) {
+                    const progress = getPointerProgress(event)
+                    hoverIndicator.style.opacity = '1'
+                    hoverIndicator.style.left = `${progress * 100}%`
+                    hoverTimeChip.style.opacity = '1'
+                    hoverTimeChip.style.left = `${progress * 100}%`
+                    hoverTimeChip.textContent = formatTime(progress * audio.duration)
+                    renderWaveform(audio && !audio.paused, progress * 100)
+                    return
+                }
+
+                updateHoverState(event, true)
+            })
+
+            waveformRow.addEventListener('pointerup', (event) => {
+                if (!audio.duration || Number.isNaN(audio.duration)) {
+                    return
+                }
+
+                updateHoverState(event, true)
+                isWaveformDragging = false
+                waveformRow.releasePointerCapture?.(event.pointerId)
+                if (!audio.paused) {
+                    startWaveformAnimation()
+                }
+            })
+
+            waveformRow.addEventListener('pointerleave', () => {
+                if (isWaveformDragging) {
+                    return
+                }
+
+                hoverIndicator.style.opacity = '0'
+                hoverTimeChip.style.opacity = '0'
+                renderWaveform(!audio.paused)
+            })
+
+            audio.addEventListener('play', () => {
+                updatePlayState()
+                startWaveformAnimation()
+            })
             audio.addEventListener('playing', pauseOtherAudio)
             audio.addEventListener('pause', () => {
                 updatePlayState()
+                stopWaveformAnimation()
+                renderWaveform(false)
                 if (this.activeAudioElement === audio) {
                     this.activeAudioElement = null
                 }
@@ -2152,15 +3623,18 @@ class ChatApp {
             audio.addEventListener('ended', () => {
                 audio.currentTime = 0
                 updatePlayState()
+                stopWaveformAnimation()
+                renderWaveform(false)
                 playhead.style.left = '0%'
                 currentTimeText.textContent = '0:00'
                 if (this.activeAudioElement === audio) {
                     this.activeAudioElement = null
                 }
             })
-            audio.addEventListener('timeupdate', updateProgress)
+            audio.addEventListener('timeupdate', () => renderWaveform(false))
             audio.addEventListener('loadedmetadata', updateDuration)
             audio.addEventListener('error', () => {
+                stopWaveformAnimation()
                 waveformBars.forEach((bar) => {
                     bar.style.backgroundColor = waveIdleColor
                     bar.style.opacity = '0.65'
@@ -2180,6 +3654,7 @@ class ChatApp {
             wrapper.appendChild(bubbleWrapper)
 
             updatePlayState()
+            renderWaveform(false)
             return wrapper
         }
 
@@ -2456,12 +3931,16 @@ class ChatApp {
             : (message.senderAvatarSrc || '')
         const timeLabel = message.timeLabel || '--'
         const body = message.body || ''
+        const trimmedBody = String(body || '').trim()
+        const isInlineImageMessage = this.isDirectImageUrl(trimmedBody)
         const urlsInBody = this.extractMessageUrls(body)
         const bodyWithoutLinks = body.replace(/https?:\/\/[^\s<>"']+/gi, '').replace(/\s{2,}/g, ' ').trim()
         const attachments = Array.isArray(message.attachments) ? message.attachments : []
         const isAttachmentMessage = String(message.kind || '').toUpperCase() === 'ATTACHMENT'
         const fallbackText = body.trim().length > 0 ? body : 'Attachment'
-        const bodyTextToRender = bodyWithoutLinks !== '' ? bodyWithoutLinks : (isAttachmentMessage ? fallbackText : '')
+        const bodyTextToRender = isInlineImageMessage
+            ? ''
+            : bodyWithoutLinks !== '' ? bodyWithoutLinks : (isAttachmentMessage ? fallbackText : '')
         const hasTextBody = bodyTextToRender.trim().length > 0 || isAttachmentMessage
 
         const listItem = document.createElement('li')
@@ -2506,9 +3985,20 @@ class ChatApp {
 
         if (isAttachmentMessage) {
             chatMessage.appendChild(attachmentContainer)
-            queueMicrotask(() => {
-                this.loadMessageAttachments(message.id, attachmentContainer, bodyElement)
-            })
+            if (attachments.length > 0) {
+                attachmentContainer.classList.remove('d-none')
+                attachments.forEach((attachment, attachmentIndex) => {
+                    attachmentContainer.appendChild(this.createAttachmentNode(attachment, attachmentIndex))
+                })
+
+                if (bodyElement) {
+                    bodyElement.classList.add('d-none')
+                }
+            } else {
+                queueMicrotask(() => {
+                    this.loadMessageAttachments(message.id, attachmentContainer, bodyElement)
+                })
+            }
         } else if (attachments.length > 0) {
             attachmentContainer.classList.remove('d-none')
             attachments.forEach((attachment, attachmentIndex) => {
@@ -2517,11 +4007,15 @@ class ChatApp {
             chatMessage.appendChild(attachmentContainer)
         }
 
-        if (!isAttachmentMessage && urlsInBody.length > 0) {
+        if (!isAttachmentMessage && !isInlineImageMessage && urlsInBody.length > 0) {
             chatMessage.appendChild(linkPreviewContainer)
             queueMicrotask(() => {
                 this.renderMessageLinkPreviews(urlsInBody, linkPreviewContainer, isOwn)
             })
+        }
+
+        if (!isAttachmentMessage && isInlineImageMessage) {
+            chatMessage.appendChild(this.createInlineMediaNode(trimmedBody))
         }
 
         this.applyEditedBadge(listItem, !!message.isEdited || !!message.editedAt)
@@ -2615,6 +4109,7 @@ class ChatApp {
         }
 
         conversationItem.dataset.conversationUnread = '0'
+        conversationItem.dataset.conversationUnreadCount = '0'
         const badge = conversationItem.querySelector('[data-apps-chat="conversation-unread-badge"]')
         if (badge) {
             badge.remove()
@@ -2641,10 +4136,15 @@ class ChatApp {
         this.scrollToBottom()
     }
 
-    loadConversationMessages = async (conversationId, endpoint) => {
+    loadConversationMessages = async (conversationId, endpoint, options = {}) => {
         if (!endpoint) {
             return
         }
+
+        const unreadBefore = Number.isFinite(options?.unreadBefore)
+            ? Math.max(0, options.unreadBefore)
+            : 0
+        const conversationTitle = String(options?.conversationTitle || '').trim() || 'Conversation'
 
         if (this.activeFetchController) {
             this.activeFetchController.abort()
@@ -2674,10 +4174,30 @@ class ChatApp {
                 throw new Error(payload.error || 'Failed to load messages')
             }
 
+            const messages = Array.isArray(payload.messages) ? payload.messages : []
+            const readReceipts = Array.isArray(payload.readReceipts) ? payload.readReceipts : []
+            const conversationState = payload.conversationState || {}
+
+            const serverUnreadBefore = Number.parseInt(String(conversationState.unreadBeforeRead ?? ''), 10)
+            const unreadSnapshot = Number.isFinite(serverUnreadBefore) && serverUnreadBefore >= 0
+                ? serverUnreadBefore
+                : unreadBefore
+
+            const lastReadBefore = Number.parseInt(String(conversationState.lastReadMessageIdBeforeRead ?? '0'), 10)
+            const lastConversationMessageId = Number.parseInt(String(conversationState.lastConversationMessageId ?? '0'), 10)
+            const hasUnreadByMessageId = Number.isFinite(lastConversationMessageId)
+                && Number.isFinite(lastReadBefore)
+                && lastConversationMessageId > lastReadBefore
+
             this.renderMessages(
-                Array.isArray(payload.messages) ? payload.messages : [],
-                Array.isArray(payload.readReceipts) ? payload.readReceipts : []
+                messages,
+                readReceipts
             )
+
+            if (String(this.activeConversationId || '') === String(conversationId)) {
+                const effectiveUnread = hasUnreadByMessageId ? unreadSnapshot : 0
+                this.maybeShowAiSummaryChip(conversationId, effectiveUnread, conversationTitle, messages)
+            }
         } catch (error) {
             if (error?.name === 'AbortError') {
                 return
@@ -2698,6 +4218,8 @@ class ChatApp {
             return
         }
 
+        this.cancelVoiceRecording({ resetComposer: true })
+
         if (this.inlineEditMessageId) {
             this.clearInlineEditMode({ resetInput: true })
         }
@@ -2705,6 +4227,8 @@ class ChatApp {
         const rawConversationId = item.dataset.conversationId || ''
         const nextConversationId = rawConversationId !== '' ? rawConversationId : null
         const endpoint = this.buildMessagesEndpoint(item, rawConversationId, { markAsRead: true })
+        const unreadBefore = this.getConversationUnreadCount(item)
+        const conversationTitle = String(item.dataset.conversationName || item.dataset.groupTitle || item.dataset.dmName || '').trim() || 'Conversation'
 
         if (!endpoint) {
             return
@@ -2723,6 +4247,7 @@ class ChatApp {
 
         this.activeConversationItem = item
         this.activeConversationId = nextConversationId
+        this.subscribeCallTopic(nextConversationId)
         this.updateConversationHeader(item)
         this.setComposerEnabled(true)
 
@@ -2742,7 +4267,10 @@ class ChatApp {
         }
 
         this.clearConversationUnreadState(item)
-        this.loadConversationMessages(nextConversationId, endpoint)
+        await this.loadConversationMessages(nextConversationId, endpoint, {
+            unreadBefore,
+            conversationTitle,
+        })
     }
 
     initConversationSelection = () => {
@@ -2759,6 +4287,16 @@ class ChatApp {
             e.preventDefault();
 
             if (!this.activeConversationId || !this.chatInput) {
+                return
+            }
+
+            if (this.voiceRecordingActive) {
+                this.stopVoiceRecording()
+                return
+            }
+
+            if (this.voiceRecordedBlob) {
+                this.sendVoiceRecording()
                 return
             }
 
@@ -2798,6 +4336,7 @@ class ChatApp {
                     this.messagesList?.appendChild(this.createMessageNode(message, Date.now()))
                     this.syncConversationItemLastMessage(this.activeConversationItem, message)
                     this.chatInput.value = ''
+                    this.closeEmojiPicker()
                     this.scrollToBottom(true)
                 })
                 .catch((error) => {
@@ -2848,11 +4387,100 @@ class ChatApp {
             if (event.key === 'Escape' && this.inlineEditMessageId) {
                 event.preventDefault()
                 this.clearInlineEditMode({ resetInput: false })
+                return
             }
+
+            if (event.key === 'Escape' && this.emojiPickerVisible) {
+                event.preventDefault()
+                this.closeEmojiPicker()
+            }
+        })
+
+        this.chatInput?.addEventListener('focus', this.rememberComposerSelection)
+        this.chatInput?.addEventListener('click', this.rememberComposerSelection)
+        this.chatInput?.addEventListener('keyup', this.rememberComposerSelection)
+        this.chatInput?.addEventListener('mouseup', this.rememberComposerSelection)
+        this.chatInput?.addEventListener('select', this.rememberComposerSelection)
+        this.chatInput?.addEventListener('input', this.rememberComposerSelection)
+
+        this.emojiButton?.addEventListener('mousedown', (event) => {
+            event.preventDefault()
+            this.rememberComposerSelection()
+        })
+
+        this.emojiButton?.addEventListener('click', (event) => {
+            event.preventDefault()
+            if (!this.activeConversationId) {
+                return
+            }
+
+            if (this.voiceRecordingMode) {
+                if (this.voiceRecordingActive) {
+                    this.stopVoiceRecording()
+                } else if (this.voiceRecordedBlob) {
+                    this.toggleVoicePreview()
+                } else {
+                    this.startVoiceRecording()
+                }
+
+                return
+            }
+
+            this.toggleEmojiPicker()
+        })
+
+        this.voiceButton?.addEventListener('click', async (event) => {
+            event.preventDefault()
+
+            if (!this.activeConversationId) {
+                return
+            }
+
+            if (this.voiceRecordingMode) {
+                this.cancelVoiceRecording({ resetComposer: true })
+                return
+            }
+
+            await this.startVoiceRecording()
+        })
+
+        this.emojiFallbackCloseButton?.addEventListener('click', (event) => {
+            event.preventDefault()
+            this.closeEmojiPicker()
+        })
+
+        this.emojiFallbackItems.forEach((item) => {
+            item.addEventListener('click', (event) => {
+                event.preventDefault()
+                const emoji = item.dataset.emoji || item.textContent || ''
+                this.insertEmoji(emoji)
+            })
+        })
+
+        document.addEventListener('click', (event) => {
+            if (!this.emojiPickerVisible) {
+                return
+            }
+
+            const target = event.target instanceof HTMLElement ? event.target : null
+            if (!target) {
+                this.closeEmojiPicker()
+                return
+            }
+
+            if (target.closest('[data-apps-chat="emoji-fallback-picker"]') || target.closest('[data-apps-chat="emoji-button"]')) {
+                return
+            }
+
+            this.closeEmojiPicker()
         })
 
         this.inlineEditCancelButton?.addEventListener('click', () => {
             this.clearInlineEditMode({ resetInput: true })
+        })
+
+        this.aiSummaryModal?.addEventListener('hidden.bs.modal', () => {
+            this.aiSummaryLoading?.classList.add('d-none')
         })
 
         this.attachmentButton?.addEventListener('click', (event) => {
@@ -3221,6 +4849,7 @@ class ChatApp {
             queueMicrotask(async () => {
                 const conversationItem = document.querySelector(`[data-apps-chat="conversation-item"][data-conversation-id="${conversationId}"]`)
                 if (conversationItem) {
+                    this.promoteConversationItem(conversationItem)
                     conversationItem.click()
                 } else {
                     // Reload page after a short delay to ensure all events are processed
@@ -3260,8 +4889,768 @@ class ChatApp {
         }
     }
 
+    enc = (value) => encodeURIComponent(String(value || ''))
+
+    getSelectedConversationId = () => {
+        const convId = parseInt(String(this.activeConversationId || '0'), 10)
+        return Number.isInteger(convId) && convId > 0 ? convId : 0
+    }
+
+    initCallSignaling = () => {
+        if (!this.callSignalingEnabled || !this.callSocketUrl) {
+            return
+        }
+
+        this.startGlobalCallPolling()
+        this.stompConnectRequested = true
+        this.connectCallSocket()
+    }
+
+    // Java's startGlobalCallPolling equivalent
+    startGlobalCallPolling = () => {
+        if (this.callPollingInterval) {
+            clearInterval(this.callPollingInterval)
+        }
+
+        // Initialize last call message ID to ignore old messages
+        this.lastGlobalCallMsgId = 0
+        this.lastIncomingCallMsgId = 0
+
+        this.callPollingInterval = setInterval(async () => {
+            try {
+                const response = await fetch(`/apps-chat/calls/poll?lastMessageId=${this.lastGlobalCallMsgId}`)
+                if (!response.ok) {
+                    return
+                }
+
+                const data = await response.json()
+                if (!data.success) {
+                    return
+                }
+
+                const { callMessages, lastMessageId } = data
+                
+                // Update watermark
+                if (lastMessageId > this.lastGlobalCallMsgId) {
+                    this.lastGlobalCallMsgId = lastMessageId
+                }
+
+                // Process new call messages
+                for (const callMsg of callMessages) {
+                    // Skip own messages
+                    if (callMsg.senderId === this.currentUserId) {
+                        continue
+                    }
+
+                    // Update incoming call watermark
+                    if (callMsg.id > this.lastIncomingCallMsgId) {
+                        this.lastIncomingCallMsgId = callMsg.id
+                    }
+
+                    this.onIncomingSignal({
+                        type: callMsg.type || 'RING',
+                        conversationId: callMsg.conversationId,
+                        fromUserId: callMsg.senderId,
+                        fromName: callMsg.fromName || `User ${callMsg.senderId}`,
+                        callKind: callMsg.callKind || (callMsg.video ? 'VIDEO' : 'AUDIO'),
+                        room: callMsg.room,
+                    })
+                }
+
+            } catch (error) {
+                console.error('Call polling error:', error)
+            }
+        }, 1000) // Poll every second like Java
+    }
+
+    stopGlobalCallPolling = () => {
+        if (this.callPollingInterval) {
+            clearInterval(this.callPollingInterval)
+            this.callPollingInterval = null
+            console.log('Call polling stopped for user:', this.currentUserId)
+        }
+    }
+
+    ensureStompLibraries = async () => {
+        if (!window.SockJS || !window.Stomp) {
+            throw new Error('SockJS/STOMP libraries are unavailable.')
+        }
+    }
+
+    getSockJsEndpointUrl = () => {
+        const raw = String(this.callSocketUrl || '').trim()
+        if (!raw) {
+            return `${window.location.protocol}//${window.location.host}/ws`
+        }
+
+        if (raw.startsWith('/')) {
+            return `${window.location.protocol}//${window.location.host}${raw}`
+        }
+
+        try {
+            const parsed = new URL(raw.replace(/^ws:/i, 'http:').replace(/^wss:/i, 'https:'))
+            if (this.isLoopbackHost(parsed.hostname) && !this.isLoopbackHost(window.location.hostname)) {
+                parsed.hostname = window.location.hostname
+            }
+            return parsed.toString().replace(/\/$/, '')
+        } catch {
+            return raw
+        }
+    }
+
+    isLoopbackHost = (host) => {
+        const normalized = String(host || '').trim().toLowerCase()
+        return normalized === 'localhost' || normalized === '127.0.0.1' || normalized === '::1' || normalized === '[::1]'
+    }
+
+    subscribeCallTopic = (conversationId) => {
+        if (!this.stompConnected || !this.stomp) {
+            console.log('STOMP not connected, cannot subscribe to call topic')
+            return
+        }
+
+        const convId = parseInt(String(conversationId || '0'), 10)
+        if (!Number.isInteger(convId) || convId <= 0) {
+            console.log('Invalid conversation ID for call topic subscription:', conversationId)
+            return
+        }
+
+        if (this.callConversationSubscriptions.has(convId)) {
+            return
+        }
+
+        const destination = `/topic/call.${convId}`
+        const subscription = this.stomp.subscribe(destination, (frame) => {
+            this.onIncomingSignal(frame?.body || '{}')
+        })
+
+        this.callConversationSubscriptions.set(convId, subscription)
+        console.info(`Subscribed to conversation call topic: ${destination}`)
+    }
+    subscribeAllCallTopics = () => {
+    if (!this.stompConnected || !this.stomp) {
+        return
+    }
+
+    this.conversationItems.forEach((item) => {
+        const convId = parseInt(String(item?.dataset?.conversationId || '0'), 10)
+        if (Number.isInteger(convId) && convId > 0) {
+            this.subscribeCallTopic(convId)
+        }
+    })
+}
+
+    sendCallSignal = (destination, payload) => {
+        if (!this.stompConnected || !this.stomp) {
+            return false
+        }
+
+        try {
+            this.stomp.send(destination, { 'content-type': 'application/json' }, JSON.stringify(payload))
+            return true
+        } catch (error) {
+            console.error(`Failed to send ${destination}:`, error)
+            return false
+        }
+    }
+
+    connectCallSocket = async () => {
+    if (this.stompConnecting || this.stompConnected) {
+        return
+    }
+
+    this.stompConnecting = true
+
+    try {
+        await this.ensureStompLibraries()
+    } catch (error) {
+        console.error('Call libraries failed to load:', error)
+        this.stompConnecting = false
+        this.showBottomNotice('SockJS/STOMP libraries are unavailable.')
+        return
+    }
+
+    const endpoint = this.getSockJsEndpointUrl()
+    console.log('SockJS endpoint =', endpoint)
+
+    const socket = new window.SockJS(endpoint)
+    const client = window.Stomp.over(socket)
+    client.debug = (msg) => console.log('[STOMP]', msg)
+
+    this.stomp = client
+
+    client.connect(
+        {},
+        () => {
+            this.stompConnecting = false
+            this.stompConnected = true
+            console.info('STOMP connected via SockJS')
+
+            this.subscribeAllCallTopics()
+            this.flushPendingCallAction()
+        },
+        (error) => {
+            console.error('STOMP error:', error)
+            this.showBottomNotice('STOMP connection failed.')
+            this.stompConnecting = false
+            this.stompConnected = false
+
+            if (this.stompReconnectTimer) {
+                window.clearTimeout(this.stompReconnectTimer)
+            }
+
+            this.stompReconnectTimer = window.setTimeout(() => {
+                this.connectCallSocket()
+            }, 2500)
+        }
+    )
+
+    socket.onclose = () => {
+        console.warn('SockJS socket closed')
+        this.stompConnecting = false
+        this.stompConnected = false
+
+        for (const [, subscription] of this.callConversationSubscriptions.entries()) {
+            try {
+                subscription.unsubscribe()
+            } catch {
+                // ignore stale subscriptions
+            }
+        }
+        this.callConversationSubscriptions.clear()
+
+        if (this.stompReconnectTimer) {
+            window.clearTimeout(this.stompReconnectTimer)
+        }
+
+        this.stompReconnectTimer = window.setTimeout(() => {
+            this.connectCallSocket()
+        }, 2500)
+    }
+}
+
+    flushPendingCallAction = async () => {
+    if (!this.pendingOutgoingCall) {
+        return
+    }
+
+    const { convId, video, popupRef } = this.pendingOutgoingCall
+
+    if (!this.pendingOutgoingCall.inviteSent) {
+        try {
+            if (!this.pendingOutgoingCall.inviteRequest) {
+                this.pendingOutgoingCall.inviteRequest = fetch(`/apps-chat/conversations/${convId}/call/invite`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'Accept': 'application/json',
+                    },
+                    body: new URLSearchParams({
+                        video: video ? '1' : '0',
+                    }),
+                }).then(async (response) => ({
+                    response,
+                    result: await response.json().catch(() => null),
+                }))
+            }
+
+            const { response, result } = await this.pendingOutgoingCall.inviteRequest
+            if (!response.ok || result?.success === false) {
+                throw new Error(result?.error || 'Failed to send call invitation.')
+            }
+
+            this.pendingOutgoingCall.inviteSent = true
+            this.pendingOutgoingCall.room = String(result?.room || `conv_${convId}`)
+            this.pendingOutgoingCall.messageId = parseInt(String(result?.messageId || '0'), 10) || 0
+        } catch (error) {
+            console.error('Failed to persist call invite:', error)
+            try {
+                popupRef?.close()
+            } catch {
+                // ignore
+            }
+            this.pendingOutgoingCall = null
+            this.showBottomNotice(error?.message || 'Failed to send call invitation.')
+            return
+        }
+    }
+
+    const room = this.pendingOutgoingCall.room || `conv_${convId}`
+
+    if (!this.stompConnected || !this.stomp) {
+        try {
+            if (popupRef && !popupRef.closed) {
+                popupRef.focus()
+                popupRef.document.body.innerHTML = '<p style="font-family:system-ui,sans-serif;padding:16px;">Waiting for the other user to accept...</p>'
+            }
+        } catch {
+            // ignore popup DOM access errors
+        }
+
+        return
+    }
+
+    const payload = {
+        type: 'RING',
+        conversationId: convId,
+        fromUserId: this.currentUserId,
+        fromName: this.currentUserName || `User ${this.currentUserId}`,
+        callKind: video ? 'VIDEO' : 'AUDIO',
+        room,
+    }
+
+    this.subscribeCallTopic(convId)
+
+    const ok = this.sendCallSignal('/app/call.start', payload)
+    if (!ok) {
+        try {
+            popupRef?.close()
+        } catch {
+            // ignore
+        }
+        this.pendingOutgoingCall = null
+        this.showBottomNotice('Failed to send call invitation.')
+        return
+    }
+
+    console.info('Sent call.start payload:', payload)
+
+    try {
+        if (popupRef && !popupRef.closed) {
+            popupRef.focus()
+            popupRef.document.body.innerHTML = '<p style="font-family:system-ui,sans-serif;padding:16px;">Waiting for the other user to accept...</p>'
+        }
+    } catch {
+        // ignore popup DOM access errors
+    }
+}
+
+    openCallPlaceholder = (message) => {
+        const popup = window.open('', '_blank', 'width=1180,height=760')
+        if (!popup) {
+            this.showBottomNotice('Popup blocked. Using current tab for the call.')
+            return null
+        }
+
+        try {
+            popup.document.write(`<title>Call</title><p style="font-family:system-ui,sans-serif;padding:16px;">${message}</p>`)
+            popup.document.close()
+            this.callPopupWindow = popup
+        } catch (error) {
+            console.warn('Could not write initial popup content:', error)
+        }
+
+        return popup
+    }
+
+    initCallActions = () => {
+        this.callButtonAudio?.addEventListener('click', (event) => {
+            event.preventDefault()
+            this.handleAudioCall()
+        })
+
+        this.callButtonVideo?.addEventListener('click', (event) => {
+            event.preventDefault()
+            this.handleVideoCall()
+        })
+    }
+
+    handleAudioCall = () => {
+    console.log('=== AUDIO CALL BUTTON PRESSED ===')
+
+    const convId = this.getSelectedConversationId()
+    console.log('Selected conversation ID:', convId)
+
+    if (convId <= 0) {
+        this.showBottomNotice('Select a conversation before starting a call.')
+        return
+    }
+
+    const popup = this.openCallPlaceholder('Starting audio call...')
+
+        this.pendingOutgoingCall = {
+            convId,
+            video: false,
+            popupRef: popup,
+            useSameTabFallback: !popup,
+            inviteSent: false,
+        }
+
+        if (!this.stomp) {
+            this.stompConnectRequested = true
+            this.connectCallSocket()
+            this.showBottomNotice('Connecting call socket...')
+            this.flushPendingCallAction()
+            return
+        }
+
+        if (!this.stompConnected) {
+            this.showBottomNotice('Connecting call socket...')
+            this.flushPendingCallAction()
+            return
+        }
+
+    this.flushPendingCallAction()
+}
+
+    handleVideoCall = () => {
+    console.log('=== VIDEO CALL BUTTON PRESSED ===')
+
+    const convId = this.getSelectedConversationId()
+    console.log('Selected conversation ID:', convId)
+
+    if (convId <= 0) {
+        this.showBottomNotice('Select a conversation before starting a call.')
+        return
+    }
+
+    const popup = this.openCallPlaceholder('Starting video call...')
+
+        this.pendingOutgoingCall = {
+            convId,
+            video: true,
+            popupRef: popup,
+            useSameTabFallback: !popup,
+            inviteSent: false,
+        }
+
+        if (!this.stomp) {
+            this.stompConnectRequested = true
+            this.connectCallSocket()
+            this.showBottomNotice('Connecting call socket...')
+            this.flushPendingCallAction()
+            return
+        }
+
+        if (!this.stompConnected) {
+            this.showBottomNotice('Connecting call socket...')
+            this.flushPendingCallAction()
+            return
+        }
+
+    this.flushPendingCallAction()
+}
+
+    onIncomingSignal = async (rawBody) => {
+    try {
+        const payload = typeof rawBody === 'string' ? JSON.parse(rawBody) : rawBody
+        if (!payload || typeof payload !== 'object') {
+            return
+        }
+
+        const convId = parseInt(String(payload.conversationId || '0'), 10)
+        if (!Number.isInteger(convId) || convId <= 0) {
+            return
+        }
+
+        const fromUserId = parseInt(String(payload.fromUserId || '0'), 10)
+        if (fromUserId === this.currentUserId) {
+            return
+        }
+
+        const type = String(payload.type || '').toUpperCase()
+        const video = String(payload.callKind || '').toUpperCase() === 'VIDEO'
+        const room = String(payload.room || `conv_${convId}`)
+        const fromName = String(payload.fromName || `User ${fromUserId}`)
+
+        if (type === 'RING') {
+            const pendingConvId = parseInt(String(this.pendingOutgoingCall?.convId || '0'), 10)
+            if (pendingConvId === convId) {
+                console.info('Ignoring echoed outgoing call ring:', payload)
+                return
+            }
+
+            this.showIncomingCallPopup(convId, video, room, fromName)
+            return
+        }
+
+        if (type === 'ACCEPT') {
+            if (!this.pendingOutgoingCall) {
+                return
+            }
+
+            const pendingConvId = parseInt(String(this.pendingOutgoingCall.convId || '0'), 10)
+            if (pendingConvId !== convId) {
+                return
+            }
+
+            const pending = this.pendingOutgoingCall
+            this.pendingOutgoingCall = null
+            this.openCallWindow(convId, !!pending.video, room, pending.popupRef || null)
+            return
+        }
+
+        if (type === 'REJECT') {
+            if (this.pendingOutgoingCall?.popupRef && !this.pendingOutgoingCall.popupRef.closed) {
+                try {
+                    this.pendingOutgoingCall.popupRef.close()
+                } catch {
+                    // ignore
+                }
+            }
+
+            this.pendingOutgoingCall = null
+            this.showBottomNotice('Call rejected.')
+        }
+    } catch (error) {
+        console.error('Failed to process incoming call signal:', error)
+    }
+}
+
+    showIncomingCallPopup = (convId, video, room, fromName) => {
+        this.pendingIncomingCall = { convId, video, room, fromName }
+
+        document.querySelector('[data-apps-chat="incoming-call-overlay"]')?.remove()
+
+        const overlay = document.createElement('div')
+        overlay.dataset.appsChat = 'incoming-call-overlay'
+        overlay.style.position = 'fixed'
+        overlay.style.inset = '0'
+        overlay.style.zIndex = '2000'
+        overlay.style.display = 'flex'
+        overlay.style.alignItems = 'center'
+        overlay.style.justifyContent = 'center'
+        overlay.style.padding = '1rem'
+        overlay.style.background = 'rgba(15, 23, 42, 0.45)'
+
+        const panel = document.createElement('div')
+        panel.style.width = 'min(92vw, 380px)'
+        panel.style.borderRadius = '0.75rem'
+        panel.style.padding = '1.25rem'
+        panel.style.background = 'var(--bs-body-bg, #fff)'
+        panel.style.boxShadow = '0 1.25rem 3rem rgba(15, 23, 42, 0.28)'
+        panel.style.textAlign = 'center'
+
+        const title = document.createElement('div')
+        title.style.fontSize = '1.05rem'
+        title.style.fontWeight = '700'
+        title.style.marginBottom = '0.35rem'
+        title.textContent = `${fromName} is calling`
+
+        const subtitle = document.createElement('div')
+        subtitle.style.color = 'var(--bs-secondary-color, #6c757d)'
+        subtitle.style.marginBottom = '1rem'
+        subtitle.textContent = video ? 'Incoming video call' : 'Incoming audio call'
+
+        const actions = document.createElement('div')
+        actions.style.display = 'flex'
+        actions.style.justifyContent = 'center'
+        actions.style.gap = '0.75rem'
+
+        const rejectButton = document.createElement('button')
+        rejectButton.type = 'button'
+        rejectButton.className = 'btn btn-outline-danger'
+        rejectButton.textContent = 'Reject'
+
+        const acceptButton = document.createElement('button')
+        acceptButton.type = 'button'
+        acceptButton.className = 'btn btn-success'
+        acceptButton.textContent = 'Accept'
+
+        actions.append(rejectButton, acceptButton)
+        panel.append(title, subtitle, actions)
+        overlay.append(panel)
+        document.body.append(overlay)
+
+        const closeOverlay = () => {
+            overlay.remove()
+            this.pendingIncomingCall = null
+        }
+
+        acceptButton.addEventListener('click', () => {
+            const popup = this.openCallPlaceholder('Joining call...')
+            this.acceptCall(convId, video)
+            closeOverlay()
+            this.openCallWindow(convId, video, room, popup)
+        }, { once: true })
+
+        rejectButton.addEventListener('click', () => {
+            this.rejectCall(convId, video)
+            closeOverlay()
+        }, { once: true })
+    }
+
+    // New methods following Java pattern
+    acceptCall = async (convId, video) => {
+        try {
+            const response = await fetch(`/apps-chat/conversations/${convId}/call/accept`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    'video': video.toString()
+                })
+            })
+
+            if (!response.ok) {
+                throw new Error('Failed to accept call')
+            }
+
+            const result = await response.json()
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to accept call')
+            }
+
+            // Send STOMP signal if connected
+            if (this.stompConnected && this.stomp) {
+                this.sendAccept(convId, video)
+            }
+
+        } catch (error) {
+            console.error('Failed to accept call:', error)
+            this.showBottomNotice('Failed to accept call: ' + error.message)
+        }
+    }
+
+    rejectCall = async (convId, video) => {
+        try {
+            const response = await fetch(`/apps-chat/conversations/${convId}/call/reject`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    'video': video.toString()
+                })
+            })
+
+            if (!response.ok) {
+                throw new Error('Failed to reject call')
+            }
+
+            const result = await response.json()
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to reject call')
+            }
+
+            // Send STOMP signal if connected
+            if (this.stompConnected && this.stomp) {
+                this.sendReject(convId, video)
+            }
+
+        } catch (error) {
+            console.error('Failed to reject call:', error)
+        }
+    }
+
+    markInviteRead = async (convId, inviteMsgId) => {
+        if (inviteMsgId <= 0) {
+            return
+        }
+
+        try {
+            await fetch(`/apps-chat/conversations/${convId}/messages/${inviteMsgId}/read`, {
+                method: 'POST'
+            })
+        } catch (error) {
+            console.error('Failed to mark invite as read:', error)
+        }
+    }
+
+    closeIncomingPopup = () => {
+        this.pendingIncomingCall = null
+    }
+
+    sendAccept = (convId, video) => {
+        if (!this.stompConnected || !this.stomp) {
+            return
+        }
+
+        const payload = {
+            type: 'ACCEPT',
+            conversationId: convId,
+            fromUserId: this.currentUserId,
+            callKind: video ? 'VIDEO' : 'AUDIO',
+        }
+
+        this.sendCallSignal('/app/call.accept', payload)
+    }
+
+    sendReject = (convId, video) => {
+        if (!this.stompConnected || !this.stomp) {
+            return
+        }
+
+        const payload = {
+            type: 'REJECT',
+            conversationId: convId,
+            fromUserId: this.currentUserId,
+            callKind: video ? 'VIDEO' : 'AUDIO',
+        }
+
+        this.sendCallSignal('/app/call.reject', payload)
+    }
+
+    openCallWindow = async (convId, videoEnabled, room, popupRef = null) => {
+    if (convId <= 0) {
+        return
+    }
+
+    let popup = popupRef || this.callPopupWindow || null
+
+    try {
+        const roomName = String(room || '').trim() !== ''
+            ? String(room).trim()
+            : `conv_${convId}`
+
+        const identity = `user-${this.currentUserId}`
+        const myName = this.currentUserName || `User ${this.currentUserId}`
+
+        const tokenUrl = `${this.callTokenEndpoint}?room=${this.enc(roomName)}&identity=${this.enc(identity)}&name=${this.enc(myName)}`
+        const tokenResponse = await fetch(tokenUrl, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' },
+        })
+
+        if (!tokenResponse.ok) {
+            const body = await tokenResponse.text()
+            throw new Error(`Token failed: ${body}`)
+        }
+
+        const payload = await tokenResponse.json()
+        if (payload?.success === false) {
+            throw new Error(payload?.error || 'Token server rejected the request.')
+        }
+
+        const token = String(payload?.token || '').trim()
+        if (!token) {
+            throw new Error('Token response is missing token field.')
+        }
+
+        const callUrl = `${this.callPageEndpoint}?wsUrl=${this.enc(this.callLivekitUrl)}&token=${this.enc(token)}&mic=true&cam=${videoEnabled ? 'true' : 'false'}`
+
+        if (popup && !popup.closed) {
+            popup.location.href = callUrl
+            try {
+                popup.focus()
+            } catch {
+                // ignore focus issues
+            }
+            this.callPopupWindow = popup
+            return
+        }
+
+        window.location.href = callUrl
+    } catch (error) {
+        console.error('Failed to open call window:', error)
+
+        try {
+            if (popup && !popup.closed) {
+                popup.close()
+            }
+        } catch {
+            // ignore
+        }
+
+        this.showBottomNotice(error?.message || 'Could not start call.')
+    }
+}
+
     init = () => {
         this.cacheElements();
+        this.loadAiSummaryPendingState();
+        this.initEmojiPicker();
         this.setComposerEnabled(false);
         this.initDetailsDrawer();
         this.initCustomization();
@@ -3271,6 +5660,10 @@ class ChatApp {
         this.initFilters();
         this.initSearch();
         this.initConversationSelection();
+        this.initCallSignaling();
+        this.initCallActions();
+        this.closeEmojiPicker();
+        this.setVoiceComposerUi();
         this.initForm();
     }
 }
