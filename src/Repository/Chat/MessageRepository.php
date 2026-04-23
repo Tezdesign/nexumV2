@@ -131,6 +131,49 @@ class MessageRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /**
+     * @param int[] $conversationIds
+     *
+     * @return Message[]
+     */
+    public function findRecentCallMessagesForConversations(array $conversationIds, int $lastMessageId, int $limit = 50): array
+    {
+        if ($conversationIds === []) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('m')
+            ->andWhere('m.conversation_id IN (:conversationIds)')
+            ->andWhere('m.id > :lastMessageId')
+            ->andWhere('m.kind = :kind')
+            ->setParameter('conversationIds', array_values(array_unique($conversationIds)))
+            ->setParameter('lastMessageId', max(0, $lastMessageId))
+            ->setParameter('kind', 'CALL')
+            ->orderBy('m.id', 'ASC')
+            ->setMaxResults(max(1, $limit))
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * @param int[] $conversationIds
+     */
+    public function findLatestCallMessageIdForConversations(array $conversationIds): int
+    {
+        if ($conversationIds === []) {
+            return 0;
+        }
+
+        return (int) $this->createQueryBuilder('m')
+            ->select('COALESCE(MAX(m.id), 0)')
+            ->andWhere('m.conversation_id IN (:conversationIds)')
+            ->andWhere('m.kind = :kind')
+            ->setParameter('conversationIds', array_values(array_unique($conversationIds)))
+            ->setParameter('kind', 'CALL')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
     //    /**
     //     * @return Message[] Returns an array of Message objects
     //     */

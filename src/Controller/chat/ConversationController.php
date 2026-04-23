@@ -9,9 +9,11 @@ use App\Entity\Chat\MessageAttachment;
 use App\Entity\UserHandling\Utilisateur;
 use App\Repository\Chat\ConversationParticipantRepository;
 use App\Repository\Chat\ConversationRepository;
+use App\Repository\Chat\MessageRepository;
 use App\Repository\UserHandling\UtilisateurRepository;
 use App\Service\Chat\ConversationSidebarProvider;
 use App\Service\AuthService;
+use DateTime;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -247,15 +249,15 @@ class ConversationController extends AbstractController
             $room = 'conv_' . $conversationId;
 
             // Create CALL message
-            $message = new Message();
-            $message->setConversationId($conversationId);
-            $message->setSenderId($currentUserId);
-            $message->setKind('CALL');
-            $message->setBody(($videoEnabled ? 'VIDEO|' : 'AUDIO|') . $room);
-            $message->setCreatedAt(new DateTimeImmutable());
-
-            $entityManager->persist($message);
-            $entityManager->flush();
+            $message = $this->persistCallEvent(
+                $conversation,
+                $conversationId,
+                $currentUserId,
+                'RING',
+                $videoEnabled,
+                $room,
+                $entityManager
+            );
 
             // Send STOMP signal if enabled
             if ($this->isCallSignalingEnabled()) {
@@ -285,7 +287,8 @@ class ConversationController extends AbstractController
         int $conversationId,
         Request $request,
         ConversationRepository $conversationRepository,
-        ConversationParticipantRepository $participantRepository
+        ConversationParticipantRepository $participantRepository,
+        EntityManagerInterface $entityManager
     ): JsonResponse {
         $videoEnabled = $request->request->getBoolean('video', false);
         $currentUserId = $this->currentUserId();
@@ -297,6 +300,20 @@ class ConversationController extends AbstractController
             }
 
             $room = 'conv_' . $conversationId;
+            $conversation = $conversationRepository->find($conversationId);
+            if (!$conversation instanceof Conversation) {
+                return $this->json(['success' => false, 'error' => 'Conversation not found'], 404);
+            }
+
+            $this->persistCallEvent(
+                $conversation,
+                $conversationId,
+                $currentUserId,
+                'ACCEPT',
+                $videoEnabled,
+                $room,
+                $entityManager
+            );
 
             // Send STOMP signal
             if ($this->isCallSignalingEnabled()) {
@@ -326,7 +343,8 @@ class ConversationController extends AbstractController
         int $conversationId,
         Request $request,
         ConversationRepository $conversationRepository,
-        ConversationParticipantRepository $participantRepository
+        ConversationParticipantRepository $participantRepository,
+        EntityManagerInterface $entityManager
     ): JsonResponse {
         $videoEnabled = $request->request->getBoolean('video', false);
         $currentUserId = $this->currentUserId();
@@ -338,6 +356,20 @@ class ConversationController extends AbstractController
             }
 
             $room = 'conv_' . $conversationId;
+            $conversation = $conversationRepository->find($conversationId);
+            if (!$conversation instanceof Conversation) {
+                return $this->json(['success' => false, 'error' => 'Conversation not found'], 404);
+            }
+
+            $this->persistCallEvent(
+                $conversation,
+                $conversationId,
+                $currentUserId,
+                'REJECT',
+                $videoEnabled,
+                $room,
+                $entityManager
+            );
 
             // Send STOMP signal
             if ($this->isCallSignalingEnabled()) {
@@ -371,12 +403,87 @@ class ConversationController extends AbstractController
         $currentUserId = $this->currentUserId();
 
         try {
-            // For now, return empty result to avoid 500 error
-            // TODO: Fix the repository method after debugging
+            $conversationIds = array_values(array_unique(array_merge(
+                $participantRepository->findConversationIdsForUser($currentUserId),
+                $conversationRepository->findDmConversationIdsForUser($currentUserId)
+            )));
+
+            if ($conversationIds === []) {
+                return $this->json([
+                    'success' => true,
+                    'callMessages' => [],
+                    'lastMessageId' => 0
+                ]);
+            }
+
+            if ($lastMessageId <= 0) {
+                $latestMessageId = $messageRepository->findLatestCallMessageIdForConversations($conversationIds);
+                $freshMessages = $messageRepository->findRecentCallMessagesForConversations($conversationIds, 0, 20);
+                $freshCallMessages = [];
+                $freshAfter = time() - 30;
+
+                foreach ($freshMessages as $message) {
+                    $senderId = (int) ($message->getSenderId() ?? 0);
+                    if ($senderId === $currentUserId) {
+                        continue;
+                    }
+
+                    $createdAt = $message->getCreatedAt();
+                    if ($createdAt === null || $createdAt->getTimestamp() < $freshAfter) {
+                        continue;
+                    }
+
+                    $messageId = (int) ($message->getId() ?? 0);
+                    $body = (string) ($message->getBody() ?? '');
+                    $parsed = $this->parseCallEventBody($body, (int) ($message->getConversationId() ?? 0));
+
+                    if ($parsed['type'] !== 'RING') {
+                        continue;
+                    }
+
+                    $freshCallMessages[] = [
+                        'id' => $messageId,
+                        'type' => $parsed['type'],
+                        'conversationId' => (int) ($message->getConversationId() ?? 0),
+                        'senderId' => $senderId,
+                        'callKind' => $parsed['callKind'],
+                        'video' => $parsed['callKind'] === 'VIDEO',
+                        'room' => $parsed['room'],
+                    ];
+                }
+
+                return $this->json([
+                    'success' => true,
+                    'callMessages' => $freshCallMessages,
+                    'lastMessageId' => $latestMessageId
+                ]);
+            }
+
+            $messages = $messageRepository->findRecentCallMessagesForConversations($conversationIds, $lastMessageId);
+            $latestMessageId = $lastMessageId;
+            $callMessages = [];
+
+            foreach ($messages as $message) {
+                $messageId = (int) ($message->getId() ?? 0);
+                $latestMessageId = max($latestMessageId, $messageId);
+                $body = (string) ($message->getBody() ?? '');
+                $parsed = $this->parseCallEventBody($body, (int) ($message->getConversationId() ?? 0));
+
+                $callMessages[] = [
+                    'id' => $messageId,
+                    'type' => $parsed['type'],
+                    'conversationId' => (int) ($message->getConversationId() ?? 0),
+                    'senderId' => (int) ($message->getSenderId() ?? 0),
+                    'callKind' => $parsed['callKind'],
+                    'video' => $parsed['callKind'] === 'VIDEO',
+                    'room' => $parsed['room'],
+                ];
+            }
+
             return $this->json([
                 'success' => true,
-                'callMessages' => [],
-                'lastMessageId' => $lastMessageId
+                'callMessages' => $callMessages,
+                'lastMessageId' => $latestMessageId
             ]);
 
         } catch (\Exception $e) {
@@ -463,6 +570,64 @@ class ConversationController extends AbstractController
 
         // Log for debugging - replace with actual STOMP send
         error_log('STOMP Signal: ' . json_encode($payload));
+    }
+
+    private function persistCallEvent(
+        Conversation $conversation,
+        int $conversationId,
+        int $senderId,
+        string $type,
+        bool $video,
+        string $room,
+        EntityManagerInterface $entityManager
+    ): Message {
+        $now = new DateTime();
+        $message = new Message();
+        $message->setConversationId($conversationId);
+        $message->setSenderId($senderId);
+        $message->setKind('CALL');
+        $message->setBody(sprintf('%s|%s|%s', strtoupper($type), $video ? 'VIDEO' : 'AUDIO', $room));
+        $message->setCreatedAt($now);
+
+        $entityManager->persist($message);
+        $entityManager->flush();
+
+        $conversation->setLastMessageId($message->getId());
+        $conversation->setLastMessageAt($now);
+        $entityManager->flush();
+
+        return $message;
+    }
+
+    /**
+     * @return array{type:string,callKind:string,room:string}
+     */
+    private function parseCallEventBody(string $body, int $conversationId): array
+    {
+        $parts = array_values(array_filter(array_map('trim', explode('|', $body)), static fn (string $part): bool => $part !== ''));
+        $type = strtoupper((string) ($parts[0] ?? 'RING'));
+        $callKind = strtoupper((string) ($parts[1] ?? 'AUDIO'));
+        $room = (string) ($parts[2] ?? ('conv_' . $conversationId));
+
+        if ($type === 'AUDIO' || $type === 'VIDEO') {
+            $callKind = $type;
+            $type = 'RING';
+            $room = (string) ($parts[1] ?? ('conv_' . $conversationId));
+        }
+
+        if (!in_array($type, ['RING', 'ACCEPT', 'REJECT'], true)) {
+            $type = 'RING';
+        }
+
+        if (!in_array($callKind, ['AUDIO', 'VIDEO'], true)) {
+            $callKind = 'AUDIO';
+        }
+
+        return [
+            'type' => $type,
+            'callKind' => $callKind,
+            'room' => $room !== '' ? $room : ('conv_' . $conversationId),
+        ];
     }
 
     private function buildCallUrl(bool $videoEnabled, string $room): string
