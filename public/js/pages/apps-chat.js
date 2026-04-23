@@ -5010,25 +5010,27 @@ class ChatApp {
 
     subscribeCallTopic = (conversationId) => {
     if (!this.stompConnected || !this.stomp) {
+        console.log('STOMP not connected, cannot subscribe to call topic')
         return
     }
 
     const convId = parseInt(String(conversationId || '0'), 10)
     if (!Number.isInteger(convId) || convId <= 0) {
+        console.log('Invalid conversation ID for call topic subscription:', conversationId)
         return
     }
 
-    if (this.callConversationSubscriptions.has(convId)) {
-        return
-    }
-
+    // Always subscribe to ensure we have the correct active conversation subscription
     const destination = `/topic/call.${convId}`
+    console.log(`Attempting to subscribe to call topic: ${destination}`)
+    
     const subscription = this.stomp.subscribe(destination, (frame) => {
         this.onIncomingSignal(frame?.body || '{}')
     })
 
     this.callConversationSubscriptions.set(convId, subscription)
     console.info(`Subscribed to conversation call topic: ${destination}`)
+    console.log(`Active conversation ID: ${this.activeConversationId}, Subscribed to: ${convId}`)
 }
     subscribeAllCallTopics = () => {
     if (!this.stompConnected || !this.stomp) {
@@ -5138,7 +5140,7 @@ class ChatApp {
     }
 
     const { convId, video, popupRef } = this.pendingOutgoingCall
-    const room = `conv-${convId}`
+    const room = `conv-${convId}` 
 
     const payload = {
         type: 'RING',
@@ -5189,159 +5191,85 @@ class ChatApp {
 
     handleAudioCall = async () => {
     console.log('=== AUDIO CALL BUTTON PRESSED ===')
-    
+
     const convId = this.getSelectedConversationId()
-    console.log('Selected conversation ID:', convId)
-    
     if (convId <= 0) {
-        console.log('No conversation selected')
-        this.showBottomNotice('Select a conversation before starting a call.')
+        this.showBottomNotice('Select a conversation first.')
         return
     }
 
-    console.log('Opening popup...')
-    const popup = window.open('', '_blank', 'noopener')
-    if (!popup) {
-        console.log('Popup blocked')
-        this.showBottomNotice('Popup blocked. Allow popups for this site and try again.')
-        return
-    }
+    const room = `conv-${convId}` 
 
-    popup.document.write('<title>Starting call...</title><p style="font-family:system-ui,sans-serif;padding:16px;">Starting audio call...</p>')
-    popup.document.close()
-
-    console.log('Sending call invite to conversation:', convId)
-    
-    // Send call invite message (Java pattern)
     try {
-        const response = await fetch(`/apps-chat/conversations/${convId}/call/invite`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams({
-                'video': 'false'
-            })
+        const identity = `user-${this.currentUserId}` 
+        const name = this.currentUserName || `User ${this.currentUserId}` 
+
+        const tokenUrl = `${this.callTokenEndpoint}?room=${this.enc(room)}&identity=${this.enc(identity)}&name=${this.enc(name)}` 
+        const res = await fetch(tokenUrl)
+
+        if (!res.ok) {
+            throw new Error(await res.text())
+        }
+
+        const data = await res.json()
+        const token = data.token
+
+        if (!token) {
+            throw new Error('No token received')
+        }
+
+        const callUrl = `${this.callPageEndpoint}?wsUrl=${this.enc(this.callLivekitUrl)}&token=${this.enc(token)}&mic=true&cam=false` 
+
+        // 🚀 DIRECT OPEN — NO POPUP
+        window.location.href = callUrl
+
+        // Optional: notify other user
+        this.sendCallSignal('/app/call.start', {
+            type: 'RING',
+            conversationId: convId,
+            fromUserId: this.currentUserId,
+            fromName: this.currentUserName,
+            callKind: 'AUDIO',
+            room
         })
 
-        console.log('Call invite response status:', response.status)
-        
-        if (!response.ok) {
-            throw new Error('Failed to send call invite')
-        }
-
-        const result = await response.json()
-        console.log('Call invite response:', result)
-        
-        if (!result.success) {
-            throw new Error(result.error || 'Failed to send call invite')
-        }
-
-        console.log('Call invite sent successfully, room:', result.room)
-
-        // Store pending call for STOMP signaling
-        this.pendingOutgoingCall = {
-            convId,
-            video: false,
-            popupRef: popup,
-            room: result.room
-        }
-
-        console.log('STOMP connected:', this.stompConnected)
-        
-        // Flush pending action if STOMP is connected
-        if (this.stompConnected && this.stomp) {
-            console.log('Flushing pending call action via STOMP')
-            this.flushPendingCallAction()
-        } else {
-            console.log('STOMP not connected, but call invite was sent via HTTP')
-            // Still open call page even without STOMP
-            this.openCallWindow(convId, false, result.room, popup)
-        }
-
-    } catch (error) {
-        console.error('Failed to send call invite:', error)
-        popup.close()
-        this.showBottomNotice('Failed to start call: ' + error.message)
+    } catch (e) {
+        console.error(e)
+        this.showBottomNotice('Call failed')
     }
 }
 
     handleVideoCall = async () => {
-    console.log('=== VIDEO CALL BUTTON PRESSED ===')
-    
     const convId = this.getSelectedConversationId()
-    console.log('Selected conversation ID:', convId)
-    
-    if (convId <= 0) {
-        console.log('No conversation selected')
-        this.showBottomNotice('Select a conversation before starting a call.')
-        return
-    }
+    if (convId <= 0) return
 
-    console.log('Opening popup...')
-    const popup = window.open('', '_blank', 'noopener')
-    if (!popup) {
-        console.log('Popup blocked')
-        this.showBottomNotice('Popup blocked. Allow popups for this site and try again.')
-        return
-    }
+    const room = `conv-${convId}` 
 
-    popup.document.write('<title>Starting call...</title><p style="font-family:system-ui,sans-serif;padding:16px;">Starting video call...</p>')
-    popup.document.close()
-
-    console.log('Sending call invite to conversation:', convId)
-    
-    // Send call invite message (Java pattern)
     try {
-        const response = await fetch(`/apps-chat/conversations/${convId}/call/invite`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams({
-                'video': 'true'
-            })
+        const identity = `user-${this.currentUserId}` 
+        const name = this.currentUserName || `User ${this.currentUserId}` 
+
+        const tokenUrl = `${this.callTokenEndpoint}?room=${this.enc(room)}&identity=${this.enc(identity)}&name=${this.enc(name)}` 
+        const res = await fetch(tokenUrl)
+
+        const data = await res.json()
+        const token = data.token
+
+        const callUrl = `${this.callPageEndpoint}?wsUrl=${this.enc(this.callLivekitUrl)}&token=${this.enc(token)}&mic=true&cam=true` 
+
+        window.location.href = callUrl
+
+        this.sendCallSignal('/app/call.start', {
+            type: 'RING',
+            conversationId: convId,
+            fromUserId: this.currentUserId,
+            fromName: this.currentUserName,
+            callKind: 'VIDEO',
+            room
         })
 
-        console.log('Call invite response status:', response.status)
-        
-        if (!response.ok) {
-            throw new Error('Failed to send call invite')
-        }
-
-        const result = await response.json()
-        console.log('Call invite response:', result)
-        
-        if (!result.success) {
-            throw new Error(result.error || 'Failed to send call invite')
-        }
-
-        console.log('Call invite sent successfully, room:', result.room)
-
-        // Store pending call for STOMP signaling
-        this.pendingOutgoingCall = {
-            convId,
-            video: true,
-            popupRef: popup,
-            room: result.room
-        }
-
-        console.log('STOMP connected:', this.stompConnected)
-        
-        // Flush pending action if STOMP is connected
-        if (this.stompConnected && this.stomp) {
-            console.log('Flushing pending call action via STOMP')
-            this.flushPendingCallAction()
-        } else {
-            console.log('STOMP not connected, but call invite was sent via HTTP')
-            // Still open call page even without STOMP
-            this.openCallWindow(convId, true, result.room, popup)
-        }
-
-    } catch (error) {
-        console.error('Failed to send call invite:', error)
-        popup.close()
-        this.showBottomNotice('Failed to start call: ' + error.message)
+    } catch (e) {
+        console.error(e)
     }
 }
 
@@ -5382,12 +5310,9 @@ class ChatApp {
                 return
             }
 
-            await this.openCallWindow(
-                convId,
-                !!this.pendingOutgoingCall.video,
-                room,
-                this.pendingOutgoingCall.popupRef || null
-            )
+            // Direct join - no popup needed since caller already in call
+            window.location.href = `${this.callPageEndpoint}?wsUrl=${this.enc(this.callLivekitUrl)}&token=${this.enc('')}&mic=true&cam=${!!this.pendingOutgoingCall.video ? 'true' : 'false'}`
+
             this.pendingOutgoingCall = null
             return
         }
@@ -5409,33 +5334,20 @@ class ChatApp {
     }
 }
 
-    showIncomingCallPopup = (convId, video, room, fromName, inviteMsgId = 0) => {
-    this.pendingIncomingCall = { convId, video, room, fromName, inviteMsgId }
+    showIncomingCallPopup = (convId, video, room, fromName) => {
+    this.pendingIncomingCall = { convId, video, room, fromName }
 
     const kindLabel = video ? 'video' : 'audio'
     const accepted = window.confirm(`${fromName} is calling you (${kindLabel}). Accept?`)
 
     if (accepted) {
-        const popup = window.open('', '_blank', 'noopener')
-        if (!popup) {
-            this.showBottomNotice('Popup blocked. Allow popups for this site and try again.')
-            this.sendReject(convId, video)
-            return
-        }
-
-        popup.document.write('<title>Joining call...</title><p style="font-family:system-ui,sans-serif;padding:16px;">Joining call...</p>')
-        popup.document.close()
-
-        // Mark invite as read and accept call (Java pattern)
-        this.markInviteRead(convId, inviteMsgId)
-        this.acceptCall(convId, video)
-        this.openCallWindow(convId, video, room, popup)
+        // Direct join to call room
+        window.location.href = `${this.callPageEndpoint}?wsUrl=${this.enc(this.callLivekitUrl)}&token=${this.enc('')}&mic=true&cam=${video ? 'true' : 'false'}`
+        this.sendAccept(convId, video)
         return
     }
 
-    // Mark invite as read and reject call (Java pattern)
-    this.markInviteRead(convId, inviteMsgId)
-    this.rejectCall(convId, video)
+    this.sendReject(convId, video)
 }
 
     // New methods following Java pattern
@@ -5550,96 +5462,7 @@ class ChatApp {
         this.sendCallSignal('/app/call.reject', payload)
     }
 
-    openCallWindow = async (convId, videoEnabled, room, popupRef = null) => {
-    console.log('=== OPENING CALL WINDOW ===')
-    console.log('Conversation ID:', convId)
-    console.log('Video enabled:', videoEnabled)
-    console.log('Room:', room)
     
-    if (convId <= 0) {
-        console.log('Invalid conversation ID')
-        return
-    }
-
-    let popup = popupRef || this.callPopupWindow || null
-
-    try {
-        const roomName = String(room || '').trim() !== ''
-            ? String(room).trim()
-            : `conv-${convId}`
-
-        const identity = `user-${this.currentUserId}`
-        const myName = this.currentUserName || `User ${this.currentUserId}`
-
-        console.log('Getting token for room:', roomName)
-        console.log('Identity:', identity)
-        console.log('Token endpoint:', this.callTokenEndpoint)
-
-        const tokenUrl = `${this.callTokenEndpoint}?room=${this.enc(roomName)}&identity=${this.enc(identity)}&name=${this.enc(myName)}`
-        console.log('Token URL:', tokenUrl)
-        
-        const tokenResponse = await fetch(tokenUrl, {
-            method: 'GET',
-            headers: { 'Accept': 'application/json' },
-        })
-
-        console.log('Token response status:', tokenResponse.status)
-
-        if (!tokenResponse.ok) {
-            const body = await tokenResponse.text()
-            console.log('Token failed:', body)
-            throw new Error(`Token failed: ${body}`)
-        }
-
-        const payload = await tokenResponse.json()
-        console.log('Token response payload:', payload)
-        
-        const token = String(payload?.token || '').trim()
-        if (!token) {
-            console.log('Token missing from response')
-            throw new Error('Token response is missing token field.')
-        }
-
-        console.log('Token received successfully')
-
-        const callUrl = `/apps-chat/call?wsUrl=${this.enc(this.callLivekitUrl)}&token=${this.enc(token)}&mic=true&cam=${videoEnabled ? 'true' : 'false'}`
-        console.log('Call page URL:', callUrl)
-
-        if (!popup || popup.closed) {
-            console.log('Creating new popup window')
-            popup = window.open('', '_blank', 'noopener')
-        }
-
-        if (!popup) {
-            console.log('Popup blocked')
-            throw new Error('Popup blocked. Allow popups for this site and try again.')
-        }
-
-        console.log('Navigating popup to call page...')
-        popup.location.href = callUrl
-        try {
-            popup.focus()
-        } catch {
-            // ignore
-        }
-
-        this.callPopupWindow = popup
-        console.log('Call window opened successfully')
-    } catch (error) {
-        console.error('Failed to open call window:', error)
-
-        try {
-            if (popup && !popup.closed) {
-                popup.close()
-            }
-        } catch {
-            // ignore
-        }
-
-        this.showBottomNotice(error?.message || 'Could not start call.')
-    }
-}
-
     init = () => {
         this.cacheElements();
         this.loadAiSummaryPendingState();
