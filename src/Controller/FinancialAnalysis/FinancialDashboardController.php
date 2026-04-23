@@ -178,7 +178,8 @@ class FinancialDashboardController extends AbstractController
         ProjectBudget $projectBudget, 
         Request $request, 
         BudgetDashboardService $dashboardService,
-        ProjectBudgetRepository $projectBudgetRepository
+        ProjectBudgetRepository $projectBudgetRepository,
+        TransactionRepository $transactionRepository
     ): Response {
         $originalBudget = clone $projectBudget;
         $profile = $dashboardService->getFiscalProfileForBudget($projectBudget);
@@ -224,15 +225,22 @@ class FinancialDashboardController extends AbstractController
             ]);
         }
 
+        // Fetch Real Chart Data
+        $monthlyData = $transactionRepository->getMonthlyAggregation($originalBudget->getId());
+        $categoryData = $transactionRepository->getCategoryAggregation($originalBudget->getId());
+
         return $this->render('financial-analysis/budget_details.html.twig', [
             'projectBudget' => $dashboardService->formatBudgetDetails($originalBudget),
             'projectBudgetEntity' => $originalBudget,
-            'budgetProfile' => $profile, // Pass the Profile object for breadcrumbs
+            'budgetProfile' => $profile, 
             'projectBudgetForm' => $projectBudgetForm->createView(),
             'transactionForm' => $transactionForm->createView(),
             'transactions' => $transactions,
+            'monthlyData' => $monthlyData,
+            'categoryData' => $categoryData,
         ]);
     }
+
 
     #[Route('/budget/{id}/analyze', name: 'apps-financial-analysis-analyze-budget', methods: ['POST'])]
     public function generateAnalysis(

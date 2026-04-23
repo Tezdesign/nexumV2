@@ -117,6 +117,9 @@
     <!-- html5-qrcode library -->
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
+    <!-- ApexCharts js -->
+    <script src="/vendor/apexcharts/apexcharts.min.js"></script>
+
     <!-- Flatpickr js -->
     <script src="/vendor/flatpickr/flatpickr.min.js"></script>
 
@@ -131,6 +134,7 @@
     <script src="/js/FA_custom.js?v={{ random() }}"></script>
     <script src="/js/FA_functions.js?v={{ random() }}"></script>
     <script src="/js/FA_Qrcode.js?v={{ random() }}"></script>
+    <script src="/js/FA_charts.js?v={{ random() }}"></script>
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
@@ -174,5 +178,14 @@
                 initializeCurrencyExchange('#currency-exchange-select', {{ budgetProfile.id }}, '{{ budgetProfile.baseCurrency|default('TND') }}');
             }
         });
+
+        // Pass Backend Aggregated Data to JS Charts
+        window.projectChartData = {
+            months: {{ monthlyData.months|json_encode|raw }},
+            transactionCounts: {{ monthlyData.counts|json_encode|raw }},
+            transactionVolumes: {{ monthlyData.volumes|json_encode|raw }},
+            categories: {{ categoryData.labels|json_encode|raw }},
+            categoryCounts: {{ categoryData.counts|json_encode|raw }}
+        };
     </script>
 {% endblock %}

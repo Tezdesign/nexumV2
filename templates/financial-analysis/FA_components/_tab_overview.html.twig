@@ -1,1 +1,22 @@
-<p class="text-muted">{{ 'Overview content will go here.'|trans }}</p>
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card h-100">
+            <div class="card-header border-bottom border-dashed d-flex align-items-center">
+                <h4 class="header-title m-0">{{ 'Transactions Over Time'|trans }}</h4>
+            </div>
+            <div class="card-body">
+                <div id="transactions-mixed-chart" class="apex-charts" data-colors="#5b69bc,#10c469,#fa5c7c"></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header border-bottom border-dashed d-flex align-items-center">
+                <h4 class="header-title m-0">{{ 'Expense Categories'|trans }}</h4>
+            </div>
+            <div class="card-body d-flex align-items-center justify-content-center">
+                <div id="category-pie-chart" class="apex-charts" data-colors="#5b69bc,#10c469,#fa5c7c,#f9c851,#39afd1"></div>
+            </div>
+        </div>
+    </div>
+</div>

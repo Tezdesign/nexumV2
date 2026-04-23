@@ -594,6 +594,11 @@ function initializeCurrencyExchange(selectorId, profileId, defaultCurrency) {
                             }
                         }
                     });
+
+                    // Update Charts if the function exists
+                    if (typeof window.updateChartCurrencies === 'function') {
+                        window.updateChartCurrencies(rate, newSymbol);
+                    }
                 };
 
                 const storedCurrency = localStorage.getItem('fa_preferred_currency');

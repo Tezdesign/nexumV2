@@ -103,6 +103,68 @@ class TransactionRepository extends ServiceEntityRepository
         ->execute();
     }
 
+    /**
+     * Aggregates transaction count and volume by month for a project.
+     */
+    public function getMonthlyAggregation(int $projectBudgetId): array
+    {
+        // We use SUBSTRING to extract YYYY-MM from the date. 
+        // This works in many SQL engines (MySQL, SQLite, etc.) via DQL.
+        $results = $this->createQueryBuilder('t')
+            ->select("SUBSTRING(t.date_stamp, 1, 7) as month, COUNT(t.id) as txCount, SUM(t.cost) as txVolume")
+            ->andWhere('t.projectBudget = :pbId')
+            ->setParameter('pbId', $projectBudgetId)
+            ->groupBy('month')
+            ->orderBy('month', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        $months = [];
+        $counts = [];
+        $volumes = [];
+
+        foreach ($results as $row) {
+            $months[] = $row['month'];
+            $counts[] = (int) $row['txCount'];
+            $volumes[] = (float) $row['txVolume'];
+        }
+
+        return [
+            'months' => $months,
+            'counts' => $counts,
+            'volumes' => $volumes
+        ];
+    }
+
+    /**
+     * Aggregates transaction counts by category for a project.
+     */
+    public function getCategoryAggregation(int $projectBudgetId): array
+    {
+        $results = $this->createQueryBuilder('t')
+            ->select("t.expense_category as category, COUNT(t.id) as txCount")
+            ->andWhere('t.projectBudget = :pbId')
+            ->setParameter('pbId', $projectBudgetId)
+            ->groupBy('category')
+            ->orderBy('txCount', 'DESC')
+            ->getQuery()
+            ->getResult();
+
+        $labels = [];
+        $counts = [];
+
+        foreach ($results as $row) {
+            $labels[] = $row['category'] ?: 'Uncategorized';
+            $counts[] = (int) $row['txCount'];
+        }
+
+        return [
+            'labels' => $labels,
+            'counts' => $counts
+        ];
+    }
+
+
     //    /**
     //     * @return Transaction[] Returns an array of Transaction objects
     //     */
