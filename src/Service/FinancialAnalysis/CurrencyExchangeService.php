@@ -7,7 +7,7 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 class CurrencyExchangeService
 {
     public function __construct(
-        #[Autowire('%env.(CURRENCY_API_KEY)%')]
+        #[Autowire(env: 'CURRENCY_API_KEY')]
         private string $apiKey,
         private BudgetProfileRepository $budgetProfileRepository,
     ) {}
