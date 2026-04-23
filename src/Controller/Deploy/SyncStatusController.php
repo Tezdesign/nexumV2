@@ -12,8 +12,54 @@ use Symfony\Component\Routing\Annotation\Route;
 class SyncStatusController extends AbstractController
 {
     #[Route('/api/sync/status', name: 'api_sync_status', methods: ['GET'])]
-    public function status(DatabaseHealthService $healthService, EntityManagerInterface $em): JsonResponse
-    {
+    public function status(
+        DatabaseHealthService $healthService, 
+        EntityManagerInterface $em,
+        \Symfony\Component\HttpKernel\KernelInterface $kernel
+    ): JsonResponse {
+        $isOnline = $healthService->pingRemote();
+        $isSchemaMatching = $isOnline ? $healthService->isSchemaMatching() : false;
+        $isActive = $healthService->isSyncActive();
+        $lastSyncTimeStr = $healthService->getLastSyncTime();
+
+        // 15-Minute Auto-Sync Trigger
+        if ($isActive && $isOnline && $isSchemaMatching) {
+            $shouldRun = false;
+            if (!$lastSyncTimeStr) {
+                $shouldRun = true;
+            } else {
+                try {
+                    $lastSyncTime = new \DateTime($lastSyncTimeStr);
+                    $now = new \DateTime();
+                    // 15 minutes = 900 seconds
+                    if (($now->getTimestamp() - $lastSyncTime->getTimestamp()) >= 900) {
+                        $shouldRun = true;
+                    }
+                } catch (\Throwable $e) {
+                    $shouldRun = true;
+                }
+            }
+
+            if ($shouldRun) {
+                // Update time immediately to prevent concurrent AJAX requests from running it twice
+                $healthService->setLastSyncTime((new \DateTime())->format('Y-m-d H:i:s'));
+                
+                try {
+                    $application = new \Symfony\Bundle\FrameworkBundle\Console\Application($kernel);
+                    $application->setAutoExit(false);
+                    
+                    $input = new \Symfony\Component\Console\Input\ArrayInput([
+                        'command' => 'app:sync:run',
+                    ]);
+                    
+                    $output = new \Symfony\Component\Console\Output\NullOutput();
+                    $application->run($input, $output);
+                } catch (\Throwable $e) {
+                    // Silently fail for the AJAX request so the UI doesn't crash
+                }
+            }
+        }
+
         // Get pending changes count directly from raw DBAL to avoid issues if entity isn't fully set up yet
         $pendingCount = 0;
         try {
@@ -24,15 +70,13 @@ class SyncStatusController extends AbstractController
             $pendingCount = 0;
         }
 
-        $isOnline = $healthService->pingRemote();
-        $isSchemaMatching = $isOnline ? $healthService->isSchemaMatching() : false;
-
+        // Re-fetch last sync time in case it was updated during the run
         return $this->json([
             'is_remote_online' => $isOnline,
             'schema_mismatch' => !$isSchemaMatching,
             'pending_changes_count' => $pendingCount,
             'last_sync_time' => $healthService->getLastSyncTime(),
-            'is_sync_active' => $healthService->isSyncActive()
+            'is_sync_active' => $isActive
         ]);
     }
     
