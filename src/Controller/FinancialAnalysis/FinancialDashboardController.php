@@ -71,7 +71,8 @@ class FinancialDashboardController extends AbstractController
         Request $request, 
         EntityManagerInterface $entityManager, 
         ProjectBudgetRepository $projectBudgetRepository,
-        \App\Service\FinancialAnalysis\BudgetTrendCacheService $trendCacheService
+        \App\Service\FinancialAnalysis\BudgetTrendCacheService $trendCacheService,
+        BudgetProfileRepository $budgetProfileRepository
     ): Response {
         $originalProfile = clone $budgetProfile;
 
@@ -79,14 +80,15 @@ class FinancialDashboardController extends AbstractController
         $form->handleRequest($request);
 
         if ($form->isSubmitted()) {
-            // Snapshot state before updating the profile
-            $trendCacheService->savePreUpdateState($budgetProfile);
-
+            $totals = ['allocated' => 0.0, 'expenses' => 0.0];
             if ($budgetProfile->getStartDate() && $budgetProfile->getEndDate()) {
                 $totals = $projectBudgetRepository->getTotalsForFiscalYear($budgetProfile->getStartDate(), $budgetProfile->getEndDate());
                 $budgetProfile->setTransientAllocatedBudgets($totals['allocated']);
                 $budgetProfile->setTransientProjectExpenses($totals['expenses']);
             }
+            
+            // Snapshot state before updating the profile
+            $trendCacheService->savePreUpdateState($budgetProfile, (float) $totals['allocated'], (float) $totals['expenses']);
             
             if ($form->isValid()) {
                 $entityManager->flush();
@@ -109,7 +111,10 @@ class FinancialDashboardController extends AbstractController
 
         if ($projectBudgetForm->isSubmitted() && $projectBudgetForm->isValid()) {
             // Snapshot state because adding a budget changes allocated/remaining totals
-            $trendCacheService->savePreUpdateState($budgetProfile);
+            $totals = $budgetProfile->getStartDate() && $budgetProfile->getEndDate()
+                ? $projectBudgetRepository->getTotalsForFiscalYear($budgetProfile->getStartDate(), $budgetProfile->getEndDate())
+                : ['allocated' => 0.0, 'expenses' => 0.0];
+            $trendCacheService->savePreUpdateState($budgetProfile, (float) $totals['allocated'], (float) $totals['expenses']);
 
             $projectBudgetRepository->save($projectBudget, true);
             $this->addFlash('success', 'Project Budget created successfully!');
@@ -118,11 +123,27 @@ class FinancialDashboardController extends AbstractController
 
 
         $projects = [];
+        $uniqueProjectsCount = 0;
+        $topProjectData = ['projectName' => 'N/A', 'budgetCount' => 0];
+
         if ($originalProfile->getStartDate() && $originalProfile->getEndDate()) {
             $filteredBudgets = $projectBudgetRepository->findByFiscalYearScope($originalProfile->getStartDate(), $originalProfile->getEndDate());
             foreach ($filteredBudgets as $pb) {
                 $projects[] = $dashboardService->formatBudgetDetails($pb);
             }
+            
+            $uniqueProjectsCount = $projectBudgetRepository->getUniqueProjectCountForFY($originalProfile->getStartDate(), $originalProfile->getEndDate());
+            $topProjectData = $projectBudgetRepository->getProjectWithMostBudgetsForFY($originalProfile->getStartDate(), $originalProfile->getEndDate());
+        }
+
+        $allProfiles = $budgetProfileRepository->findAll();
+        $historicalData = [];
+        foreach ($allProfiles as $prof) {
+            $historicalData[] = [
+                'year' => 'FY ' . $prof->getFiscalYear(),
+                'allocated' => (float) $prof->getBudgetDisposable(),
+                'spent' => (float) $prof->getTotalExpense(),
+            ];
         }
         
         $budgetVal = (float) $originalProfile->getBudgetDisposable();
@@ -178,6 +199,10 @@ class FinancialDashboardController extends AbstractController
             'kpi_utilization_progress' => $utilizationPercent,
 
             'currency_type' => $originalProfile->getBaseCurrency(),
+            'uniqueProjectsCount' => $uniqueProjectsCount,
+            'topProjectData' => $topProjectData,
+            'historicalData' => $historicalData,
+            'totalBudgetsCount' => count($projects),
         ]);
 
     }
@@ -204,7 +229,10 @@ class FinancialDashboardController extends AbstractController
 
         if ($projectBudgetForm->isSubmitted() && $projectBudgetForm->isValid()) {
             // Snapshot profile because adding a budget affects the allocated aggregates
-            $trendCacheService->savePreUpdateState($budgetProfile);
+            $totals = $budgetProfile->getStartDate() && $budgetProfile->getEndDate()
+                ? $projectBudgetRepository->getTotalsForFiscalYear($budgetProfile->getStartDate(), $budgetProfile->getEndDate())
+                : ['allocated' => 0.0, 'expenses' => 0.0];
+            $trendCacheService->savePreUpdateState($budgetProfile, (float) $totals['allocated'], (float) $totals['expenses']);
 
             $projectBudgetRepository->save($projectBudget, true);
             $this->addFlash('success', 'Project Budget created successfully!');
@@ -257,12 +285,14 @@ class FinancialDashboardController extends AbstractController
         if ($projectBudgetForm->isSubmitted() && $projectBudgetForm->isValid()) {
             // Snapshot profile because changing budget affects the allocated share
             if ($profile) {
-                $trendCacheService->savePreUpdateState($profile);
+                $totals = $profile->getStartDate() && $profile->getEndDate()
+                    ? $projectBudgetRepository->getTotalsForFiscalYear($profile->getStartDate(), $profile->getEndDate())
+                    : ['allocated' => 0.0, 'expenses' => 0.0];
+                $trendCacheService->savePreUpdateState($profile, (float) $totals['allocated'], (float) $totals['expenses']);
             }
 
             $projectBudget->calculateStatus();
             $projectBudgetRepository->updateBudgetDql($projectBudget);
-            $this->addFlash('success', 'Project Budget updated successfully!');
             return $this->redirectToRoute('apps-financial-analysis-budget-details', ['id' => $projectBudget->getId()]);
         }
 

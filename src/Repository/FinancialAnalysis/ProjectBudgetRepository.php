@@ -173,5 +173,41 @@ class ProjectBudgetRepository extends ServiceEntityRepository
             'totalBudgets' => (int) $totalBudgets
         ];
     }
+
+    /**
+     * Gets the number of unique projects involved in the specified fiscal year.
+     */
+    public function getUniqueProjectCountForFY(\DateTimeInterface $start, \DateTimeInterface $end): int
+    {
+        return (int) $this->createQueryBuilder('pb')
+            ->select('COUNT(DISTINCT pb.project)')
+            ->where('pb.dueDate >= :start')
+            ->andWhere('pb.dueDate <= :end')
+            ->setParameter('start', $start->format('Y-m-d'))
+            ->setParameter('end', $end->format('Y-m-d'))
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
+     * Gets the project name with the highest number of budgets in the specified fiscal year.
+     */
+    public function getProjectWithMostBudgetsForFY(\DateTimeInterface $start, \DateTimeInterface $end): array
+    {
+        $result = $this->createQueryBuilder('pb')
+            ->select('p.name as projectName, COUNT(pb.id) as budgetCount')
+            ->join('pb.project', 'p')
+            ->where('pb.dueDate >= :start')
+            ->andWhere('pb.dueDate <= :end')
+            ->setParameter('start', $start->format('Y-m-d'))
+            ->setParameter('end', $end->format('Y-m-d'))
+            ->groupBy('p.id')
+            ->orderBy('budgetCount', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+            
+        return $result ?: ['projectName' => 'N/A', 'budgetCount' => 0];
+    }
 }
 
