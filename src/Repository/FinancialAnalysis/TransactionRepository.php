@@ -164,6 +164,21 @@ class TransactionRepository extends ServiceEntityRepository
         ];
     }
 
+    /**
+     * Calculates the average cost of all existing transactions for a budget.
+     */
+    public function getAverageTransactionCost(int $projectBudgetId): float
+    {
+        $result = $this->createQueryBuilder('t')
+            ->select('AVG(t.cost) as avgCost')
+            ->andWhere('t.projectBudget = :pbId')
+            ->setParameter('pbId', $projectBudgetId)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        return $result ? (float) $result : 0.0;
+    }
+
 
     //    /**
     //     * @return Transaction[] Returns an array of Transaction objects

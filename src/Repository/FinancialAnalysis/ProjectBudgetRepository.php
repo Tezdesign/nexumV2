@@ -124,4 +124,54 @@ class ProjectBudgetRepository extends ServiceEntityRepository
             ->getQuery()
             ->execute();
     }
+
+    /**
+     * Calculates the sum of total_budget and actualSpend for all budgets under the exact same project.
+     */
+    public function getProjectBudgetsAggregates(int $projectId): array
+    {
+        $result = $this->createQueryBuilder('pb')
+            ->select('SUM(pb.total_budget) as totalProjectAllocated', 'SUM(pb.actualSpend) as totalProjectSpent')
+            ->andWhere('pb.project = :projectId')
+            ->setParameter('projectId', $projectId)
+            ->getQuery()
+            ->getSingleResult();
+
+        return [
+            'allocated' => $result['totalProjectAllocated'] ? (float) $result['totalProjectAllocated'] : 0.0,
+            'spent' => $result['totalProjectSpent'] ? (float) $result['totalProjectSpent'] : 0.0,
+        ];
+    }
+
+    /**
+     * Evaluates the spending rank of the current budget compared to sibling budgets in the same project.
+     * Returns an array with ['rank' => X, 'totalBudgets' => Y]
+     */
+    public function getBudgetSpendingRank(int $projectId, float $currentSpend): array
+    {
+        // Total number of budgets in this project
+        $totalBudgets = $this->createQueryBuilder('pb')
+            ->select('COUNT(pb.id)')
+            ->andWhere('pb.project = :projectId')
+            ->setParameter('projectId', $projectId)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        // How many budgets have an actualSpend GREATER than the current one?
+        // (If 0 have greater spend, it's rank #1)
+        $higherSpendCount = $this->createQueryBuilder('pb')
+            ->select('COUNT(pb.id)')
+            ->andWhere('pb.project = :projectId')
+            ->andWhere('pb.actualSpend > :currentSpend')
+            ->setParameter('projectId', $projectId)
+            ->setParameter('currentSpend', $currentSpend)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        return [
+            'rank' => ((int) $higherSpendCount) + 1,
+            'totalBudgets' => (int) $totalBudgets
+        ];
+    }
 }
+

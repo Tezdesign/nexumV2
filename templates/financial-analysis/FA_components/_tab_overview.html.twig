@@ -1,3 +1,51 @@
+<div class="row mb-3">
+    <div class="col-xl-3 col-md-6">
+        <div class="card h-100 mb-0">
+            <div class="card-body widget-user">
+                <div class="text-center">
+                    <h2 class="fw-normal text-primary" data-plugin="counterup">{{ budgetStats.ranking.display|default('N/A') }}</h2>
+                    <p class="mb-0 fw-semibold">{{ 'Project Spending Rank'|trans }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+        <div class="card h-100 mb-0">
+            <div class="card-body widget-user">
+                <div class="text-center">
+                    <h2 class="text-danger" data-plugin="counterup">{{ budgetStats.allocatedShare.display|default('0%') }}</h2>
+                    <p class="mb-0 fw-semibold">{{ 'Share of Project Budget'|trans }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+        <div class="card h-100 mb-0">
+            <div class="card-body widget-user">
+                <div class="text-center">
+                    <h2 class="fw-semibold text-warning" data-plugin="counterup">{{ budgetStats.spentShare.display|default('0%') }}</h2>
+                    <p class="mb-0 fw-semibold">{{ 'Share of Project Spend'|trans }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+        <div class="card h-100 mb-0">
+            <div class="card-body widget-user">
+                <div class="text-center">
+                    <h2 class="fw-bold text-{{ budgetStats.prediction.class|default('secondary') }}" data-plugin="counterup">
+                        {{ budgetStats.prediction.displayPercentage|default('0%') }}
+                    </h2>
+                    <p class="mb-0 fw-semibold">{{ budgetStats.prediction.status|default('UNKNOWN')|trans }} {{ 'Prediction'|trans }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="row">
     <div class="col-lg-8">
         <div class="card h-100">

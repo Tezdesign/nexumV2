@@ -179,7 +179,8 @@ class FinancialDashboardController extends AbstractController
         Request $request, 
         BudgetDashboardService $dashboardService,
         ProjectBudgetRepository $projectBudgetRepository,
-        TransactionRepository $transactionRepository
+        TransactionRepository $transactionRepository,
+        \App\Service\FinancialAnalysis\BudgetProjectStService $projectStService
     ): Response {
         $originalBudget = clone $projectBudget;
         $profile = $dashboardService->getFiscalProfileForBudget($projectBudget);
@@ -229,6 +230,9 @@ class FinancialDashboardController extends AbstractController
         $monthlyData = $transactionRepository->getMonthlyAggregation($originalBudget->getId());
         $categoryData = $transactionRepository->getCategoryAggregation($originalBudget->getId());
 
+        // Fetch Project Relation Stats (Use $projectBudget instead of cloned to avoid proxy loading issues)
+        $budgetStats = $projectStService->calculateProjectBudgetStatistics($projectBudget);
+
         return $this->render('financial-analysis/budget_details.html.twig', [
             'projectBudget' => $dashboardService->formatBudgetDetails($originalBudget),
             'projectBudgetEntity' => $originalBudget,
@@ -238,6 +242,7 @@ class FinancialDashboardController extends AbstractController
             'transactions' => $transactions,
             'monthlyData' => $monthlyData,
             'categoryData' => $categoryData,
+            'budgetStats' => $budgetStats,
         ]);
     }
 
