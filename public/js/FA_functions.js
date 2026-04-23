@@ -388,4 +388,272 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    /**
+     * ==========================================
+     * AI ANALYSIS TAB LOGIC
+     * ==========================================
+     */
+    const btnGenerateAi = document.getElementById('btn-generate-ai-analysis');
+    const btnRerunAi = document.getElementById('btn-rerun-ai');
+    const aiActionArea = document.getElementById('ai-generate-action');
+    const aiLoadingState = document.getElementById('ai-loading-state');
+    const aiResultContainer = document.getElementById('ai-result-container');
+    const aiAnalysisContent = document.getElementById('ai-analysis-content');
+    const aiUserContext = document.getElementById('ai-user-context');
+    
+    // Result Elements
+    const resVariance = document.getElementById('res-variance');
+    const resVarianceSub = document.getElementById('res-variance-sub');
+    const resTotal = document.getElementById('res-total');
+    const resDate = document.getElementById('res-date');
+    const resRiskBadge = document.getElementById('res-risk-badge');
+    const resProbRing = document.getElementById('res-prob-ring');
+    const resProbText = document.getElementById('res-prob-text');
+
+    if (btnGenerateAi) {
+        btnGenerateAi.addEventListener('click', function() {
+            const projectId = this.getAttribute('data-project-id');
+            const contextText = aiUserContext ? aiUserContext.value.trim() : '';
+            
+            // UI State Transition: Hide button, show loading
+            aiActionArea.classList.add('d-none');
+            aiLoadingState.classList.remove('d-none');
+            
+            // Fire the AJAX POST request
+            fetch(`/apps-financial-analysis/budget/${projectId}/analyze`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ userContext: contextText })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // UI State Transition: Hide loading, show result container
+                aiLoadingState.classList.add('d-none');
+                aiResultContainer.classList.remove('d-none');
+                
+                if (data.status === 'success') {
+                    try {
+                        const aiData = JSON.parse(data.analysis);
+                        
+                        // Populate Text Fields
+                        if (resVariance) resVariance.innerText = aiData.variance_amount || 'N/A';
+                        if (resVarianceSub) resVarianceSub.innerText = aiData.variance_status || 'N/A';
+                        if (resTotal) resTotal.innerText = aiData.projected_total || 'N/A';
+                        if (resDate) resDate.innerText = aiData.inflection_date || 'N/A';
+
+                        // Populate Risk Badge
+                        if (resRiskBadge) {
+                            resRiskBadge.innerText = (aiData.risk_level || 'Unknown').toUpperCase() + ' RISK';
+                            resRiskBadge.className = 'badge rounded-pill px-2 py-1 fs-12 ';
+                            if (aiData.risk_level.toLowerCase().includes('high')) {
+                                resRiskBadge.classList.add('bg-danger');
+                            } else if (aiData.risk_level.toLowerCase().includes('medium')) {
+                                resRiskBadge.classList.add('bg-warning');
+                            } else {
+                                resRiskBadge.classList.add('bg-success');
+                            }
+                        }
+
+                        // Animate SVG Progress Ring
+                        const probability = parseInt(aiData.success_probability) || 0;
+                        if (resProbRing && resProbText) {
+                            // The radius is 60 as defined in the SVG
+                            const circumference = 60 * 2 * Math.PI; // approx 376.99
+                            const offset = circumference - (probability / 100) * circumference;
+                            
+                            // Reset animation explicitly
+                            resProbRing.style.transition = 'none';
+                            resProbRing.style.strokeDashoffset = '376.99';
+                            
+                            // Force reflow
+                            void resProbRing.offsetWidth; 
+                            
+                            // Trigger animation
+                            resProbRing.style.transition = 'stroke-dashoffset 1s ease-in-out';
+                            resProbRing.style.strokeDashoffset = offset;
+                            
+                            resProbText.innerText = probability + '%';
+                            
+                            // Color code the ring based on probability
+                            if (probability < 40) {
+                                resProbRing.setAttribute('stroke', '#fa5c7c'); // red
+                            } else if (probability < 70) {
+                                resProbRing.setAttribute('stroke', '#f9c851'); // yellow
+                            } else {
+                                resProbRing.setAttribute('stroke', '#10c469'); // green
+                            }
+                        }
+
+                        // Inject the Markdown response. 
+                        let formattedText = aiData.recommended_solutions || 'No detailed recommendations provided.';
+                        
+                        // Basic Markdown Parsing
+                        formattedText = formattedText.replace(/^### (.*$)/gim, '<h5 class="text-primary mt-3 mb-2">$1</h5>');
+                        formattedText = formattedText.replace(/^## (.*$)/gim, '<h4 class="mt-4 mb-3">$1</h4>');
+                        formattedText = formattedText.replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>');
+                        formattedText = formattedText.replace(/^\- (.*$)/gim, '<li class="mb-1">$1</li>');
+                        formattedText = formattedText.replace(/\n/g, '<br>');
+                        
+                        aiAnalysisContent.innerHTML = formattedText;
+                        
+                    } catch (e) {
+                        console.error('Failed to parse AI JSON:', e, data.analysis);
+                        aiAnalysisContent.innerHTML = `<div class="alert alert-danger">Error interpreting AI response. Expected JSON. <br><br>Raw response:<br> ${data.analysis}</div>`;
+                    }
+                } else {
+                    aiAnalysisContent.innerHTML = '<div class="alert alert-danger">Failed to generate analysis.</div>';
+                }
+            })
+            .catch(error => {
+                aiLoadingState.classList.add('d-none');
+                aiResultContainer.classList.remove('d-none');
+                aiAnalysisContent.innerHTML = `<div class="alert alert-danger"><h5 class="alert-heading">Connection Error</h5><p>${error.message}</p></div>`;
+                console.error('AI Error:', error);
+            });
+        });
+    }
+
+    if (btnRerunAi) {
+        btnRerunAi.addEventListener('click', function() {
+            // Hide result, show action area
+            aiResultContainer.classList.add('d-none');
+            aiActionArea.classList.remove('d-none');
+            
+            // Clear content & reset ring
+            aiAnalysisContent.innerHTML = '';
+            if (resVariance) resVariance.innerText = '--';
+            if (resTotal) resTotal.innerText = '--';
+            if (resDate) resDate.innerText = '--';
+            if (resProbRing) resProbRing.style.strokeDashoffset = '376.99';
+            if (resProbText) resProbText.innerText = '--%';
+        });
+    }
+
 });
+
+/**
+ * ==========================================
+ * CURRENCY EXCHANGE SYSTEM
+ * ==========================================
+ */
+function formatKpiNumber(num) {
+    if (num >= 1000000 || num <= -1000000) {
+        return (num / 1000000).toFixed(2) + 'M';
+    }
+    if (num >= 1000 || num <= -1000) {
+        return (num / 1000).toFixed(1) + 'k';
+    }
+    return num.toFixed(2);
+}
+
+function initializeCurrencyExchange(selectorId, profileId, defaultCurrency) {
+    const $currencySelect = $(selectorId);
+    if ($currencySelect.length === 0) return;
+
+    $.ajax({
+        url: '/apps-financial-analysis/profile/' + profileId + '/currency-rates',
+        type: 'GET',
+        success: function(response) {
+            if (response.results && response.results.length > 0) {
+                $currencySelect.select2({
+                    data: response.results,
+                    dropdownParent: $('body'),
+                    width: '100px',
+                    placeholder: 'Change Currency...',
+                    templateResult: function (state) {
+                        if (!state.id) return state.text;
+                        return $('<span>' + state.text + ' (Rate: ' + parseFloat(state.rate).toFixed(3) + ')</span>');
+                    },
+                    templateSelection: function (state) {
+                        if (!state.id) return state.text;
+                        return state.id;
+                    }
+                });
+
+                const applyConversion = function(selectedCurrencyCode, rate) {
+                    let newSymbol = selectedCurrencyCode;
+                    if (selectedCurrencyCode === 'USD') newSymbol = '$';
+                    else if (selectedCurrencyCode === 'EUR') newSymbol = '€';
+                    else if (selectedCurrencyCode === 'GBP') newSymbol = '£';
+                    else if (selectedCurrencyCode === 'JPY') newSymbol = '¥';
+                    else newSymbol = selectedCurrencyCode + ' ';
+
+                    // Update generic currency-value elements and legacy kpi-value elements
+                    $('.kpi-value, .currency-value').each(function() {
+                        const rawValue = parseFloat($(this).attr('data-raw-value'));
+                        if (!isNaN(rawValue)) {
+                            const convertedValue = rawValue * rate;
+                            const isKpi = $(this).hasClass('kpi-value');
+                            
+                            if (isKpi) {
+                                const formattedString = formatKpiNumber(convertedValue);
+                                $(this).find('.kpi-symbol').text(newSymbol);
+                                $(this).find('.kpi-number').text(formattedString);
+                            } else {
+                                const formattedString = formatKpiNumber(convertedValue);
+                                $(this).find('.currency-symbol').text(newSymbol);
+                                $(this).find('.currency-number').text(formattedString);
+                            }
+                        }
+                    });
+
+                    // Update Charts if the function exists
+                    if (typeof window.updateChartCurrencies === 'function') {
+                        window.updateChartCurrencies(rate, newSymbol);
+                    }
+                };
+
+                const storedCurrency = localStorage.getItem('fa_preferred_currency');
+                let initialCurrency = defaultCurrency;
+                let initialRate = 1;
+
+                if (storedCurrency && storedCurrency !== defaultCurrency && $currencySelect.find("option[value='" + storedCurrency + "']").length) {
+                    initialCurrency = storedCurrency;
+                }
+
+                if ($currencySelect.find("option[value='" + initialCurrency + "']").length) {
+                    $currencySelect.val(initialCurrency).trigger('change');
+                    
+                    if (initialCurrency !== defaultCurrency) {
+                        response.results.forEach(function(group) {
+                            if (group.children) {
+                                group.children.forEach(function(child) {
+                                    if (child.id === initialCurrency) {
+                                        initialRate = parseFloat(child.rate);
+                                    }
+                                });
+                            }
+                        });
+                        applyConversion(initialCurrency, initialRate);
+                    }
+                }
+
+                $currencySelect.on('select2:select', function (e) {
+                    const data = e.params.data;
+                    const rate = parseFloat(data.rate);
+                    const selectedCurrencyCode = data.id;
+
+                    localStorage.setItem('fa_preferred_currency', selectedCurrencyCode);
+                    applyConversion(selectedCurrencyCode, rate);
+                });
+
+                $('#btn-reset-currency').on('click', function(e) {
+                    e.preventDefault();
+                    localStorage.removeItem('fa_preferred_currency');
+                    $currencySelect.val(defaultCurrency).trigger('change');
+                    applyConversion(defaultCurrency, 1);
+                });
+            } else {
+                $currencySelect.html('<option disabled>API Error / Unavailable</option>');
+            }
+        },
+        error: function() {
+            $currencySelect.html('<option disabled>API Error</option>');
+        }
+    });
+}
+

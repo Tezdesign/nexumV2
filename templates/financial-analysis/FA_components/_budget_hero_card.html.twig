@@ -22,15 +22,15 @@
                 <div class="d-inline-flex gap-4 text-start">
                     <div>
                         <p class="text-muted fw-semibold text-uppercase mb-1 fs-12">{{ 'Total Budget'|trans }}</p>
-                        <h4 class="fw-semibold text-primary m-0">{{ currency_symbol|default('$') }}{{ projectBudget.totalBudget }}</h4>
+                        <h4 class="fw-semibold text-primary m-0"><span class="currency-value" data-raw-value="{{ projectBudget.rawTotal|default(0) }}"><span class="currency-symbol">{{ currency_symbol|default('$') }}</span><span class="currency-number">{{ projectBudget.totalBudget }}</span></span></h4>
                     </div>
                     <div>
                         <p class="text-muted fw-semibold text-uppercase mb-1 fs-12">{{ 'Actual Spend'|trans }}</p>
-                        <h4 class="fw-semibold text-danger m-0">{{ currency_symbol|default('$') }}{{ projectBudget.actualSpend }}</h4>
+                        <h4 class="fw-semibold text-danger m-0"><span class="currency-value" data-raw-value="{{ projectBudget.rawSpend|default(0) }}"><span class="currency-symbol">{{ currency_symbol|default('$') }}</span><span class="currency-number">{{ projectBudget.actualSpend }}</span></span></h4>
                     </div>
                     <div>
                         <p class="text-muted fw-semibold text-uppercase mb-1 fs-12">{{ 'Remaining Balance'|trans }}</p>
-                        <h4 class="fw-semibold text-success m-0">{{ currency_symbol|default('$') }}{{ projectBudget.remaining }}</h4>
+                        <h4 class="fw-semibold text-success m-0"><span class="currency-value" data-raw-value="{{ projectBudget.rawRemaining|default(0) }}"><span class="currency-symbol">{{ currency_symbol|default('$') }}</span><span class="currency-number">{{ projectBudget.remaining }}</span></span></h4>
                     </div>
                 </div>
             </div>

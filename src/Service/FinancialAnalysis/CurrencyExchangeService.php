@@ -38,6 +38,7 @@ class CurrencyExchangeService
             '4_raw_api_response' => $response
         ]);
 
+        // Return the raw API response
         return $response;
     }
     public function parseAndGroupRatesForSelect(string $rawJson): array

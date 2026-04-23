@@ -17,17 +17,17 @@
             <!-- Financials -->
             <div class="col-md-2 text-center mt-2 mt-md-0">
                 <p class="text-muted mb-0 fs-12">{{ 'Total Budget'|trans }}</p>
-                <h5 class="fw-normal m-0 fs-15">{{ currency_symbol|default('$') }}{{ project.totalBudget }}</h5>
+                <h5 class="fw-normal m-0 fs-15 currency-value" data-raw-value="{{ project.rawTotal|default(0) }}"><span class="currency-symbol">{{ currency_symbol|default('$') }}</span><span class="currency-number">{{ project.totalBudget }}</span></h5>
             </div>
             
             <div class="col-md-2 text-center mt-2 mt-md-0">
                 <p class="text-muted mb-0 fs-12">{{ 'Actual Spend'|trans }}</p>
-                <h5 class="fw-normal m-0 fs-15">{{ currency_symbol|default('$') }}{{ project.actualSpend }}</h5>
+                <h5 class="fw-normal m-0 fs-15 currency-value" data-raw-value="{{ project.rawSpend|default(0) }}"><span class="currency-symbol">{{ currency_symbol|default('$') }}</span><span class="currency-number">{{ project.actualSpend }}</span></h5>
             </div>
             
             <div class="col-md-2 text-center mt-2 mt-md-0">
                 <p class="text-muted mb-0 fs-12">{{ 'Remaining'|trans }}</p>
-                <h5 class="fw-normal m-0 fs-15">{{ currency_symbol|default('$') }}{{ project.remaining }}</h5>
+                <h5 class="fw-normal m-0 fs-15 currency-value" data-raw-value="{{ project.rawRemaining|default(0) }}"><span class="currency-symbol">{{ currency_symbol|default('$') }}</span><span class="currency-number">{{ project.remaining }}</span></h5>
             </div>
             
             <!-- Action & Due Date -->

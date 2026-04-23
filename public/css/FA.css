@@ -107,6 +107,38 @@
     border: none !important;
 }
 
+#profile-amount-slider.noUi-target {
+    height: 8px !important;
+    background-color: #e9ecef !important;
+    border: none !important;
+    margin-top: 30px !important; /* Forces room for tooltips */
+}
+#profile-amount-slider .noUi-connect {
+    background-color: #727cf5 !important;
+}
+#profile-amount-slider .noUi-handle {
+    width: 20px !important;
+    height: 20px !important;
+    border-radius: 50% !important;
+    top: -6px !important;
+    right: -10px !important;
+    background: #fff !important;
+    border: 2px solid #727cf5 !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+}
+#profile-amount-slider .noUi-handle::before,
+#profile-amount-slider .noUi-handle::after {
+    display: none !important;
+}
+#profile-amount-slider .noUi-tooltip {
+    padding: 4px 8px !important;
+    font-size: 12px !important;
+    bottom: 130% !important;
+    background: #313a46 !important;
+    color: #fff !important;
+    border: none !important;
+}
+
 /* Make text look like a normal label until clicked */
 .select2-container--default .select2-selection--single .select2-selection__rendered {
     color: var(--bs-body-color, #333) !important;

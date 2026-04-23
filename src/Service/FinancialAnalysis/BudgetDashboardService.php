@@ -10,13 +10,15 @@ use App\Repository\FinancialAnalysis\ProjectBudgetRepository;
 use App\Repository\FinancialAnalysis\TransactionRepository;
 use DateTime;
 use DateTimeImmutable;
+use App\Service\FinancialAnalysis\BudgetTrendCacheService;
 
 class BudgetDashboardService
 {
     public function __construct(
         private ProjectBudgetRepository $projectBudgetRepository,
         private BudgetProfileRepository $budgetProfileRepository,
-        private TransactionRepository $transactionRepository
+        private TransactionRepository $transactionRepository,
+        private BudgetTrendCacheService $trendCacheService
     ) {
     }
 
@@ -85,6 +87,9 @@ class BudgetDashboardService
             'totalBudget' => number_format($total / 1000, 1) . 'k',
             'actualSpend' => number_format($spend / 1000, 1) . 'k',
             'remaining' => number_format($remaining / 1000, 1) . 'k',
+            'rawTotal' => $total,
+            'rawSpend' => $spend,
+            'rawRemaining' => $remaining,
             'utilization' => $utilization,
             'dueDate' => $dueDate,
             'status' => $status,
@@ -121,6 +126,11 @@ class BudgetDashboardService
      */
     public function handleTransactionCascade(ProjectBudget $projectBudget, Transaction $transaction, ?BudgetProfile $profile): void
     {
+        if ($profile) {
+            $totals = $this->projectBudgetRepository->getTotalsForFiscalYear($profile->getStartDate(), $profile->getEndDate());
+            $this->trendCacheService->savePreUpdateState($profile, $totals['allocated'], $totals['expenses']);
+        }
+
         // 1. Save Transaction
         $this->transactionRepository->save($transaction, true);
         
@@ -146,6 +156,11 @@ class BudgetDashboardService
      */
     public function handleTransactionUpdateCascade(ProjectBudget $projectBudget, Transaction $transaction, ?BudgetProfile $profile): void
     {
+        if ($profile) {
+            $totals = $this->projectBudgetRepository->getTotalsForFiscalYear($profile->getStartDate(), $profile->getEndDate());
+            $this->trendCacheService->savePreUpdateState($profile, $totals['allocated'], $totals['expenses']);
+        }
+
         // 1. Execute the transaction update via DQL
         $this->transactionRepository->updateTransactionDql($transaction);
         
@@ -171,6 +186,11 @@ class BudgetDashboardService
      */
     public function handleBulkDeleteCascade(ProjectBudget $projectBudget, array $ids, ?BudgetProfile $profile): void
     {
+        if ($profile) {
+            $totals = $this->projectBudgetRepository->getTotalsForFiscalYear($profile->getStartDate(), $profile->getEndDate());
+            $this->trendCacheService->savePreUpdateState($profile, $totals['allocated'], $totals['expenses']);
+        }
+
         // 1. Execute bulk delete via DQL
         $this->transactionRepository->bulkDeleteDql($ids);
         
@@ -196,6 +216,11 @@ class BudgetDashboardService
      */
     public function handleProjectBudgetDeletionCascade(ProjectBudget $budget, ?BudgetProfile $profile): void
     {
+        if ($profile) {
+            $totals = $this->projectBudgetRepository->getTotalsForFiscalYear($profile->getStartDate(), $profile->getEndDate());
+            $this->trendCacheService->savePreUpdateState($profile, $totals['allocated'], $totals['expenses']);
+        }
+
         // 1. Delete all associated transactions
         $this->transactionRepository->deleteByProjectBudgetDql($budget->getId());
 
@@ -229,7 +254,7 @@ class BudgetDashboardService
     /**
      * Determines the currency symbol based on the active Fiscal Year (BudgetProfile)
      * the project falls under.
-     * 
+     *
      * @param \App\Entity\Projects\Project $project
      * @return string The currency symbol (e.g. $, €, £), abbreviation, or default '$'
      */
@@ -237,7 +262,7 @@ class BudgetDashboardService
     {
         // Find the active BudgetProfile for this project's dates
         $startDate = $project->getStartDate();
-        
+
         if (!$startDate) {
             return '$'; // Fallback if no start date
         }

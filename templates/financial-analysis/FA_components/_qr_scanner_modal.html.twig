@@ -1,0 +1,24 @@
+<!-- QR Scanner Modal Component -->
+<div class="modal fade" id="qrScannerModal" tabindex="-1" aria-labelledby="qrScannerModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-light border-bottom">
+                <h5 class="modal-title" id="qrScannerModalLabel"><i class="ti ti-qrcode me-2 text-primary"></i>{{ 'Scan QR Code'|trans }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4 text-center">
+                <div class="p-2 border rounded bg-light mb-3" style="min-height: 300px; display: flex; align-items: center; justify-content: center;">
+                    <!-- The html5-qrcode library will inject the video feed here -->
+                    <div id="qr-reader" style="width: 100%; border: none;"></div>
+                </div>
+                <p class="text-muted fs-13 mb-0">
+                    <i class="ti ti-info-circle me-1"></i>
+                    {{ 'Please point your camera at the QR code containing the transaction data. The scanner will automatically capture it.'|trans }}
+                </p>
+            </div>
+            <div class="modal-footer border-top bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ 'Cancel'|trans }}</button>
+            </div>
+        </div>
+    </div>
+</div>

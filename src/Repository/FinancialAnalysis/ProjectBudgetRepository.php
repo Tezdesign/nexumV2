@@ -136,4 +136,90 @@ class ProjectBudgetRepository extends ServiceEntityRepository
             ->getQuery()
             ->execute();
     }
+
+    /**
+     * Calculates the sum of total_budget and actualSpend for all budgets under the exact same project.
+     */
+    public function getProjectBudgetsAggregates(int $projectId): array
+    {
+        $result = $this->createQueryBuilder('pb')
+            ->select('SUM(pb.total_budget) as totalProjectAllocated', 'SUM(pb.actualSpend) as totalProjectSpent')
+            ->andWhere('pb.project = :projectId')
+            ->setParameter('projectId', $projectId)
+            ->getQuery()
+            ->getSingleResult();
+
+        return [
+            'allocated' => $result['totalProjectAllocated'] ? (float) $result['totalProjectAllocated'] : 0.0,
+            'spent' => $result['totalProjectSpent'] ? (float) $result['totalProjectSpent'] : 0.0,
+        ];
+    }
+
+    /**
+     * Evaluates the spending rank of the current budget compared to sibling budgets in the same project.
+     * Returns an array with ['rank' => X, 'totalBudgets' => Y]
+     */
+    public function getBudgetSpendingRank(int $projectId, float $currentSpend): array
+    {
+        // Total number of budgets in this project
+        $totalBudgets = $this->createQueryBuilder('pb')
+            ->select('COUNT(pb.id)')
+            ->andWhere('pb.project = :projectId')
+            ->setParameter('projectId', $projectId)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        // How many budgets have an actualSpend GREATER than the current one?
+        // (If 0 have greater spend, it's rank #1)
+        $higherSpendCount = $this->createQueryBuilder('pb')
+            ->select('COUNT(pb.id)')
+            ->andWhere('pb.project = :projectId')
+            ->andWhere('pb.actualSpend > :currentSpend')
+            ->setParameter('projectId', $projectId)
+            ->setParameter('currentSpend', $currentSpend)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        return [
+            'rank' => ((int) $higherSpendCount) + 1,
+            'totalBudgets' => (int) $totalBudgets
+        ];
+    }
+
+    /**
+     * Gets the number of unique projects involved in the specified fiscal year.
+     */
+    public function getUniqueProjectCountForFY(\DateTimeInterface $start, \DateTimeInterface $end): int
+    {
+        return (int) $this->createQueryBuilder('pb')
+            ->select('COUNT(DISTINCT pb.project)')
+            ->where('pb.dueDate >= :start')
+            ->andWhere('pb.dueDate <= :end')
+            ->setParameter('start', $start->format('Y-m-d'))
+            ->setParameter('end', $end->format('Y-m-d'))
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
+     * Gets the project name with the highest number of budgets in the specified fiscal year.
+     */
+    public function getProjectWithMostBudgetsForFY(\DateTimeInterface $start, \DateTimeInterface $end): array
+    {
+        $result = $this->createQueryBuilder('pb')
+            ->select('p.name as projectName, COUNT(pb.id) as budgetCount')
+            ->join('pb.project', 'p')
+            ->where('pb.dueDate >= :start')
+            ->andWhere('pb.dueDate <= :end')
+            ->setParameter('start', $start->format('Y-m-d'))
+            ->setParameter('end', $end->format('Y-m-d'))
+            ->groupBy('p.id')
+            ->orderBy('budgetCount', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+            
+        return $result ?: ['projectName' => 'N/A', 'budgetCount' => 0];
+    }
 }
+

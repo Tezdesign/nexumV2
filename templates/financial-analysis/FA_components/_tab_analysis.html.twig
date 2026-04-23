@@ -1,1 +1,40 @@
-<p class="text-muted">{{ 'Analysis content will go here.'|trans }}</p>
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card shadow-none bg-transparent">
+            <div class="card-body text-center py-5">
+                
+                <!-- Action Area -->
+                <div id="ai-generate-action">
+                    <i class="ti ti-brain text-primary opacity-75 mb-3" style="font-size: 4rem;"></i>
+                    <h4 class="fw-semibold mb-2">{{ 'AI Financial Analysis'|trans }}</h4>
+                    <p class="text-muted fs-14 mb-4">
+                        {{ 'Leverage the local Gemma model to analyze your current project spending habits, calculate variance, and predict project success.'|trans }}
+                    </p>
+                    <div class="form-group mb-4 text-start">
+                        <label for="ai-user-context" class="form-label fs-13 fw-medium">{{ 'Optional Context / Future Plans'|trans }}</label>
+                        <textarea class="form-control bg-white" id="ai-user-context" rows="3" placeholder="{{ 'e.g., We are planning to hire 2 more developers next month and cut marketing spend by 50%...'|trans }}"></textarea>
+                        <small class="text-muted">{{ 'Describe any planned changes to spending to help Gemma provide better predictions.'|trans }}</small>
+                    </div>
+                    <button class="btn btn-primary rounded-pill px-4 py-2" id="btn-generate-ai-analysis" data-project-id="{{ projectBudgetEntity.id }}">
+                        <i class="ti ti-sparkles me-2"></i>{{ 'Generate Analysis'|trans }}
+                    </button>
+                </div>
+
+                <!-- Loading State (Hidden by default) -->
+                <div id="ai-loading-state" class="d-none py-5">
+                    <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <h5 class="fw-medium text-muted">{{ 'Gemma is analyzing your project...'|trans }}</h5>
+                    <p class="fs-13 text-muted">{{ 'This may take a minute depending on your local machine.'|trans }}</p>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Result Container (Hidden by default) -->
+        <div id="ai-result-container" class="d-none">
+            {% include 'financial-analysis/FA_components/_ai_analysis_result.html.twig' %}
+        </div>
+    </div>
+</div>

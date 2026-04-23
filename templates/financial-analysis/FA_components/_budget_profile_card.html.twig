@@ -1,5 +1,6 @@
 <div class="card h-100 profile-card">
     <div class="card-body">
+        {% set trend = profileTrends[profile.id] ?? null %}
         <div class="d-flex justify-content-between align-items-center mt-1 mb-1">
             <h4 class="m-0 text-truncate pe-2">
                 <a href="{{ path('apps-financial-analysis-profile', {id: profile.id}) }}" class="text-dark">{{ 'FY'|trans }} {{ profile.fiscalYear }}</a>
@@ -10,15 +11,36 @@
         
         <div class="row text-center mt-2 mb-2 g-0">
             <div class="col-4">
-                <h4 class="fw-normal fs-14 m-0">{{ currency_symbol|default('$') }}{{ profile.budgetDisposable }}</h4>
+                <h4 class="fw-normal fs-14 m-0">
+                    {{ currency_symbol|default('$') }}{{ profile.budgetDisposable }}
+                    {% if trend and trend.budget.is_different %}
+                        <span class="badge badge-soft-{{ trend.budget.class }} rounded-pill fs-10 mt-1 d-block">
+                            {{ trend.budget.badge }} <i class="ti ti-trending-{{ trend.budget.direction }}"></i>
+                        </span>
+                    {% endif %}
+                </h4>
                 <p class="text-muted mb-0 fs-12">{{ 'Disposable'|trans }}</p>
             </div>
             <div class="col-4 border-start border-light">
-                <h4 class="fw-normal fs-14 m-0">{{ currency_symbol|default('$') }}{{ profile.totalExpense|default('0.00') }}</h4>
+                <h4 class="fw-normal fs-14 m-0">
+                    {{ currency_symbol|default('$') }}{{ profile.totalExpense|default('0.00') }}
+                    {% if trend and trend.spending.is_different %}
+                        <span class="badge badge-soft-{{ trend.spending.class }} rounded-pill fs-10 mt-1 d-block">
+                            {{ trend.spending.badge }} <i class="ti ti-trending-{{ trend.spending.direction }}"></i>
+                        </span>
+                    {% endif %}
+                </h4>
                 <p class="text-muted mb-0 fs-12">{{ 'Expense'|trans }}</p>
             </div>
             <div class="col-4 border-start border-light">
-                <h4 class="fw-normal fs-14 m-0">{{ profile.marginProfit|default('0') }}%</h4>
+                <h4 class="fw-normal fs-14 m-0">
+                    {{ profile.marginProfit|default('0') }}%
+                    {% if trend and trend.utilization.is_different %}
+                        <span class="badge badge-soft-{{ trend.utilization.class }} rounded-pill fs-10 mt-1 d-block">
+                            {{ trend.utilization.badge }} <i class="ti ti-trending-{{ trend.utilization.direction }}"></i>
+                        </span>
+                    {% endif %}
+                </h4>
                 <p class="text-muted mb-0 fs-12">{{ 'Margin'|trans }}</p>
             </div>
         </div>
