@@ -19,10 +19,11 @@
         box-sizing: border-box;
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         background-color: var(--bg-gray);
-        height: 100vh;
+        min-height: 100vh;
         display: flex;
         align-items: center;
         justify-content: center;
+        overflow-y: scroll;
     }
 
     .auth-card {
@@ -42,7 +43,8 @@
         padding: 50px 60px;
         display: flex;
         flex-direction: column;
-        justify-content: center;
+        overflow-y: auto;
+        max-height: 550px;
     }
 
     .back-link {
@@ -248,6 +250,90 @@
     .btn-close:hover {
         opacity: 1;
     }
+
+    .captcha-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 8px;
+    }
+
+    .captcha-img {
+        display: block;
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        background: var(--input-bg);
+        vertical-align: middle;
+    }
+
+    .btn-captcha-reload {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 42px;
+        height: 42px;
+        padding: 0;
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        background: var(--input-bg);
+        color: var(--text-main);
+        cursor: pointer;
+        transition: border-color 0.2s, background 0.2s;
+    }
+
+    .btn-captcha-reload:hover {
+        border-color: var(--primary-purple);
+        background: #faf5ff;
+    }
+
+    /* Custom scrollbar for form section */
+    .form-section::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .form-section::-webkit-scrollbar-track {
+        background: rgba(124, 58, 237, 0.1);
+        border-radius: 10px;
+    }
+
+    .form-section::-webkit-scrollbar-thumb {
+        background: linear-gradient(180deg, var(--primary-purple) 0%, #6d28d9 100%);
+        border-radius: 10px;
+        border: 2px solid rgba(124, 58, 237, 0.2);
+        transition: all 0.3s ease;
+    }
+
+    .form-section::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(180deg, #8b5cf6 0%, var(--primary-purple) 100%);
+        border-color: rgba(124, 58, 237, 0.4);
+        transform: scaleY(1.1);
+    }
+
+    /* Firefox scrollbar */
+    .form-section::-moz-scrollbar-thumb {
+        background: var(--primary-purple);
+        border-radius: 10px;
+        border: 2px solid rgba(124, 58, 237, 0.2);
+    }
+
+    .form-section::-moz-scrollbar-track {
+        background: rgba(124, 58, 237, 0.1);
+        border-radius: 10px;
+    }
+
+    /* Face authentication button hover effects */
+    .btn-face-auth:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(124, 58, 237, 0.4);
+        opacity: 0.9;
+    }
+
+    .btn-secondary:hover {
+        border-color: var(--primary-purple);
+        background: #faf5ff;
+        transform: translateY(-1px);
+    }
 </style>
 {% endblock %}
 
@@ -283,7 +369,7 @@
             <div class="form-group">
                 <div class="label-row">
                     <label>Password</label>
-                    <a href="#" class="forgot-password">Forgot password?</a>
+                    <a href="{{ path('password_forgot') }}" class="forgot-password">Forgot password?</a>
                 </div>
                 <div class="input-wrapper">
                     <svg class="input-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
@@ -292,8 +378,45 @@
                 </div>
             </div>
 
+            <div class="form-group">
+                <label>Captcha</label>
+                <div class="captcha-row">
+                    <img id="login-captcha-img" class="captcha-img" src="{{ path('login_captcha') }}" width="200" height="56" alt="Captcha code">
+                    <button type="button" class="btn-captcha-reload" id="login-captcha-reload" title="Reload captcha" aria-label="Reload captcha">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                    </button>
+                </div>
+                <div class="input-wrapper">
+                    <svg class="input-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m-7 4h8m-9 4h10M5 5h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z"></path></svg>
+                    <input type="text" name="_captcha" id="login-captcha-input" placeholder="Type the characters above" maxlength="12" autocomplete="off" autocapitalize="characters" spellcheck="false">
+                </div>
+            </div>
+
             <button type="submit" class="btn-signin">Sign In</button>
         </form>
+
+        <!-- Face Authentication -->
+        <div style="margin-top: 30px; padding-top: 30px; border-top: 1px solid var(--border-color);">
+            <p style="text-align: center; margin-bottom: 20px; font-size: 14px; color: var(--text-muted);">Or sign in with your face</p>
+
+            <div class="face-auth-container">
+                <video id="faceAuthVideo" width="320" height="240" style="display: none; border-radius: 10px; margin: 0 auto 10px; display: block;"></video>
+                <canvas id="faceAuthCanvas" width="320" height="240" style="display: none;"></canvas>
+                <div class="face-auth-buttons" style="text-align: center;">
+                    <button type="button" id="startAuthCameraBtn" class="btn-face-auth" style="padding: 14px 28px; border-radius: 12px; border: 2px solid var(--primary-purple); background: linear-gradient(135deg, var(--primary-purple) 0%, #6d28d9 100%); color: white; cursor: pointer; font-size: 15px; font-weight: 600; margin-right: 10px; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3);">
+                        &#x1f4f7; Start Face Authentication
+                    </button>
+                    <button type="button" id="authenticateFaceBtn" class="btn-face-auth" style="padding: 14px 28px; border-radius: 12px; border: 2px solid var(--primary-purple); background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; cursor: pointer; font-size: 15px; font-weight: 600; margin-right: 10px; display: none; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);">
+                        &#x1f510; Authenticate
+                    </button>
+                    <button type="button" id="stopAuthCameraBtn" class="btn-secondary" style="padding: 12px 24px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); cursor: pointer; display: none; transition: all 0.3s ease;">
+                        &#x1f5d1; Stop Camera
+                    </button>
+                </div>
+                <div id="faceAuthResult" style="margin-top: 15px; text-align: center;"></div>
+                <input type="hidden" name="auth_face_data" id="authFaceDataInput">
+            </div>
+        </div>
 
         <p class="footer-text">
             Don't have an account? <a href="{{ path('signin') }}" class="get-started">Get Started</a>
@@ -305,4 +428,124 @@
 {% endblock %}
 
 {% block script %}
+<script src="{{ asset('js/nexum-validation.js') }}"></script>
+<script>
+(function () {
+    var form = document.getElementById('nexum-login-form');
+    if (!form || !window.NexumValidate) return;
+    form.addEventListener('submit', function (e) {
+        if (NexumValidate.loginForm(form).length) e.preventDefault();
+    });
+    var img = document.getElementById('login-captcha-img');
+    var btn = document.getElementById('login-captcha-reload');
+    var input = document.getElementById('login-captcha-input');
+    var baseUrl = "{{ path('login_captcha')|e('js') }}";
+    if (btn && img) {
+        btn.addEventListener('click', function () {
+            img.src = baseUrl + '?renew=1&t=' + Date.now();
+            if (input) input.value = '';
+        });
+    }
+})();
+
+// Face authentication functionality
+let authStream = null;
+const authVideo = document.getElementById('faceAuthVideo');
+const authCanvas = document.getElementById('faceAuthCanvas');
+const startAuthCameraBtn = document.getElementById('startAuthCameraBtn');
+const authenticateFaceBtn = document.getElementById('authenticateFaceBtn');
+const stopAuthCameraBtn = document.getElementById('stopAuthCameraBtn');
+const faceAuthResult = document.getElementById('faceAuthResult');
+const authFaceDataInput = document.getElementById('authFaceDataInput');
+
+startAuthCameraBtn.addEventListener('click', async function() {
+    try {
+        authStream = await navigator.mediaDevices.getUserMedia({
+            video: {
+                width: { ideal: 640 },
+                height: { ideal: 480 },
+                facingMode: 'user'
+            }
+        });
+        authVideo.srcObject = authStream;
+        authVideo.style.display = 'block';
+        authVideo.play();
+
+        startAuthCameraBtn.style.display = 'none';
+        authenticateFaceBtn.style.display = 'inline-block';
+        stopAuthCameraBtn.style.display = 'inline-block';
+    } catch (err) {
+        console.error('Error accessing camera:', err);
+        alert('Unable to access camera. Please ensure you have granted camera permissions.');
+    }
+});
+
+authenticateFaceBtn.addEventListener('click', function() {
+    const context = authCanvas.getContext('2d');
+    authCanvas.width = authVideo.videoWidth;
+    authCanvas.height = authVideo.videoHeight;
+    context.drawImage(authVideo, 0, 0, authCanvas.width, authCanvas.height);
+
+    authCanvas.toBlob(function(blob) {
+        const reader = new FileReader();
+        reader.onloadend = function() {
+            const base64data = reader.result;
+            authFaceDataInput.value = base64data;
+
+            // Show loading state
+            faceAuthResult.innerHTML = '<div class="alert alert-info">Authenticating... Please wait.</div>';
+
+            // Send face data to server for authentication
+            fetch('{{ path("face_authenticate") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    face_data: base64data
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Face authentication response:', data);
+                if (data.success) {
+                    faceAuthResult.innerHTML = '<div class="alert alert-success">Face authentication successful! Redirecting...</div>';
+                    console.log('Redirecting to:', data.redirect_url);
+                    setTimeout(() => {
+                        console.log('Performing redirect to:', data.redirect_url);
+                        // Force a page reload instead of direct navigation to ensure session is properly loaded
+                        window.location.href = data.redirect_url + '?t=' + Date.now();
+                    }, 2000); // Increased delay to 2 seconds
+                } else {
+                    console.log('Face authentication failed:', data.message);
+                    faceAuthResult.innerHTML = '<div class="alert alert-danger">' + (data.message || 'Face authentication failed. Please try again.') + '</div>';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                faceAuthResult.innerHTML = '<div class="alert alert-danger">An error occurred during face authentication. Please try again.</div>';
+            })
+            .finally(() => {
+                stopAuthCamera();
+            });
+        };
+        reader.readAsDataURL(blob);
+    }, 'image/jpeg', 0.9);
+});
+
+stopAuthCameraBtn.addEventListener('click', stopAuthCamera);
+
+function stopAuthCamera() {
+    if (authStream) {
+        authStream.getTracks().forEach(track => track.stop());
+        authVideo.style.display = 'none';
+        authCanvas.style.display = 'none';
+
+        startAuthCameraBtn.style.display = 'inline-block';
+        authenticateFaceBtn.style.display = 'none';
+        stopAuthCameraBtn.style.display = 'none';
+    }
+}
+</script>
 {% endblock %}

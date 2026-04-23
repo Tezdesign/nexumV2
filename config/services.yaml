@@ -4,6 +4,17 @@
 # Put parameters here that don't need to change on each machine where the app is deployed
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
+    app.cloudinary_cloud_name: '%env(string:CLOUDINARY_CLOUD_NAME)%'
+    app.cloudinary_api_key: '%env(string:CLOUDINARY_API_KEY)%'
+    app.cloudinary_api_secret: '%env(string:CLOUDINARY_API_SECRET)%'
+    app.gemini_api_key: '%env(string:GEMINI_API_KEY)%'
+    app.gemini_model: '%env(string:GEMINI_MODEL)%'
+    app.ai_backend: '%env(string:AI_BACKEND)%'
+    app.lm_studio_url: '%env(string:LM_STUDIO_URL)%'
+    app.lm_studio_model: '%env(string:LM_STUDIO_MODEL)%'
+    app.openvino_model_path: '%env(string:OPENVINO_MODEL_PATH)%'
+    app.openvino_pipeline: '%env(string:OPENVINO_PIPELINE)%'
+    app.holiday_country_code: '%env(string:HOLIDAY_COUNTRY_CODE)%'
 
 services:
     # default configuration for services in *this* file
@@ -20,7 +31,63 @@ services:
             - '../src/Entity/'
             - '../src/Kernel.php'
 
+    App\Service\Project\ProjectFileStorage:
+        arguments:
+            $cloudName: '%app.cloudinary_cloud_name%'
+            $apiKey: '%app.cloudinary_api_key%'
+            $apiSecret: '%app.cloudinary_api_secret%'
 
+    App\Service\Project\AI\GeminiClient:
+        arguments:
+            $apiKey: '%app.gemini_api_key%'
+            $model: '%app.gemini_model%'
+
+    App\Service\Project\AI\LmStudioService:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+            $lmStudioUrl: '%app.lm_studio_url%'
+            $lmStudioModel: '%app.lm_studio_model%'
+
+    App\Service\Project\AI\OpenVinoRapportService:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+            $openVinoModelPath: '%app.openvino_model_path%'
+            $openVinoPipeline: '%app.openvino_pipeline%'
+
+    App\Service\Project\AI\RapportAiManager:
+        arguments:
+            $aiBackend: '%app.ai_backend%'
+
+    App\Service\Project\Calendar\PublicHolidayProvider:
+        arguments:
+            $cache: '@cache.app'
+            $countryCode: '%app.holiday_country_code%'
+
+
+
+
+    App\Service\MailService:
+        arguments:
+            $mailFrom: '%env(MAILER_FROM_NEXUM)%'
+            $mailDsn: '%env(MAILER_DSN_NEXUM)%'
+
+    App\Service\TelegramNotificationService:
+        arguments:
+            $botToken: '%env(TELEGRAM_BOT_TOKEN)%'
+            $defaultChatId: '%env(TELEGRAM_CHAT_ID)%'
+
+    App\Service\ReclamationHistoryService:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+
+    App\Service\AdminMailService:
+        arguments:
+            $mailFrom: '%env(MAILER_FROM_NEXUM)%'
+            $mailDsn: '%env(MAILER_DSN_NEXUM)%'
+
+    App\Service\AIAuditService:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

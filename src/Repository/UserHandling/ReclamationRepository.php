@@ -148,7 +148,7 @@ class ReclamationRepository extends ServiceEntityRepository
                 'u.nom AS user_nom',
                 'u.email AS user_email',
             ])
-            ->leftJoin(Utilisateur::class, 'u', Join::WITH, 'u.id = r.id_user')
+            ->leftJoin(Utilisateur::class, 'u', Join::ON, 'u.id = r.id_user')
             ->orderBy($orderExpr, $direction)
             ->addOrderBy('r.idRec', $direction)
             ->getQuery()

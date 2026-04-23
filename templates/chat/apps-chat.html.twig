@@ -248,12 +248,311 @@
             opacity: 1;
             transform: translateX(2px);
         }
+        .chat-composer-emoji-wrap {
+            position: relative;
+        }
+        .chat-voice-state {
+            background: var(--bs-tertiary-bg) !important;
+            border: 1px solid var(--bs-border-color) !important;
+            color: var(--bs-body-color) !important;
+            min-height: 36px;
+        }
+        .chat-voice-state.recording {
+            border-color: rgba(220, 53, 69, 0.35) !important;
+            background: rgba(220, 53, 69, 0.08) !important;
+        }
+        .chat-voice-state-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 999px;
+            background: #dc3545;
+            box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.55);
+            flex-shrink: 0;
+        }
+        .chat-voice-wave {
+            display: none;
+            align-items: end;
+            gap: 3px;
+            height: 14px;
+            flex-shrink: 0;
+        }
+        .chat-voice-state.recording .chat-voice-wave {
+            display: inline-flex;
+        }
+        .chat-voice-wave span {
+            width: 3px;
+            border-radius: 999px;
+            background: #dc3545;
+            transform-origin: center bottom;
+            animation: chat-voice-wave 1s ease-in-out infinite;
+        }
+        .chat-voice-wave span:nth-child(1) {
+            height: 6px;
+            animation-delay: 0s;
+        }
+        .chat-voice-wave span:nth-child(2) {
+            height: 10px;
+            animation-delay: 0.12s;
+        }
+        .chat-voice-wave span:nth-child(3) {
+            height: 14px;
+            animation-delay: 0.24s;
+        }
+        @keyframes chat-voice-wave {
+            0%, 100% {
+                transform: scaleY(0.5);
+                opacity: 0.55;
+            }
+            50% {
+                transform: scaleY(1);
+                opacity: 1;
+            }
+        }
+        .chat-voice-state.recording .chat-voice-state-dot {
+            animation: chat-voice-pulse 1.15s infinite;
+        }
+        @keyframes chat-voice-pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.55);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+            }
+        }
+        .chat-emoji-fallback-picker {
+            position: absolute;
+            left: 0;
+            bottom: calc(100% + 0.5rem);
+            width: 330px;
+            max-width: min(92vw, 330px);
+            background: var(--bs-body-bg);
+            background-color: rgb(var(--bs-body-bg-rgb, 255, 255, 255));
+            background-image: none;
+            border: 1px solid var(--bs-border-color);
+            border-radius: 1rem;
+            box-shadow: 0 1.25rem 3rem rgba(15, 23, 42, 0.32);
+            padding: 0.75rem;
+            z-index: 1060;
+            opacity: 1;
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+        }
+        .chat-emoji-fallback-picker.d-none {
+            display: none !important;
+        }
+        .chat-emoji-fallback-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.55rem;
+        }
+        .chat-emoji-tabs {
+            display: flex;
+            gap: 0.35rem;
+            margin-bottom: 0.55rem;
+        }
+        .chat-emoji-tab {
+            border: 0;
+            border-radius: 999px;
+            padding: 0.24rem 0.7rem;
+            font-size: 0.72rem;
+            font-weight: 600;
+            background: var(--bs-tertiary-bg);
+            color: var(--bs-secondary-color);
+        }
+        .chat-emoji-tab.active {
+            background: rgba(var(--bs-primary-rgb), 0.14);
+            color: var(--bs-primary);
+        }
+        .chat-emoji-section.d-none {
+            display: none !important;
+        }
+        .chat-emoji-cdn-host {
+            border-radius: 0.8rem;
+            overflow: hidden;
+            border: 1px solid var(--bs-border-color);
+            min-height: 290px;
+            background: var(--bs-body-bg);
+            background-color: rgb(var(--bs-body-bg-rgb, 255, 255, 255));
+            opacity: 1;
+        }
+        .chat-emoji-cdn-host:empty {
+            display: none;
+        }
+        .chat-emoji-cdn-host emoji-picker {
+            width: 100%;
+            min-height: 290px;
+            display: block;
+            background: var(--bs-body-bg);
+            background-color: rgb(var(--bs-body-bg-rgb, 255, 255, 255));
+            opacity: 1;
+            color-scheme: light;
+            --background: rgb(var(--bs-body-bg-rgb, 255, 255, 255));
+            --border-color: var(--bs-border-color);
+            --button-hover-background: var(--bs-tertiary-bg);
+            --button-active-background: rgba(111, 66, 193, 0.12);
+            --category-font-color: var(--bs-body-color);
+            --indicator-color: #6f42c1;
+            --input-border-color: var(--bs-border-color);
+            --input-font-color: var(--bs-body-color);
+            --input-placeholder-color: var(--bs-secondary-color);
+            --outline-color: rgba(111, 66, 193, 0.35);
+            --outline-size: 2px;
+        }
+        .chat-emoji-fallback-title {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--bs-body-color);
+        }
+        .chat-emoji-fallback-close {
+            width: 24px;
+            height: 24px;
+            border-radius: 999px;
+            border: 0;
+            background: var(--bs-tertiary-bg);
+            color: var(--bs-secondary-color);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+        .chat-emoji-fallback-close:hover {
+            color: var(--bs-body-color);
+            background: var(--bs-secondary-bg);
+        }
+        .chat-emoji-fallback-grid {
+            display: grid;
+            grid-template-columns: repeat(8, minmax(0, 1fr));
+            gap: 0.35rem;
+            margin-top: 0.5rem;
+        }
+        .chat-emoji-fallback-item {
+            width: 100%;
+            aspect-ratio: 1;
+            border: 0;
+            border-radius: 0.7rem;
+            background: transparent;
+            font-size: 1.1rem;
+            line-height: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .chat-emoji-fallback-item:hover,
+        .chat-emoji-fallback-item:focus-visible {
+            background: rgba(111, 66, 193, 0.12);
+            outline: none;
+        }
+        .chat-gif-search-wrap {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            margin-bottom: 0.5rem;
+            padding: 0.35rem;
+            border: 1px solid var(--bs-border-color);
+            border-radius: 0.85rem;
+            background: var(--bs-tertiary-bg);
+            background-color: rgb(var(--bs-body-bg-rgb, 255, 255, 255));
+            opacity: 1;
+        }
+        .chat-gif-search {
+            flex: 1;
+            min-width: 0;
+            border-color: transparent;
+            box-shadow: none;
+            background: var(--bs-body-bg);
+        }
+        .chat-gif-status {
+            font-size: 0.72rem;
+            color: var(--bs-secondary-color);
+            margin-bottom: 0.45rem;
+            padding-inline: 0.1rem;
+        }
+        .chat-gif-results {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.5rem;
+            max-height: 300px;
+            overflow-y: auto;
+            padding-right: 0.1rem;
+            background-color: rgb(var(--bs-body-bg-rgb, 255, 255, 255));
+            opacity: 1;
+        }
+        .chat-gif-item {
+            border: 1px solid var(--bs-border-color);
+            padding: 0;
+            border-radius: 0.8rem;
+            overflow: hidden;
+            background: var(--bs-tertiary-bg);
+            background-color: rgb(var(--bs-body-bg-rgb, 255, 255, 255));
+            aspect-ratio: 1.35 / 1;
+            position: relative;
+            box-shadow: 0 0.35rem 0.9rem rgba(15, 23, 42, 0.08);
+            transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+            opacity: 1;
+        }
+        .chat .p-3.border-top.position-sticky.bottom-0.w-100.mb-0 {
+            background-color: rgb(var(--bs-body-bg-rgb, 255, 255, 255));
+            background-image: none;
+            opacity: 1;
+        }
+        .chat-gif-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .chat-gif-item:hover,
+        .chat-gif-item:focus-visible {
+            outline: 2px solid rgba(var(--bs-primary-rgb), 0.4);
+            outline-offset: 0;
+            border-color: rgba(var(--bs-primary-rgb), 0.45);
+            transform: translateY(-1px);
+            box-shadow: 0 0.55rem 1.1rem rgba(15, 23, 42, 0.12);
+        }
+        .chat-ai-chip-wrap {
+            display: flex;
+            justify-content: center;
+            padding: 0.4rem 0 0.2rem;
+        }
+        .chat-ai-chip {
+            border: 0;
+            border-radius: 999px;
+            padding: 0.35rem 0.9rem;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #5b36a4;
+            background: rgba(111, 66, 193, 0.16);
+            transition: transform 0.15s ease, background-color 0.15s ease;
+        }
+        .chat-ai-chip:hover,
+        .chat-ai-chip:focus-visible {
+            background: rgba(111, 66, 193, 0.24);
+            transform: translateY(-1px);
+        }
+        .chat-ai-summary-text {
+            min-height: 180px;
+            max-height: 48vh;
+            overflow: auto;
+            white-space: pre-wrap;
+            border-radius: 0.6rem;
+            border: 1px solid var(--bs-border-color);
+            background: var(--bs-tertiary-bg);
+            padding: 0.75rem;
+            font-size: 0.92rem;
+            line-height: 1.45;
+        }
     </style>
 {% endblock %}
 
 {% block content %}
 
-    <div class="chat d-flex gap-2 position-relative" data-apps-chat="chat-root" data-current-user-name="{{ currentUser.name|e('html_attr') }}" data-current-user-avatar="{{ (currentUser.avatarSrc ?? '')|e('html_attr') }}">
+    <div class="chat d-flex gap-2 position-relative" data-apps-chat="chat-root" data-current-user-id="{{ currentUser.id ?? 0 }}" data-current-user-name="{{ currentUser.name|e('html_attr') }}" data-current-user-avatar="{{ (currentUser.avatarSrc ?? '')|e('html_attr') }}" data-gif-api-key="{{ (gifApiKey ?? '')|e('html_attr') }}" data-gif-api-provider="{{ (gifApiProvider ?? 'kilpy')|e('html_attr') }}" data-gif-api-base-url="{{ (gifApiBaseUrl ?? 'https://api.klipy.com')|e('html_attr') }}" data-gif-customer-id="{{ (gifCustomerId ?? 'guest')|e('html_attr') }}" data-gif-locale="{{ (gifLocale ?? 'tn')|e('html_attr') }}" data-call-signaling-enabled="{{ callSignalingEnabled ? '1' : '0' }}" data-call-socket-url="{{ (callSocketUrl ?? 'ws://localhost:8090/ws')|e('html_attr') }}" data-call-token-endpoint="{{ (callTokenEndpoint ?? '/apps-chat/livekit/token')|e('html_attr') }}" data-call-page-endpoint="{{ (callPageEndpoint ?? 'http://127.0.0.1:8090/livekit/call')|e('html_attr') }}" data-call-livekit-url="{{ (callLivekitUrl ?? 'ws://127.0.0.1:7880')|e('html_attr') }}" data-call-avatar-endpoint="{{ (callAvatarEndpoint ?? '/apps-chat/livekit/avatar')|e('html_attr') }}">
         <div class="offcanvas-xxl offcanvas-start" tabindex="-1" id="chatUserList" aria-labelledby="chatUserListLabel">
             <div id="chat-user-list" class="card collapse collapse-horizontal show">
                 <div class="chat-user-list">
@@ -353,46 +652,48 @@
                                         <span class="badge text-bg-light ms-auto" data-apps-chat="filter-label">All</span>
                                     </div>
 
-                                    {% for conversation in conversations %}
-                                        <a href="javascript:void(0);" class="text-body d-block" data-apps-chat="conversation-item" data-conversation-id="{{ conversation.id }}" data-messages-endpoint="{{ path('apps-chat-conversation-messages', {'conversationId': conversation.id}) }}" data-conversation-name="{{ conversation.name|e('html_attr') }}" data-conversation-avatar="{{ (conversation.avatarSrc ?? '')|e('html_attr') }}" data-conversation-type="{{ conversation.isDm ? 'DM' : 'GROUP' }}" data-conversation-is-admin="{{ conversation.isAdmin ? '1' : '0' }}" data-conversation-created-at="{{ (conversation.createdAtLabel ?? '--')|e('html_attr') }}" data-dm-name="{{ conversation.isDm ? conversation.name|e('html_attr') : '' }}" data-group-title="{{ conversation.isDm ? '' : conversation.name|e('html_attr') }}" data-conversation-unread="{{ (conversation.unreadCount ?? 0) > 0 ? '1' : '0' }}">
-                                            <div class="chat-users">
-                                                <div class="avatar-md {{ conversation.isDm ? 'chat-avatar-online' : 'chat-avatar-offline' }}">
-                                                    {% if conversation.avatarSrc %}
-                                                        <img src="{{ conversation.avatarSrc }}" class="w-100 h-100 object-fit-cover rounded-circle" alt="{{ conversation.name }}" data-apps-chat="conversation-avatar-image" />
-                                                    {% else %}
-                                                        <div class="h-100 w-100 rounded-circle bg-secondary-subtle text-secondary d-flex align-items-center justify-content-center fw-semibold" data-apps-chat="conversation-avatar-fallback">
-                                                            {{ conversation.name|slice(0, 1)|upper }}
-                                                        </div>
-                                                    {% endif %}
-                                                </div>
+                                    <div data-apps-chat="conversation-items">
+                                        {% for conversation in conversations %}
+                                            <a href="javascript:void(0);" class="text-body d-block" data-apps-chat="conversation-item" data-conversation-id="{{ conversation.id }}" data-messages-endpoint="{{ path('apps-chat-conversation-messages', {'conversationId': conversation.id}) }}" data-conversation-name="{{ conversation.name|e('html_attr') }}" data-conversation-avatar="{{ (conversation.avatarSrc ?? '')|e('html_attr') }}" data-conversation-type="{{ conversation.isDm ? 'DM' : 'GROUP' }}" data-conversation-is-admin="{{ conversation.isAdmin ? '1' : '0' }}" data-conversation-created-at="{{ (conversation.createdAtLabel ?? '--')|e('html_attr') }}" data-dm-name="{{ conversation.isDm ? conversation.name|e('html_attr') : '' }}" data-group-title="{{ conversation.isDm ? '' : conversation.name|e('html_attr') }}" data-conversation-unread="{{ (conversation.unreadCount ?? 0) > 0 ? '1' : '0' }}" data-conversation-unread-count="{{ conversation.unreadCount ?? 0 }}">
+                                                <div class="chat-users">
+                                                    <div class="avatar-md {{ conversation.isDm ? 'chat-avatar-online' : 'chat-avatar-offline' }}">
+                                                        {% if conversation.avatarSrc %}
+                                                            <img src="{{ conversation.avatarSrc }}" class="w-100 h-100 object-fit-cover rounded-circle" alt="{{ conversation.name }}" data-apps-chat="conversation-avatar-image" />
+                                                        {% else %}
+                                                            <div class="h-100 w-100 rounded-circle bg-secondary-subtle text-secondary d-flex align-items-center justify-content-center fw-semibold" data-apps-chat="conversation-avatar-fallback">
+                                                                {{ conversation.name|slice(0, 1)|upper }}
+                                                            </div>
+                                                        {% endif %}
+                                                    </div>
 
-                                                <div class="flex-grow-1 overflow-hidden">
-                                                    <h5 class="m-0">
-                                                        <span class="float-end d-flex flex-column align-items-end">
-                                                            <span class="text-muted fs-12" data-apps-chat="conversation-last-time">
-                                                                {{ conversation.lastMessageTimeLabel ?? '--' }}
-                                                            </span>
-                                                            {% if (conversation.unreadCount ?? 0) > 0 %}
-                                                                <span class="badge rounded-pill bg-danger text-white fs-10 mt-1" data-apps-chat="conversation-unread-badge" style="min-width: 20px;">
-                                                                    {{ conversation.unreadCount > 99 ? '99+' : conversation.unreadCount }}
+                                                    <div class="flex-grow-1 overflow-hidden">
+                                                        <h5 class="m-0">
+                                                            <span class="float-end d-flex flex-column align-items-end">
+                                                                <span class="text-muted fs-12" data-apps-chat="conversation-last-time">
+                                                                    {{ conversation.lastMessageTimeLabel ?? '--' }}
                                                                 </span>
-                                                            {% endif %}
-                                                        </span>
-                                                        <span data-apps-chat="conversation-name">{{ conversation.name }}</span>
-                                                    </h5>
-                                                    <p class="mt-1 mb-0 text-muted lh-1">
-                                                        <span class="w-75 d-inline-block text-truncate overflow-hidden fs-13" data-apps-chat="conversation-last-preview">
-                                                            {{ conversation.lastMessagePreview ?? 'No messages yet' }}
-                                                        </span>
-                                                    </p>
+                                                                {% if (conversation.unreadCount ?? 0) > 0 %}
+                                                                    <span class="badge rounded-pill bg-danger text-white fs-10 mt-1" data-apps-chat="conversation-unread-badge" style="min-width: 20px;">
+                                                                        {{ conversation.unreadCount > 99 ? '99+' : conversation.unreadCount }}
+                                                                    </span>
+                                                                {% endif %}
+                                                            </span>
+                                                            <span data-apps-chat="conversation-name">{{ conversation.name }}</span>
+                                                        </h5>
+                                                        <p class="mt-1 mb-0 text-muted lh-1">
+                                                            <span class="w-75 d-inline-block text-truncate overflow-hidden fs-13" data-apps-chat="conversation-last-preview">
+                                                                {{ conversation.lastMessagePreview ?? 'No messages yet' }}
+                                                            </span>
+                                                        </p>
+                                                    </div>
                                                 </div>
+                                            </a>
+                                        {% else %}
+                                            <div class="px-3 py-3 text-muted fs-13">
+                                                No conversations found for this user.
                                             </div>
-                                        </a>
-                                    {% else %}
-                                        <div class="px-3 py-3 text-muted fs-13">
-                                            No conversations found for this user.
-                                        </div>
-                                    {% endfor %}
+                                        {% endfor %}
+                                    </div>
 
                                     <div class="px-3 py-3 text-muted fs-13 d-none" data-apps-chat="filter-empty">
                                         No conversations match this filter.
@@ -435,10 +736,10 @@
                                 </div>
 
                                 <div class="d-flex align-items-center gap-2">
-                                    <a href="javascript: void(0);" class="btn btn-sm btn-icon btn-ghost-light d-none d-xl-flex" data-bs-toggle="modal" data-bs-target="#userCall" data-bs-toggle="tooltip" data-bs-placement="top" title="Voice Call">
+                                    <a href="javascript: void(0);" class="btn btn-sm btn-icon btn-ghost-light d-none d-xl-flex" data-apps-chat="call-audio" data-bs-toggle="tooltip" data-bs-placement="top" title="Voice Call">
                                         <i class="ti ti-phone-call fs-20"></i>
                                     </a>
-                                    <a href="javascript: void(0);" class="btn btn-sm btn-icon btn-ghost-light d-none d-xl-flex" data-bs-toggle="modal" data-bs-target="#userVideoCall" data-bs-toggle="tooltip" data-bs-placement="top" title="Video Call">
+                                    <a href="javascript: void(0);" class="btn btn-sm btn-icon btn-ghost-light d-none d-xl-flex" data-apps-chat="call-video" data-bs-toggle="tooltip" data-bs-placement="top" title="Video Call">
                                         <i class="ti ti-video fs-20"></i>
                                     </a>
 
@@ -460,16 +761,69 @@
                             <div class="p-3 border-top position-sticky bottom-0 w-100 mb-0">
                                 <form class="d-flex align-items-end gap-1" name="chat-form" id="chat-form" novalidate>
 
-                                    <div>
-                                        <button type="button" class="btn btn-icon btn-soft-warning">
-                                            <iconify-icon icon="solar:smile-circle-outline" class="fs-20"></iconify-icon>
+                                    <div class="chat-composer-emoji-wrap">
+                                        <button type="button" class="btn btn-icon btn-soft-warning" data-apps-chat="emoji-button" aria-expanded="false" aria-label="Add emoji">
+                                            <i class="ti ti-mood-smile fs-20"></i>
                                         </button>
+                                        <div class="chat-emoji-fallback-picker d-none" data-apps-chat="emoji-fallback-picker" aria-hidden="true">
+                                            <div class="chat-emoji-fallback-header">
+                                                <span class="chat-emoji-fallback-title">Reactions</span>
+                                                <button type="button" class="chat-emoji-fallback-close" data-apps-chat="emoji-fallback-close" aria-label="Close emoji picker">
+                                                    <i class="ti ti-x"></i>
+                                                </button>
+                                            </div>
+                                            <div class="chat-emoji-tabs" role="tablist" aria-label="Emoji and GIF tabs">
+                                                <button type="button" class="chat-emoji-tab active" data-apps-chat="emoji-tab" data-emoji-tab="emoji" role="tab" aria-selected="true">Emoji</button>
+                                                <button type="button" class="chat-emoji-tab" data-apps-chat="emoji-tab" data-emoji-tab="gif" role="tab" aria-selected="false">GIF</button>
+                                            </div>
+                                            <div class="chat-emoji-section" data-apps-chat="emoji-section">
+                                                <div class="chat-emoji-cdn-host" data-apps-chat="emoji-cdn-host"></div>
+                                                <div class="chat-emoji-fallback-grid" data-apps-chat="emoji-fallback-grid">
+                                                    <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="😀">😀</button>
+                                                    <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="😁">😁</button>
+                                                    <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="😂">😂</button>
+                                                    <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="🤣">🤣</button>
+                                                    <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="😊">😊</button>
+                                                    <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="😍">😍</button>
+                                                    <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="😘">😘</button>
+                                                    <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="😎">😎</button>
+                                                    <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="🤔">🤔</button>
+                                                    <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="👍">👍</button>
+                                                    <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="🙏">🙏</button>
+                                                    <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="👏">👏</button>
+                                                    <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="🔥">🔥</button>
+                                                    <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="💯">💯</button>
+                                                    <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="🎉">🎉</button>
+                                                    <button type="button" class="chat-emoji-fallback-item" data-apps-chat="emoji-fallback-item" data-emoji="❤️">❤️</button>
+                                                </div>
+                                            </div>
+                                            <div class="chat-emoji-section d-none" data-apps-chat="gif-section">
+                                                <div class="chat-gif-search-wrap">
+                                                    <input type="search" class="form-control form-control-sm chat-gif-search" placeholder="Search GIFs" data-apps-chat="gif-search">
+                                                    <button type="button" class="btn btn-sm btn-light" data-apps-chat="gif-clear" title="Clear GIF search">
+                                                        <i class="ti ti-refresh"></i>
+                                                    </button>
+                                                </div>
+                                                <div class="chat-gif-status" data-apps-chat="gif-status">Trending GIFs</div>
+                                                <div class="chat-gif-results" data-apps-chat="gif-results"></div>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <div class="flex-grow-1 d-flex flex-column gap-1" data-apps-chat="chat-input-column">
                                         <div class="d-none align-items-center justify-content-between gap-2 px-2 py-1 rounded-3" data-apps-chat="inline-edit-notice">
                                             <span data-apps-chat="inline-edit-title">Edit message</span>
                                             <button type="button" class="btn btn-sm p-0" data-apps-chat="inline-edit-cancel" aria-label="Cancel edit">&times;</button>
+                                        </div>
+                                        <div class="d-none d-flex align-items-center justify-content-between gap-2 px-2 py-1 rounded-3 chat-voice-state" data-apps-chat="voice-state">
+                                            <span class="chat-voice-state-dot" data-apps-chat="voice-state-dot" aria-hidden="true"></span>
+                                            <span class="chat-voice-wave" aria-hidden="true">
+                                                <span></span>
+                                                <span></span>
+                                                <span></span>
+                                            </span>
+                                            <span data-apps-chat="voice-state-label">Voice message</span>
+                                            <span class="text-muted small" data-apps-chat="voice-state-time">00:00</span>
                                         </div>
                                         <input type="text" name="message" class="form-control" placeholder="Type Message..." data-apps-chat="chat-input" disabled>
                                     </div>
@@ -478,10 +832,10 @@
                                         <button type="submit" class="btn btn-icon btn-success chat-send" data-apps-chat="chat-send" disabled>
                                             <i class='ti ti-send'></i>
                                         </button>
-                                        <a href="#" class="btn btn-icon btn-soft-primary d-none d-md-inline-flex">
+                                        <button type="button" class="btn btn-icon btn-soft-primary" data-apps-chat="voice-button" aria-label="Start voice recording" title="Voice message" style="display: none;">
                                             <i class="ti ti-microphone"></i>
-                                        </a>
-                                        <button type="button" class="btn btn-icon btn-soft-primary d-none d-md-inline-flex" data-apps-chat="attachment-button" title="Attach file">
+                                        </button>
+                                        <button type="button" class="btn btn-icon btn-soft-primary" data-apps-chat="attachment-button" title="Attach file" style="display: none;">
                                             <i class="ti ti-paperclip"></i>
                                         </button>
                                     </div>
@@ -646,6 +1000,27 @@
                     </div>
                 </div>
 
+                <div class="modal fade" tabindex="-1" aria-hidden="true" data-apps-chat="ai-summary-modal">
+                    <div class="modal-dialog modal-dialog-centered modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" data-apps-chat="ai-summary-title">AI Summary</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="d-flex align-items-center gap-2 text-muted mb-2 d-none" data-apps-chat="ai-summary-loading">
+                                    <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
+                                    <span>Generating summary...</span>
+                                </div>
+                                <div class="chat-ai-summary-text" data-apps-chat="ai-summary-text"></div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="modal fade" tabindex="-1" aria-hidden="true" data-apps-chat="message-actions-modal">
                     <div class="modal-dialog modal-dialog-centered">
                         <div class="modal-content">
@@ -758,5 +1133,7 @@
 {% endblock %}
 
 {% block script %}
-    <script src="/js/pages/apps-chat.js?v=20260409i"></script>
+    <script src="/js/vendor/sockjs.min.js"></script>
+    <script src="/js/vendor/stomp.min.js"></script>
+    <script src="/js/pages/apps-chat.js?v=20260423b"></script>
 {% endblock %}

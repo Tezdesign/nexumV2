@@ -8,6 +8,7 @@ use App\Entity\UserHandling\Utilisateur;
 use App\Repository\UserHandling\UtilisateurRepository;
 use App\Service\AdminPdfExportService;
 use App\Service\AuthService;
+use App\Service\AdminMailService;
 use Doctrine\DBAL\Exception\TableNotFoundException;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -28,6 +29,7 @@ class UserManagementController extends AbstractController
         private readonly UtilisateurRepository $utilisateurRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly ValidatorInterface $validator,
+        private readonly AdminMailService $adminMailService,
     ) {
     }
 
@@ -164,9 +166,22 @@ class UserManagementController extends AbstractController
             $utilisateur->setDateInscription(new \DateTime());
             $utilisateur->setScore(100);
             $this->attachUploadedImageIfAny($utilisateur, $request, false);
+            $temporaryPassword = trim((string) $request->request->get('_password', ''));
 
             $this->entityManager->persist($utilisateur);
             $this->entityManager->flush();
+
+            if ($temporaryPassword !== '') {
+                try {
+                    $this->adminMailService->sendInvitationEmail(
+                        (string) $utilisateur->getEmail(),
+                        (string) ($utilisateur->getPrenom() ?? $utilisateur->getNom() ?? 'Utilisateur'),
+                        $temporaryPassword
+                    );
+                } catch (\Throwable) {
+                    $this->addFlash('warning', 'User created but invitation email could not be sent.');
+                }
+            }
 
             $this->addFlash('success', 'User created successfully.');
 
@@ -200,6 +215,7 @@ class UserManagementController extends AbstractController
         if ($request->isMethod('POST')) {
             $modal = $this->isModalSubmit($request);
             $email = trim((string) $request->request->get('email', ''));
+            $oldStatus = strtolower(trim((string) $utilisateur->getStatut()));
 
             $dto = AdminUserWriteInput::fromRequest($request, false);
             if ($this->flashValidationErrors($this->validator->validate($dto))) {
@@ -224,6 +240,15 @@ class UserManagementController extends AbstractController
 
             $this->fillUserFromRequest($utilisateur, $request, false);
             $this->entityManager->flush();
+            $newStatus = strtolower(trim((string) $utilisateur->getStatut()));
+
+            if ($oldStatus !== $newStatus && trim((string) $utilisateur->getEmail()) !== '') {
+                try {
+                    $this->adminMailService->sendStatusChangeEmail((string) $utilisateur->getEmail(), $newStatus);
+                } catch (\Throwable) {
+                    $this->addFlash('warning', 'User updated, but status notification email could not be sent.');
+                }
+            }
 
             $this->attachUploadedImageIfAny($utilisateur, $request, true);
 
@@ -291,6 +316,13 @@ class UserManagementController extends AbstractController
 
         $utilisateur->setStatut('active');
         $this->entityManager->flush();
+        if (trim((string) $utilisateur->getEmail()) !== '') {
+            try {
+                $this->adminMailService->sendStatusChangeEmail((string) $utilisateur->getEmail(), 'active');
+            } catch (\Throwable) {
+                $this->addFlash('warning', 'User activated, but status email could not be sent.');
+            }
+        }
         $this->addFlash('success', 'User activated.');
 
         return $this->redirectToRoute('admin_users_index');

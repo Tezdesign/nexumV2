@@ -7,13 +7,15 @@ use Doctrine\ORM\Mapping as ORM;
 use App\Entity\ResourcesManagement\ResourceAssignment;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
+use Symfony\Component\Security\Core\User\UserInterface;
 
 use App\Repository\UserHandling\UtilisateurRepository;
 
 #[ORM\Entity(repositoryClass: UtilisateurRepository::class)]
 #[ORM\Table(name: 'utilisateurs')]
 #[ORM\UniqueConstraint(name: "email", columns: ["email"])]
-class Utilisateur
+class Utilisateur implements UserInterface, PasswordAuthenticatedUserInterface
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -155,6 +157,42 @@ class Utilisateur
     {
         $this->password = $password;
         return $this;
+    }
+
+    public function getUserIdentifier(): string
+    {
+        return (string) ($this->email ?? '');
+    }
+
+    /**
+     * Kept for backward compatibility with older Symfony internals.
+     */
+    public function getUsername(): string
+    {
+        return $this->getUserIdentifier();
+    }
+
+    public function getRoles(): array
+    {
+        $raw = strtolower(trim((string) ($this->role ?? '')));
+
+        $mapped = match ($raw) {
+            'admin', 'administrator' => ['ROLE_ADMIN'],
+            'manager' => ['ROLE_MANAGER'],
+            'employee' => ['ROLE_EMPLOYEE'],
+            'finance' => ['ROLE_FINANCE'],
+            'hr' => ['ROLE_HR'],
+            default => ['ROLE_USER'],
+        };
+
+        $mapped[] = 'ROLE_USER';
+
+        return array_values(array_unique($mapped));
+    }
+
+    public function eraseCredentials(): void
+    {
+        // No temporary sensitive data stored on the entity.
     }
 
     #[ORM\Column(type: 'integer', options: ['default' => 100], nullable: false)]

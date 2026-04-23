@@ -11,6 +11,7 @@
 {% set fullName = u ? ((u.prenom ~ ' ' ~ u.nom)|trim|plain_text) : '' %}
 {% set projectName = projectName|default('') %}
 {% set taskUrl = taskUrl|default(path('app_task_show', {id: task.id})) %}
+{% set taskShowUrl = taskShowUrl|default(path('app_task_show_modal', {id: task.id})) %}
 {% set canUpdateProgress = (au is not null) and (au == (currentUserId|default(0))) %}
 {% set createdBy = task.createdBy ?? null %}
 {% set canDeleteTask = (isManager|default(false)) or (createdBy is not null and createdBy == (currentUserId|default(0))) %}
@@ -59,17 +60,10 @@
 
         <a class="nexum-task-title {{ isDone ? 'done' : '' }}"
            href="{{ taskUrl }}"
-           title="{{ task.title|plain_text }}"
-           data-calendar-event="1"
-           data-calendar-kind="task_deadline"
-           data-calendar-title="{{ task.title|plain_text }}"
-           data-calendar-type="Task deadline"
-           data-calendar-date="{{ task.dueDate ? task.dueDate|date('M d, Y') : '—' }}"
-           data-calendar-project="{{ projectName|plain_text }}"
-           data-calendar-assigned-to="{{ fullName ?: 'Unassigned' }}"
-           data-calendar-task="{{ task.title|plain_text }}"
-           data-calendar-details="Task deadline tracked on the calendar."
-           data-calendar-link="{{ taskUrl }}">
+           data-bs-toggle="modal"
+           data-bs-target="#taskDetailsModal"
+           data-task-show-url="{{ taskShowUrl }}"
+           title="{{ task.title|plain_text }}">
             {{ task.title|plain_text }}
         </a>
     </div>

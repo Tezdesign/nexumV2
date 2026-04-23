@@ -1,19 +1,29 @@
 <?php
 
 namespace App\Service;
+
+use Symfony\Component\Mailer\Mailer;
 use Symfony\Component\Mailer\MailerInterface;
+use Symfony\Component\Mailer\Transport;
 use Symfony\Component\Mime\Email;
 
 class MailService
 {
-    public function sendCertificate($user, $formation, string $filePath, MailerInterface $mailer)
+    public function __construct(
+        private readonly MailerInterface $mailer,
+        private readonly string $mailFrom = 'noreply@nexum.local',
+        private readonly ?string $mailDsn = null,
+    ) {
+    }
+
+    public function sendCertificate($user, $formation, string $filePath, ?MailerInterface $mailer = null): void
     {
         if (!file_exists($filePath)) {
             throw new \Exception('Fichier certificat introuvable');
         }
 
         $email = (new Email())
-            ->from('mariem@longevityplus.store')
+            ->from($this->mailFrom)
             ->to($user->getEmail())
             ->subject('🎓 Votre certificat - '.$formation->getTitre())
             ->html("
@@ -26,6 +36,16 @@ class MailService
             ")
             ->attachFromPath($filePath, 'certificat.pdf'); // 🔥 rename clean
 
-        $mailer->send($email);
+        ($mailer ?? $this->resolveMailer())->send($email);
+    }
+
+    private function resolveMailer(): MailerInterface
+    {
+        $dsn = trim((string) $this->mailDsn);
+        if ($dsn === '') {
+            return $this->mailer;
+        }
+
+        return new Mailer(Transport::fromDsn($dsn));
     }
 }

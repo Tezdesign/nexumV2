@@ -25,6 +25,11 @@ use Symfony\Component\Routing\Annotation\Route;
 class MessageController extends AbstractController
 {
 	private const LINK_PREVIEW_USER_AGENT = 'Mozilla/5.0 (compatible; NexumChatLinkPreview/1.0; +https://nexum.local)';
+	private const LM_BASE = 'http://localhost:1234/v1';
+	private const LM_CHAT_URL = 'http://localhost:1234/v1/chat/completions';
+	private const LM_MODEL = 'dolphin3.0-llama3.1-8b';
+	private const AI_SUMMARY_UNREAD_THRESHOLD = 10;
+	private const AI_SUMMARY_TIMEOUT = 30;
 
 	public function __construct(
 		private readonly HttpClientInterface $httpClient,
@@ -56,12 +61,36 @@ class MessageController extends AbstractController
 		}
 
 		$messages = $messageRepository->findByConversationOrdered($conversationId);
+		$participant = $participantRepository->findOneBy([
+			'conversation_id' => $conversationId,
+			'user_id' => $this->currentUserId(),
+			'left_at' => null,
+		]);
+
+		$lastReadMessageIdBeforeRead = $participant instanceof ConversationParticipant
+			? $participant->getLastReadMessageId()
+			: null;
+
+		$lastConversationMessage = $messages !== [] ? $messages[count($messages) - 1] : null;
+		$lastConversationMessageId = $lastConversationMessage instanceof Message
+			? $lastConversationMessage->getId()
+			: null;
+
+		$unreadBeforeRead = $messageRepository->countUnreadMessages(
+			$conversationId,
+			$lastReadMessageIdBeforeRead,
+			$this->currentUserId()
+		);
+
 		if ($request->query->getBoolean('markAsRead', false)) {
-			$this->markConversationAsRead($messages, $conversationId, $participantRepository, $entityManager);
+			$this->markConversationAsRead($participant, $lastConversationMessageId, $entityManager);
 		}
 
 		$usersById = $this->mapUsersById($messages, $utilisateurRepository);
 		$readReceipts = $this->buildReadReceipts($conversationId, $participantRepository, $utilisateurRepository);
+
+		// Determine whether to show AI summary chip
+		$showAiSummaryChip = $unreadBeforeRead >= self::AI_SUMMARY_UNREAD_THRESHOLD;
 
 		$payload = array_map(function ($message) use ($usersById): array {
 			$senderId = $message->getSenderId();
@@ -89,7 +118,148 @@ class MessageController extends AbstractController
 			'success' => true,
 			'messages' => $payload,
 			'readReceipts' => $readReceipts,
+			'conversationState' => [
+				'selectedConversationId' => $conversationId,
+				'lastReadMessageIdBeforeRead' => $lastReadMessageIdBeforeRead,
+				'lastConversationMessageId' => $lastConversationMessageId,
+				'unreadBeforeRead' => $unreadBeforeRead,
+				'showAiSummaryChip' => $showAiSummaryChip,
+			],
 		]);
+	}
+
+	#[Route('/apps-chat/conversations/{conversationId}/ai-summary', name: 'apps-chat-conversation-ai-summary', methods: ['POST'])]
+	public function aiSummary(
+		int $conversationId,
+		Request $request,
+		ConversationRepository $conversationRepository,
+		ConversationParticipantRepository $participantRepository,
+	): JsonResponse {
+		if ($conversationId <= 0) {
+			return $this->json([
+				'success' => false,
+				'error' => 'Invalid conversation id.',
+			], 400);
+		}
+
+		if (!$participantRepository->isActiveParticipant($conversationId, $this->currentUserId())) {
+			return $this->json([
+				'success' => false,
+				'error' => 'Access denied for this conversation.',
+			], 403);
+		}
+
+		$conversation = $conversationRepository->find($conversationId);
+		if (!$conversation instanceof Conversation) {
+			return $this->json([
+				'success' => false,
+				'error' => 'Conversation not found.',
+			], 404);
+		}
+
+		$payload = json_decode((string) $request->getContent(), true);
+		if (!is_array($payload) || !isset($payload['messages']) || !is_array($payload['messages'])) {
+			return $this->json([
+				'success' => false,
+				'error' => 'Invalid request: messages array required.',
+			], 400);
+		}
+
+		$conversationTitle = $conversation->getTitle() ?? 'Conversation';
+		$messages = $payload['messages'];
+
+		try {
+			$summary = $this->lmStudioChatSummary($conversationTitle, $messages);
+
+			return $this->json([
+				'success' => true,
+				'summary' => $summary,
+			]);
+		} catch (\Throwable $exception) {
+			return $this->json([
+				'success' => false,
+				'error' => $exception->getMessage(),
+			], 503);
+		}
+	}
+
+	/**
+	 * @param array<int, array{body: string, senderId: int}> $contextMessages
+	 */
+	private function lmStudioChatSummary(string $conversationTitle, array $contextMessages): string
+	{
+		// Build conversation text with "Me:" and "Other:" prefixes
+		$conversationText = '';
+		foreach ($contextMessages as $msg) {
+			$body = trim((string) ($msg['body'] ?? ''));
+			if ($body === '') {
+				continue;
+			}
+
+			$senderId = (int) ($msg['senderId'] ?? 0);
+			$who = ($senderId === $this->currentUserId()) ? 'Me' : 'Other';
+			$conversationText .= "{$who}: {$body}\n";
+		}
+
+		if (trim($conversationText) === '') {
+			throw new \RuntimeException('No message content found for AI summary.');
+		}
+
+		$systemPrompt =
+			"Tu es un assistant qui résume une conversation de messagerie.\n" .
+			"Retourne un résumé court en français, en 3 parties:\n" .
+			"1) Sujet (1 ligne)\n" .
+			"2) Points clés (3 bullets max)\n" .
+			"3) Action suivante (1 ligne)\n" .
+			"Sois factuel, pas de blabla.";
+
+		$userPrompt =
+			"Titre: {$conversationTitle}\n" .
+			"Messages:\n" . $conversationText;
+
+		$json = json_encode([
+			'model' => self::LM_MODEL,
+			'temperature' => 0.2,
+			'messages' => [
+				['role' => 'system', 'content' => $systemPrompt],
+				['role' => 'user', 'content' => $userPrompt],
+			],
+		], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+		if ($json === false) {
+			throw new \RuntimeException('Failed to encode JSON request.');
+		}
+
+		// Call LM Studio via HTTP
+		try {
+			$response = $this->httpClient->request('POST', self::LM_CHAT_URL, [
+				'headers' => [
+					'Authorization' => 'Bearer lm-studio',
+					'Content-Type' => 'application/json',
+				],
+				'body' => $json,
+				'timeout' => self::AI_SUMMARY_TIMEOUT,
+			]);
+
+			$statusCode = $response->getStatusCode();
+			if ($statusCode < 200 || $statusCode >= 300) {
+				throw new \RuntimeException("LM Studio HTTP {$statusCode}");
+			}
+
+			$data = $response->toArray(false);
+			if (!isset($data['choices'][0]['message']['content'])) {
+				throw new \RuntimeException('Unexpected LM Studio response structure');
+			}
+
+			$summary = trim((string) $data['choices'][0]['message']['content']);
+			if ($summary === '') {
+				throw new \RuntimeException('LM Studio returned empty summary');
+			}
+
+			return $summary;
+		} catch (\Throwable $exception) {
+			throw new \RuntimeException('LM Studio request failed: ' . $exception->getMessage());
+		}
 	}
 
 	private function currentUserId(): int
@@ -97,44 +267,32 @@ class MessageController extends AbstractController
 		return (int) ($this->authService->getCurrentUserId() ?? 0);
 	}
 
-	/**
-	 * @param Message[] $messages
-	 */
+
+
+
+
+
+
+
+
 	private function markConversationAsRead(
-		array $messages,
-		int $conversationId,
-		ConversationParticipantRepository $participantRepository,
+		?ConversationParticipant $participant,
+		?int $lastConversationMessageId,
 		EntityManagerInterface $entityManager,
 	): void {
-		if ($messages === []) {
-			return;
-		}
-
-		$lastMessage = $messages[count($messages) - 1] ?? null;
-		if (!$lastMessage instanceof Message) {
-			return;
-		}
-
-		$lastMessageId = $lastMessage->getId();
-		if ($lastMessageId === null) {
-			return;
-		}
-
-		$participant = $participantRepository->findOneBy([
-			'conversation_id' => $conversationId,
-			'user_id' => $this->currentUserId(),
-			'left_at' => null,
-		]);
-
 		if (!$participant instanceof ConversationParticipant) {
 			return;
 		}
 
-		if ($participant->getLastReadMessageId() === $lastMessageId) {
+		if ($lastConversationMessageId === null) {
 			return;
 		}
 
-		$participant->setLastReadMessageId($lastMessageId);
+		if ($participant->getLastReadMessageId() === $lastConversationMessageId) {
+			return;
+		}
+
+		$participant->setLastReadMessageId($lastConversationMessageId);
 		$entityManager->flush();
 	}
 
@@ -535,13 +693,32 @@ class MessageController extends AbstractController
 		}
 
 		$now = new DateTimeImmutable('now', $createdAt->getTimezone());
-		$secondsDiff = $now->getTimestamp() - $createdAt->getTimestamp();
+		$seconds = max(0, $now->getTimestamp() - $createdAt->getTimestamp());
 
-		if ($secondsDiff < 24 * 60 * 60) {
-			return $createdAt->format('g:ia');
+		if ($seconds < 60) {
+			return 'now';
 		}
 
-		return $createdAt->format('m/d g:ia');
+		if ($seconds < 3600) {
+			$minutes = (int) floor($seconds / 60);
+			return $minutes . ' min';
+		}
+
+		if ($seconds < 86400) {
+			$hours = (int) floor($seconds / 3600);
+			return $hours . ' h';
+		}
+
+		if ($seconds < 604800) {
+			$days = (int) floor($seconds / 86400);
+			return $days . ' day' . ($days === 1 ? '' : 's');
+		}
+
+		if ($seconds < 1209600) {
+			return '1 week ago';
+		}
+
+		return $createdAt->format('M j');
 	}
 
 	private function isBlockedPreviewHost(string $host): bool

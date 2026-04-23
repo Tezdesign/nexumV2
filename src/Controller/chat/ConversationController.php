@@ -9,9 +9,11 @@ use App\Entity\Chat\MessageAttachment;
 use App\Entity\UserHandling\Utilisateur;
 use App\Repository\Chat\ConversationParticipantRepository;
 use App\Repository\Chat\ConversationRepository;
+use App\Repository\Chat\MessageRepository;
 use App\Repository\UserHandling\UtilisateurRepository;
 use App\Service\Chat\ConversationSidebarProvider;
 use App\Service\AuthService;
+use DateTime;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -19,11 +21,15 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 use InvalidArgumentException;
 
 class ConversationController extends AbstractController
 {
-    public function __construct(private readonly AuthService $authService)
+    public function __construct(
+        private readonly AuthService $authService,
+        private readonly HttpClientInterface $httpClient,
+    )
     {
     }
 
@@ -31,13 +37,609 @@ class ConversationController extends AbstractController
     public function index(ConversationSidebarProvider $sidebarProvider): Response
     {
         $sidebarData = $sidebarProvider->getSidebarData($this->currentUserId());
+        $currentUserId = $this->currentUserId();
+        $gifApiKey = trim((string) (
+            $_ENV['KILPY']
+            ?? $_ENV['KLIPY_API_KEY']
+            ?? $_SERVER['KILPY']
+            ?? $_SERVER['KLIPY_API_KEY']
+            ?? getenv('KILPY')
+            ?? getenv('KLIPY_API_KEY')
+            ?? ''
+        ));
+        $gifApiBaseUrl = rtrim((string) (
+            $_ENV['KILPY_BASE_URL']
+            ?? $_ENV['KLIPY_BASE_URL']
+            ?? $_SERVER['KILPY_BASE_URL']
+            ?? $_SERVER['KLIPY_BASE_URL']
+            ?? getenv('KILPY_BASE_URL')
+            ?? getenv('KLIPY_BASE_URL')
+            ?? 'https://api.klipy.com'
+        ), '/');
+        $gifLocale = strtolower(trim((string) (
+            $_ENV['KILPY_LOCALE']
+            ?? $_ENV['KLIPY_LOCALE']
+            ?? $_SERVER['KILPY_LOCALE']
+            ?? $_SERVER['KLIPY_LOCALE']
+            ?? getenv('KILPY_LOCALE')
+            ?? getenv('KLIPY_LOCALE')
+            ?? 'tn'
+        )));
+        $callSocketUrl = trim((string) (
+            $_ENV['CHAT_CALL_SOCKET_URL']
+            ?? $_SERVER['CHAT_CALL_SOCKET_URL']
+            ?? getenv('CHAT_CALL_SOCKET_URL')
+            ?? 'ws://localhost:8090/ws'
+        ));
+        $callTokenEndpoint = trim((string) (
+            $_ENV['CHAT_CALL_TOKEN_ENDPOINT']
+            ?? $_SERVER['CHAT_CALL_TOKEN_ENDPOINT']
+            ?? getenv('CHAT_CALL_TOKEN_ENDPOINT')
+            ?? '/apps-chat/livekit/token'
+        ));
+        $callPageEndpoint = trim((string) (
+            $_ENV['CHAT_CALL_PAGE_ENDPOINT']
+            ?? $_SERVER['CHAT_CALL_PAGE_ENDPOINT']
+            ?? getenv('CHAT_CALL_PAGE_ENDPOINT')
+            ?? 'http://127.0.0.1:8090/livekit/call'
+        ));
+        $callLivekitUrl = trim((string) (
+            $_ENV['CHAT_CALL_LIVEKIT_URL']
+            ?? $_SERVER['CHAT_CALL_LIVEKIT_URL']
+            ?? getenv('CHAT_CALL_LIVEKIT_URL')
+            ?? 'ws://127.0.0.1:7880'
+        ));
+        $callAvatarEndpoint = trim((string) (
+            $_ENV['CHAT_CALL_AVATAR_ENDPOINT']
+            ?? $_SERVER['CHAT_CALL_AVATAR_ENDPOINT']
+            ?? getenv('CHAT_CALL_AVATAR_ENDPOINT')
+            ?? '/apps-chat/livekit/avatar'
+        ));
+        $callSignalingEnabled = filter_var(
+            (string) (
+                $_ENV['CHAT_CALL_SIGNALING_ENABLED']
+                ?? $_SERVER['CHAT_CALL_SIGNALING_ENABLED']
+                ?? getenv('CHAT_CALL_SIGNALING_ENABLED')
+                ?? '1'
+            ),
+            FILTER_VALIDATE_BOOL,
+            FILTER_NULL_ON_FAILURE
+        );
+        if ($callSignalingEnabled === null) {
+            $callSignalingEnabled = true;
+        }
 
         return $this->render('chat/apps-chat.html.twig', [
             'currentUser' => $sidebarData['currentUser'],
             'conversations' => $sidebarData['conversations'],
+            'gifApiKey' => $gifApiKey,
+            'gifApiProvider' => 'kilpy',
+            'gifApiBaseUrl' => $gifApiBaseUrl,
+            'gifCustomerId' => (string) $currentUserId,
+            'gifLocale' => $gifLocale,
+            'callSignalingEnabled' => $callSignalingEnabled,
+            'callSocketUrl' => $callSocketUrl,
+            'callTokenEndpoint' => $callTokenEndpoint,
+            'callPageEndpoint' => $callPageEndpoint,
+            'callLivekitUrl' => $callLivekitUrl,
+            'callAvatarEndpoint' => $callAvatarEndpoint,
         ]);
     }
 
+    #[Route('/apps-chat/livekit/token', name: 'apps-chat-livekit-token-proxy', methods: ['GET'])]
+    public function proxyLivekitToken(Request $request): Response
+    {
+        $room = trim((string) $request->query->get('room', ''));
+        $identity = trim((string) $request->query->get('identity', ''));
+        $name = trim((string) $request->query->get('name', ''));
+
+        if ($room === '' || $identity === '') {
+            return $this->json([
+                'success' => false,
+                'error' => 'Missing required parameters: room or identity.',
+            ], 400);
+        }
+
+        $tokenEndpoint = $this->readEnvSetting([
+            'CHAT_CALL_TOKEN_PROXY_TARGET',
+        ], 'http://127.0.0.1:8090/livekit/token');
+
+        try {
+            $upstream = $this->httpClient->request('GET', $tokenEndpoint, [
+                'query' => [
+                    'room' => $room,
+                    'identity' => $identity,
+                    'name' => $name,
+                ],
+            ]);
+
+            $status = $upstream->getStatusCode();
+            $data = $upstream->toArray(false);
+
+            if ($status < 200 || $status >= 300 || empty($data['token'])) {
+                return $this->json([
+                    'success' => false,
+                    'error' => 'LiveKit token server did not return a token.',
+                    'detail' => $data,
+                ], $status >= 400 ? $status : 502);
+            }
+
+            return $this->json([
+                'success' => true,
+                'token' => $data['token'],
+            ]);
+
+        } catch (\Throwable $error) {
+            return $this->json([
+                'success' => false,
+                'error' => 'Failed to generate LiveKit token.',
+                'detail' => $error->getMessage(),
+            ], 500);
+        }
+    }
+
+    #[Route('/apps-chat/livekit/avatar/{userId}', name: 'apps-chat-livekit-avatar-proxy', methods: ['GET'])]
+    public function proxyLivekitAvatar(int $userId): Response
+    {
+        $base = rtrim($this->readEnvSetting([
+            'CHAT_CALL_AVATAR_PROXY_TARGET',
+            'CHAT_CALL_AVATAR_ENDPOINT',
+        ], 'http://127.0.0.1:8090/livekit/avatar'), '/');
+
+        $target = sprintf('%s/%d', $base, $userId);
+
+        try {
+            $upstream = $this->httpClient->request('GET', $target);
+            $status = $upstream->getStatusCode();
+            $content = $upstream->getContent(false);
+            $headers = $upstream->getHeaders(false);
+
+            return new Response($content, $status, [
+                'Content-Type' => $headers['content-type'][0] ?? 'application/octet-stream',
+                'Cache-Control' => 'public, max-age=300',
+            ]);
+        } catch (\Throwable $error) {
+            return new Response('', 404);
+        }
+    }
+
+    private function readEnvSetting(array $keys, string $fallback = ''): string
+    {
+        foreach ($keys as $key) {
+            $value = $_ENV[$key] ?? $_SERVER[$key] ?? getenv($key);
+            if ($value === false) {
+                continue;
+            }
+
+            $trimmed = trim((string) $value);
+            if ($trimmed !== '') {
+                return $trimmed;
+            }
+        }
+
+        return trim($fallback);
+    }
+
+    /**
+     * Send call invite message
+     */
+    #[Route('/apps-chat/conversations/{conversationId}/call/invite', name: 'apps-chat-call-invite', methods: ['POST'])]
+    public function sendCallInvite(
+        int $conversationId,
+        Request $request,
+        ConversationRepository $conversationRepository,
+        MessageRepository $messageRepository,
+        ConversationParticipantRepository $participantRepository,
+        EntityManagerInterface $entityManager
+    ): JsonResponse {
+        $videoEnabled = $request->request->getBoolean('video', false);
+        $currentUserId = $this->currentUserId();
+
+        try {
+            // Verify user is participant
+            if (!$participantRepository->isActiveParticipant($conversationId, $currentUserId)) {
+                return $this->json(['success' => false, 'error' => 'Access denied'], 403);
+            }
+
+            $conversation = $conversationRepository->find($conversationId);
+            if (!$conversation) {
+                return $this->json(['success' => false, 'error' => 'Conversation not found'], 404);
+            }
+
+            $room = 'conv_' . $conversationId;
+
+            // Create CALL message
+            $message = $this->persistCallEvent(
+                $conversation,
+                $conversationId,
+                $currentUserId,
+                'RING',
+                $videoEnabled,
+                $room,
+                $entityManager
+            );
+
+            // Send STOMP signal if enabled
+            if ($this->isCallSignalingEnabled()) {
+                $this->sendCallSignal('RING', $conversationId, $currentUserId, $videoEnabled, $room);
+            }
+
+            return $this->json([
+                'success' => true,
+                'messageId' => $message->getId(),
+                'room' => $room,
+                'video' => $videoEnabled
+            ]);
+
+        } catch (\Exception $e) {
+            return $this->json([
+                'success' => false,
+                'error' => 'Failed to send call invite: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Accept call
+     */
+    #[Route('/apps-chat/conversations/{conversationId}/call/accept', name: 'apps-chat-call-accept', methods: ['POST'])]
+    public function acceptCall(
+        int $conversationId,
+        Request $request,
+        ConversationRepository $conversationRepository,
+        ConversationParticipantRepository $participantRepository,
+        EntityManagerInterface $entityManager
+    ): JsonResponse {
+        $videoEnabled = $request->request->getBoolean('video', false);
+        $currentUserId = $this->currentUserId();
+
+        try {
+            // Verify user is participant
+            if (!$participantRepository->isActiveParticipant($conversationId, $currentUserId)) {
+                return $this->json(['success' => false, 'error' => 'Access denied'], 403);
+            }
+
+            $room = 'conv_' . $conversationId;
+            $conversation = $conversationRepository->find($conversationId);
+            if (!$conversation instanceof Conversation) {
+                return $this->json(['success' => false, 'error' => 'Conversation not found'], 404);
+            }
+
+            $this->persistCallEvent(
+                $conversation,
+                $conversationId,
+                $currentUserId,
+                'ACCEPT',
+                $videoEnabled,
+                $room,
+                $entityManager
+            );
+
+            // Send STOMP signal
+            if ($this->isCallSignalingEnabled()) {
+                $this->sendCallSignal('ACCEPT', $conversationId, $currentUserId, $videoEnabled, $room);
+            }
+
+            return $this->json([
+                'success' => true,
+                'room' => $room,
+                'video' => $videoEnabled,
+                'callUrl' => $this->buildCallUrl($videoEnabled, $room)
+            ]);
+
+        } catch (\Exception $e) {
+            return $this->json([
+                'success' => false,
+                'error' => 'Failed to accept call: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Reject call
+     */
+    #[Route('/apps-chat/conversations/{conversationId}/call/reject', name: 'apps-chat-call-reject', methods: ['POST'])]
+    public function rejectCall(
+        int $conversationId,
+        Request $request,
+        ConversationRepository $conversationRepository,
+        ConversationParticipantRepository $participantRepository,
+        EntityManagerInterface $entityManager
+    ): JsonResponse {
+        $videoEnabled = $request->request->getBoolean('video', false);
+        $currentUserId = $this->currentUserId();
+
+        try {
+            // Verify user is participant
+            if (!$participantRepository->isActiveParticipant($conversationId, $currentUserId)) {
+                return $this->json(['success' => false, 'error' => 'Access denied'], 403);
+            }
+
+            $room = 'conv_' . $conversationId;
+            $conversation = $conversationRepository->find($conversationId);
+            if (!$conversation instanceof Conversation) {
+                return $this->json(['success' => false, 'error' => 'Conversation not found'], 404);
+            }
+
+            $this->persistCallEvent(
+                $conversation,
+                $conversationId,
+                $currentUserId,
+                'REJECT',
+                $videoEnabled,
+                $room,
+                $entityManager
+            );
+
+            // Send STOMP signal
+            if ($this->isCallSignalingEnabled()) {
+                $this->sendCallSignal('REJECT', $conversationId, $currentUserId, $videoEnabled, $room);
+            }
+
+            return $this->json([
+                'success' => true,
+                'message' => 'Call rejected'
+            ]);
+
+        } catch (\Exception $e) {
+            return $this->json([
+                'success' => false,
+                'error' => 'Failed to reject call: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get call messages for polling
+     */
+    #[Route('/apps-chat/calls/poll', name: 'apps-chat-calls-poll', methods: ['GET'])]
+    public function pollCallMessages(
+        Request $request,
+        ConversationRepository $conversationRepository,
+        MessageRepository $messageRepository,
+        ConversationParticipantRepository $participantRepository
+    ): JsonResponse {
+        $lastMessageId = $request->query->getInt('lastMessageId', 0);
+        $currentUserId = $this->currentUserId();
+
+        try {
+            $conversationIds = array_values(array_unique(array_merge(
+                $participantRepository->findConversationIdsForUser($currentUserId),
+                $conversationRepository->findDmConversationIdsForUser($currentUserId)
+            )));
+
+            if ($conversationIds === []) {
+                return $this->json([
+                    'success' => true,
+                    'callMessages' => [],
+                    'lastMessageId' => 0
+                ]);
+            }
+
+            if ($lastMessageId <= 0) {
+                $latestMessageId = $messageRepository->findLatestCallMessageIdForConversations($conversationIds);
+                $freshMessages = $messageRepository->findRecentCallMessagesForConversations($conversationIds, 0, 20);
+                $freshCallMessages = [];
+                $freshAfter = time() - 30;
+
+                foreach ($freshMessages as $message) {
+                    $senderId = (int) ($message->getSenderId() ?? 0);
+                    if ($senderId === $currentUserId) {
+                        continue;
+                    }
+
+                    $createdAt = $message->getCreatedAt();
+                    if ($createdAt === null || $createdAt->getTimestamp() < $freshAfter) {
+                        continue;
+                    }
+
+                    $messageId = (int) ($message->getId() ?? 0);
+                    $body = (string) ($message->getBody() ?? '');
+                    $parsed = $this->parseCallEventBody($body, (int) ($message->getConversationId() ?? 0));
+
+                    if ($parsed['type'] !== 'RING') {
+                        continue;
+                    }
+
+                    $freshCallMessages[] = [
+                        'id' => $messageId,
+                        'type' => $parsed['type'],
+                        'conversationId' => (int) ($message->getConversationId() ?? 0),
+                        'senderId' => $senderId,
+                        'callKind' => $parsed['callKind'],
+                        'video' => $parsed['callKind'] === 'VIDEO',
+                        'room' => $parsed['room'],
+                    ];
+                }
+
+                return $this->json([
+                    'success' => true,
+                    'callMessages' => $freshCallMessages,
+                    'lastMessageId' => $latestMessageId
+                ]);
+            }
+
+            $messages = $messageRepository->findRecentCallMessagesForConversations($conversationIds, $lastMessageId);
+            $latestMessageId = $lastMessageId;
+            $callMessages = [];
+
+            foreach ($messages as $message) {
+                $messageId = (int) ($message->getId() ?? 0);
+                $latestMessageId = max($latestMessageId, $messageId);
+                $body = (string) ($message->getBody() ?? '');
+                $parsed = $this->parseCallEventBody($body, (int) ($message->getConversationId() ?? 0));
+
+                $callMessages[] = [
+                    'id' => $messageId,
+                    'type' => $parsed['type'],
+                    'conversationId' => (int) ($message->getConversationId() ?? 0),
+                    'senderId' => (int) ($message->getSenderId() ?? 0),
+                    'callKind' => $parsed['callKind'],
+                    'video' => $parsed['callKind'] === 'VIDEO',
+                    'room' => $parsed['room'],
+                ];
+            }
+
+            return $this->json([
+                'success' => true,
+                'callMessages' => $callMessages,
+                'lastMessageId' => $latestMessageId
+            ]);
+
+        } catch (\Exception $e) {
+            return $this->json([
+                'success' => false,
+                'error' => 'Failed to poll call messages: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get LiveKit token for call
+     */
+    #[Route('/apps-chat/conversations/{conversationId}/call/token', name: 'apps-chat-call-token', methods: ['GET'])]
+    public function getCallToken(
+        int $conversationId,
+        Request $request,
+        ConversationRepository $conversationRepository,
+        ConversationParticipantRepository $participantRepository
+    ): JsonResponse {
+        $room = $request->query->get('room', 'conv_' . $conversationId);
+        $currentUserId = $this->currentUserId();
+
+        try {
+            // Verify user is participant
+            if (!$participantRepository->isActiveParticipant($conversationId, $currentUserId)) {
+                return $this->json(['success' => false, 'error' => 'Access denied'], 403);
+            }
+
+            $tokenEndpoint = $this->readEnvSetting([
+                'CHAT_CALL_TOKEN_PROXY_TARGET',
+                'CHAT_CALL_TOKEN_ENDPOINT',
+            ], 'http://127.0.0.1:8090/livekit/token');
+
+            $response = $this->httpClient->request('GET', $tokenEndpoint, [
+                'query' => [
+                    'room' => $room,
+                    'identity' => 'user_' . $currentUserId,
+                    'name' => 'User ' . $currentUserId
+                ]
+            ]);
+
+            $data = $response->toArray();
+            
+            if (!isset($data['token'])) {
+                return $this->json(['success' => false, 'error' => 'Token not found in response'], 500);
+            }
+
+            return $this->json([
+                'success' => true,
+                'token' => $data['token'],
+                'room' => $room
+            ]);
+
+        } catch (\Exception $e) {
+            return $this->json([
+                'success' => false,
+                'error' => 'Failed to get call token: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    private function isCallSignalingEnabled(): bool
+    {
+        return filter_var(
+            $this->readEnvSetting(['CHAT_CALL_SIGNALING_ENABLED'], '1'),
+            FILTER_VALIDATE_BOOL
+        );
+    }
+
+    private function sendCallSignal(string $type, int $conversationId, int $fromUserId, bool $video, string $room): void
+    {
+        // This would send STOMP signal via WebSocket server
+        // For now, we'll just log it - in a real implementation, this would
+        // connect to the STOMP server and send the signal
+        $payload = [
+            'type' => $type,
+            'conversationId' => $conversationId,
+            'fromUserId' => $fromUserId,
+            'fromName' => 'User ' . $fromUserId,
+            'callKind' => $video ? 'VIDEO' : 'AUDIO',
+            'room' => $room
+        ];
+
+        // Log for debugging - replace with actual STOMP send
+        error_log('STOMP Signal: ' . json_encode($payload));
+    }
+
+    private function persistCallEvent(
+        Conversation $conversation,
+        int $conversationId,
+        int $senderId,
+        string $type,
+        bool $video,
+        string $room,
+        EntityManagerInterface $entityManager
+    ): Message {
+        $now = new DateTime();
+        $message = new Message();
+        $message->setConversationId($conversationId);
+        $message->setSenderId($senderId);
+        $message->setKind('CALL');
+        $message->setBody(sprintf('%s|%s|%s', strtoupper($type), $video ? 'VIDEO' : 'AUDIO', $room));
+        $message->setCreatedAt($now);
+
+        $entityManager->persist($message);
+        $entityManager->flush();
+
+        $conversation->setLastMessageId($message->getId());
+        $conversation->setLastMessageAt($now);
+        $entityManager->flush();
+
+        return $message;
+    }
+
+    /**
+     * @return array{type:string,callKind:string,room:string}
+     */
+    private function parseCallEventBody(string $body, int $conversationId): array
+    {
+        $parts = array_values(array_filter(array_map('trim', explode('|', $body)), static fn (string $part): bool => $part !== ''));
+        $type = strtoupper((string) ($parts[0] ?? 'RING'));
+        $callKind = strtoupper((string) ($parts[1] ?? 'AUDIO'));
+        $room = (string) ($parts[2] ?? ('conv_' . $conversationId));
+
+        if ($type === 'AUDIO' || $type === 'VIDEO') {
+            $callKind = $type;
+            $type = 'RING';
+            $room = (string) ($parts[1] ?? ('conv_' . $conversationId));
+        }
+
+        if (!in_array($type, ['RING', 'ACCEPT', 'REJECT'], true)) {
+            $type = 'RING';
+        }
+
+        if (!in_array($callKind, ['AUDIO', 'VIDEO'], true)) {
+            $callKind = 'AUDIO';
+        }
+
+        return [
+            'type' => $type,
+            'callKind' => $callKind,
+            'room' => $room !== '' ? $room : ('conv_' . $conversationId),
+        ];
+    }
+
+    private function buildCallUrl(bool $videoEnabled, string $room): string
+    {
+        $livekitUrl = $this->readEnvSetting(['CHAT_CALL_LIVEKIT_URL'], 'ws://127.0.0.1:7880');
+        $callPageEndpoint = $this->readEnvSetting(['CHAT_CALL_PAGE_ENDPOINT'], 'http://127.0.0.1:8090/livekit/call');
+        
+        // This would normally fetch a token, but for now we'll return the base URL
+        return $callPageEndpoint . '?wsUrl=' . urlencode($livekitUrl) . '&room=' . urlencode($room) . '&mic=true&cam=' . ($videoEnabled ? 'true' : 'false');
+    }
+
+    
     #[Route('/apps-chat/conversations/{conversationId}/name', name: 'apps-chat-conversation-rename', methods: ['POST'])]
     public function renameConversation(
         int $conversationId,
@@ -86,6 +688,13 @@ class ConversationController extends AbstractController
             return $this->json([
                 'success' => false,
                 'error' => 'Please choose an image file.',
+            ], 422);
+        }
+
+        if (!$avatar->isValid()) {
+            return $this->json([
+                'success' => false,
+                'error' => $this->formatUploadFailureMessage($avatar),
             ], 422);
         }
 
@@ -450,6 +1059,46 @@ class ConversationController extends AbstractController
         return (int) ($this->authService->getCurrentUserId() ?? 0);
     }
 
+    /**
+     * Render call page
+     */
+    #[Route('/apps-chat/call', name: 'apps-chat-call-page', methods: ['GET'])]
+    public function callPage(Request $request): Response
+    {
+        $wsUrl = $request->query->get('wsUrl', '');
+        $token = $request->query->get('token', '');
+        $mic = $request->query->getBoolean('mic', true);
+        $cam = $request->query->getBoolean('cam', false);
+
+        // Validate required parameters
+        if (empty($wsUrl) || empty($token)) {
+            return new Response('Missing required parameters: wsUrl or token', 400);
+        }
+
+        return $this->render('chat/call.html.twig', [
+            'wsUrl' => $wsUrl,
+            'token' => $token,
+            'mic' => $mic,
+            'cam' => $cam
+        ]);
+    }
+
+    private function formatUploadFailureMessage(UploadedFile $file): string
+    {
+        $errorCode = $file->getError();
+        if ($errorCode === UPLOAD_ERR_INI_SIZE || $errorCode === UPLOAD_ERR_FORM_SIZE) {
+            $serverLimit = trim((string) ini_get('upload_max_filesize'));
+            $message = 'Upload failed: file is larger than the server upload limit';
+            if ($serverLimit !== '') {
+                $message .= sprintf(' (upload_max_filesize=%s)', $serverLimit);
+            }
+
+            return $message . '.';
+        }
+
+        return 'Upload failed: ' . $file->getErrorMessage();
+    }
+
     private function loadEditableGroupConversation(
         int $conversationId,
         ConversationRepository $conversationRepository,
@@ -668,8 +1317,10 @@ class ConversationController extends AbstractController
         $memberUserIds = $this->extractUserIds($request);
 
         $conversation = new Conversation();
+        $now = new \DateTime();
         try {
             $normalizedMemberIds = $conversation->initializeGroupConversation($this->currentUserId(), $title, $memberUserIds);
+            $conversation->setLastMessageAt($now);
         } catch (InvalidArgumentException $exception) {
             return $this->json([
                 'success' => false,
@@ -679,7 +1330,21 @@ class ConversationController extends AbstractController
 
         $avatar = $request->files->get('avatar');
         if ($avatar instanceof UploadedFile) {
+            if (!$avatar->isValid()) {
+                return $this->json([
+                    'success' => false,
+                    'error' => $this->formatUploadFailureMessage($avatar),
+                ], 422);
+            }
+
             $mimeType = (string) ($avatar->getMimeType() ?? '');
+            if ($mimeType === '' || !str_starts_with($mimeType, 'image/')) {
+                return $this->json([
+                    'success' => false,
+                    'error' => 'Only image files are allowed.',
+                ], 422);
+            }
+
             $binary = file_get_contents($avatar->getPathname());
             if ($binary === false || $binary === '') {
                 return $this->json([
@@ -810,10 +1475,12 @@ class ConversationController extends AbstractController
 
         // Create new conversation
         $conversation = new Conversation();
+        $now = new \DateTime();
         $conversation->setType('DM');
         $conversation->setDmKey($dmKey);
         $conversation->setCreatedBy($this->currentUserId());
-        $conversation->setCreatedAt(new \DateTime());
+        $conversation->setCreatedAt($now);
+        $conversation->setLastMessageAt($now);
 
         $entityManager->persist($conversation);
         $entityManager->flush();

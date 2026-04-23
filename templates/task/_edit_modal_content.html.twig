@@ -44,8 +44,17 @@
     <div class="mt-3">
         {% if form.assignedUser is defined %}
             {{ form_label(form.assignedUser) }} <span class="text-danger">*</span>
-            {{ form_widget(form.assignedUser, { attr: { class: 'form-select' } }) }}
+            {{ form_widget(form.assignedUser, { attr: { class: 'form-select', 'data-task-assignee': '1', 'data-workload-preview-url': path('app_task_workload_preview'), 'data-workload-options-url': path('app_task_workload_preview_options') } }) }}
             {{ form_errors(form.assignedUser) }}
+            <div class="mt-2 small"
+                 data-task-workload-feedback="1"
+                 data-exclude-task-id="{{ task.id ?? 0 }}"
+                 data-project-id="{{ task.projectId ?? 0 }}"
+                 data-server-error="{{ form.assignedUser.vars.errors|length > 0 ? '1' : '0' }}">
+                {% if form.assignedUser.vars.errors|length == 0 %}
+                    <span class="text-muted">Choose a team member to preview workload.</span>
+                {% endif %}
+            </div>
         {% else %}
             <div class="text-muted small">Assignment is locked for this task.</div>
         {% endif %}

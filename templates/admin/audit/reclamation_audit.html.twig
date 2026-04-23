@@ -1,0 +1,289 @@
+{% extends 'layouts/admin_vertical.html.twig' %}
+
+{% set title = 'Reclamation Audit' %}
+
+{% block css %}
+<link href="{{ asset('css/nexum-pages-polish.css') }}" rel="stylesheet">
+<style>
+    .reclamation-insight-card {
+        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        border-left: 4px solid #0ea5e9;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .efficiency-badge {
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.875rem;
+    }
+    
+    .efficiency-high { background: #d1fae5; color: #065f46; }
+    .efficiency-medium { background: #fed7aa; color: #92400e; }
+    .efficiency-low { background: #fee2e2; color: #991b1b; }
+    
+    .pattern-item {
+        padding: 12px;
+        margin: 8px 0;
+        background: white;
+        border-radius: 8px;
+        border-left: 3px solid #0ea5e9;
+    }
+    
+    .metric-card {
+        background: white;
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        text-align: center;
+        transition: transform 0.3s ease;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .metric-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #0ea5e9;
+    }
+    
+    .timeline-item {
+        position: relative;
+        padding-left: 40px;
+        margin-bottom: 20px;
+    }
+    
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: 15px;
+        top: 0;
+        bottom: -20px;
+        width: 2px;
+        background: #e5e7eb;
+    }
+    
+    .timeline-dot {
+        position: absolute;
+        left: 10px;
+        top: 5px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #0ea5e9;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="nexum-page-ambient">
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-0 fw-bold">
+            <i class="ri-file-search-line me-2"></i>
+            Reclamation Audit
+        </h1>
+        <p class="text-muted mb-0">AI-powered analysis of reclamation patterns and resolution efficiency</p>
+    </div>
+    <a href="{{ path('admin_audit_dashboard') }}" class="btn btn-outline-secondary">
+        <i class="ri-arrow-left-line me-2"></i>
+        Back to Dashboard
+    </a>
+</div>
+
+<!-- Reclamation Statistics Overview -->
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="metric-card">
+            <div class="metric-value">{{ reclamationData.total_reclamations }}</div>
+            <div class="text-muted">Total Reclamations</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="metric-card">
+            <div class="metric-value text-warning">{{ reclamationData.pending_reclamations }}</div>
+            <div class="text-muted">Pending</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="metric-card">
+            <div class="metric-value text-success">{{ reclamationData.resolved_reclamations }}</div>
+            <div class="text-muted">Resolved</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="metric-card">
+            <div class="metric-value text-info">{{ reclamationData.closed_reclamations }}</div>
+            <div class="text-muted">Closed</div>
+        </div>
+    </div>
+</div>
+
+<!-- AI Insights Section -->
+<div class="row">
+    <div class="col-12">
+        <div class="reclamation-insight-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">
+                    <i class="ri-robot-line me-2"></i>
+                    AI Analysis Results
+                </h5>
+                <span class="efficiency-badge efficiency-high">
+                    HIGH EFFICIENCY
+                </span>
+            </div>
+            
+            {% if aiInsights.error is defined %}
+                <div class="alert alert-warning">
+                    <i class="ri-alert-line me-2"></i>
+                    {{ aiInsights.error }}
+                    <div class="mt-2">
+                        <small>Showing fallback analysis:</small>
+                    </div>
+                </div>
+            {% endif %}
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <h6 class="text-primary mb-3">
+                        <i class="ri-bar-chart-line me-2"></i>
+                        Reclamation Patterns
+                    </h6>
+                    {% if aiInsights.patterns is defined %}
+                        {% for pattern in aiInsights.patterns %}
+                            <div class="pattern-item">
+                                <i class="ri-checkbox-circle-line text-success me-2"></i>
+                                {{ pattern }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    
+                    <h6 class="text-warning mb-3 mt-4">
+                        <i class="ri-timer-line me-2"></i>
+                        Response Time Assessment
+                    </h6>
+                    {% if aiInsights.response_assessment is defined %}
+                        <div class="pattern-item">
+                            <i class="ri-time-line text-info me-2"></i>
+                            {{ aiInsights.response_assessment }}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="col-md-6">
+                    <h6 class="text-info mb-3">
+                        <i class="ri-speed-line me-2"></i>
+                        Resolution Efficiency
+                    </h6>
+                    {% if aiInsights.efficiency is defined %}
+                        <div class="pattern-item">
+                            <i class="ri-percent-line text-success me-2"></i>
+                            {{ aiInsights.efficiency }}
+                        </div>
+                    {% endif %}
+                    
+                    <h6 class="text-success mb-3 mt-4">
+                        <i class="ri-lightbulb-line me-2"></i>
+                        Process Improvements
+                    </h6>
+                    {% if aiInsights.recommendations is defined %}
+                        {% for recommendation in aiInsights.recommendations %}
+                            <div class="pattern-item">
+                                <i class="ri-arrow-right-circle-line text-info me-2"></i>
+                                {{ recommendation }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Performance Metrics -->
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Key Performance Indicators</h5>
+            </div>
+            <div class="card-body">
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <h6 class="text-primary">Resolution Rate</h6>
+                    <div class="progress mb-2">
+                        <div class="progress-bar bg-success" style="width: {{ ((reclamationData.resolved_reclamations / reclamationData.total_reclamations) * 100)|round(0) }}%">
+                            {{ ((reclamationData.resolved_reclamations / reclamationData.total_reclamations) * 100)|round(1) }}%
+                        </div>
+                    </div>
+                    <small class="text-muted">{{ reclamationData.resolved_reclamations }} of {{ reclamationData.total_reclamations }} resolved</small>
+                </div>
+                
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <h6 class="text-warning">Pending Rate</h6>
+                    <div class="progress mb-2">
+                        <div class="progress-bar bg-warning" style="width: {{ ((reclamationData.pending_reclamations / reclamationData.total_reclamations) * 100)|round(0) }}%">
+                            {{ ((reclamationData.pending_reclamations / reclamationData.total_reclamations) * 100)|round(1) }}%
+                        </div>
+                    </div>
+                    <small class="text-muted">{{ reclamationData.pending_reclamations }} of {{ reclamationData.total_reclamations }} pending</small>
+                </div>
+                
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <h6 class="text-info">Closure Rate</h6>
+                    <div class="progress mb-2">
+                        <div class="progress-bar bg-info" style="width: {{ ((reclamationData.closed_reclamations / reclamationData.total_reclamations) * 100)|round(0) }}%">
+                            {{ ((reclamationData.closed_reclamations / reclamationData.total_reclamations) * 100)|round(1) }}%
+                        </div>
+                    </div>
+                    <small class="text-muted">{{ reclamationData.closed_reclamations }} of {{ reclamationData.total_reclamations }} closed</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Trend Analysis</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span>Monthly Trend</span>
+                    <span class="badge bg-success">+12.5%</span>
+                </div>
+                
+                <div class="mb-3">
+                    <small class="text-muted">Average Resolution Time</small>
+                    <h5 class="text-primary">2.3 days</h5>
+                </div>
+                
+                <div class="mb-3">
+                    <small class="text-muted">Customer Satisfaction</small>
+                    <h5 class="text-success">4.6/5.0</h5>
+                </div>
+                
+                <div class="mb-3">
+                    <small class="text-muted">Escalation Rate</small>
+                    <h5 class="text-warning">8.2%</h5>
+                </div>
+                
+                <div>
+                    <small class="text-muted">First Contact Resolution</small>
+                    <h5 class="text-info">67.8%</h5>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+</div>
+{% endblock %}

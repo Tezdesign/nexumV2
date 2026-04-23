@@ -1,0 +1,112 @@
+{% if task is defined %}
+    <div class="modal-content">
+        <div class="modal-header">
+            <div>
+                <h5 class="modal-title mb-1">{{ task.title|plain_text }}</h5>
+                <div class="text-muted small">Task overview</div>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body">
+            <div class="d-flex flex-wrap gap-2 mb-3">
+                {% if task.priority %}
+                    <span class="badge text-bg-light border">{{ task.priority|plain_text|upper }}</span>
+                {% endif %}
+                {% if task.status %}
+                    <span class="badge text-bg-light border">{{ task.status|plain_text|replace({'_': ' '})|title }}</span>
+                {% endif %}
+                <span class="badge text-bg-light border">Due {{ task.dueDate ? task.dueDate|date('Y-m-d') : '—' }}</span>
+                <span class="badge text-bg-light border">Project #{{ task.projectId ?? '—' }}</span>
+                {% if assignedName %}
+                    <span class="badge text-bg-light border">{{ assignedName }}</span>
+                {% endif %}
+            </div>
+
+            <div>
+                <div class="text-muted small mb-2">Description</div>
+                <div class="lh-base">
+                    {% if task.description %}
+                        {{ task.description|plain_text|nl2br }}
+                    {% else %}
+                        <span class="text-muted">No description provided.</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+            {% if canEditTask %}
+                <button type="button"
+                        class="btn btn-primary"
+                        data-bs-dismiss="modal"
+                        data-bs-toggle="modal"
+                        data-bs-target="#editTaskModal"
+                        data-edit-url="{{ path('app_task_edit_modal', {id: task.id}) }}">
+                    Edit
+                </button>
+            {% endif %}
+            {% if canDeleteTask %}
+                <button type="button"
+                        class="btn btn-danger"
+                        data-bs-dismiss="modal"
+                        data-bs-toggle="modal"
+                        data-bs-target="#deleteTaskModal"
+                        data-delete-action="{{ path('app_task_delete', {id: task.id}) }}"
+                        data-delete-token="{{ csrf_token('delete' ~ task.id) }}"
+                        data-task-title="{{ task.title|plain_text }}">
+                    Delete
+                </button>
+            {% endif %}
+        </div>
+    </div>
+{% else %}
+    <div class="modal fade nexum-modal" id="taskDetailsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content" id="taskDetailsModalContent">
+                <div class="modal-body text-muted small p-4">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            const modalEl = document.getElementById('taskDetailsModal');
+            const contentEl = document.getElementById('taskDetailsModalContent');
+            if (!modalEl || !contentEl || modalEl.dataset.bound === '1') return;
+            modalEl.dataset.bound = '1';
+
+            const loadingHtml = '<div class="modal-body text-muted small p-4">Loading...</div>';
+
+            document.addEventListener('click', function (e) {
+                const trigger = e.target.closest('[data-task-show-url]');
+                if (!trigger || trigger.getAttribute('data-bs-target') !== '#taskDetailsModal') return;
+                e.preventDefault();
+            });
+
+            modalEl.addEventListener('show.bs.modal', async function (ev) {
+                const trigger = ev.relatedTarget;
+                const url = trigger ? (trigger.getAttribute('data-task-show-url') || trigger.getAttribute('href') || '') : '';
+                contentEl.innerHTML = loadingHtml;
+
+                if (!url) {
+                    contentEl.innerHTML = '<div class="modal-body p-4 text-danger small">Failed to load task details.</div>';
+                    return;
+                }
+
+                try {
+                    const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                    const html = await res.text();
+                    contentEl.innerHTML = html || '<div class="modal-body p-4 text-danger small">Failed to load task details.</div>';
+                } catch (err) {
+                    contentEl.innerHTML = '<div class="modal-body p-4 text-danger small">Failed to load task details.</div>';
+                }
+            });
+
+            modalEl.addEventListener('hidden.bs.modal', function () {
+                contentEl.innerHTML = loadingHtml;
+            });
+        })();
+    </script>
+{% endif %}

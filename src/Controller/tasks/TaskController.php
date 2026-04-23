@@ -2,6 +2,7 @@
 
 namespace App\Controller\tasks;
 
+use App\Controller\Project\ProjectProgressEngine;
 use App\Entity\Tasks\Task;
 use App\Form\Tasks\TaskManagerUpdateType;
 use App\Form\Tasks\TaskQuickCreateType;
@@ -17,6 +18,7 @@ use App\Support\UserDisplayName;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormError;
+use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -159,6 +161,10 @@ final class TaskController extends AbstractController
                         $assignedUserId = (int) $currentUserId;
                     }
 
+                    if ($createForm->isValid() && $assignedUserId !== null && $assignedUserId > 0) {
+                        $this->applyWorkloadGuard($createForm, $taskRepository, $createTask, (int) $assignedUserId);
+                    }
+
                     if ($createForm->isValid()) {
                         $canPersist = true;
                     }
@@ -207,72 +213,13 @@ final class TaskController extends AbstractController
             }
         }
 
-        $tasks = $isManager
-            ? $taskRepository->findForManager($q !== '' ? $q : null, $statusFilter !== '' ? $statusFilter : null, $priorityFilter !== '' ? $priorityFilter : null)
-            : $taskRepository->findForUser((int) $currentUserId, $q !== '' ? $q : null, $statusFilter !== '' ? $statusFilter : null, $priorityFilter !== '' ? $priorityFilter : null);
-
-        // If a project id is provided, show the board scoped to that project.
-        if ($prefillProjectId > 0) {
-            $tasks = array_values(array_filter(
-                $tasks,
-                static fn (Task $t): bool => (int) ($t->getProjectId() ?? 0) === $prefillProjectId
-            ));
-        }
-
-        $projectIds = [];
-        $userIds = [];
-        foreach ($tasks as $t) {
-            $pid = $t->getProjectId();
-            if ($pid !== null) {
-                $projectIds[$pid] = true;
-            }
-
-            $au = $t->getAssignedTo();
-            if ($au !== null) {
-                $userIds[$au] = true;
-            }
-        }
-
-        $projectsById = $projectRepository->findIndexedByIds(array_keys($projectIds));
-        $usersById = $utilisateurRepository->findNonAdminIndexedByIds(array_keys($userIds));
- 
-        // Hide orphan tasks (tasks whose project was deleted without cascading).
-        $tasks = array_values(array_filter(
-            $tasks,
-            static fn (Task $t): bool => isset($projectsById[(int) ($t->getProjectId() ?? 0)])
-        ));
-
-        $avatarUrlById = [];
-        foreach ($usersById as $uid => $u) {
-            $raw = $u->getImagelink();
-            if (is_string($raw)) {
-                $raw = trim($raw);
-                if ($raw !== '' && preg_match('~^(https?://|/|data:image/)~', $raw) === 1) {
-                    $avatarUrlById[(int) $uid] = $raw;
-                }
-            }
-        }
-
-        // Group tasks by project.
-        $tasksByProjectId = [];
-        foreach ($tasks as $t) {
-            $pid = $t->getProjectId() ?? 0;
-            $tasksByProjectId[$pid] ??= [];
-            $tasksByProjectId[$pid][] = $t;
-        }
-
         return $this->render('task/index.html.twig', [
             'q' => $q,
             'statusFilter' => $statusFilter,
             'priorityFilter' => $priorityFilter,
             'isManager' => $isManager,
-            'currentUserId' => (int) $currentUserId,
             'openCreate' => $openCreate,
             'prefillProjectId' => $prefillProjectId,
-            'tasksByProjectId' => $tasksByProjectId,
-            'projectsById' => $projectsById,
-            'usersById' => $usersById,
-            'avatarUrlById' => $avatarUrlById,
             'createForm' => $createForm->createView(),
             'canCreateTask' => $canCreateTask,
             'backUrl' => $backUrl,
@@ -338,13 +285,124 @@ final class TaskController extends AbstractController
         return $this->json(['users' => $users]);
     }
 
+    #[Route('/workload-preview', name: 'app_task_workload_preview', methods: ['GET'])]
+    public function workloadPreview(
+        Request $request,
+        TaskRepository $taskRepository,
+        ProjectRepository $projectRepository,
+        ProjectAssignmentRepository $projectAssignmentRepository,
+        UtilisateurRepository $utilisateurRepository,
+        AuthService $authService
+    ): JsonResponse
+    {
+        if (($authService->getCurrentUserId() ?? 0) <= 0 || !$authService->isManager()) {
+            return $this->json(['ok' => false], Response::HTTP_FORBIDDEN);
+        }
+
+        $projectId = (int) $request->query->get('project_id', 0);
+        $allowedUserIds = $this->getAllowedPreviewAssigneeIds($projectId, $projectRepository, $projectAssignmentRepository, $utilisateurRepository);
+        if ($allowedUserIds === []) {
+            return $this->json(['ok' => false], Response::HTTP_FORBIDDEN);
+        }
+
+        $assignedUserId = (int) $request->query->get('assigned_user', 0);
+        if ($assignedUserId <= 0) {
+            return $this->json([
+                'ok' => true,
+                'decision' => 'idle',
+                'label' => 'Select an assignee',
+                'message' => 'Choose a team member to preview workload.',
+                'score' => 0,
+                'active_tasks' => 0,
+                'in_progress_count' => 0,
+                'overdue_count' => 0,
+                'reasons' => [],
+            ]);
+        }
+        if (!in_array($assignedUserId, $allowedUserIds, true)) {
+            return $this->json(['ok' => false], Response::HTTP_FORBIDDEN);
+        }
+
+        $task = $this->buildPreviewTask($request, $assignedUserId);
+        $excludeTaskId = (int) $request->query->get('exclude_task_id', 0);
+        $tasks = $taskRepository->findActiveAssignedTasksForUser($assignedUserId, $excludeTaskId > 0 ? $excludeTaskId : null);
+        $tasks[] = $task;
+        $assessment = TaskWorkloadEngine::assess($tasks);
+
+        return $this->json(array_merge(
+            ['ok' => true],
+            $this->formatWorkloadFeedback($assessment)
+        ));
+    }
+
+    #[Route('/workload-preview/options', name: 'app_task_workload_preview_options', methods: ['GET'])]
+    public function workloadPreviewOptions(
+        Request $request,
+        TaskRepository $taskRepository,
+        ProjectRepository $projectRepository,
+        ProjectAssignmentRepository $projectAssignmentRepository,
+        UtilisateurRepository $utilisateurRepository,
+        AuthService $authService
+    ): JsonResponse
+    {
+        if (($authService->getCurrentUserId() ?? 0) <= 0 || !$authService->isManager()) {
+            return $this->json(['ok' => false], Response::HTTP_FORBIDDEN);
+        }
+
+        $projectId = (int) $request->query->get('project_id', 0);
+        $allowedUserIds = $this->getAllowedPreviewAssigneeIds($projectId, $projectRepository, $projectAssignmentRepository, $utilisateurRepository);
+        if ($allowedUserIds === []) {
+            return $this->json(['ok' => false], Response::HTTP_FORBIDDEN);
+        }
+
+        $requestedUserIds = array_values(array_unique(array_filter(
+            array_map('intval', (array) $request->query->all('user_ids')),
+            static fn (int $id): bool => $id > 0
+        )));
+
+        $userIds = array_values(array_intersect($requestedUserIds, $allowedUserIds));
+        if ($userIds === []) {
+            return $this->json(['ok' => true, 'users' => []]);
+        }
+
+        $excludeTaskId = (int) $request->query->get('exclude_task_id', 0);
+        $groupedTasks = $taskRepository->findActiveAssignedTasksGroupedByUsers($userIds, $excludeTaskId > 0 ? $excludeTaskId : null);
+        $users = [];
+
+        foreach ($userIds as $userId) {
+            $previewTask = $this->buildPreviewTask($request, $userId);
+            $tasks = $groupedTasks[$userId] ?? [];
+            $tasks[] = $previewTask;
+            $feedback = $this->formatWorkloadFeedback(TaskWorkloadEngine::assess($tasks));
+
+            $users[] = [
+                'id' => $userId,
+                'decision' => $feedback['decision'],
+                'label' => $feedback['label'],
+                'score' => $feedback['score'],
+            ];
+        }
+
+        return $this->json([
+            'ok' => true,
+            'users' => $users,
+        ]);
+    }
+
     #[Route('/new', name: 'app_task_new', methods: ['GET', 'POST'])]
-    public function new(Request $request, UtilisateurRepository $utilisateurRepository, AuthService $authService, ProjectActivityLogger $activityLogger, EntityManagerInterface $entityManager): Response
+    public function new(Request $request, TaskRepository $taskRepository, UtilisateurRepository $utilisateurRepository, AuthService $authService, ProjectActivityLogger $activityLogger, EntityManagerInterface $entityManager): Response
     {
         $task = new Task();
         // Keep the legacy CRUD route around; UI uses the modal on /task.
         $form = $this->createForm(TaskType::class, $task);
         $form->handleRequest($request);
+
+        if ($form->isSubmitted() && $form->isValid()) {
+            $assignedUserId = (int) ($task->getAssignedTo() ?? 0);
+            if ($assignedUserId > 0) {
+                $this->applyWorkloadGuard($form, $taskRepository, $task, $assignedUserId);
+            }
+        }
 
         if ($form->isSubmitted() && $form->isValid()) {
             $currentUserId = (int) ($authService->getCurrentUserId() ?? 0);
@@ -372,24 +430,36 @@ final class TaskController extends AbstractController
     }
 
     #[Route('/{id}', name: 'app_task_show', methods: ['GET'])]
-    public function show(Task $task, UtilisateurRepository $utilisateurRepository, AuthService $authService): Response
+    public function show(Task $task): Response
+    {
+        $projectId = (int) ($task->getProjectId() ?? 0);
+        if ($projectId > 0) {
+            return $this->redirectToRoute('app_project_show', ['id' => $projectId, 'tab' => 'tasks']);
+        }
+
+        return $this->redirectToRoute('app_task_index');
+    }
+
+    #[Route('/{id}/show-modal', name: 'app_task_show_modal', methods: ['GET'])]
+    public function showModal(Task $task, UtilisateurRepository $utilisateurRepository, AuthService $authService): Response
     {
         $currentUserId = (int) ($authService->getCurrentUserId() ?? 0);
-        $currentUser = $currentUserId > 0 ? $utilisateurRepository->find($currentUserId) : null;
         $isManager = $authService->isManager();
         $canEditTask = (int) ($task->getCreatedBy() ?? 0) === $currentUserId;
+        $assignedUserId = (int) ($task->getAssignedTo() ?? 0);
+        $assignedUser = $assignedUserId > 0 ? $utilisateurRepository->find($assignedUserId) : null;
+        $assignedName = trim((string) (($assignedUser?->getPrenom() ?? '').' '.($assignedUser?->getNom() ?? '')));
 
-        return $this->render('task/show.html.twig', [
+        return $this->render('task/_show_modal.html.twig', [
             'task' => $task,
-            'currentUserId' => $currentUserId,
-            'isManager' => $isManager,
+            'assignedName' => $assignedName,
             'canEditTask' => $canEditTask,
             'canDeleteTask' => $isManager || ($task->getCreatedBy() !== null && (int) $task->getCreatedBy() === $currentUserId),
         ]);
     }
 
     #[Route('/{id}/status', name: 'app_task_status', methods: ['POST'])]
-    public function status(Request $request, Task $task, UtilisateurRepository $utilisateurRepository, AuthService $authService, ProjectActivityLogger $activityLogger, EntityManagerInterface $entityManager): Response
+    public function status(Request $request, Task $task, TaskRepository $taskRepository, ProjectRepository $projectRepository, UtilisateurRepository $utilisateurRepository, AuthService $authService, ProjectActivityLogger $activityLogger, EntityManagerInterface $entityManager): Response
     {
         $currentUserId = (int) ($authService->getCurrentUserId() ?? 0);
         $currentUser = $currentUserId > 0 ? $utilisateurRepository->find($currentUserId) : null;
@@ -417,6 +487,14 @@ final class TaskController extends AbstractController
 
         $projectId = (int) ($task->getProjectId() ?? 0);
         if ($projectId > 0) {
+            $project = $projectRepository->find($projectId);
+            if ($project !== null) {
+                $projectTasks = $taskRepository->findForProject($projectId);
+                $projectOverview = ProjectProgressEngine::build($projectTasks);
+                $project->setProgress((int) ($projectOverview['completion_percentage'] ?? 0));
+                $entityManager->flush();
+            }
+
             $statusLabel = match ($status) {
                 'done' => 'done',
                 'in_progress' => 'in progress',
@@ -453,6 +531,7 @@ final class TaskController extends AbstractController
     public function edit(
         Request $request,
         Task $task,
+        TaskRepository $taskRepository,
         ProjectRepository $projectRepository,
         ProjectAssignmentRepository $projectAssignmentRepository,
         UtilisateurRepository $utilisateurRepository,
@@ -511,6 +590,7 @@ final class TaskController extends AbstractController
                 ]
                 : []
         );
+        $originalAssignedUserId = (int) ($task->getAssignedTo() ?? 0);
 
         if ($isManager) {
             $assignedId = $task->getAssignedTo();
@@ -523,30 +603,39 @@ final class TaskController extends AbstractController
         }
         $form->handleRequest($request);
 
-        if ($form->isSubmitted() && $form->isValid()) {
+            if ($form->isSubmitted() && $form->isValid()) {
             if ($isManager) {
                 /** @var \App\Entity\UserHandling\Utilisateur|null $assignedUser */
                 $assignedUser = $form->get('assignedUser')->getData();
-                $task->setAssignedTo($assignedUser?->getId());
+                $assignedUserId = (int) (($assignedUser?->getId()) ?? 0);
+                if ($assignedUserId > 0 && $assignedUserId !== $originalAssignedUserId) {
+                    $this->applyWorkloadGuard($form, $taskRepository, $task, (int) $assignedUserId, (int) ($task->getId() ?? 0));
+                }
+                if ($form->isValid()) {
+                    $task->setAssignedTo($assignedUserId > 0 ? $assignedUserId : null);
+                }
             }
-            $entityManager->flush();
 
-            $projectId = (int) ($task->getProjectId() ?? 0);
-            if ($projectId > 0) {
-                $activityLogger->record(
-                    $projectId,
-                    UserDisplayName::format($currentUser, $currentUserId),
-                    'task_updated',
-                    sprintf('updated task "%s".', (string) $task->getTitle())
-                );
+            if ($form->isValid()) {
                 $entityManager->flush();
-            }
 
-            if ($back !== '') {
-                return $this->redirect($back, Response::HTTP_SEE_OTHER);
-            }
+                $projectId = (int) ($task->getProjectId() ?? 0);
+                if ($projectId > 0) {
+                    $activityLogger->record(
+                        $projectId,
+                        UserDisplayName::format($currentUser, $currentUserId),
+                        'task_updated',
+                        sprintf('updated task "%s".', (string) $task->getTitle())
+                    );
+                    $entityManager->flush();
+                }
 
-            return $this->redirectToRoute('app_task_index', [], Response::HTTP_SEE_OTHER);
+                if ($back !== '') {
+                    return $this->redirect($back, Response::HTTP_SEE_OTHER);
+                }
+
+                return $this->redirectToRoute('app_task_index', [], Response::HTTP_SEE_OTHER);
+            }
         }
 
         return $this->render('task/edit.html.twig', [
@@ -560,6 +649,7 @@ final class TaskController extends AbstractController
     public function editModal(
         Request $request,
         Task $task,
+        TaskRepository $taskRepository,
         ProjectRepository $projectRepository,
         ProjectAssignmentRepository $projectAssignmentRepository,
         UtilisateurRepository $utilisateurRepository,
@@ -615,6 +705,7 @@ final class TaskController extends AbstractController
                 ]
                 : []
         );
+        $originalAssignedUserId = (int) ($task->getAssignedTo() ?? 0);
 
         if ($isManager) {
             $assignedId = $task->getAssignedTo();
@@ -633,26 +724,35 @@ final class TaskController extends AbstractController
                 /** @var \App\Entity\UserHandling\Utilisateur|null $assignedUser */
                 if ($isManager) {
                     $assignedUser = $form->get('assignedUser')->getData();
-                    $task->setAssignedTo($assignedUser?->getId());
+                    $assignedUserId = (int) (($assignedUser?->getId()) ?? 0);
+                    if ($assignedUserId > 0 && $assignedUserId !== $originalAssignedUserId) {
+                        $this->applyWorkloadGuard($form, $taskRepository, $task, (int) $assignedUserId, (int) ($task->getId() ?? 0));
+                    }
+                    if ($form->isValid()) {
+                        $task->setAssignedTo($assignedUserId > 0 ? $assignedUserId : null);
+                    }
                 }
-                $entityManager->flush();
 
-                $projectId = (int) ($task->getProjectId() ?? 0);
-                if ($projectId > 0) {
-                    $activityLogger->record(
-                        $projectId,
-                        UserDisplayName::format($currentUser, $currentUserId),
-                        'task_updated',
-                        sprintf('updated task "%s".', (string) $task->getTitle())
-                    );
+                if ($form->isValid()) {
                     $entityManager->flush();
-                }
 
-                if ($request->isXmlHttpRequest()) {
-                    return new Response('', Response::HTTP_NO_CONTENT);
-                }
+                    $projectId = (int) ($task->getProjectId() ?? 0);
+                    if ($projectId > 0) {
+                        $activityLogger->record(
+                            $projectId,
+                            UserDisplayName::format($currentUser, $currentUserId),
+                            'task_updated',
+                            sprintf('updated task "%s".', (string) $task->getTitle())
+                        );
+                        $entityManager->flush();
+                    }
 
-                return $this->redirectToRoute('app_task_index', [], Response::HTTP_SEE_OTHER);
+                    if ($request->isXmlHttpRequest()) {
+                        return new Response('', Response::HTTP_NO_CONTENT);
+                    }
+
+                    return $this->redirectToRoute('app_task_index', [], Response::HTTP_SEE_OTHER);
+                }
             }
 
             // Validation errors: return the modal content so the JS can re-render it.
@@ -666,6 +766,179 @@ final class TaskController extends AbstractController
             'task' => $task,
             'form' => $form->createView(),
         ]);
+    }
+
+    private function applyWorkloadGuard(FormInterface $form, TaskRepository $taskRepository, Task $pendingTask, int $assignedUserId, ?int $excludeTaskId = null): void
+    {
+        if ($assignedUserId <= 0) {
+            return;
+        }
+
+        $tasks = $taskRepository->findActiveAssignedTasksForUser($assignedUserId, $excludeTaskId);
+        $tasks[] = $pendingTask;
+        $assessment = TaskWorkloadEngine::assess($tasks);
+
+        if (($assessment['decision'] ?? 'ok') !== 'blocked') {
+            return;
+        }
+
+        $feedback = $this->formatWorkloadFeedback($assessment);
+        $message = (string) ($feedback['message'] ?? 'This user is overloaded and cannot receive another task.');
+
+        if ($form->has('assignedUser')) {
+            $form->get('assignedUser')->addError(new FormError($message));
+            return;
+        }
+
+        $form->addError(new FormError($message));
+    }
+
+    /**
+     * @param array{
+     *     decision?:string,
+     *     score?:int,
+     *     active_tasks?:int,
+     *     in_progress_count?:int,
+     *     overdue_count?:int,
+     *     reasons?:array<int, string>
+     * } $assessment
+     *
+     * @return array{
+     *     decision:string,
+     *     label:string,
+     *     message:string,
+     *     tone:string,
+     *     score:int,
+     *     active_tasks:int,
+     *     in_progress_count:int,
+     *     overdue_count:int,
+     *     reasons:array<int, string>
+     * }
+     */
+    private function formatWorkloadFeedback(array $assessment): array
+    {
+        $decision = (string) ($assessment['decision'] ?? 'ok');
+        $score = (int) ($assessment['score'] ?? 0);
+        $activeTasks = (int) ($assessment['active_tasks'] ?? 0);
+        $inProgressCount = (int) ($assessment['in_progress_count'] ?? 0);
+        $overdueCount = (int) ($assessment['overdue_count'] ?? 0);
+        $reasons = array_values(array_filter(array_map('strval', (array) ($assessment['reasons'] ?? []))));
+
+        $label = match ($decision) {
+            'blocked' => 'Overloaded',
+            'warning' => 'Heavy Load',
+            'idle' => 'Select an assignee',
+            default => 'Available',
+        };
+
+        $tone = match ($decision) {
+            'blocked' => 'danger',
+            'warning' => 'warning',
+            'idle' => 'muted',
+            default => 'success',
+        };
+
+        if ($decision === 'blocked') {
+            $message = sprintf(
+                'This assignment would overload the user. Score %d with %d active task(s), %d in progress, and %d overdue.',
+                $score,
+                $activeTasks,
+                $inProgressCount,
+                $overdueCount
+            );
+        } elseif ($decision === 'warning') {
+            $message = sprintf(
+                'This assignment would leave the user with a heavy workload. Score %d with %d active task(s), %d in progress, and %d overdue.',
+                $score,
+                $activeTasks,
+                $inProgressCount,
+                $overdueCount
+            );
+        } elseif ($decision === 'idle') {
+            $message = 'Choose a team member to preview workload.';
+        } else {
+            $message = sprintf(
+                'This assignment looks safe. Score %d with %d active task(s), %d in progress, and %d overdue.',
+                $score,
+                $activeTasks,
+                $inProgressCount,
+                $overdueCount
+            );
+        }
+
+        return [
+            'decision' => $decision,
+            'label' => $label,
+            'message' => $message,
+            'tone' => $tone,
+            'score' => $score,
+            'active_tasks' => $activeTasks,
+            'in_progress_count' => $inProgressCount,
+            'overdue_count' => $overdueCount,
+            'reasons' => $reasons,
+        ];
+    }
+
+    private function buildPreviewTask(Request $request, int $assignedUserId): Task
+    {
+        $task = new Task();
+        $task->setAssignedTo($assignedUserId);
+        $task->setPriority((string) $request->query->get('priority', ''));
+        $task->setStatus((string) $request->query->get('status', 'todo'));
+
+        $dueDateRaw = trim((string) $request->query->get('due_date', ''));
+        if ($dueDateRaw !== '') {
+            try {
+                $task->setDueDate(new \DateTime($dueDateRaw));
+            } catch (\Throwable) {
+                // Leave due date empty if client-side input is incomplete or invalid.
+            }
+        }
+
+        return $task;
+    }
+
+    /**
+     * @return int[]
+     */
+    private function getAllowedPreviewAssigneeIds(
+        int $projectId,
+        ProjectRepository $projectRepository,
+        ProjectAssignmentRepository $projectAssignmentRepository,
+        UtilisateurRepository $utilisateurRepository
+    ): array {
+        if ($projectId <= 0) {
+            return [];
+        }
+
+        $project = $projectRepository->find($projectId);
+        if ($project === null) {
+            return [];
+        }
+
+        $memberIds = [];
+        foreach ($utilisateurRepository->findManagerUsers() as $managerUser) {
+            $managerId = $managerUser->getId();
+            if ($managerId !== null) {
+                $memberIds[(int) $managerId] = true;
+            }
+        }
+
+        $createdBy = $project->getCreatedBy();
+        if ($createdBy !== null) {
+            $memberIds[(int) $createdBy] = true;
+        }
+
+        $assignedTo = $project->getAssignedTo();
+        if ($assignedTo !== null) {
+            $memberIds[(int) $assignedTo] = true;
+        }
+
+        foreach ($projectAssignmentRepository->getUserIdsByProjectId($projectId) as $uid) {
+            $memberIds[(int) $uid] = true;
+        }
+
+        return array_map('intval', array_keys($memberIds));
     }
 
     #[Route('/{id}', name: 'app_task_delete', methods: ['POST'])]

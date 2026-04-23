@@ -1,0 +1,148 @@
+{% extends 'layouts/admin_vertical.html.twig' %}
+
+{% set title = 'Reclamation History' %}
+
+{% block css %}
+<link href="{{ asset('css/nexum-pages-polish.css') }}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+
+<div class="nexum-page-ambient">
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex align-items-center gap-3 mb-3">
+            <a href="{{ path('admin_reclamations_index') }}" class="btn btn-sm btn-soft-primary">
+                <i class="ri-arrow-left-line me-1"></i> Back to Reclamations
+            </a>
+            <div>
+                <h4 class="header-title mb-0">Reclamation History</h4>
+                <p class="text-muted fs-13 mb-0">Tracking all activities for reclamation #{{ reclamation.idRec }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header border-bottom border-dashed">
+                <h5 class="header-title mb-1">{{ reclamation.titre }}</h5>
+                <p class="text-muted fs-13 mb-0">
+                    {% if reclamation.categorie %}<span class="me-3"><i class="ri-price-tag-3-line"></i> {{ reclamation.categorie }}</span>{% endif %}
+                    <span class="me-3"><i class="ri-time-line"></i> {{ reclamation.date ?? 'No date' }}</span>
+                    <span><i class="ri-user-line"></i> {{ reclamation.user_prenom|default('Unknown') }} {{ reclamation.user_nom|default('') }}</span>
+                </p>
+            </div>
+            <div class="card-body">
+                {% if history|length > 0 %}
+                    <div class="timeline">
+                        {% for entry in history %}
+                            <div class="timeline-item mb-4">
+                                <div class="d-flex gap-3">
+                                    <div class="flex-shrink-0">
+                                        <div class="avatar-sm rounded-circle bg-light d-flex align-items-center justify-content-center">
+                                            {% if entry.action == 'create' %}
+                                                <i class="ri-add-circle-line text-success fs-16"></i>
+                                            {% elseif entry.action == 'update' %}
+                                                <i class="ri-edit-line text-primary fs-16"></i>
+                                            {% elseif entry.action == 'status_change' %}
+                                                <i class="ri-refresh-line text-warning fs-16"></i>
+                                            {% elseif entry.action == 'delete' %}
+                                                <i class="ri-delete-bin-line text-danger fs-16"></i>
+                                            {% else %}
+                                                <i class="ri-information-line text-info fs-16"></i>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex align-items-start justify-content-between">
+                                            <div>
+                                                <h6 class="mb-1 fw-semibold">
+                                                    {{ historyService.getActionLabel(entry.action) }}
+                                                </h6>
+                                                <p class="text-muted fs-13 mb-2">
+                                                    <span class="me-3"><i class="ri-user-line"></i> {{ entry.user_email }}</span>
+                                                    <span class="me-3"><i class="ri-time-line"></i> {{ entry.timestamp }}</span>
+                                                    <span><i class="ri-computer-line"></i> {{ entry.ip }}</span>
+                                                </p>
+                                                {% if entry.data is not empty %}
+                                                    <div class="bg-light rounded p-2 mt-2">
+                                                        {% if entry.action == 'status_change' %}
+                                                            <p class="mb-1 fs-13"><strong>Status change:</strong></p>
+                                                            {% if entry.data.old_status is defined %}
+                                                                <p class="mb-0 fs-12 text-muted">From: "{{ entry.data.old_status }}"</p>
+                                                            {% endif %}
+                                                            {% if entry.data.new_status is defined %}
+                                                                <p class="mb-0 fs-12 text-muted">To: "{{ entry.data.new_status }}"</p>
+                                                            {% endif %}
+                                                        {% elseif entry.action == 'update' %}
+                                                            <p class="mb-1 fs-13"><strong>Field changes:</strong></p>
+                                                            {% for field, change in entry.data %}
+                                                                {% if change.old is defined and change.new is defined %}
+                                                                    <p class="mb-1 fs-12 text-muted">
+                                                                        <strong>{{ field|capitalize }}:</strong><br>
+                                                                        <span class="text-danger">From: "{{ change.old|default('empty') }}"</span><br>
+                                                                        <span class="text-success">To: "{{ change.new|default('empty') }}"</span>
+                                                                    </p>
+                                                                {% endif %}
+                                                            {% endfor %}
+                                                        {% else %}
+                                                            <p class="mb-1 fs-13"><strong>Details:</strong></p>
+                                                            {% for key, value in entry.data %}
+                                                                <p class="mb-0 fs-12 text-muted">{{ key|capitalize }}: {{ value }}</p>
+                                                            {% endfor %}
+                                                        {% endif %}
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="ri-history-line fs-40 text-muted d-block mb-3"></i>
+                        <h5 class="text-muted">No history recorded</h5>
+                        <p class="text-muted fs-13">No activity has been logged for this reclamation yet.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+</div>
+
+{% endblock %}
+
+{% block script %}
+<style>
+.timeline-item {
+    position: relative;
+    padding-left: 20px;
+}
+
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: 12px;
+    top: 40px;
+    bottom: -20px;
+    width: 2px;
+    background: #e9ecef;
+}
+
+.timeline-item:last-child::before {
+    display: none;
+}
+
+.timeline-item .avatar-sm {
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 1px #e9ecef;
+}
+</style>
+{% endblock %}

@@ -1,0 +1,269 @@
+<style>
+    .project-files-shell {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .project-files-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+    }
+
+    .project-files-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        margin: 0;
+    }
+
+    .project-files-subtitle {
+        color: #64748b;
+        font-size: 0.92rem;
+        margin-top: 4px;
+    }
+
+    .project-files-note {
+        margin-top: 8px;
+        color: #64748b;
+        font-size: 0.88rem;
+    }
+
+    .project-files-upload {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .project-files-picker {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+        max-width: 320px;
+        padding: 10px 14px;
+        border: 1px solid #dbe4f0;
+        border-radius: 14px;
+        background: #ffffff;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+        cursor: pointer;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    }
+
+    .project-files-picker:hover {
+        border-color: #c7d2fe;
+        box-shadow: 0 8px 18px rgba(99, 102, 241, 0.08);
+        transform: translateY(-1px);
+    }
+
+    .project-files-picker.is-disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        box-shadow: none;
+        transform: none;
+    }
+
+    .project-files-picker__badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 7px 12px;
+        border-radius: 999px;
+        background: #eef2ff;
+        color: #4338ca;
+        font-size: 0.82rem;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .project-files-picker__text {
+        min-width: 0;
+        color: #475569;
+        font-size: 0.9rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .project-files-picker input[type="file"] {
+        display: none;
+    }
+
+    .project-files-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .project-file-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 16px 18px;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    }
+
+    .project-file-card__main {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        min-width: 0;
+        flex: 1 1 auto;
+    }
+
+    .project-file-card__icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #eef2ff;
+        color: #4338ca;
+        font-size: 0.82rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        flex: 0 0 auto;
+    }
+
+    .project-file-card__content {
+        min-width: 0;
+    }
+
+    .project-file-card__name {
+        font-size: 0.98rem;
+        font-weight: 700;
+        color: #0f172a;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .project-file-card__meta {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 6px;
+        color: #64748b;
+        font-size: 0.88rem;
+    }
+
+    .project-file-card__actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex: 0 0 auto;
+    }
+
+    .project-files-empty {
+        border: 1px dashed #cbd5e1;
+        border-radius: 18px;
+        padding: 28px 24px;
+        text-align: center;
+        color: #64748b;
+        background: #f8fafc;
+    }
+
+    @media (max-width: 767px) {
+        .project-files-head,
+        .project-file-card {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .project-file-card__actions {
+            justify-content: flex-end;
+        }
+    }
+</style>
+
+{% set files = projectFiles|default([]) %}
+
+<div class="project-files-shell">
+    <div class="card nexum-shell-card">
+        <div class="card-body project-files-head">
+            <div>
+                <h5 class="project-files-title">Project Files</h5>
+                <div class="project-files-subtitle">
+                    Uploaded files related to this project will appear here.
+                </div>
+                <div class="project-files-note">
+                    Maximum upload size: {{ projectFileUploadLimit|default('2M') }}.
+                </div>
+                {% if not canUploadProjectFiles|default(false) %}
+                    <div class="project-files-note">
+                        You do not have permission to upload files to this project.
+                    </div>
+                {% endif %}
+            </div>
+
+            <form method="post"
+                  action="{{ path('app_project_file_upload', {id: project.id}) }}"
+                  enctype="multipart/form-data"
+                  class="project-files-upload">
+                <input type="hidden"
+                       name="_token"
+                       value="{{ csrf_token('project_file_upload_' ~ project.id) }}">
+                <label class="project-files-picker {{ not canUploadProjectFiles|default(false) ? 'is-disabled' : '' }}"
+                       data-project-file-picker>
+                    <span class="project-files-picker__badge">
+                        <i class="ri-folder-open-line me-1"></i> Choose file
+                    </span>
+                    <span class="project-files-picker__text"
+                          data-project-file-name>No file selected</span>
+                    <input type="file"
+                           name="project_file"
+                           {% if not canUploadProjectFiles|default(false) %}disabled{% endif %}
+                           data-project-file-input>
+                </label>
+                <button type="submit"
+                        class="btn nexum-btn-primary text-white"
+                        {% if not canUploadProjectFiles|default(false) %}disabled{% endif %}>
+                    <i class="ri-upload-2-line me-1"></i> Upload File
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="card nexum-shell-card">
+        <div class="card-body">
+            {% if files %}
+                <div class="project-files-list">
+                    {% for file in files %}
+                        {% include 'project/tabs/components/_file_card.html.twig' with { file: file } %}
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="project-files-empty">
+                    <div class="fw-semibold mb-1">No files uploaded yet.</div>
+                    <div class="small">Use the upload button above to attach documents to this project.</div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('[data-project-file-picker]').forEach(function (picker) {
+            const input = picker.querySelector('[data-project-file-input]');
+            const label = picker.querySelector('[data-project-file-name]');
+
+            if (!input || !label) {
+                return;
+            }
+
+            input.addEventListener('change', function () {
+                const file = input.files && input.files[0] ? input.files[0] : null;
+                label.textContent = file ? file.name : 'No file selected';
+            });
+        });
+    });
+</script>

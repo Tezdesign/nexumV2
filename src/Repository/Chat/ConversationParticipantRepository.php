@@ -19,7 +19,7 @@ class ConversationParticipantRepository extends ServiceEntityRepository
     {
         $rows = $this->createQueryBuilder('cp')
             ->select('cp.conversation_id AS conversationId')
-            ->innerJoin('App\\Entity\\Chat\\Conversation', 'c', 'WITH', 'c.id = cp.conversation_id')
+            ->innerJoin('App\\Entity\\Chat\\Conversation', 'c', 'ON', 'c.id = cp.conversation_id')
             ->andWhere('cp.user_id = :userId')
             ->setParameter('userId', $userId)
             ->orderBy('c.last_message_at', 'DESC')

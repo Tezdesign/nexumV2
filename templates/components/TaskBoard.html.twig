@@ -1,0 +1,212 @@
+{% set completedStatuses = ['done','completed','complete','finished'] %}
+{% set inProgressStatuses = ['in_progress','in progress','progress','doing','started'] %}
+
+<div {{ attributes }}>
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 nexum-page-head">
+        <div></div>
+
+        <div class="nexum-toolbar">
+            <input
+                class="form-control nexum-search"
+                type="search"
+                data-model="debounce(300)|q"
+                value="{{ q|plain_text }}"
+                placeholder="Search tasks..."
+            >
+
+            <select class="form-select" data-model="statusFilter" style="width: 160px;">
+                <option value="" {{ statusFilter == '' ? 'selected' : '' }}>All status</option>
+                <option value="todo" {{ statusFilter == 'todo' ? 'selected' : '' }}>To Do</option>
+                <option value="in_progress" {{ statusFilter == 'in_progress' ? 'selected' : '' }}>In Progress</option>
+                <option value="done" {{ statusFilter == 'done' ? 'selected' : '' }}>Done</option>
+            </select>
+
+            <select class="form-select" data-model="priorityFilter" style="width: 160px;">
+                <option value="" {{ priorityFilter == '' ? 'selected' : '' }}>All priority</option>
+                <option value="high" {{ priorityFilter == 'high' ? 'selected' : '' }}>High</option>
+                <option value="medium" {{ priorityFilter == 'medium' ? 'selected' : '' }}>Medium</option>
+                <option value="low" {{ priorityFilter == 'low' ? 'selected' : '' }}>Low</option>
+            </select>
+
+            <button
+                class="btn btn-outline-secondary"
+                type="button"
+                data-action="live#action"
+                data-live-action-param="resetFilters"
+            >
+                <i class="ri-filter-off-line me-1"></i> Clear
+            </button>
+
+            {% if canCreateTask %}
+                <button class="btn nexum-btn-primary text-white" type="button" data-bs-toggle="modal" data-bs-target="#createTaskModal">
+                    + New Task
+                </button>
+            {% endif %}
+        </div>
+    </div>
+
+    {% for pid, tasks in this.tasksByProjectId %}
+        {% set project = this.projectsById[pid] ?? null %}
+        {% set projectName = project ? project.name|plain_text : ('Project #' ~ pid) %}
+        {% set dot = avatar_placeholder(projectName) %}
+        {% set groupId = 'proj_' ~ pid %}
+
+        <div class="nexum-group">
+            <div class="nexum-group-head">
+                <div class="nexum-group-left">
+                    <button class="nexum-chevron" type="button" data-bs-toggle="collapse" data-bs-target="#{{ groupId }}" aria-expanded="true" aria-controls="{{ groupId }}">
+                        <i class="ri-arrow-down-s-line"></i>
+                    </button>
+                    <span class="nexum-dot" style="background: {{ dot.bg }};"></span>
+                    <div class="nexum-group-name">{{ projectName }}</div>
+                    <span class="nexum-count">{{ tasks|length }}</span>
+                </div>
+                <div class="nexum-group-actions">
+                    {% if canCreateTask %}
+                        <button class="nexum-icon-btn" type="button"
+                                data-bs-toggle="modal"
+                                data-bs-target="#createTaskModal"
+                                data-prefill-project="{{ pid }}"
+                                title="Add task"
+                                aria-label="Add task">
+                            <i class="ri-add-line"></i>
+                        </button>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="collapse show" id="{{ groupId }}">
+                {% for task in tasks %}
+                    {% set st = (task.status ?? '')|plain_text|lower %}
+                    {% set isDone = st and (st in completedStatuses) %}
+                    {% set isInProgress = (not isDone) and st and (st in inProgressStatuses) %}
+                    {% set statusKey = isDone ? 'done' : (isInProgress ? 'in_progress' : 'todo') %}
+                    {% set pr = (task.priority ?? '')|plain_text|lower %}
+                    {% set prClass = pr in ['high','medium','low'] ? pr : '' %}
+                    {% set au = task.assignedTo ?? null %}
+                    {% set u = au is not null ? (this.usersById[au] ?? null) : null %}
+                    {% set fullName = u ? ((u.prenom ~ ' ' ~ u.nom)|trim|plain_text) : '' %}
+                    {% set canUpdateProgress = (au is not null) and (au == this.currentUserId) %}
+
+                    <div class="nexum-row">
+                        <div class="nexum-row-left">
+                            <div class="nexum-task-actions">
+                                {% if canUpdateProgress %}
+                                    <form method="post" action="{{ path('app_task_status', {id: task.id}) }}">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('task_status' ~ task.id) }}">
+                                        <input type="hidden" name="status" value="{{ isDone ? 'todo' : 'done' }}">
+                                        <input type="hidden" name="back" value="{{ this.taskIndexUrl }}">
+                                        <button type="submit"
+                                                class="nexum-task-action {{ isDone ? 'is-done' : '' }}"
+                                                title="{{ isDone ? 'Mark as To Do' : 'Mark as Done' }}"
+                                                aria-label="{{ isDone ? 'Mark as To Do' : 'Mark as Done' }}">
+                                            <i class="ri-check-line"></i>
+                                        </button>
+                                    </form>
+
+                                    <form method="post" action="{{ path('app_task_status', {id: task.id}) }}">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('task_status' ~ task.id) }}">
+                                        <input type="hidden" name="status" value="in_progress">
+                                        <input type="hidden" name="back" value="{{ this.taskIndexUrl }}">
+                                        <button type="submit"
+                                                class="nexum-task-action {{ statusKey == 'in_progress' ? 'is-progress' : '' }}"
+                                                title="Mark as In Progress"
+                                                aria-label="Mark as In Progress">
+                                            <i class="ri-time-line"></i>
+                                        </button>
+                                    </form>
+                                {% else %}
+                                    <span class="nexum-task-action {{ isDone ? 'is-done' : '' }} is-disabled"
+                                          title="Progress can be updated only by the assignee"
+                                          aria-hidden="true">
+                                        <i class="ri-check-line"></i>
+                                    </span>
+                                    <span class="nexum-task-action {{ statusKey == 'in_progress' ? 'is-progress' : '' }} is-disabled"
+                                          title="Progress can be updated only by the assignee"
+                                          aria-hidden="true">
+                                        <i class="ri-time-line"></i>
+                                    </span>
+                                {% endif %}
+                            </div>
+
+                            <a class="nexum-task-title {{ isDone ? 'done' : '' }}"
+                               href="{{ path('app_task_show', {id: task.id}) }}"
+                               data-bs-toggle="modal"
+                               data-bs-target="#taskDetailsModal"
+                               data-task-show-url="{{ path('app_task_show_modal', {id: task.id}) }}"
+                               title="{{ task.title|plain_text }}">
+                                {{ task.title|plain_text }}
+                            </a>
+                        </div>
+
+                        <div class="nexum-meta">
+                            {% if prClass %}
+                                <span class="nexum-priority {{ prClass }}">{{ prClass|upper }}</span>
+                            {% endif %}
+
+                            <span class="nexum-status {{ statusKey }}">
+                                {{ statusKey == 'in_progress' ? 'In Progress' : (statusKey == 'done' ? 'Done' : 'To Do') }}
+                            </span>
+
+                            <span class="d-inline-flex align-items-center gap-2">
+                                <i class="ri-calendar-line"></i>
+                                <span>{{ task.dueDate ? task.dueDate|date('d M') : '—' }}</span>
+                            </span>
+
+                            {% if u %}
+                                {% set ap = avatar_placeholder(fullName) %}
+                                <span class="nexum-assignee" title="{{ fullName }}">
+                                    <span class="nexum-assignee-dot" style="background: {{ ap.bg }}; color: {{ ap.fg }};">
+                                        {{ ap.initial }}
+                                    </span>
+                                    {{ fullName }}
+                                </span>
+                            {% else %}
+                                <span class="nexum-assignee is-empty">Unassigned</span>
+                            {% endif %}
+
+                            {% set createdBy = task.createdBy ?? null %}
+                            {% set canDeleteTask = this.manager or (createdBy is not null and createdBy == this.currentUserId) %}
+                            {% set canEditTask = createdBy is not null and createdBy == this.currentUserId %}
+                            {% if canEditTask %}
+                                <button type="button"
+                                        class="nexum-icon-btn"
+                                        title="Edit"
+                                        aria-label="Edit"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#editTaskModal"
+                                        data-edit-url="{{ path('app_task_edit_modal', {id: task.id}) }}">
+                                    <i class="ri-pencil-line"></i>
+                                </button>
+                            {% endif %}
+
+                            {% if canDeleteTask %}
+                                <button type="button"
+                                        class="nexum-icon-btn"
+                                        title="Delete"
+                                        aria-label="Delete"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#deleteTaskModal"
+                                        data-delete-action="{{ path('app_task_delete', {id: task.id}) }}"
+                                        data-delete-token="{{ csrf_token('delete' ~ task.id) }}"
+                                        data-task-title="{{ task.title|plain_text }}">
+                                    <i class="ri-delete-bin-line"></i>
+                                </button>
+                            {% else %}
+                                <span class="nexum-icon-btn is-disabled"
+                                      title="Delete is available for managers or the task creator"
+                                      aria-hidden="true">
+                                    <i class="ri-delete-bin-line"></i>
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% else %}
+        <div class="card">
+            <div class="card-body text-muted">No tasks found.</div>
+        </div>
+    {% endfor %}
+</div>

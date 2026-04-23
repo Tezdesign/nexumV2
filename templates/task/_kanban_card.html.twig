@@ -11,6 +11,7 @@
 {% set u = au is not null ? (usersById[au] ?? null) : null %}
 {% set fullName = u ? ((u.prenom ~ ' ' ~ u.nom)|trim|plain_text) : 'Unassigned' %}
 {% set taskUrl = taskUrl|default(path('app_task_show', {id: task.id})) %}
+{% set taskShowUrl = taskShowUrl|default(path('app_task_show_modal', {id: task.id})) %}
 {% set updateUrl = path('app_task_status', {id: task.id}) %}
 {% set canUpdateProgress = (au is not null) and (au == (currentUserId|default(0))) %}
 
@@ -54,6 +55,9 @@
             <a class="kanban-task-title {{ isDone ? 'is-done' : '' }}"
                data-task-title
                href="{{ taskUrl }}"
+               data-bs-toggle="modal"
+               data-bs-target="#taskDetailsModal"
+               data-task-show-url="{{ taskShowUrl }}"
                title="{{ task.title|plain_text }}">
                 {{ task.title|plain_text }}
             </a>

@@ -1,0 +1,391 @@
+{% extends 'layouts/auth.html.twig' %}
+
+{% set title = 'Verify Code - Nexum' %}
+
+{% block css %}
+<style>
+    :root {
+        --primary-purple: #7c3aed;
+        --text-main: #111827;
+        --text-muted: #6b7280;
+        --bg-gray: #f3f4f6;
+        --input-bg: #f9fafb;
+        --border-color: #e5e7eb;
+    }
+
+    body {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background-color: var(--bg-gray);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow-y: scroll;
+    }
+
+    .auth-card {
+        background: white;
+        width: 900px;
+        max-width: 95%;
+        height: 550px;
+        border-radius: 24px;
+        display: flex;
+        overflow: hidden;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
+    }
+
+    .form-section {
+        flex: 1;
+        padding: 50px 60px;
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        max-height: 550px;
+    }
+
+    .back-link {
+        text-decoration: none;
+        color: var(--text-muted);
+        font-size: 14px;
+        margin-bottom: 30px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .title {
+        color: var(--text-main);
+        font-size: 28px;
+        font-weight: 700;
+        margin-bottom: 8px;
+    }
+
+    .subtitle {
+        color: var(--text-muted);
+        font-size: 14px;
+        margin-bottom: 35px;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+        position: relative;
+    }
+
+    label {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-main);
+        margin-bottom: 8px;
+        display: block;
+    }
+
+    .input-wrapper {
+        position: relative;
+    }
+
+    .input-icon {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 18px;
+        height: 18px;
+        color: #9ca3af;
+    }
+
+    input {
+        width: 100%;
+        padding: 12px 12px 12px 40px;
+        background-color: var(--input-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        font-size: 14px;
+        outline: none;
+        transition: border-color 0.2s;
+    }
+
+    input:focus {
+        border-color: var(--primary-purple);
+    }
+
+    .btn-submit {
+        width: 100%;
+        padding: 14px;
+        background-color: var(--primary-purple);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        margin-top: 10px;
+        transition: opacity 0.2s;
+    }
+
+    .btn-submit:hover {
+        opacity: 0.9;
+    }
+
+    .btn-resend {
+        width: 100%;
+        padding: 12px;
+        background-color: transparent;
+        color: var(--primary-purple);
+        border: 1px solid var(--primary-purple);
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        margin-top: 10px;
+        transition: all 0.2s;
+    }
+
+    .btn-resend:hover {
+        background-color: var(--primary-purple);
+        color: white;
+    }
+
+    .btn-resend:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .footer-text {
+        text-align: center;
+        margin-top: 25px;
+        font-size: 13px;
+        color: var(--text-muted);
+    }
+
+    .email-display {
+        background-color: var(--input-bg);
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-size: 13px;
+        color: var(--text-muted);
+        margin-bottom: 20px;
+        text-align: center;
+    }
+
+    .image-section {
+        flex: 1;
+        background-color: #1e1b4b;
+        background-image: url('{{ asset('images/users/purple.jpg') }}');
+        background-size: cover;
+        background-position: center;
+        position: relative;
+    }
+
+    .image-section::after {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: radial-gradient(circle at center, rgba(124, 58, 237, 0.2) 0%, transparent 70%);
+    }
+
+    @media (max-width: 768px) {
+        .auth-card {
+            flex-direction: column;
+            height: auto;
+            width: 400px;
+        }
+        .image-section {
+            display: none;
+        }
+    }
+
+    .alert {
+        position: relative;
+        padding: 12px 16px;
+        margin-bottom: 20px;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        font-size: 14px;
+        line-height: 1.5;
+    }
+
+    .alert-success {
+        color: #0f5132;
+        background-color: #d1e7dd;
+        border-color: #badbcc;
+    }
+
+    .alert-danger {
+        color: #842029;
+        background-color: #f8d7da;
+        border-color: #f5c2c7;
+    }
+
+    .btn-close {
+        position: absolute;
+        top: 8px;
+        right: 12px;
+        padding: 0;
+        font-size: 16px;
+        font-weight: bold;
+        line-height: 1;
+        color: #000;
+        text-shadow: 0 1px 0 #fff;
+        opacity: 0.5;
+        background: none;
+        border: none;
+        cursor: pointer;
+        transition: opacity 0.3s ease;
+    }
+
+    .btn-close:hover {
+        opacity: 1;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="auth-card">
+    <div class="form-section">
+        <a href="{{ path('password_forgot') }}" class="back-link">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+            Back
+        </a>
+
+        <h1 class="title">Verify Your Email</h1>
+        <p class="subtitle">We've sent a verification code to your email address.</p>
+
+        {% if email %}
+            <div class="email-display">
+                📧 {{ email }}
+            </div>
+        {% endif %}
+
+        {% for type, messages in app.session.flashbag.all() %}
+            {% for message in messages %}
+                <div class="alert alert-{{ type == 'error' ? 'danger' : type }} alert-dismissible fade show" style="margin-bottom: 20px; padding: 12px 16px; border-radius: 8px; font-size: 14px;">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close" style="float: right; font-size: 16px; background: none; border: none; cursor: pointer;">×</button>
+                </div>
+            {% endfor %}
+        {% endfor %}
+
+        <form action="{{ path('password_verify') }}" method="post" novalidate>
+            <div class="form-group">
+                <label for="code">Verification Code</label>
+                <div class="input-wrapper">
+                    <svg class="input-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m-7 4h8m-9 4h10M5 5h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z"></path></svg>
+                    <input type="text" id="code" name="code" placeholder="Enter 6-digit code" maxlength="6" autocomplete="one-time-code" required>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-submit">Verify Code</button>
+        </form>
+
+        <button type="button" class="btn-resend" id="resendBtn" onclick="resendCode()">
+            Resend Code
+        </button>
+
+        <p class="footer-text">
+            Didn't receive the code? Check your spam folder or click "Resend Code".
+        </p>
+    </div>
+
+    <div class="image-section"></div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+let resendTimeout;
+
+function resendCode() {
+    const btn = document.getElementById('resendBtn');
+    const originalText = btn.textContent;
+    
+    // Disable button and show loading
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
+    
+    fetch('{{ path('password_resend') }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show success message
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-success alert-dismissible fade show';
+            alertDiv.style.cssText = 'margin-bottom: 20px; padding: 12px 16px; border-radius: 8px; font-size: 14px;';
+            alertDiv.innerHTML = `
+                ${data.message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close" style="float: right; font-size: 16px; background: none; border: none; cursor: pointer;">×</button>
+            `;
+            
+            const form = document.querySelector('form');
+            form.parentNode.insertBefore(alertDiv, form);
+            
+            // Start countdown timer (30 seconds)
+            let countdown = 30;
+            btn.textContent = `Resend Code (${countdown}s)`;
+            
+            resendTimeout = setInterval(() => {
+                countdown--;
+                if (countdown <= 0) {
+                    clearInterval(resendTimeout);
+                    btn.disabled = false;
+                    btn.textContent = originalText;
+                } else {
+                    btn.textContent = `Resend Code (${countdown}s)`;
+                }
+            }, 1000);
+        } else {
+            // Show error message
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-danger alert-dismissible fade show';
+            alertDiv.style.cssText = 'margin-bottom: 20px; padding: 12px 16px; border-radius: 8px; font-size: 14px;';
+            alertDiv.innerHTML = `
+                ${data.message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close" style="float: right; font-size: 16px; background: none; border: none; cursor: pointer;">×</button>
+            `;
+            
+            const form = document.querySelector('form');
+            form.parentNode.insertBefore(alertDiv, form);
+            
+            // Re-enable button
+            btn.disabled = false;
+            btn.textContent = originalText;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        
+        // Show error message
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-danger alert-dismissible fade show';
+        alertDiv.style.cssText = 'margin-bottom: 20px; padding: 12px 16px; border-radius: 8px; font-size: 14px;';
+        alertDiv.innerHTML = `
+            Failed to resend code. Please try again.
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close" style="float: right; font-size: 16px; background: none; border: none; cursor: pointer;">×</button>
+        `;
+        
+        const form = document.querySelector('form');
+        form.parentNode.insertBefore(alertDiv, form);
+        
+        // Re-enable button
+        btn.disabled = false;
+        btn.textContent = originalText;
+    });
+}
+
+// Auto-focus on code input
+document.addEventListener('DOMContentLoaded', function() {
+    const codeInput = document.getElementById('code');
+    if (codeInput) {
+        codeInput.focus();
+    }
+});
+</script>
+{% endblock %}

@@ -2,7 +2,6 @@
 
 namespace App\Controller\Project;
 
-use App\Entity\Projects\Project;
 use App\Entity\Tasks\Task;
 
 final class ProjectProgressEngine
@@ -12,26 +11,16 @@ final class ProjectProgressEngine
      *
      * @return array<string, mixed>
      */
-    public static function build(Project $project, array $tasks, ?\DateTimeImmutable $now = null): array
+    public static function build(array $tasks, ?\DateTimeImmutable $now = null): array
     {
         $today = ($now ?? new \DateTimeImmutable('now'))->setTime(0, 0);
         $weekStart = $today->modify('monday this week')->setTime(0, 0);
         $weekEnd = $weekStart->modify('+6 days')->setTime(23, 59, 59);
 
-        $statusCounts = [
-            'todo' => 0,
-            'in_progress' => 0,
-            'done' => 0,
-        ];
         $weightedCompletion = 0;
+        $completedCount = 0;
         $overdueCount = 0;
-        $onTrackCount = 0;
-        $estimatedTotal = 0;
-        $actualTotal = 0;
-        $hasEstimatedTime = false;
-        $hasActualTime = false;
         $memberStats = [];
-        $taskInsights = [];
 
         foreach ($tasks as $task) {
             if (!$task instanceof Task) {
@@ -39,12 +28,14 @@ final class ProjectProgressEngine
             }
 
             $status = self::normalizeStatus($task->getStatus());
-            $statusCounts[$status]++;
             $weightedCompletion += match ($status) {
                 'done' => 100,
                 'in_progress' => 50,
                 default => 0,
             };
+            if ($status === 'done') {
+                $completedCount++;
+            }
 
             $dueDate = self::toDay($task->getDueDate());
             $completedAt = $task->getUpdatedAt();
@@ -54,20 +45,6 @@ final class ProjectProgressEngine
 
             if ($isOverdue) {
                 $overdueCount++;
-            } else {
-                $onTrackCount++;
-            }
-
-            $estimated = $task->getEstimatedTime();
-            if ($estimated !== null) {
-                $hasEstimatedTime = true;
-                $estimatedTotal += $estimated;
-            }
-
-            $actual = $task->getActualTime();
-            if ($actual !== null) {
-                $hasActualTime = true;
-                $actualTotal += $actual;
             }
 
             $assignedTo = $task->getAssignedTo();
@@ -80,8 +57,6 @@ final class ProjectProgressEngine
                         'completed_this_week' => 0,
                         'completed_count' => 0,
                         'completed_on_time_count' => 0,
-                        'completion_time_total' => 0,
-                        'completion_time_count' => 0,
                     ];
                 }
 
@@ -99,61 +74,23 @@ final class ProjectProgressEngine
                     if ($completedAt !== null && $completedAt >= $weekStart && $completedAt <= $weekEnd) {
                         $memberStats[$assignedTo]['completed_this_week']++;
                     }
-
-                    if ($actual !== null) {
-                        $memberStats[$assignedTo]['completion_time_total'] += $actual;
-                        $memberStats[$assignedTo]['completion_time_count']++;
-                    }
                 } elseif ($status === 'todo' && $isOverdue) {
                     $memberStats[$assignedTo]['points'] -= 5;
                 } elseif ($status === 'in_progress' && ($dueDate === null || $dueDate >= $today)) {
                     $memberStats[$assignedTo]['points'] += 3;
                 }
             }
-
-            $taskInsights[] = [
-                'id' => $task->getId(),
-                'title' => $task->getTitle(),
-                'status' => $status,
-                'assigned_to' => $assignedTo,
-                'due_date' => $task->getDueDate(),
-                'days_remaining' => (!$isDone && $dueDate !== null && $dueDate >= $today)
-                    ? (int) $today->diff($dueDate)->format('%a')
-                    : null,
-                'overdue_by_days' => $isOverdue
-                    ? (int) $dueDate->diff($today)->format('%a')
-                    : null,
-                'estimated_time' => $estimated,
-                'actual_time' => $actual,
-                'time_variance' => ($estimated !== null && $actual !== null) ? ($actual - $estimated) : null,
-            ];
         }
-
-        usort($taskInsights, static function (array $left, array $right): int {
-            $leftOverdue = $left['overdue_by_days'] ?? -1;
-            $rightOverdue = $right['overdue_by_days'] ?? -1;
-            if ($leftOverdue !== $rightOverdue) {
-                return $rightOverdue <=> $leftOverdue;
-            }
-
-            $leftRemaining = $left['days_remaining'] ?? PHP_INT_MAX;
-            $rightRemaining = $right['days_remaining'] ?? PHP_INT_MAX;
-            return $leftRemaining <=> $rightRemaining;
-        });
 
         foreach ($memberStats as &$memberStat) {
             $maxPoints = (int) $memberStat['max_points'];
-            $completedCount = (int) $memberStat['completed_count'];
-            $completionTimeCount = (int) $memberStat['completion_time_count'];
+            $memberCompletedCount = (int) $memberStat['completed_count'];
 
             $memberStat['productivity_score'] = $maxPoints > 0
                 ? max(0, min(100, (int) round(($memberStat['points'] / $maxPoints) * 100)))
                 : 0;
-            $memberStat['average_completion_time'] = $completionTimeCount > 0
-                ? (int) round($memberStat['completion_time_total'] / $completionTimeCount)
-                : null;
-            $memberStat['on_time_delivery_rate'] = $completedCount > 0
-                ? (int) round(($memberStat['completed_on_time_count'] / $completedCount) * 100)
+            $memberStat['on_time_delivery_rate'] = $memberCompletedCount > 0
+                ? (int) round(($memberStat['completed_on_time_count'] / $memberCompletedCount) * 100)
                 : null;
         }
         unset($memberStat);
@@ -169,17 +106,10 @@ final class ProjectProgressEngine
         $taskCount = count($tasks);
         return [
             'completion_percentage' => $taskCount > 0 ? (int) round($weightedCompletion / $taskCount) : 0,
-            'status_counts' => $statusCounts,
             'tasks_total' => $taskCount,
-            'tasks_on_track' => $onTrackCount,
+            'tasks_completed' => $completedCount,
             'tasks_overdue' => $overdueCount,
-            'estimated_time_total' => $hasEstimatedTime ? $estimatedTotal : null,
-            'actual_time_total' => $hasActualTime ? $actualTotal : null,
-            'time_utilization_percentage' => ($estimatedTotal > 0 && $actualTotal > 0)
-                ? (int) round(($actualTotal / $estimatedTotal) * 100)
-                : null,
             'member_productivity' => $memberStats,
-            'task_insights' => $taskInsights,
         ];
     }
 
