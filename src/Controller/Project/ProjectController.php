@@ -17,11 +17,7 @@ use App\Service\AuthService;
 use App\Service\ProjectActivityFeed;
 use App\Service\ProjectActivityLogger;
 use App\Support\UserDisplayName;
-use App\Service\AuthService;
 use App\Service\Project\AI\ProjectTaskSuggestionService;
-use App\Service\ProjectActivityFeed;
-use App\Service\ProjectActivityLogger;
-use App\Support\UserDisplayName;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -339,8 +335,7 @@ final class ProjectController extends AbstractController
         \App\Repository\FinancialAnalysis\ExpenseDraftRepository $expenseDraftRepository,
         \App\Repository\FinancialAnalysis\ProjectBudgetRepository $projectBudgetRepository,
         \App\Service\FinancialAnalysis\BudgetAdvService $budgetAdvService,
-        EntityManagerInterface $entityManager
-        TaskRepository $taskRepository,
+        EntityManagerInterface $entityManager,
         ChartBuilderInterface $chartBuilder
     ): Response
     {
