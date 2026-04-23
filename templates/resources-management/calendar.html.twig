@@ -1,0 +1,133 @@
+{% extends 'layouts/admin_vertical.html.twig' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h3>Resource Calendar</h3>
+
+    {% for label, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="alert alert-{{ label == 'danger' ? 'danger' : (label == 'success' ? 'success' : 'info') }} alert-dismissible fade show mt-3" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endfor %}
+
+    <div id="calendar"></div>
+</div>
+
+{# =========================
+   📌 MODAL
+========================= #}
+<div class="modal fade" id="dayModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalTitle">Day Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+        <table class="table table-bordered">
+          <thead>
+            <tr>
+              <th>Resource</th>
+              <th>Quantity</th>
+              <th>Status</th>
+              <th>Return Date</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="modalTableBody"></tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block script %}
+
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    const calendarEl = document.getElementById('calendar');
+
+    const events = {{ events|json_encode|raw }};
+    const dayData = {{ dayData|json_encode|raw }};
+
+    // ✅ base route for SMS (we replace ID later)
+    const notifyBaseUrl = "{{ path('notify_overdue_sms', {'id': 'ID_PLACEHOLDER'}) }}";
+
+    const calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        height: 'auto',
+        events: events,
+
+        dateClick: function(info) {
+
+            const date = info.dateStr;
+            const data = dayData[date] || [];
+
+            const tableBody = document.getElementById('modalTableBody');
+            const modalTitle = document.getElementById('modalTitle');
+
+            tableBody.innerHTML = "";
+            modalTitle.innerText = "📅 History for " + date;
+
+            if (data.length === 0) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center">No data for this day</td>
+                    </tr>
+                `;
+            } else {
+
+                data.forEach(item => {
+
+                    let badgeClass = "bg-secondary";
+
+                    if (item.status === "STARTED") badgeClass = "bg-primary";
+                    else if (item.status === "ACTIVE") badgeClass = "bg-success";
+                    else if (item.status === "DUE TODAY") badgeClass = "bg-warning";
+                    else if (item.status === "OVERDUE") badgeClass = "bg-danger";
+
+                    // ✅ FIX: generate URL in JS
+                    let actionBtn = "";
+
+                    if (item.status === "OVERDUE") {
+                        const url = notifyBaseUrl.replace('ID_PLACEHOLDER', item.assignmentId);
+
+                        actionBtn = `
+                            <a href="${url}" class="btn btn-sm btn-danger">
+                                Notify SMS
+                            </a>
+                        `;
+                    }
+
+                    tableBody.innerHTML += `
+                        <tr>
+                            <td>Resource #${item.resource}</td>
+                            <td>${item.quantity}</td>
+                            <td><span class="badge ${badgeClass}">${item.status}</span></td>
+                            <td>${item.returnDate ?? 'N/A'}</td>
+                            <td>${actionBtn}</td>
+                        </tr>
+                    `;
+                });
+            }
+
+            new bootstrap.Modal(document.getElementById('dayModal')).show();
+        }
+    });
+
+    calendar.render();
+});
+</script>
+
+{% endblock %}

@@ -230,54 +230,8 @@ public function submitRequest(
             ->from($fromAddress)
             ->to($client->getEmail())
             ->subject('Resource Request Accepted - NEXUM')
-            ->text("Your request has been accepted.\nResource ID: {$assignment->getResourceId()}\nQuantity: {$assignment->getQuantity()}")
-            ->html("
-                <!DOCTYPE html>
-                <html lang='en'>
-                <head>
-                    <meta charset='UTF-8'>
-                    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
-                    <title>Resource Request Accepted</title>
-                    <style>
-                        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; }
-                        .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
-                        .header { background-color: #007bff; color: #ffffff; padding: 20px; text-align: center; }
-                        .header h1 { margin: 0; font-size: 24px; }
-                        .content { padding: 30px; }
-                        .content h2 { color: #333333; }
-                        .details { background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0; }
-                        .footer { background-color: #343a40; color: #ffffff; padding: 20px; text-align: center; font-size: 12px; }
-                        .button { display: inline-block; padding: 10px 20px; background-color: #28a745; color: #ffffff; text-decoration: none; border-radius: 5px; margin-top: 20px; }
-                    </style>
-                </head>
-                <body>
-                    <div class='container'>
-                        <div class='header'>
-                            <h1>NEXUM</h1>
-                            <p>Resource Management System</p>
-                        </div>
-                        <div class='content'>
-                            <h2>Great News! Your Resource Request Has Been Accepted</h2>
-                            <p>Dear {$client->getNom()} {$client->getPrenom()},</p>
-                            <p>We are pleased to inform you that your resource request has been approved and processed successfully.</p>
-                            <div class='details'>
-                                <h3>Request Details:</h3>
-                                <p><strong>Resource ID:</strong> {$assignment->getResourceId()}</p>
-                                <p><strong>Quantity:</strong> {$assignment->getQuantity()}</p>
-                                <p><strong>Status:</strong> ACCEPTED</p>
-                                <p><strong>Request Date:</strong> {$assignment->getAssignmentDate()->format('Y-m-d H:i:s')}</p>
-                            </div>
-                            <p>You can now access and utilize the allocated resources. If you have any questions or need assistance, please don't hesitate to contact our support team.</p>
-                            <a href='#' class='button'>View Your Resources</a>
-                        </div>
-                        <div class='footer'>
-                            <p>&copy; 2026 NEXUM. All rights reserved.</p>
-                            <p>This is an automated message. Please do not reply to this email.</p>
-                        </div>
-                    </div>
-                </body>
-                </html>
-            ");
+            ->text($this->buildRequestEmailText($assignment, $client, 'accepted'))
+            ->html($this->buildRequestEmailHtml($assignment, $client, 'accepted'));
 
         try {
             $mailer->send($email);
@@ -319,54 +273,8 @@ public function submitRequest(
             ->from($fromAddress)
             ->to($client->getEmail())
             ->subject('Resource Request Update - NEXUM')
-            ->text("Your request has been declined.\nResource ID: {$assignment->getResourceId()}\nQuantity: {$assignment->getQuantity()}")
-            ->html("
-                <!DOCTYPE html>
-                <html lang='en'>
-                <head>
-                    <meta charset='UTF-8'>
-                    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
-                    <title>Resource Request Declined</title>
-                    <style>
-                        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; }
-                        .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
-                        .header { background-color: #007bff; color: #ffffff; padding: 20px; text-align: center; }
-                        .header h1 { margin: 0; font-size: 24px; }
-                        .content { padding: 30px; }
-                        .content h2 { color: #333333; }
-                        .details { background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0; }
-                        .footer { background-color: #343a40; color: #ffffff; padding: 20px; text-align: center; font-size: 12px; }
-                        .button { display: inline-block; padding: 10px 20px; background-color: #dc3545; color: #ffffff; text-decoration: none; border-radius: 5px; margin-top: 20px; }
-                    </style>
-                </head>
-                <body>
-                    <div class='container'>
-                        <div class='header'>
-                            <h1>NEXUM</h1>
-                            <p>Resource Management System</p>
-                        </div>
-                        <div class='content'>
-                            <h2>Resource Request Update</h2>
-                            <p>Dear {$client->getNom()} {$client->getPrenom()},</p>
-                            <p>We regret to inform you that your resource request has been declined at this time.</p>
-                            <div class='details'>
-                                <h3>Request Details:</h3>
-                                <p><strong>Resource ID:</strong> {$assignment->getResourceId()}</p>
-                                <p><strong>Quantity:</strong> {$assignment->getQuantity()}</p>
-                                <p><strong>Status:</strong> DECLINED</p>
-                                <p><strong>Request Date:</strong> {$assignment->getAssignmentDate()->format('Y-m-d H:i:s')}</p>
-                            </div>
-                            <p>This decision may be due to resource availability or other operational considerations. You are welcome to submit a new request or contact our team for more information.</p>
-                            <a href='#' class='button'>Submit New Request</a>
-                        </div>
-                        <div class='footer'>
-                            <p>&copy; 2026 NEXUM. All rights reserved.</p>
-                            <p>This is an automated message. Please do not reply to this email.</p>
-                        </div>
-                    </div>
-                </body>
-                </html>
-            ");
+            ->text($this->buildRequestEmailText($assignment, $client, 'declined'))
+            ->html($this->buildRequestEmailHtml($assignment, $client, 'declined'));
 
         try {
             $mailer->send($email);
@@ -451,4 +359,133 @@ public function edit(
 
     return $this->redirectToRoute('client_resources_view');
 }
+
+    private function buildRequestEmailText(
+        ResourceAssignment $assignment,
+        Utilisateur $client,
+        string $state
+    ): string {
+        $statusLabel = strtoupper($state);
+        $intro = $state === 'accepted'
+            ? 'Your resource request has been approved.'
+            : 'Your resource request has been declined.';
+
+        return implode("\n", [
+            "NEXUM Resource Management",
+            "",
+            "Hello {$client->getPrenom()} {$client->getNom()},",
+            $intro,
+            "",
+            "Request details:",
+            "Resource ID: {$assignment->getResourceId()}",
+            "Quantity: {$assignment->getQuantity()}",
+            "Status: {$statusLabel}",
+            "Request date: {$assignment->getAssignmentDate()?->format('Y-m-d H:i')}",
+            "Return date: {$assignment->getReturnDate()?->format('Y-m-d')}",
+            "",
+            "This is an automated message from NEXUM.",
+        ]);
+    }
+
+    private function buildRequestEmailHtml(
+        ResourceAssignment $assignment,
+        Utilisateur $client,
+        string $state
+    ): string {
+        $isAccepted = $state === 'accepted';
+        $accent = $isAccepted ? '#12805c' : '#b33a3a';
+        $softAccent = $isAccepted ? '#e9f8f2' : '#fff1f1';
+        $eyebrow = $isAccepted ? 'Request approved' : 'Request declined';
+        $headline = $isAccepted
+            ? 'Your resource request has been approved'
+            : 'Your resource request could not be approved';
+        $summary = $isAccepted
+            ? 'Your request is now confirmed and ready for use in the resource management workflow.'
+            : 'This request was not approved at this time. You can review the request details below and submit another one if needed.';
+        $statusLabel = $isAccepted ? 'ACCEPTED' : 'DECLINED';
+        $nextStep = $isAccepted
+            ? 'You can now proceed with your assigned resource and coordinate with your team if any follow-up is needed.'
+            : 'If this resource is still required, you can submit a new request later or contact the admin team for clarification.';
+        $fullName = htmlspecialchars(trim($client->getPrenom() . ' ' . $client->getNom()), ENT_QUOTES, 'UTF-8');
+        $resourceId = htmlspecialchars((string) $assignment->getResourceId(), ENT_QUOTES, 'UTF-8');
+        $quantity = htmlspecialchars((string) $assignment->getQuantity(), ENT_QUOTES, 'UTF-8');
+        $assignmentDate = htmlspecialchars((string) $assignment->getAssignmentDate()?->format('d M Y, H:i'), ENT_QUOTES, 'UTF-8');
+        $returnDate = htmlspecialchars((string) ($assignment->getReturnDate()?->format('d M Y') ?? 'Not specified'), ENT_QUOTES, 'UTF-8');
+
+        return <<<HTML
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEXUM Resource Update</title>
+</head>
+<body style="margin:0;padding:0;background-color:#eef3f8;font-family:Segoe UI,Arial,sans-serif;color:#1f2937;">
+    <div style="padding:32px 16px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:680px;margin:0 auto;background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 18px 45px rgba(15,23,42,0.12);">
+            <tr>
+                <td style="background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%);padding:32px 36px;color:#ffffff;">
+                    <div style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;opacity:0.78;margin-bottom:10px;">NEXUM Resource Management</div>
+                    <div style="font-size:30px;font-weight:700;line-height:1.2;margin-bottom:8px;">{$headline}</div>
+                    <div style="font-size:15px;line-height:1.7;max-width:520px;color:#dbe7f5;">{$summary}</div>
+                </td>
+            </tr>
+            <tr>
+                <td style="padding:32px 36px 12px 36px;">
+                    <div style="display:inline-block;background:{$softAccent};color:{$accent};padding:8px 14px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">{$eyebrow}</div>
+                    <p style="margin:22px 0 10px 0;font-size:16px;line-height:1.7;">Hello {$fullName},</p>
+                    <p style="margin:0 0 22px 0;font-size:16px;line-height:1.7;color:#475569;">{$nextStep}</p>
+                </td>
+            </tr>
+            <tr>
+                <td style="padding:0 36px 24px 36px;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border:1px solid #dbe5f0;border-radius:16px;overflow:hidden;background:#fbfdff;">
+                        <tr>
+                            <td colspan="2" style="padding:18px 22px;background:#f6f9fc;font-size:15px;font-weight:700;color:#0f172a;border-bottom:1px solid #dbe5f0;">Request details</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:14px 22px;font-size:14px;color:#64748b;border-bottom:1px solid #e7eef6;">Resource ID</td>
+                            <td style="padding:14px 22px;font-size:14px;font-weight:600;color:#0f172a;border-bottom:1px solid #e7eef6;">{$resourceId}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:14px 22px;font-size:14px;color:#64748b;border-bottom:1px solid #e7eef6;">Quantity</td>
+                            <td style="padding:14px 22px;font-size:14px;font-weight:600;color:#0f172a;border-bottom:1px solid #e7eef6;">{$quantity}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:14px 22px;font-size:14px;color:#64748b;border-bottom:1px solid #e7eef6;">Status</td>
+                            <td style="padding:14px 22px;border-bottom:1px solid #e7eef6;">
+                                <span style="display:inline-block;background:{$softAccent};color:{$accent};padding:6px 12px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:0.05em;">{$statusLabel}</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding:14px 22px;font-size:14px;color:#64748b;border-bottom:1px solid #e7eef6;">Request date</td>
+                            <td style="padding:14px 22px;font-size:14px;font-weight:600;color:#0f172a;border-bottom:1px solid #e7eef6;">{$assignmentDate}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:14px 22px;font-size:14px;color:#64748b;">Return date</td>
+                            <td style="padding:14px 22px;font-size:14px;font-weight:600;color:#0f172a;">{$returnDate}</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+            <tr>
+                <td style="padding:0 36px 30px 36px;">
+                    <div style="background:#f8fafc;border-left:4px solid {$accent};padding:18px 18px 18px 20px;border-radius:12px;font-size:14px;line-height:1.7;color:#475569;">
+                        This is an automated notification from NEXUM. If you need support or more context about this request, please contact the resource management team.
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td style="padding:20px 36px 30px 36px;background:#f8fafc;border-top:1px solid #e2e8f0;font-size:12px;line-height:1.8;color:#64748b;text-align:center;">
+                    <div style="font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#334155;">NEXUM</div>
+                    <div>Professional resource operations and request tracking</div>
+                    <div style="margin-top:6px;">This email was generated automatically. Please do not reply directly to this message.</div>
+                </td>
+            </tr>
+        </table>
+    </div>
+</body>
+</html>
+HTML;
+    }
 }

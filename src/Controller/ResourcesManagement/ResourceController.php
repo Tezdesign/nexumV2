@@ -12,6 +12,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 
+
 #[Route('/admin/resources')]
 final class ResourceController extends AbstractController
 {
@@ -219,4 +220,134 @@ public function markReturned(
 
     return $this->redirectToRoute('admin_active_returns');
 }
+#[Route('/admin/calendar', name: 'admin_calendar')]
+public function calendar(ResourceAssignmentRepository $repo): Response
+{
+    $assignments = $repo->findAll();
+
+    $events = [];
+    $dayData = [];
+
+    $today = new \DateTime();
+
+    foreach ($assignments as $a) {
+
+        if (!$a->getAssignmentDate() || !$a->getReturnDate()) {
+            continue;
+        }
+
+        $start = $a->getAssignmentDate();
+        $end = $a->getReturnDate();
+
+        $id = $a->getAssignment_id();
+        $resourceId = $a->getResourceId();
+
+        // =========================
+        // 📌 START DAY DATA
+        // =========================
+        $dayData[$start->format('Y-m-d')][] = [
+            'assignmentId' => $id,
+            'resource' => $resourceId,
+            'quantity' => $a->getQuantity(),
+            'status' => 'STARTED',
+            'returnDate' => $end->format('Y-m-d'),
+        ];
+
+        // =========================
+        // 📌 RETURN DAY DATA
+        // =========================
+        $isOverdue = $end < $today;
+        $isToday = $end->format('Y-m-d') === $today->format('Y-m-d');
+
+        if ($isOverdue) {
+            $status = 'OVERDUE';
+            $color = '#dc3545';
+        } elseif ($isToday) {
+            $status = 'DUE TODAY';
+            $color = '#fd7e14';
+        } else {
+            $status = 'ACTIVE';
+            $color = '#28a745';
+        }
+
+        $dayData[$end->format('Y-m-d')][] = [
+            'assignmentId' => $id,
+            'resource' => $resourceId,
+            'quantity' => $a->getQuantity(),
+            'status' => $status,
+            'returnDate' => $end->format('Y-m-d'),
+            'overdue' => $isOverdue
+        ];
+
+        // =========================
+        // 📌 CALENDAR EVENTS
+        // =========================
+
+        // START EVENT (blue)
+        $events[] = [
+            'id' => $id,
+            'title' => "Start #$resourceId",
+            'start' => $start->format('Y-m-d'),
+            'color' => '#0d6efd'
+        ];
+
+        // RETURN EVENT (status color)
+        $events[] = [
+            'id' => $id,
+            'title' => "$status #$resourceId",
+            'start' => $end->format('Y-m-d'),
+            'color' => $color,
+            'extendedProps' => [
+                'assignmentId' => $id,
+                'resourceId' => $resourceId,
+                'status' => $status,
+                'overdue' => $isOverdue
+            ]
+        ];
+    }
+
+    return $this->render('resources-management/calendar.html.twig', [
+        'events' => $events,
+        'dayData' => $dayData
+    ]);
+}
+#[Route('/admin/calendar/events', name: 'admin_calendar_events')]
+public function calendarEvents(ResourceAssignmentRepository $repo): Response
+{
+    $assignments = $repo->findAll();
+
+    $events = [];
+
+    foreach ($assignments as $a) {
+
+        $start = $a->getAssignmentDate()?->format('Y-m-d');
+        $end = $a->getReturnDate()?->format('Y-m-d');
+
+        $today = new \DateTime();
+
+        // 🎯 COLOR LOGIC
+        $color = '#28a745'; // green default
+
+        if ($a->getReturnDate() < $today) {
+            $color = '#dc3545'; // red (late)
+        } elseif ($a->getReturnDate()->format('Y-m-d') === $today->format('Y-m-d') ||
+                  $a->getReturnDate()->diff($today)->days == 1) {
+            $color = '#fd7e14'; // orange (today or next day)
+        }
+
+        $events[] = [
+            'title' => 'Resource #' . $a->getResourceId(),
+            'start' => $start,
+            'end' => $end,
+            'color' => $color,
+            'extendedProps' => [
+                'status' => $a->getStatus(),
+                'quantity' => $a->getQuantity()
+            ]
+        ];
+    }
+
+    return $this->json($events);
+}
+
 }

@@ -28,5 +28,11 @@ services:
 
     Knp\Component\Pager\PaginatorInterface: '@Knp\Component\Pager\Paginator'
 
+    App\Service\Sms\InfobipSmsService:
+        arguments:
+            $apiKey: '%env(INFOBIP_API_KEY)%'
+            $baseUrl: '%env(resolve:INFOBIP_BASE_URL)%'
+            $sender: '%env(INFOBIP_SENDER)%'
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
