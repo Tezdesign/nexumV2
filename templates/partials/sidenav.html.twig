@@ -50,6 +50,12 @@
                 </a>
             </li>
             <li class="side-nav-item">
+                <a href="{{ path('admin_audit_dashboard') }}" class="side-nav-link{{ _ar is not null and _ar starts with 'admin_audit' ? ' active' : '' }}">
+                    <span class="menu-icon"><i class="ti ti-chart-dots-3"></i></span>
+                    <span class="menu-text"> Audit </span>
+                </a>
+            </li>
+            <li class="side-nav-item">
                 <a href="{{ path('app_project_index') }}" class="side-nav-link{{ _ar is not null and _ar starts with 'app_project' ? ' active' : '' }}">
                     <span class="menu-icon"><i class="ti ti-briefcase"></i></span>
                     <span class="menu-text"> Projects </span>

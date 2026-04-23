@@ -1,0 +1,201 @@
+{% extends 'layouts/admin_vertical.html.twig' %}
+
+{% set title = 'User Audit' %}
+
+{% block css %}
+<link href="{{ asset('css/nexum-pages-polish.css') }}" rel="stylesheet">
+<style>
+    .ai-insight-card {
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        border-left: 4px solid #7c3aed;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .risk-badge {
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.875rem;
+    }
+    
+    .risk-low { background: #d1fae5; color: #065f46; }
+    .risk-medium { background: #fed7aa; color: #92400e; }
+    .risk-high { background: #fee2e2; color: #991b1b; }
+    
+    .insight-item {
+        padding: 12px;
+        margin: 8px 0;
+        background: white;
+        border-radius: 8px;
+        border-left: 3px solid #7c3aed;
+    }
+    
+    .metric-card {
+        background: white;
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        text-align: center;
+        transition: transform 0.3s ease;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .metric-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #7c3aed;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="nexum-page-ambient">
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-0 fw-bold">
+            <i class="ri-user-search-line me-2"></i>
+            User Audit
+        </h1>
+        <p class="text-muted mb-0">AI-powered analysis of user activity and security patterns</p>
+    </div>
+    <a href="{{ path('admin_audit_dashboard') }}" class="btn btn-outline-secondary">
+        <i class="ri-arrow-left-line me-2"></i>
+        Back to Dashboard
+    </a>
+</div>
+
+<!-- User Statistics Overview -->
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="metric-card">
+            <div class="metric-value">{{ userData.total_users }}</div>
+            <div class="text-muted">Total Users</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="metric-card">
+            <div class="metric-value text-success">{{ userData.active_users }}</div>
+            <div class="text-muted">Active Users</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="metric-card">
+            <div class="metric-value text-warning">{{ userData.suspended_users }}</div>
+            <div class="text-muted">Suspended</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="metric-card">
+            <div class="metric-value text-info">{{ userData.new_users_this_month }}</div>
+            <div class="text-muted">New This Month</div>
+        </div>
+    </div>
+</div>
+
+<!-- AI Insights Section -->
+<div class="row">
+    <div class="col-12">
+        <div class="ai-insight-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">
+                    <i class="ri-robot-line me-2"></i>
+                    AI Analysis Results
+                </h5>
+                {% if aiInsights.risk_level is defined %}
+                    <span class="risk-badge risk-{{ aiInsights.risk_level }}">
+                        {{ aiInsights.risk_level|upper }} RISK
+                    </span>
+                {% endif %}
+            </div>
+            
+            {% if aiInsights.error is defined %}
+                <div class="alert alert-warning">
+                    <i class="ri-alert-line me-2"></i>
+                    {{ aiInsights.error }}
+                    <div class="mt-2">
+                        <small>Showing fallback analysis:</small>
+                    </div>
+                </div>
+            {% endif %}
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <h6 class="text-primary mb-3">
+                        <i class="ri-eye-line me-2"></i>
+                        Key Observations
+                    </h6>
+                    {% if aiInsights.observations is defined %}
+                        {% for observation in aiInsights.observations %}
+                            <div class="insight-item">
+                                <i class="ri-checkbox-circle-line text-success me-2"></i>
+                                {{ observation }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    
+                    <h6 class="text-warning mb-3 mt-4">
+                        <i class="ri-alert-line me-2"></i>
+                        Security Concerns
+                    </h6>
+                    {% if aiInsights.concerns is defined %}
+                        {% if aiInsights.concerns|length > 0 %}
+                            {% for concern in aiInsights.concerns %}
+                                <div class="insight-item">
+                                    <i class="ri-error-warning-line text-warning me-2"></i>
+                                    {{ concern }}
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="insight-item">
+                                <i class="ri-shield-check-line text-success me-2"></i>
+                                No security concerns detected
+                            </div>
+                        {% endif %}
+                    {% endif %}
+                </div>
+                
+                <div class="col-md-6">
+                    <h6 class="text-info mb-3">
+                        <i class="ri-lightbulb-line me-2"></i>
+                        Recommendations
+                    </h6>
+                    {% if aiInsights.recommendations is defined %}
+                        {% for recommendation in aiInsights.recommendations %}
+                            <div class="insight-item">
+                                <i class="ri-arrow-right-circle-line text-info me-2"></i>
+                                {{ recommendation }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    
+                    <h6 class="text-success mb-3 mt-4">
+                        <i class="ri-bar-chart-2-line me-2"></i>
+                        Performance Metrics
+                    </h6>
+                    <div class="insight-item">
+                        <i class="ri-user-3-line text-primary me-2"></i>
+                        User Activity Rate: {{ ((userData.active_users / userData.total_users) * 100)|round(1) }}%
+                    </div>
+                    <div class="insight-item">
+                        <i class="ri-user-unfollow-line text-warning me-2"></i>
+                        Suspension Rate: {{ ((userData.suspended_users / userData.total_users) * 100)|round(2) }}%
+                    </div>
+                    <div class="insight-item">
+                        <i class="ri-user-add-line text-success me-2"></i>
+                        Growth Rate: {{ ((userData.new_users_this_month / userData.total_users) * 100)|round(2) }}% this month
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+</div>
+{% endblock %}
