@@ -349,5 +349,173 @@ public function calendarEvents(ResourceAssignmentRepository $repo): Response
 
     return $this->json($events);
 }
+#[Route('/predict', name: 'resource_predict', methods: ['GET'])]
+public function predict(
+    ResourceAssignmentRepository $repo,
+    ResourceRepository $resourceRepository
+): Response
+{
+    return new Response((string) $this->runForecast(
+        $this->buildPredictionDataset($repo, $resourceRepository)
+    ), 200, [
+        'Content-Type' => 'text/plain'
+    ]);
+}
+#[Route('/prediction', name: 'resource_prediction_page')]
+public function predictionPage(
+    ResourceAssignmentRepository $repo,
+    ResourceRepository $resourceRepository
+): Response
+{
+    $resourceEntities = $resourceRepository->findAll();
+    $assignments = $repo->findAll();
+    $resources = array_map(
+        static fn (Resource $resource): array => [
+            'id' => $resource->getResourceId(),
+            'name' => $resource->getResourceName(),
+            'type' => $resource->getResourceType(),
+            'total' => $resource->getTotalQuantity(),
+            'available' => $resource->getAvailableQuantity(),
+        ],
+        $resourceEntities
+    );
+
+    $data = [];
+foreach ($assignments as $a) {
+
+    if (!$a->getAssignmentDate()) continue;
+
+    $resource = $resourceRepository->find($a->getResourceId());
+
+    if (!$resource) continue;
+
+    $data[] = [
+        'resource_id' => $resource->getResourceId(),
+        'resource_name' => $resource->getResourceName(),
+        'type' => $resource->getResourceType(),
+        'quantity' => $a->getQuantity(),
+        'date' => $a->getAssignmentDate()->format('Y-m-d')
+    ];
+}
+
+    $projectDir = $this->getParameter('kernel.project_dir');
+    $script = $projectDir . '/python/forecast.py';
+
+    $json = json_encode($data);
+
+    // 🔥 FIX: use stdin instead of shell arguments
+    $descriptorspec = [
+        0 => ["pipe", "r"], // stdin
+        1 => ["pipe", "w"], // stdout
+        2 => ["pipe", "w"]  // stderr
+    ];
+
+    $process = proc_open("python \"$script\"", $descriptorspec, $pipes);
+
+    $output = "0";
+
+    if (is_resource($process)) {
+        fwrite($pipes[0], $json);
+        fclose($pipes[0]);
+
+        $output = stream_get_contents($pipes[1]);
+        fclose($pipes[1]);
+
+        $error = stream_get_contents($pipes[2]);
+        fclose($pipes[2]);
+
+        proc_close($process);
+
+        // optional debug (uncomment if needed)
+        // if (!empty($error)) { dump($error); }
+    }
+
+    $prediction = is_numeric(trim($output)) ? round((float) trim($output), 2) : 0.0;
+
+    return $this->render('resources-management/prediction.html.twig', [
+        'prediction' => $prediction,
+        'data' => $data,
+        'resources' => $resources,
+    ]);
+}
+
+private function buildPredictionDataset(
+    ResourceAssignmentRepository $repo,
+    ResourceRepository $resourceRepository
+): array
+{
+    $resourceMap = [];
+
+    foreach ($resourceRepository->findAll() as $resource) {
+        $resourceMap[$resource->getResourceId()] = $resource;
+    }
+
+    $data = [];
+
+    foreach ($repo->findAll() as $assignment) {
+        if (!$assignment->getAssignmentDate()) {
+            continue;
+        }
+
+        $resource = $resourceMap[$assignment->getResourceId()] ?? null;
+
+        if (!$resource) {
+            continue;
+        }
+
+        $data[] = [
+            'resource_id' => $resource->getResourceId(),
+            'resource_name' => $resource->getResourceName(),
+            'type' => $resource->getResourceType(),
+            'quantity' => $assignment->getQuantity(),
+            'date' => $assignment->getAssignmentDate()->format('Y-m-d')
+        ];
+    }
+
+    return $data;
+}
+
+private function runForecast(array $data): float
+{
+    if ($data === []) {
+        return 0.0;
+    }
+
+    $json = json_encode($data);
+
+    if ($json === false) {
+        return 0.0;
+    }
+
+    $projectDir = $this->getParameter('kernel.project_dir');
+    $script = $projectDir . '/python/forecast.py';
+    $descriptorspec = [
+        0 => ['pipe', 'r'],
+        1 => ['pipe', 'w'],
+        2 => ['pipe', 'w']
+    ];
+    $process = proc_open("python \"$script\"", $descriptorspec, $pipes);
+
+    if (!is_resource($process)) {
+        return 0.0;
+    }
+
+    fwrite($pipes[0], $json);
+    fclose($pipes[0]);
+
+    $output = trim(stream_get_contents($pipes[1]));
+    fclose($pipes[1]);
+
+    $error = trim(stream_get_contents($pipes[2]));
+    fclose($pipes[2]);
+
+    proc_close($process);
+
+    if ($error !== '' || !is_numeric($output)) {
+        return 0.0;
+    }
+
+    return round((float) $output, 2);
+}
 
 }

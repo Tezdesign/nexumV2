@@ -3,44 +3,192 @@
 {% set title = 'Resources Management' %}
 
 {% block css %}
-    {# Custom styles can go here #}
+<style>
+/* =========================
+   FLOATING ACTION BUTTON (FIXED)
+========================= */
+/* =========================
+   FLOATING ACTION BUTTON (FIXED)
+========================= */
+/* =========================
+   FLOATING ACTION BUTTON (PRO VERSION)
+========================= */
+
+.fab-wrapper {
+    position: relative;
+    width: 60px;
+    height: 60px;
+    z-index: 999;
+}
+
+/* MAIN BUTTON */
+.fab-main {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    border: none;
+    background: linear-gradient(135deg, #0d6efd, #0a58ca);
+    color: white;
+    font-size: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 6px 18px rgba(13, 110, 253, 0.35);
+    transition: all 0.3s ease;
+    position: relative;
+    z-index: 1001;
+}
+
+/* Hover effect */
+.fab-main:hover {
+    transform: scale(1.08);
+    box-shadow: 0 8px 22px rgba(13, 110, 253, 0.45);
+}
+
+/* Rotate when active */
+.fab-wrapper.active .fab-main {
+    transform: rotate(45deg);
+    background: linear-gradient(135deg, #dc3545, #b02a37);
+}
+
+/* ACTION BUTTONS */
+.fab-item {
+    position: absolute;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+
+    box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+
+    /* Hidden state */
+    transform: scale(0);
+    opacity: 0;
+    visibility: hidden;
+
+    transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* SHOW when active */
+.fab-wrapper.active .fab-item {
+    transform: scale(1);
+    opacity: 1;
+    visibility: visible;
+}
+
+/* ICONS */
+.fab-item i {
+    font-size: 22px;
+    transition: transform 0.2s ease;
+}
+
+/* Hover effect */
+.fab-item:hover {
+    transform: scale(1.15) !important;
+    background: #f8f9fa;
+}
+
+/* Icon animation */
+.fab-item:hover i {
+    transform: rotate(8deg);
+}
+
+/* =========================
+   POSITIONS (RADIAL STYLE)
+========================= */
+
+.fab-1 { top: -70px; right: 5px; }
+.fab-2 { top: -45px; right: 70px; }
+.fab-3 { top: 30px; right: 85px; }
+.fab-4 { top: 95px; right: 45px; }
+
+/* =========================
+   COLORS PER ACTION
+========================= */
+
+.fab-1 i { color: #0d6efd; }  /* Add */
+.fab-2 i { color: #fd7e14; }  /* Return */
+.fab-3 i { color: #6f42c1; }  /* Requests */
+.fab-4 i { color: #198754; }  /* Calendar */
+
+/* =========================
+   TOOLTIP (BONUS 🔥)
+========================= */
+
+.fab-item::after {
+    content: attr(title);
+    position: absolute;
+    right: 60px;
+    background: #212529;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    white-space: nowrap;
+
+    opacity: 0;
+    transform: translateX(10px);
+    transition: 0.2s;
+    pointer-events: none;
+}
+
+.fab-item:hover::after {
+    opacity: 1;
+    transform: translateX(0);
+}
+</style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 class="mb-0">My Resource Assignments</h4>
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+
+        <h4 class="mb-0">My Resource Assignments</h4>
+
+        {# =========================
+           RADIAL ACTION BUTTON
+        ========================= #}
+        <div class="fab-wrapper" id="fabWrapper">
+    <button class="fab-main" id="fabButton">
+        <i class="mdi mdi-plus"></i>
+    </button>
+
+   <a href="{{ path('app_resource_management_new') }}" class="fab-item fab-1" title="Add Resource">
+    <i class="mdi mdi-plus-circle"></i>
+</a>
+
+<a href="{{ path('admin_active_returns') }}" class="fab-item fab-2" title="Returns">
+    <i class="mdi mdi-undo-variant"></i>
+</a>
+
+<a href="{{ path('manage_requests') }}" class="fab-item fab-3" title="Requests">
+    <i class="mdi mdi-clipboard-list"></i>
+</a>
+
+<a href="{{ path('admin_calendar') }}" class="fab-item fab-4" title="Calendar">
+    <i class="mdi mdi-calendar-check"></i>
+</a>
+<a href="#" class="fab-item fab-5" id="aiPredict" title="AI Forecast">
+    <i class="mdi mdi-brain"></i>
+</a>
 </div>
+
+    </div>
+
     <div class="row">
         <div class="col-12">
             <div class="card">
                 <div class="card-body">
 
-                    {# Top Buttons #}
-                    <div class="row mb-3">
-                        <div class="col-sm-4">
-                            <a href="{{ path('app_resource_management_new') }}" class="btn btn-primary mb-2">
-                                <i class="mdi mdi-plus-circle me-2"></i> Add New Resource
-                            </a>
-                            <a href="{{ path('admin_active_returns') }}" class="btn btn-warning mb-2 me-1">
-    Manage Returns
-</a>
-                        </div>
-                        <div class="col-sm-8">
-                            <div class="text-sm-end">
-                                <a href="{{ path('manage_requests') }}" class="btn btn-success mb-2 me-1">
-    Manage Requests
-</a>
-<a href="{{ path('admin_calendar') }}" class="btn btn-dark mb-2 me-1">
-    <i class="mdi mdi-calendar"></i> See Calendar
-</a>
-                            </div>
-                        </div>
-                    </div>
-
-                    {# Smart Search Input #}
                     <div class="mb-3">
-                        <input type="text" id="resourceSearch" class="form-control" placeholder="Type to search resources...">
+                        <input type="text" id="resourceSearch" class="form-control"
+                               placeholder="Type to search resources...">
                     </div>
 
                     <div class="table-responsive">
@@ -57,6 +205,7 @@
                                     <th style="width: 140px;">Action</th>
                                 </tr>
                             </thead>
+
                             <tbody>
                                 {% for resource in resources %}
                                     <tr>
@@ -75,23 +224,29 @@
                                                 {{ resource.status|default('N/A') }}
                                             </span>
                                         </td>
-                                        <td class="d-flex gap-2">
-                                            <!-- Edit Button -->
-                                            <a href="{{ path('app_resources_management_resource_edit', {'resource_id': resource.resourceId}) }}"
-                                               class="btn btn-sm btn-primary">
-                                                <i class="mdi mdi-pencil"></i> Edit
-                                            </a>
 
-                                            <!-- Delete Button -->
-                                            <form method="post"
-                                                  action="{{ path('app_resources_management_resource_delete', {'resource_id': resource.resourceId}) }}"
-                                                  onsubmit="return confirm('Are you sure you want to delete this resource?');">
+                                        <td class="text-nowrap">
+                                            <div class="d-flex gap-2 justify-content-end">
 
-                                                <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ resource.resourceId) }}">
-                                                <button class="btn btn-sm btn-danger">
-                                                    <i class="mdi mdi-delete"></i> Delete
-                                                </button>
-                                            </form>
+                                                <a href="{{ path('app_resources_management_resource_edit', {'resource_id': resource.resourceId}) }}"
+                                                   class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1">
+                                                    <i class="mdi mdi-pencil"></i>
+                                                    <span>Edit</span>
+                                                </a>
+
+                                                <form method="post"
+                                                      action="{{ path('app_resources_management_resource_delete', {'resource_id': resource.resourceId}) }}"
+                                                      onsubmit="return confirm('Are you sure you want to delete this resource?');">
+
+                                                    <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ resource.resourceId) }}">
+
+                                                    <button class="btn btn-sm btn-outline-danger d-flex align-items-center gap-1">
+                                                        <i class="mdi mdi-delete"></i>
+                                                        <span>Delete</span>
+                                                    </button>
+                                                </form>
+
+                                            </div>
                                         </td>
                                     </tr>
                                 {% else %}
@@ -100,42 +255,96 @@
                                     </tr>
                                 {% endfor %}
                             </tbody>
+
                         </table>
                     </div>
 
-                </div> 
-            </div> 
-        </div> 
+                </div>
+            </div>
+        </div>
     </div>
+
 </div>
 {% endblock %}
 
 {% block script %}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+
+    /* =========================
+       SEARCH FUNCTIONALITY
+    ========================= */
     const searchInput = document.getElementById('resourceSearch');
     const table = document.querySelector('table tbody');
-    const rows = table.querySelectorAll('tr');
 
-    searchInput.addEventListener('keyup', function () {
-        const query = this.value.toLowerCase();
+    if (searchInput && table) {
+        const rows = table.querySelectorAll('tr');
 
-        rows.forEach(row => {
-            // Skip rows that are "No resources found"
-            if (row.children.length < 8) return;
+        searchInput.addEventListener('input', function () {
+            const query = this.value.toLowerCase().trim();
 
-            const code = row.children[0].textContent.toLowerCase();
-            const name = row.children[1].textContent.toLowerCase();
-            const type = row.children[2].textContent.toLowerCase();
+            rows.forEach(row => {
+                if (row.children.length < 8) return;
 
-            // Show row if any column starts with query
-            if (code.startsWith(query) || name.startsWith(query) || type.startsWith(query)) {
-                row.style.display = '';
-            } else {
-                row.style.display = 'none';
+                const code = row.children[0].textContent.toLowerCase();
+                const name = row.children[1].textContent.toLowerCase();
+                const type = row.children[2].textContent.toLowerCase();
+
+                const match =
+                    code.includes(query) ||
+                    name.includes(query) ||
+                    type.includes(query);
+
+                row.style.display = match ? '' : 'none';
+            });
+        });
+    }
+
+    /* =========================
+       FLOATING ACTION BUTTON (FAB)
+    ========================= */
+    const fab = document.getElementById('fabButton');
+    const wrapper = document.getElementById('fabWrapper');
+
+    if (fab && wrapper) {
+
+        fab.addEventListener('click', function (e) {
+            e.stopPropagation();
+            wrapper.classList.toggle('active');
+        });
+
+        document.addEventListener('click', function (e) {
+            if (!wrapper.contains(e.target)) {
+                wrapper.classList.remove('active');
             }
         });
-    });
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                wrapper.classList.remove('active');
+            }
+        });
+    }
+
+    /* =========================
+       AI PREDICTION (NOW REDIRECTS)
+    ========================= */
+    const aiBtn = document.getElementById('aiPredict');
+
+    if (aiBtn) {
+        aiBtn.addEventListener('click', function () {
+
+            // loading state
+            aiBtn.innerHTML = '<i class="mdi mdi-loading mdi-spin"></i>';
+            aiBtn.style.pointerEvents = 'none';
+
+            // small delay for UX feel
+            setTimeout(() => {
+                window.location.href = '/admin/resources/prediction';
+            }, 300);
+        });
+    }
+
 });
 </script>
 {% endblock %}
