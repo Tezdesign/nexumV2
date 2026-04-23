@@ -22,6 +22,8 @@ use Symfony\Component\Mime\Email;
 #[Route('/client/resources')]
 class ClientResourceController extends AbstractController
 {
+    private const SPAM_REQUEST_LIMIT = 3;
+
     public function __construct(private readonly AuthService $authService)
     {
     }
@@ -63,33 +65,81 @@ class ClientResourceController extends AbstractController
     }
 
     #[Route('/request', name: 'request_resource')]
-    public function requestResource(
-        ResourceRepository $resourceRepository,
-        ProjectRepository $projectRepository,
-        EntityManagerInterface $em
-    ): Response {
-        $resources = $resourceRepository->createQueryBuilder('r')
-            ->where('r.available_quantity > 0')
-            ->getQuery()
-            ->getResult();
+public function requestResource(
+    ResourceRepository $resourceRepository,
+    ProjectRepository $projectRepository,
+    ResourceAssignmentRepository $assignmentRepository,
+    EntityManagerInterface $em
+): Response {
 
-        $userId = $this->authService->getCurrentUserId();
-        if ($userId === null) {
-            throw $this->createAccessDeniedException('You must be logged in to request a resource.');
-        }
+    // Get available resources
+    $resources = $resourceRepository->createQueryBuilder('r')
+        ->where('r.available_quantity > 0')
+        ->getQuery()
+        ->getResult();
 
-        $user = $em->getRepository(Utilisateur::class)->find($userId);
-        if (!$user) {
-            throw $this->createNotFoundException("User with ID $userId not found.");
-        }
-
-        $projects = $projectRepository->findBy(['assigned_to' => $user->getId()]);
-
-        return $this->render('resources-management/request-resource.html.twig', [
-            'resources' => $resources,
-            'projects' => $projects,
-        ]);
+    // Get user
+    $userId = $this->authService->getCurrentUserId();
+    if ($userId === null) {
+        throw $this->createAccessDeniedException('You must be logged in to request a resource.');
     }
+
+    $user = $em->getRepository(Utilisateur::class)->find($userId);
+    if (!$user) {
+        throw $this->createNotFoundException("User with ID $userId not found.");
+    }
+
+    // Get user projects
+    $projects = $projectRepository->findBy(['assigned_to' => $user->getId()]);
+
+    // ==========================
+    // FRAUD / RISK DETECTION (FIXED)
+    // ==========================
+
+    $allRequests = $assignmentRepository->findBy([
+        'utilisateur' => $user
+    ]);
+
+    // total quantity requested
+    $totalQty = array_sum(
+        array_map(fn($r) => $r->getQuantity(), $allRequests)
+    );
+
+    // accepted requests count
+    $acceptedCount = array_reduce($allRequests, function ($carry, $r) {
+        return $carry + ($r->getStatus() === 'ACCEPTED' ? 1 : 0);
+    }, 0);
+
+    // safer score base
+    $baseScore = ($totalQty * 0.5) + (count($allRequests) * 2);
+
+    // avoid division by zero / abuse of score=0
+    $userScore = max(1, (int) $user->getScore());
+
+    // final risk score
+    $riskScore = $baseScore / $userScore;
+
+    $recentRequestCount = $this->getPendingSpamRequestCount($assignmentRepository, $user);
+    $isBlocked = (bool) $user->isBlocked();
+
+    if (!$isBlocked && ($riskScore > 50 || $recentRequestCount >= self::SPAM_REQUEST_LIMIT)) {
+        $user->setIsBlocked(true);
+        $isBlocked = true;
+        $em->flush();
+    }
+
+    // ==========================
+    // RETURN VIEW
+    // ==========================
+
+    return $this->render('resources-management/request-resource.html.twig', [
+        'resources' => $resources,
+        'projects' => $projects,
+        'isBlocked' => $isBlocked,
+        'riskScore' => round($riskScore, 2),
+        'recentRequestCount' => $recentRequestCount
+    ]);
+}
 
     #[Route('/request/submit', name: 'submit_resource_request', methods: ['POST'])]
 public function submitRequest(
@@ -127,6 +177,24 @@ public function submitRequest(
     // 🎯 SCORE LOGIC
     $score = $user->getScore();
 
+    if ($user->isBlocked()) {
+        $this->addFlash('error', 'Your account is blocked from requesting resources.');
+        return $this->redirectToRoute('request_resource');
+    }
+
+    $recentRequestCount = $this->getPendingSpamRequestCount($assignmentRepository, $user);
+    if (($recentRequestCount + 1) >= self::SPAM_REQUEST_LIMIT) {
+        $user->setIsBlocked(true);
+        $em->flush();
+
+        $this->addFlash(
+            'error',
+            'Too many pending resource requests. Your account has been blocked.'
+        );
+
+        return $this->redirectToRoute('request_resource');
+    }
+
     // count accepted resources
     $acceptedCount = $assignmentRepository->count([
         'utilisateur' => $user,
@@ -162,9 +230,7 @@ public function submitRequest(
     $em->persist($assignment);
 
     // update stock
-    $resource->setAvailableQuantity(
-        $resource->getAvailableQuantity() - $quantity
-    );
+    
 
     $em->flush();
 
@@ -209,40 +275,73 @@ public function submitRequest(
     }
 
     #[Route('/admin/request/{id}/accept', name: 'accept_request')]
-    public function accept(
-        int $id,
-        ResourceAssignmentRepository $repo,
-        EntityManagerInterface $em,
-        MailerInterface $mailer
-    ): Response {
-        $assignment = $repo->find($id);
-        if (!$assignment || !$assignment->getUtilisateur()) {
-            $this->addFlash('error', 'Request not found or client missing.');
-            return $this->redirectToRoute('manage_requests');
-        }
+public function accept(
+    int $id,
+    ResourceAssignmentRepository $repo,
+    ResourceRepository $resourceRepository,
+    EntityManagerInterface $em,
+    MailerInterface $mailer
+): Response {
 
-        $client = $assignment->getUtilisateur();
-        $assignment->setStatus('ACCEPTED');
-        $em->flush();
+    $assignment = $repo->find($id);
 
-        $fromAddress = $_ENV['MAILER_FROM'] ?? 'simawiyass124@gmail.com';
-        $email = (new Email())
-            ->from($fromAddress)
-            ->to($client->getEmail())
-            ->subject('Resource Request Accepted - NEXUM')
-            ->text($this->buildRequestEmailText($assignment, $client, 'accepted'))
-            ->html($this->buildRequestEmailHtml($assignment, $client, 'accepted'));
-
-        try {
-            $mailer->send($email);
-            $this->addFlash('success', 'Client notified by email.');
-        } catch (TransportExceptionInterface $e) {
-            $this->addFlash('error', 'Email notification failed: '.$e->getMessage());
-        }
-
+    if (!$assignment || !$assignment->getUtilisateur()) {
+        $this->addFlash('error', 'Request not found or client missing.');
         return $this->redirectToRoute('manage_requests');
     }
 
+    $client = $assignment->getUtilisateur();
+
+    // =========================
+    // UPDATE STATUS
+    // =========================
+    $assignment->setStatus('ACCEPTED');
+
+    // =========================
+    // STOCK UPDATE (ONLY HERE)
+    // =========================
+    $resource = $resourceRepository->find($assignment->getResourceId());
+
+    if (!$resource) {
+        $this->addFlash('error', 'Resource not found.');
+        return $this->redirectToRoute('manage_requests');
+    }
+
+    if ($resource->getAvailableQuantity() < $assignment->getQuantity()) {
+        $this->addFlash('error', 'Not enough stock available.');
+        return $this->redirectToRoute('manage_requests');
+    }
+
+    $resource->setAvailableQuantity(
+        $resource->getAvailableQuantity() - $assignment->getQuantity()
+    );
+
+    // =========================
+    // SAVE
+    // =========================
+    $em->flush();
+
+    // =========================
+    // EMAIL NOTIFICATION
+    // =========================
+    $fromAddress = $_ENV['MAILER_FROM'] ?? 'simawiyass124@gmail.com';
+
+    $email = (new Email())
+        ->from($fromAddress)
+        ->to($client->getEmail())
+        ->subject('Resource Request Accepted - NEXUM')
+        ->text($this->buildRequestEmailText($assignment, $client, 'accepted'))
+        ->html($this->buildRequestEmailHtml($assignment, $client, 'accepted'));
+
+    try {
+        $mailer->send($email);
+        $this->addFlash('success', 'Request accepted and client notified.');
+    } catch (TransportExceptionInterface $e) {
+        $this->addFlash('error', 'Email notification failed: ' . $e->getMessage());
+    }
+
+    return $this->redirectToRoute('manage_requests');
+}
     #[Route('/admin/request/{id}/decline', name: 'decline_request')]
     public function decline(
         int $id,
@@ -359,6 +458,13 @@ public function edit(
 
     return $this->redirectToRoute('client_resources_view');
 }
+
+    private function getPendingSpamRequestCount(
+        ResourceAssignmentRepository $assignmentRepository,
+        Utilisateur $user
+    ): int {
+        return $assignmentRepository->countPendingRequestsByUser($user);
+    }
 
     private function buildRequestEmailText(
         ResourceAssignment $assignment,
