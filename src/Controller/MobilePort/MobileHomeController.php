@@ -320,12 +320,43 @@ class MobileHomeController extends AbstractController
     }
 
     #[Route('/mobile/notifications', name: 'app_mobile_notifications', methods: ['GET'])]
-    public function notifications(): Response
+    public function notifications(\App\Service\FinancialAnalysis\DraftNotificationService $notificationService): Response
     {
         if (!$this->authService->isLoggedIn()) {
             return $this->redirectToRoute('app_mobile_login');
         }
 
-        return $this->render('mobile/notifications/index.html.twig');
+        $userId = (int) $this->authService->getCurrentUserId();
+        
+        // Fetch all notifications
+        $notifications = $notificationService->getAllNotifications($userId);
+        
+        // Mark them all as read since the user is viewing the page
+        $notificationService->markAllAsRead($userId);
+
+        return $this->render('mobile/notifications/index.html.twig', [
+            'notifications' => $notifications
+        ]);
+    }
+
+    #[Route('/mobile/notifications/poll', name: 'app_mobile_notifications_poll', methods: ['GET'])]
+    public function pollNotifications(\App\Service\FinancialAnalysis\DraftNotificationService $notificationService): \Symfony\Component\HttpFoundation\JsonResponse
+    {
+        if (!$this->authService->isLoggedIn()) {
+            return $this->json(['error' => 'Unauthorized'], 401);
+        }
+
+        $userId = (int) $this->authService->getCurrentUserId();
+        
+        // Fetch undelivered to trigger popup
+        $undelivered = $notificationService->popUndeliveredNotifications($userId);
+        
+        // Fetch total unread count for badge update
+        $unreadCount = $notificationService->getUnreadCount($userId);
+
+        return $this->json([
+            'undelivered' => $undelivered,
+            'unreadCount' => $unreadCount
+        ]);
     }
 }

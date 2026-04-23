@@ -17,7 +17,8 @@ class BudgetAdvService{
         private ProjectBudgetRepository $projectBudgetRepository,
         private BudgetProfileRepository $budgetProfileRepository,
         private TransactionRepository $transactionRepository,
-        private ExpenseDraftRepository $expenseDraftRepository){
+        private ExpenseDraftRepository $expenseDraftRepository,
+        private DraftNotificationService $notificationService){
 
 
     }
@@ -204,11 +205,17 @@ class BudgetAdvService{
         ];
 
         if ($finalStatus === 'REJECTED') {
+            $reason = 'Auto-rejected by system: ' . ($budgetEval['message'] ?? 'Insufficient Funds');
             $evalPayload['rejection_data'] = [
-                'reason' => 'Auto-rejected by system: ' . ($budgetEval['message'] ?? 'Insufficient Funds'),
+                'reason' => $reason,
                 'rejected_at' => $evaluatedAt,
                 'rejected_by' => 'System (Auto)',
             ];
+            
+            $creatorId = $draft->getCreatedBy() ? $draft->getCreatedBy()->getId() : null;
+            if ($creatorId) {
+                $this->notificationService->addNotification($creatorId, 'Draft Auto-Rejected', 'Your draft "' . $draft->getSubject() . '" was automatically rejected: ' . $reason, 'error');
+            }
         }
 
         $draft->setStatus($finalStatus);

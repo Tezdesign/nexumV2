@@ -273,17 +273,26 @@ class FinancialDashboardController extends AbstractController
         \App\Service\AuthService $authService,
         \App\Repository\FinancialAnalysis\ExpenseDraftRepository $expenseDraftRepository,
         BudgetDashboardService $dashboardService,
-        \Symfony\Component\Validator\Validator\ValidatorInterface $validator
+        \Symfony\Component\Validator\Validator\ValidatorInterface $validator,
+        \App\Service\FinancialAnalysis\DraftNotificationService $notificationService
     ): Response {
         $reason = trim((string) $request->request->get('reason', ''));
         $pb = $draft->getProjectBudgetRelated();
         $pid = $pb ? $pb->getId() : 0;
+        
+        $creatorId = $draft->getCreatedBy() ? $draft->getCreatedBy()->getId() : null;
 
         if ($action === 'approve') {
             $expenseDraftRepository->approveDraft($draft);
+            if ($creatorId) {
+                $notificationService->addNotification($creatorId, 'Draft Approved', 'Your draft "' . $draft->getSubject() . '" has been approved by a consultant.', 'success');
+            }
             $this->addFlash('success', 'Draft approved successfully.');
         } elseif ($action === 'revert') {
             $expenseDraftRepository->revertDraft($draft);
+            if ($creatorId) {
+                $notificationService->addNotification($creatorId, 'Draft Reverted', 'The decision on your draft "' . $draft->getSubject() . '" has been reverted to Flagged.', 'info');
+            }
             $this->addFlash('info', 'Draft decision reverted to Flagged.');
         } elseif ($action === 'reject') {
             if (empty($reason)) {
@@ -305,6 +314,10 @@ class FinancialDashboardController extends AbstractController
             $userId = (int) ($authService->getCurrentUserId() ?? 0);
             $expenseDraftRepository->rejectDraft($draft, $reason, $userId);
             
+            if ($creatorId) {
+                $notificationService->addNotification($creatorId, 'Draft Rejected', 'Your draft "' . $draft->getSubject() . '" was rejected: ' . $reason, 'error');
+            }
+
             $this->addFlash('warning', 'Draft has been rejected.');
         } elseif ($action === 'to_transaction') {
             $transactionDateStr = $request->request->get('transaction_date');
@@ -347,6 +360,11 @@ class FinancialDashboardController extends AbstractController
             $dashboardService->handleTransactionCascade($pb, $transaction, $profile);
 
             $expenseDraftRepository->remove($draft, true);
+            
+            if ($creatorId) {
+                $notificationService->addNotification($creatorId, 'Draft Converted', 'Your draft "' . $draft->getSubject() . '" has been converted to a live transaction.', 'success');
+            }
+
             $this->addFlash('success', 'Draft converted to a real transaction successfully!');
         }
 
