@@ -1,0 +1,42 @@
+{% extends 'mobile/layouts/main.html.twig' %}
+
+{% set title = 'Alerts'|trans %}
+{% set active_nav = 'notifications' %}
+
+{% block content %}
+<div class="p-3">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="mb-0">{{ title }}</h3>
+        <button type="button" class="btn btn-primary btn-sm rounded-pill" id="testNotifBtn">
+            <i class="ri-notification-badge-line me-1"></i> Test Popup
+        </button>
+    </div>
+
+    <!-- Empty state for now -->
+    <div class="text-center py-5 text-muted mt-5">
+        <i class="ri-notification-off-line fs-1 mb-2 d-block opacity-50"></i>
+        <p>No new alerts.</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const testBtn = document.getElementById('testNotifBtn');
+    
+    if(testBtn) {
+        testBtn.addEventListener('click', function() {
+            // Trigger the new custom slide-down notification
+            if (typeof window.showMobileNotification === 'function') {
+                window.showMobileNotification(
+                    'New Alert', 
+                    'New notification received! Please check your alerts.', 
+                    'info'
+                );
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

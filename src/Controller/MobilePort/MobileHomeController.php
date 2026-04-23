@@ -219,4 +219,113 @@ class MobileHomeController extends AbstractController
             'utilisateur' => $utilisateur,
         ]);
     }
+    #[Route('/mobile/logout', name: 'app_mobile_logout')]
+    public function logout(): Response
+    {
+        if (!$this->authService->isLoggedIn()) {
+            return $this->redirectToRoute('app_mobile_login');
+        }
+        $this->authService->logout();
+        return $this->redirectToRoute('app_mobile_login');
+    }
+
+
+
+    #[Route('/mobile/profile/edit', name: 'app_mobile_profile_edit', methods: ['GET', 'POST'])]
+    public function profileEdit(
+        Request $request,
+        UtilisateurRepository $utilisateurRepository,
+        EntityManagerInterface $entityManager
+    ): Response {
+        if (!$this->authService->isLoggedIn()) {
+            return $this->redirectToRoute('app_mobile_login');
+        }
+
+        $userId = $this->authService->getCurrentUserId();
+        $utilisateur = $utilisateurRepository->find($userId);
+        
+        if (!$utilisateur instanceof \App\Entity\UserHandling\Utilisateur) {
+            $this->authService->logout();
+            $this->addFlash('error', 'Your session is no longer valid. Please sign in again.');
+            return $this->redirectToRoute('app_mobile_login');
+        }
+
+        if ($request->isMethod('POST')) {
+            $email = trim((string) $request->request->get('email', ''));
+            $nom = trim((string) $request->request->get('nom', ''));
+            $prenom = trim((string) $request->request->get('prenom', ''));
+            $telephone = trim((string) $request->request->get('telephone', ''));
+            $departement = trim((string) $request->request->get('departement', ''));
+            $newPassword = (string) $request->request->get('new_password', '');
+            $confirmPassword = (string) $request->request->get('confirm_password', '');
+
+            $newProfileImageBinary = null;
+            $profileFile = $request->files->get('imagelink');
+            if ($profileFile instanceof \Symfony\Component\HttpFoundation\File\UploadedFile) {
+                if ($profileFile->getError() === UPLOAD_ERR_OK) {
+                    $path = $profileFile->getRealPath() ?: $profileFile->getPathname();
+                    $newProfileImageBinary = @file_get_contents($path);
+                    if ($newProfileImageBinary === false || $newProfileImageBinary === '') {
+                        $newProfileImageBinary = null;
+                        $this->addFlash('warning', 'The profile photo could not be read. Please try another image.');
+                    }
+                } elseif ($profileFile->getError() !== UPLOAD_ERR_NO_FILE) {
+                    $this->addFlash('warning', 'Photo upload failed: '.$profileFile->getErrorMessage());
+                }
+            }
+
+            if ($nom === '' || $prenom === '' || $email === '') {
+                $this->addFlash('error', 'First name, last name, and email are required.');
+            } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $this->addFlash('error', 'Please enter a valid email address.');
+            } elseif ($utilisateurRepository->existsOtherUserWithEmail($email, $utilisateur->getId())) {
+                $this->addFlash('error', 'This email address is already used by another account.');
+            } elseif ($newPassword !== '' && $newPassword !== $confirmPassword) {
+                $this->addFlash('error', 'The new password and confirmation do not match.');
+            } elseif ($newPassword !== '' && strlen($newPassword) < 6) {
+                $this->addFlash('error', 'The new password must be at least 6 characters.');
+            } else {
+                $utilisateur->setEmail($email);
+                $utilisateur->setNom($nom);
+                $utilisateur->setPrenom($prenom);
+                $utilisateur->setTelephone($telephone !== '' ? $telephone : null);
+                $utilisateur->setDepartement($departement !== '' ? $departement : null);
+
+                if ($newPassword !== '') {
+                    $utilisateur->setPassword($newPassword);
+                }
+
+                $entityManager->flush();
+
+                $photoUpdated = false;
+                if ($newProfileImageBinary !== null) {
+                    $entityManager->getConnection()->executeStatement(
+                        'UPDATE utilisateurs SET imagelink = ? WHERE id = ?',
+                        [$newProfileImageBinary, $utilisateur->getId()]
+                    );
+                    $utilisateur->setImagelink($newProfileImageBinary);
+                    $photoUpdated = true;
+                }
+
+                $this->authService->refreshSessionUser($utilisateur, $photoUpdated);
+                $this->addFlash('success', 'Your account has been updated successfully.');
+
+                return $this->redirectToRoute('app_mobile_profile_edit');
+            }
+        }
+
+        return $this->render('mobile/profile/edit.html.twig', [
+            'utilisateur' => $utilisateur,
+        ]);
+    }
+
+    #[Route('/mobile/notifications', name: 'app_mobile_notifications', methods: ['GET'])]
+    public function notifications(): Response
+    {
+        if (!$this->authService->isLoggedIn()) {
+            return $this->redirectToRoute('app_mobile_login');
+        }
+
+        return $this->render('mobile/notifications/index.html.twig');
+    }
 }

@@ -1,0 +1,274 @@
+/* Mobile Layout Styles */
+.mobile-wrapper {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Bottom Tab Navigation */
+.mobile-bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 70px;
+    background: #fff;
+    border-top: 1px solid #eaeaea;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    z-index: 1030;
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+.bottom-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-decoration: none;
+    color: #94a3b8;
+    font-size: 0.75rem;
+    width: 100%;
+    padding: 8px 0;
+    position: relative;
+}
+
+.bottom-nav-item i {
+    font-size: 1.5rem;
+    margin-bottom: 2px;
+}
+
+.bottom-nav-item.active {
+    color: var(--nexum-accent, #7c3aed);
+    font-weight: 500;
+}
+
+.bottom-nav-item .badge {
+    position: absolute;
+    top: 4px;
+    right: calc(50% - 16px);
+    padding: 0.25em 0.4em;
+    border-radius: 50%;
+    font-size: 0.6rem;
+    background-color: #ef4444;
+    color: white;
+}
+
+/* ux-native helpers */
+[data-native-app] .d-native-none {
+    display: none !important;
+}
+
+/* Login Page Styles */
+.mobile-login-wrapper {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 2rem;
+    background-color: #fff;
+}
+.login-logo {
+    width: 80px;
+    height: auto;
+    margin-bottom: 2rem;
+}
+.form-floating > label {
+    color: #6c757d;
+}
+.form-control:focus {
+    border-color: var(--nexum-accent);
+    box-shadow: 0 0 0 0.25rem rgba(124, 58, 237, 0.25);
+}
+.btn-native-primary {
+    background-color: var(--nexum-accent);
+    color: #fff;
+    border-radius: 999px;
+    padding: 0.8rem;
+    font-weight: 600;
+    border: none;
+    width: 100%;
+    margin-top: 1rem;
+}
+.btn-native-primary:active {
+    background-color: #6d28d9;
+}
+
+/* Settings Page Styles */
+.settings-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border: 1px solid #eee;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+.settings-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--nexum-accent);
+}
+.settings-menu-item {
+    background: #fff;
+    padding: 1rem;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #333;
+    text-decoration: none;
+}
+.settings-menu-item:first-child {
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+}
+.settings-menu-item:last-child {
+    border-bottom: none;
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
+}
+.settings-menu-item:active {
+    background: #f8f9fa;
+}
+.settings-menu-group {
+    border-radius: 12px;
+    border: 1px solid #eee;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+}
+.settings-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f8f9fa;
+    color: var(--nexum-accent);
+    margin-right: 1rem;
+}
+.text-danger .settings-icon {
+    color: #dc3545;
+    background: #fce8e6;
+}
+
+/* Edit Profile Styles */
+.account-page .account-profile-card {
+    border-radius: 0.75rem;
+    box-shadow: 0 0.35rem 1.15rem rgba(0, 0, 0, 0.05);
+}
+.account-page .account-profile-cover {
+    height: 6.5rem;
+}
+.account-page .account-profile-avatar-wrap {
+    margin-top: -3rem;
+    display: inline-block;
+    padding: 0.3rem;
+    border-radius: 50%;
+    background: var(--bs-body-bg);
+    box-shadow: 0 0.35rem 1.25rem rgba(124, 58, 237, 0.18);
+}
+.account-page .account-profile-avatar-wrap img {
+    width: 6.5rem;
+    height: 6.5rem;
+    object-fit: cover;
+}
+.account-page .account-section-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.5rem;
+    font-size: 1.25rem;
+}
+.account-page .account-form-card {
+    border-radius: 0.75rem;
+    box-shadow: 0 0.35rem 1.15rem rgba(0, 0, 0, 0.05);
+}
+.account-page .account-upload-zone {
+    border: 2px dashed var(--bs-border-color);
+    border-radius: 0.5rem;
+    padding: 1.25rem;
+    text-align: center;
+    background: var(--bs-tertiary-bg);
+}
+.account-page .account-preview {
+    width: 5rem;
+    height: 5rem;
+    border-radius: 0.5rem;
+    object-fit: cover;
+    border: 1px solid var(--bs-border-color);
+}
+
+/* Custom Slide-Down Notification */
+#mobileSlideDownNotification {
+    position: fixed;
+    top: -150px; /* Start hidden above the screen */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    max-width: 400px;
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    z-index: 9999; /* Highest priority */
+    transition: top 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Bouncy slide down */
+    pointer-events: none; /* Don't block clicks when hidden */
+}
+
+#mobileSlideDownNotification.show-notification {
+    top: max(env(safe-area-inset-top, 20px), 20px); /* Slide down to visible area */
+    pointer-events: auto; /* Allow clicks when visible */
+}
+
+.slide-notification-icon {
+    background-color: rgba(124, 58, 237, 0.1);
+    color: var(--nexum-accent, #7c3aed);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    margin-right: 12px;
+    flex-shrink: 0;
+}
+
+.slide-notification-content {
+    flex-grow: 1;
+    overflow: hidden;
+}
+
+.slide-notification-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #111827;
+    margin: 0 0 2px 0;
+}
+
+.slide-notification-text {
+    font-size: 0.8rem;
+    color: #6b7280;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.slide-notification-close {
+    background: none;
+    border: none;
+    color: #9ca3af;
+    padding: 4px;
+    margin-left: 8px;
+    cursor: pointer;
+}

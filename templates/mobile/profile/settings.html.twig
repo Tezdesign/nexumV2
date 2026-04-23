@@ -3,72 +3,6 @@
 {% set title = 'Settings'|trans %}
 {% set active_nav = 'profile' %}
 
-{% block css %}
-    {{ parent() }}
-    <style>
-        .settings-card {
-            background: #fff;
-            border-radius: 12px;
-            padding: 1rem;
-            margin-bottom: 1rem;
-            border: 1px solid #eee;
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-        .settings-avatar {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 2px solid var(--nexum-accent);
-        }
-        .settings-menu-item {
-            background: #fff;
-            padding: 1rem;
-            border-bottom: 1px solid #eee;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            color: #333;
-            text-decoration: none;
-        }
-        .settings-menu-item:first-child {
-            border-top-left-radius: 12px;
-            border-top-right-radius: 12px;
-        }
-        .settings-menu-item:last-child {
-            border-bottom: none;
-            border-bottom-left-radius: 12px;
-            border-bottom-right-radius: 12px;
-        }
-        .settings-menu-item:active {
-            background: #f8f9fa;
-        }
-        .settings-menu-group {
-            border-radius: 12px;
-            border: 1px solid #eee;
-            overflow: hidden;
-            margin-bottom: 1.5rem;
-        }
-        .settings-icon {
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #f8f9fa;
-            color: var(--nexum-accent);
-            margin-right: 1rem;
-        }
-        .text-danger .settings-icon {
-            color: #dc3545;
-            background: #fce8e6;
-        }
-    </style>
-{% endblock %}
-
 {% block content %}
     <div class="p-3 pb-5 mb-5">
         <div class="d-flex justify-content-between align-items-center mb-3">
@@ -86,17 +20,10 @@
 
         <h6 class="text-muted fw-bold mb-2 ps-1">Account</h6>
         <div class="settings-menu-group shadow-sm">
-            <a href="{{ path('user_account') }}" class="settings-menu-item" data-turbo="false">
+            <a href="{{ path('app_mobile_profile_edit') }}" class="settings-menu-item" data-turbo="false">
                 <div class="d-flex align-items-center">
                     <div class="settings-icon"><i class="ri-user-settings-line fs-5"></i></div>
                     <span class="fw-medium">Edit Profile</span>
-                </div>
-                <i class="ri-arrow-right-s-line text-muted"></i>
-            </a>
-            <a href="#" class="settings-menu-item">
-                <div class="d-flex align-items-center">
-                    <div class="settings-icon"><i class="ri-notification-3-line fs-5"></i></div>
-                    <span class="fw-medium">Notifications</span>
                 </div>
                 <i class="ri-arrow-right-s-line text-muted"></i>
             </a>
@@ -104,7 +31,7 @@
 
         <h6 class="text-muted fw-bold mb-2 ps-1">System</h6>
         <div class="settings-menu-group shadow-sm">
-            <a href="{{ path('logout') }}" class="settings-menu-item text-danger" data-turbo="false">
+            <a href="{{ path('app_mobile_logout') }}" class="settings-menu-item text-danger" data-turbo="false">
                 <div class="d-flex align-items-center">
                     <div class="settings-icon"><i class="ri-logout-box-r-line fs-5"></i></div>
                     <span class="fw-medium">Logout</span>

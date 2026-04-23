@@ -4,6 +4,7 @@
     {{ include('partials/title-meta.html.twig') }}
     {{ include('partials/head-css.html.twig') }}
     <link href="/css/FA.css?v={{ random() }}" rel="stylesheet" type="text/css" />
+    <link href="/css/FA_mobile.css?v={{ random() }}" rel="stylesheet" type="text/css" />
     {% include 'partials/_task_project_design_system.html.twig' %}
     
     <style>
@@ -40,7 +41,7 @@
             <i class="ri-folder-open-line"></i>
             <span>Projects</span>
         </a>
-        <a href="#" class="bottom-nav-item {% if active_nav|default('') == 'notifications' %}active{% endif %}">
+        <a href="{{ path('app_mobile_notifications') }}" class="bottom-nav-item {% if active_nav|default('') == 'notifications' %}active{% endif %}" data-turbo-action="replace">
             <i class="ri-notification-3-line"></i>
             <span>Alerts</span>
             <span class="badge">3</span>
@@ -51,6 +52,8 @@
         </a>
     </nav>
     {% endif %}
+
+    {{ include('mobile/Mobile_Modals/_slide_down_notification.html.twig') }}
 
     {{ include('partials/footer-scripts.html.twig') }}
     {% block script %}{% endblock %}

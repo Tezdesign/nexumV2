@@ -4,45 +4,6 @@
 {% set hide_bottom_nav = true %}
 {% set hide_top_nav = true %}
 
-{% block css %}
-    {{ parent() }}
-    <style>
-        .mobile-login-wrapper {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            min-height: 100vh;
-            padding: 2rem;
-            background-color: #fff;
-        }
-        .login-logo {
-            width: 80px;
-            height: auto;
-            margin-bottom: 2rem;
-        }
-        .form-floating > label {
-            color: #6c757d;
-        }
-        .form-control:focus {
-            border-color: var(--nexum-accent);
-            box-shadow: 0 0 0 0.25rem rgba(124, 58, 237, 0.25);
-        }
-        .btn-native-primary {
-            background-color: var(--nexum-accent);
-            color: #fff;
-            border-radius: 999px;
-            padding: 0.8rem;
-            font-weight: 600;
-            border: none;
-            width: 100%;
-            margin-top: 1rem;
-        }
-        .btn-native-primary:active {
-            background-color: #6d28d9;
-        }
-    </style>
-{% endblock %}
-
 {% block content %}
     <div class="mobile-login-wrapper" data-native-app>
         <div class="text-center">
