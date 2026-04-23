@@ -318,44 +318,90 @@
             
             <!-- Data Widgets (Right Side) -->
             <div class="col-12 col-lg-3 col-xl-4">
-                <div class="card mb-3">
-                    <div class="card-body widget-user">
-                        <div class="text-center">
-                            <h2 class="fw-normal text-primary">{{ totalBudgetsCount|default(0) }}</h2>
-                            <p class="mb-0 fw-semibold">{{ 'Total Project Budgets'|trans }}</p>
+                <div class="row row-cols-1 row-cols-md-2 g-3">
+                    <div class="col">
+                        <div class="card h-100 mb-0">
+                            <div class="card-body widget-user">
+                                <div class="text-center">
+                                    <h2 class="fw-normal text-primary">{{ totalBudgetsCount|default(0) }}</h2>
+                                    <p class="mb-0 fw-semibold fs-13">{{ 'Total Budgets'|trans }}</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
-
-                <div class="card mb-3">
-                    <div class="card-body widget-user">
-                        <div class="text-center">
-                            <h2 class="text-danger">{{ uniqueProjectsCount|default(0) }}</h2>
-                            <p class="mb-0 fw-semibold">{{ 'Unique Projects'|trans }}</p>
+                    <div class="col">
+                        <div class="card h-100 mb-0">
+                            <div class="card-body widget-user">
+                                <div class="text-center">
+                                    <h2 class="text-danger">{{ uniqueProjectsCount|default(0) }}</h2>
+                                    <p class="mb-0 fw-semibold fs-13">{{ 'Unique Projects'|trans }}</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
-
-                <div class="card mb-3">
-                    <div class="card-body widget-user">
-                        <div class="text-center">
-                            <h2 class="fw-semibold text-warning">{{ topProjectData.budgetCount|default(0) }}</h2>
-                            <p class="mb-0 fw-semibold">{{ 'Top Project:'|trans }} {{ topProjectData.projectName|default('N/A') }}</p>
+                    <div class="col">
+                        <div class="card h-100 mb-0">
+                            <div class="card-body widget-user">
+                                <div class="text-center">
+                                    <h2 class="fw-semibold text-warning">{{ topProjectData.budgetCount|default(0) }}</h2>
+                                    <p class="mb-0 fw-semibold fs-13">{{ 'Top Project:'|trans }}<br><span class="text-muted fw-normal">{{ topProjectData.projectName|default('N/A') }}</span></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card h-100 mb-0">
+                            <div class="card-body widget-user">
+                                <div class="text-center">
+                                    <h2 class="text-info">{{ projectsWithoutBudgetCount|default(0) }}</h2>
+                                    <p class="mb-0 fw-semibold fs-13">{{ 'Without Budget'|trans }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card h-100 mb-0">
+                            <div class="card-body widget-user">
+                                <div class="text-center">
+                                    <h2 class="text-success">{{ totalTransactionsCount|default(0) }}</h2>
+                                    <p class="mb-0 fw-semibold fs-13">{{ 'Transactions'|trans }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card h-100 mb-0">
+                            <div class="card-body widget-user">
+                                <div class="text-center">
+                                    <h2 class="fw-semibold text-primary">{{ bestProjectData.score|default(0)|number_format(1) }}</h2>
+                                    <p class="mb-0 fw-semibold fs-13">{{ 'Best Performer:'|trans }}<br><span class="text-muted fw-normal">{{ bestProjectData.name|default('N/A') }}</span></p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Historical Bar Chart (Bottom) -->
+        <!-- Charts Section (Bottom) -->
         <div class="row mt-4">
-            <div class="col-12">
-                <div class="card">
+            <div class="col-lg-6">
+                <div class="card h-100">
                     <div class="card-header border-bottom border-dashed d-flex align-items-center">
                         <h4 class="header-title m-0">{{ 'Historical Fiscal Year Comparison'|trans }}</h4>
                     </div>
                     <div class="card-body">
                         <div id="historical-bar-chart" class="apex-charts" data-colors="#5b69bc,#10c469"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card h-100">
+                    <div class="card-header border-bottom border-dashed d-flex align-items-center">
+                        <h4 class="header-title m-0">{{ 'Project Progression vs Spending'|trans }}</h4>
+                    </div>
+                    <div class="card-body">
+                        <div id="progression-column-chart" class="apex-charts" data-colors="#39afd1,#ff5b5b"></div>
                     </div>
                 </div>
             </div>
@@ -466,6 +512,86 @@
                     options
                 );
                 window.historicalBarChart.render();
+            }
+
+            // Initialize Progression Column Chart
+            var progressionData = {{ progressionData|json_encode|raw }};
+            if (progressionData && progressionData.length > 0 && $("#progression-column-chart").length > 0) {
+                var progColors = ["#39afd1", "#ff5b5b"];
+                var progDataColors = $("#progression-column-chart").data('colors');
+                if (progDataColors) {
+                    progColors = progDataColors.split(",");
+                }
+
+                var projCategories = progressionData.map(d => d.projectName);
+                
+                // Calculate Spending % (utilization)
+                var spendingPercentData = progressionData.map(d => {
+                    var total = parseFloat(d.total) || 0;
+                    var spent = parseFloat(d.spent) || 0;
+                    if (total > 0) {
+                        return parseFloat(((spent / total) * 100).toFixed(1));
+                    }
+                    return 0;
+                });
+                
+                // Project Progress %
+                var progressPercentData = progressionData.map(d => parseFloat(d.progress) || 0);
+
+                var progOptions = {
+                    chart: {
+                        height: 380,
+                        type: 'bar',
+                        toolbar: { show: false }
+                    },
+                    plotOptions: {
+                        bar: {
+                            horizontal: false,
+                            columnWidth: '55%',
+                            endingShape: 'rounded'
+                        },
+                    },
+                    dataLabels: { enabled: false },
+                    stroke: {
+                        show: true,
+                        width: 2,
+                        colors: ['transparent']
+                    },
+                    series: [{
+                        name: 'Work Progress %',
+                        data: progressPercentData
+                    }, {
+                        name: 'Budget Spent %',
+                        data: spendingPercentData
+                    }],
+                    colors: progColors,
+                    xaxis: {
+                        categories: projCategories,
+                    },
+                    yaxis: {
+                        title: { text: 'Percentage (%)' },
+                        max: 100,
+                        labels: {
+                            formatter: function (value) {
+                                return value + "%";
+                            }
+                        }
+                    },
+                    fill: { opacity: 1 },
+                    tooltip: {
+                        y: {
+                            formatter: function (val) {
+                                return val + "%";
+                            }
+                        }
+                    }
+                };
+
+                window.progressionColumnChart = new ApexCharts(
+                    document.querySelector("#progression-column-chart"),
+                    progOptions
+                );
+                window.progressionColumnChart.render();
             }
 
             window.updateChartCurrencies = function(rate, symbol) {

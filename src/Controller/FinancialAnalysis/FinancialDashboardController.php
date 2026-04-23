@@ -72,7 +72,9 @@ class FinancialDashboardController extends AbstractController
         EntityManagerInterface $entityManager, 
         ProjectBudgetRepository $projectBudgetRepository,
         \App\Service\FinancialAnalysis\BudgetTrendCacheService $trendCacheService,
-        BudgetProfileRepository $budgetProfileRepository
+        BudgetProfileRepository $budgetProfileRepository,
+        \App\Repository\Projects\ProjectRepository $projectRepository,
+        TransactionRepository $transactionRepository
     ): Response {
         $originalProfile = clone $budgetProfile;
 
@@ -125,6 +127,10 @@ class FinancialDashboardController extends AbstractController
         $projects = [];
         $uniqueProjectsCount = 0;
         $topProjectData = ['projectName' => 'N/A', 'budgetCount' => 0];
+        $bestProjectData = ['name' => 'N/A', 'score' => 0];
+        $projectsWithoutBudgetCount = 0;
+        $totalTransactionsCount = 0;
+        $progressionData = [];
 
         if ($originalProfile->getStartDate() && $originalProfile->getEndDate()) {
             $filteredBudgets = $projectBudgetRepository->findByFiscalYearScope($originalProfile->getStartDate(), $originalProfile->getEndDate());
@@ -134,6 +140,47 @@ class FinancialDashboardController extends AbstractController
             
             $uniqueProjectsCount = $projectBudgetRepository->getUniqueProjectCountForFY($originalProfile->getStartDate(), $originalProfile->getEndDate());
             $topProjectData = $projectBudgetRepository->getProjectWithMostBudgetsForFY($originalProfile->getStartDate(), $originalProfile->getEndDate());
+            
+            // Calculate new KPIs via PHP object traversal
+            $bestProjectData = ['name' => 'N/A', 'score' => -1000];
+            $budgetedProjectIds = [];
+            
+            foreach ($filteredBudgets as $pb) {
+                $totalTransactionsCount += $pb->getTransactions()->count();
+                
+                $project = $pb->getProject();
+                if ($project) {
+                    $budgetedProjectIds[] = $project->getId();
+                    
+                    $total = (float) $pb->getTotalBudget();
+                    $spent = (float) $pb->getActualSpend();
+                    $utilization = $total > 0 ? ($spent / $total) * 100 : 0;
+                    $progress = (float) $project->getProgress();
+                    
+                    $score = $progress - $utilization;
+                    if ($score > $bestProjectData['score']) {
+                        $bestProjectData = ['name' => $project->getName(), 'score' => $score];
+                    }
+                    
+                    $progressionData[] = [
+                        'projectName' => $project->getName(),
+                        'progress' => $progress,
+                        'total' => $total,
+                        'spent' => $spent
+                    ];
+                }
+            }
+            
+            if ($bestProjectData['score'] === -1000) {
+                $bestProjectData['score'] = 0;
+            }
+            
+            $allProjects = $projectRepository->findAll();
+            foreach ($allProjects as $proj) {
+                if (!in_array($proj->getId(), $budgetedProjectIds)) {
+                    $projectsWithoutBudgetCount++;
+                }
+            }
         }
 
         $allProfiles = $budgetProfileRepository->findAll();
@@ -201,7 +248,11 @@ class FinancialDashboardController extends AbstractController
             'currency_type' => $originalProfile->getBaseCurrency(),
             'uniqueProjectsCount' => $uniqueProjectsCount,
             'topProjectData' => $topProjectData,
+            'bestProjectData' => $bestProjectData,
+            'projectsWithoutBudgetCount' => $projectsWithoutBudgetCount,
+            'totalTransactionsCount' => $totalTransactionsCount,
             'historicalData' => $historicalData,
+            'progressionData' => $progressionData,
             'totalBudgetsCount' => count($projects),
         ]);
 
