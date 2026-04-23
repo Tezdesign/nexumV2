@@ -101,6 +101,18 @@ class ProjectBudgetRepository extends ServiceEntityRepository
             ->setParameter('id', $budget->getId())
             ->getQuery()
             ->execute();
+
+        // Manually log to sync_log since DQL bypasses ORM event listeners
+        try {
+            $this->getEntityManager()->getConnection()->insert('sync_log', [
+                'entity_class' => ProjectBudget::class,
+                'entity_id' => $budget->getId(),
+                'action_type' => 'UPDATE',
+                'created_at' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
+            ]);
+        } catch (\Throwable $e) {
+            // Fail silently if table doesn't exist
+        }
     }
 
     public function deleteProjectBudgetDql(int $id): void

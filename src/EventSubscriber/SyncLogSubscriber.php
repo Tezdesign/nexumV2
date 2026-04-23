@@ -4,6 +4,7 @@ namespace App\EventSubscriber;
 
 use App\Entity\FinancialAnalysis\ExpenseDraft;
 use App\Entity\FinancialAnalysis\Transaction;
+use App\Entity\FinancialAnalysis\ProjectBudget;
 use Doctrine\Bundle\DoctrineBundle\Attribute\AsDoctrineListener;
 use Doctrine\ORM\Events;
 use Doctrine\ORM\Event\PostPersistEventArgs;
@@ -33,7 +34,7 @@ class SyncLogSubscriber
     private function logAction(object $entity, \Doctrine\Persistence\ObjectManager $manager, string $actionType): void
     {
         // We only care about syncing specific entities for now
-        if (!$entity instanceof ExpenseDraft && !$entity instanceof Transaction) {
+        if (!$entity instanceof ExpenseDraft && !$entity instanceof Transaction && !$entity instanceof ProjectBudget) {
             return;
         }
 
