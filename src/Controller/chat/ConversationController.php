@@ -127,18 +127,44 @@ class ConversationController extends AbstractController
     #[Route('/apps-chat/livekit/token', name: 'apps-chat-livekit-token-proxy', methods: ['GET'])]
     public function proxyLivekitToken(Request $request): Response
     {
-        $room = $request->query->get('room', '');
-        $identity = $request->query->get('identity', '');
-        $name = $request->query->get('name', '');
+        $room = trim((string) $request->query->get('room', ''));
+        $identity = trim((string) $request->query->get('identity', ''));
+        $name = trim((string) $request->query->get('name', ''));
+
+        if ($room === '' || $identity === '') {
+            return $this->json([
+                'success' => false,
+                'error' => 'Missing required parameters: room or identity.',
+            ], 400);
+        }
+
+        $tokenEndpoint = $this->readEnvSetting([
+            'CHAT_CALL_TOKEN_PROXY_TARGET',
+        ], 'http://127.0.0.1:8090/livekit/token');
 
         try {
-            // Generate a mock LiveKit token for testing
-            // In production, this would use the actual LiveKit SDK to generate tokens
-            $token = $this->generateMockLiveKitToken($room, $identity, $name);
+            $upstream = $this->httpClient->request('GET', $tokenEndpoint, [
+                'query' => [
+                    'room' => $room,
+                    'identity' => $identity,
+                    'name' => $name,
+                ],
+            ]);
+
+            $status = $upstream->getStatusCode();
+            $data = $upstream->toArray(false);
+
+            if ($status < 200 || $status >= 300 || empty($data['token'])) {
+                return $this->json([
+                    'success' => false,
+                    'error' => 'LiveKit token server did not return a token.',
+                    'detail' => $data,
+                ], $status >= 400 ? $status : 502);
+            }
 
             return $this->json([
                 'success' => true,
-                'token' => $token
+                'token' => $data['token'],
             ]);
 
         } catch (\Throwable $error) {
@@ -148,35 +174,6 @@ class ConversationController extends AbstractController
                 'detail' => $error->getMessage(),
             ], 500);
         }
-    }
-
-    private function generateMockLiveKitToken(string $room, string $identity, string $name): string
-    {
-        // This is a mock token generator for testing
-        // In production, you would use the LiveKit SDK to generate proper JWT tokens
-        
-        $header = json_encode(['alg' => 'HS256', 'typ' => 'JWT']);
-        $payload = json_encode([
-            'iss' => 'livekit-server',
-            'sub' => $identity,
-            'name' => $name,
-            'room' => $room,
-            'roomJoin' => true,
-            'canPublish' => true,
-            'canSubscribe' => true,
-            'iat' => time(),
-            'exp' => time() + 3600, // 1 hour expiry
-            'video' => ['roomJoin' => true, 'room' => $room],
-            'audio' => ['roomJoin' => true, 'room' => $room]
-        ]);
-
-        $base64Header = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($header));
-        $base64Payload = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($payload));
-        
-        // Mock signature - in production this would be a proper HMAC signature
-        $signature = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode('mock_signature'));
-        
-        return $base64Header . '.' . $base64Payload . '.' . $signature;
     }
 
     #[Route('/apps-chat/livekit/avatar/{userId}', name: 'apps-chat-livekit-avatar-proxy', methods: ['GET'])]

@@ -5009,29 +5009,29 @@ class ChatApp {
     }
 
     subscribeCallTopic = (conversationId) => {
-    if (!this.stompConnected || !this.stomp) {
-        console.log('STOMP not connected, cannot subscribe to call topic')
-        return
+        if (!this.stompConnected || !this.stomp) {
+            console.log('STOMP not connected, cannot subscribe to call topic')
+            return
+        }
+
+        const convId = parseInt(String(conversationId || '0'), 10)
+        if (!Number.isInteger(convId) || convId <= 0) {
+            console.log('Invalid conversation ID for call topic subscription:', conversationId)
+            return
+        }
+
+        if (this.callConversationSubscriptions.has(convId)) {
+            return
+        }
+
+        const destination = `/topic/call.${convId}`
+        const subscription = this.stomp.subscribe(destination, (frame) => {
+            this.onIncomingSignal(frame?.body || '{}')
+        })
+
+        this.callConversationSubscriptions.set(convId, subscription)
+        console.info(`Subscribed to conversation call topic: ${destination}`)
     }
-
-    const convId = parseInt(String(conversationId || '0'), 10)
-    if (!Number.isInteger(convId) || convId <= 0) {
-        console.log('Invalid conversation ID for call topic subscription:', conversationId)
-        return
-    }
-
-    // Always subscribe to ensure we have the correct active conversation subscription
-    const destination = `/topic/call.${convId}`
-    console.log(`Attempting to subscribe to call topic: ${destination}`)
-    
-    const subscription = this.stomp.subscribe(destination, (frame) => {
-        this.onIncomingSignal(frame?.body || '{}')
-    })
-
-    this.callConversationSubscriptions.set(convId, subscription)
-    console.info(`Subscribed to conversation call topic: ${destination}`)
-    console.log(`Active conversation ID: ${this.activeConversationId}, Subscribed to: ${convId}`)
-}
     subscribeAllCallTopics = () => {
     if (!this.stompConnected || !this.stomp) {
         return
@@ -5177,6 +5177,24 @@ class ChatApp {
     }
 }
 
+    openCallPlaceholder = (message) => {
+        const popup = window.open('', '_blank', 'width=1180,height=760')
+        if (!popup) {
+            this.showBottomNotice('Popup blocked. Using current tab for the call.')
+            return null
+        }
+
+        try {
+            popup.document.write(`<title>Call</title><p style="font-family:system-ui,sans-serif;padding:16px;">${message}</p>`)
+            popup.document.close()
+            this.callPopupWindow = popup
+        } catch (error) {
+            console.warn('Could not write initial popup content:', error)
+        }
+
+        return popup
+    }
+
     initCallActions = () => {
         this.callButtonAudio?.addEventListener('click', (event) => {
             event.preventDefault()
@@ -5189,88 +5207,74 @@ class ChatApp {
         })
     }
 
-    handleAudioCall = async () => {
+    handleAudioCall = () => {
     console.log('=== AUDIO CALL BUTTON PRESSED ===')
 
     const convId = this.getSelectedConversationId()
+    console.log('Selected conversation ID:', convId)
+
     if (convId <= 0) {
-        this.showBottomNotice('Select a conversation first.')
+        this.showBottomNotice('Select a conversation before starting a call.')
         return
     }
 
-    const room = `conv-${convId}` 
+    const popup = this.openCallPlaceholder('Starting audio call...')
 
-    try {
-        const identity = `user-${this.currentUserId}` 
-        const name = this.currentUserName || `User ${this.currentUserId}` 
-
-        const tokenUrl = `${this.callTokenEndpoint}?room=${this.enc(room)}&identity=${this.enc(identity)}&name=${this.enc(name)}` 
-        const res = await fetch(tokenUrl)
-
-        if (!res.ok) {
-            throw new Error(await res.text())
-        }
-
-        const data = await res.json()
-        const token = data.token
-
-        if (!token) {
-            throw new Error('No token received')
-        }
-
-        const callUrl = `${this.callPageEndpoint}?wsUrl=${this.enc(this.callLivekitUrl)}&token=${this.enc(token)}&mic=true&cam=false` 
-
-        // 🚀 DIRECT OPEN — NO POPUP
-        window.location.href = callUrl
-
-        // Optional: notify other user
-        this.sendCallSignal('/app/call.start', {
-            type: 'RING',
-            conversationId: convId,
-            fromUserId: this.currentUserId,
-            fromName: this.currentUserName,
-            callKind: 'AUDIO',
-            room
-        })
-
-    } catch (e) {
-        console.error(e)
-        this.showBottomNotice('Call failed')
+    this.pendingOutgoingCall = {
+        convId,
+        video: false,
+        popupRef: popup,
+        useSameTabFallback: !popup,
     }
+
+    if (!this.stomp) {
+        this.stompConnectRequested = true
+        this.connectCallSocket()
+        this.showBottomNotice('Connecting call socket...')
+        return
+    }
+
+    if (!this.stompConnected) {
+        this.showBottomNotice('Connecting call socket...')
+        return
+    }
+
+    this.flushPendingCallAction()
 }
 
-    handleVideoCall = async () => {
+    handleVideoCall = () => {
+    console.log('=== VIDEO CALL BUTTON PRESSED ===')
+
     const convId = this.getSelectedConversationId()
-    if (convId <= 0) return
+    console.log('Selected conversation ID:', convId)
 
-    const room = `conv-${convId}` 
-
-    try {
-        const identity = `user-${this.currentUserId}` 
-        const name = this.currentUserName || `User ${this.currentUserId}` 
-
-        const tokenUrl = `${this.callTokenEndpoint}?room=${this.enc(room)}&identity=${this.enc(identity)}&name=${this.enc(name)}` 
-        const res = await fetch(tokenUrl)
-
-        const data = await res.json()
-        const token = data.token
-
-        const callUrl = `${this.callPageEndpoint}?wsUrl=${this.enc(this.callLivekitUrl)}&token=${this.enc(token)}&mic=true&cam=true` 
-
-        window.location.href = callUrl
-
-        this.sendCallSignal('/app/call.start', {
-            type: 'RING',
-            conversationId: convId,
-            fromUserId: this.currentUserId,
-            fromName: this.currentUserName,
-            callKind: 'VIDEO',
-            room
-        })
-
-    } catch (e) {
-        console.error(e)
+    if (convId <= 0) {
+        this.showBottomNotice('Select a conversation before starting a call.')
+        return
     }
+
+    const popup = this.openCallPlaceholder('Starting video call...')
+
+    this.pendingOutgoingCall = {
+        convId,
+        video: true,
+        popupRef: popup,
+        useSameTabFallback: !popup,
+    }
+
+    if (!this.stomp) {
+        this.stompConnectRequested = true
+        this.connectCallSocket()
+        this.showBottomNotice('Connecting call socket...')
+        return
+    }
+
+    if (!this.stompConnected) {
+        this.showBottomNotice('Connecting call socket...')
+        return
+    }
+
+    this.flushPendingCallAction()
 }
 
     onIncomingSignal = async (rawBody) => {
@@ -5296,6 +5300,12 @@ class ChatApp {
         const fromName = String(payload.fromName || `User ${fromUserId}`)
 
         if (type === 'RING') {
+            const pendingConvId = parseInt(String(this.pendingOutgoingCall?.convId || '0'), 10)
+            if (pendingConvId === convId) {
+                console.info('Ignoring echoed outgoing call ring:', payload)
+                return
+            }
+
             this.showIncomingCallPopup(convId, video, room, fromName)
             return
         }
@@ -5310,10 +5320,9 @@ class ChatApp {
                 return
             }
 
-            // Direct join - no popup needed since caller already in call
-            window.location.href = `${this.callPageEndpoint}?wsUrl=${this.enc(this.callLivekitUrl)}&token=${this.enc('')}&mic=true&cam=${!!this.pendingOutgoingCall.video ? 'true' : 'false'}`
-
+            const pending = this.pendingOutgoingCall
             this.pendingOutgoingCall = null
+            this.openCallWindow(convId, !!pending.video, room, pending.popupRef || null)
             return
         }
 
@@ -5335,20 +5344,77 @@ class ChatApp {
 }
 
     showIncomingCallPopup = (convId, video, room, fromName) => {
-    this.pendingIncomingCall = { convId, video, room, fromName }
+        this.pendingIncomingCall = { convId, video, room, fromName }
 
-    const kindLabel = video ? 'video' : 'audio'
-    const accepted = window.confirm(`${fromName} is calling you (${kindLabel}). Accept?`)
+        document.querySelector('[data-apps-chat="incoming-call-overlay"]')?.remove()
 
-    if (accepted) {
-        // Direct join to call room
-        window.location.href = `${this.callPageEndpoint}?wsUrl=${this.enc(this.callLivekitUrl)}&token=${this.enc('')}&mic=true&cam=${video ? 'true' : 'false'}`
-        this.sendAccept(convId, video)
-        return
+        const overlay = document.createElement('div')
+        overlay.dataset.appsChat = 'incoming-call-overlay'
+        overlay.style.position = 'fixed'
+        overlay.style.inset = '0'
+        overlay.style.zIndex = '2000'
+        overlay.style.display = 'flex'
+        overlay.style.alignItems = 'center'
+        overlay.style.justifyContent = 'center'
+        overlay.style.padding = '1rem'
+        overlay.style.background = 'rgba(15, 23, 42, 0.45)'
+
+        const panel = document.createElement('div')
+        panel.style.width = 'min(92vw, 380px)'
+        panel.style.borderRadius = '0.75rem'
+        panel.style.padding = '1.25rem'
+        panel.style.background = 'var(--bs-body-bg, #fff)'
+        panel.style.boxShadow = '0 1.25rem 3rem rgba(15, 23, 42, 0.28)'
+        panel.style.textAlign = 'center'
+
+        const title = document.createElement('div')
+        title.style.fontSize = '1.05rem'
+        title.style.fontWeight = '700'
+        title.style.marginBottom = '0.35rem'
+        title.textContent = `${fromName} is calling`
+
+        const subtitle = document.createElement('div')
+        subtitle.style.color = 'var(--bs-secondary-color, #6c757d)'
+        subtitle.style.marginBottom = '1rem'
+        subtitle.textContent = video ? 'Incoming video call' : 'Incoming audio call'
+
+        const actions = document.createElement('div')
+        actions.style.display = 'flex'
+        actions.style.justifyContent = 'center'
+        actions.style.gap = '0.75rem'
+
+        const rejectButton = document.createElement('button')
+        rejectButton.type = 'button'
+        rejectButton.className = 'btn btn-outline-danger'
+        rejectButton.textContent = 'Reject'
+
+        const acceptButton = document.createElement('button')
+        acceptButton.type = 'button'
+        acceptButton.className = 'btn btn-success'
+        acceptButton.textContent = 'Accept'
+
+        actions.append(rejectButton, acceptButton)
+        panel.append(title, subtitle, actions)
+        overlay.append(panel)
+        document.body.append(overlay)
+
+        const closeOverlay = () => {
+            overlay.remove()
+            this.pendingIncomingCall = null
+        }
+
+        acceptButton.addEventListener('click', () => {
+            const popup = this.openCallPlaceholder('Joining call...')
+            this.sendAccept(convId, video)
+            closeOverlay()
+            this.openCallWindow(convId, video, room, popup)
+        }, { once: true })
+
+        rejectButton.addEventListener('click', () => {
+            this.sendReject(convId, video)
+            closeOverlay()
+        }, { once: true })
     }
-
-    this.sendReject(convId, video)
-}
 
     // New methods following Java pattern
     acceptCall = async (convId, video) => {
@@ -5462,7 +5528,71 @@ class ChatApp {
         this.sendCallSignal('/app/call.reject', payload)
     }
 
-    
+    openCallWindow = async (convId, videoEnabled, room, popupRef = null) => {
+    if (convId <= 0) {
+        return
+    }
+
+    let popup = popupRef || this.callPopupWindow || null
+
+    try {
+        const roomName = String(room || '').trim() !== ''
+            ? String(room).trim()
+            : `conv-${convId}`
+
+        const identity = `user-${this.currentUserId}`
+        const myName = this.currentUserName || `User ${this.currentUserId}`
+
+        const tokenUrl = `${this.callTokenEndpoint}?room=${this.enc(roomName)}&identity=${this.enc(identity)}&name=${this.enc(myName)}`
+        const tokenResponse = await fetch(tokenUrl, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' },
+        })
+
+        if (!tokenResponse.ok) {
+            const body = await tokenResponse.text()
+            throw new Error(`Token failed: ${body}`)
+        }
+
+        const payload = await tokenResponse.json()
+        if (payload?.success === false) {
+            throw new Error(payload?.error || 'Token server rejected the request.')
+        }
+
+        const token = String(payload?.token || '').trim()
+        if (!token) {
+            throw new Error('Token response is missing token field.')
+        }
+
+        const callUrl = `${this.callPageEndpoint}?wsUrl=${this.enc(this.callLivekitUrl)}&token=${this.enc(token)}&mic=true&cam=${videoEnabled ? 'true' : 'false'}`
+
+        if (popup && !popup.closed) {
+            popup.location.href = callUrl
+            try {
+                popup.focus()
+            } catch {
+                // ignore focus issues
+            }
+            this.callPopupWindow = popup
+            return
+        }
+
+        window.location.href = callUrl
+    } catch (error) {
+        console.error('Failed to open call window:', error)
+
+        try {
+            if (popup && !popup.closed) {
+                popup.close()
+            }
+        } catch {
+            // ignore
+        }
+
+        this.showBottomNotice(error?.message || 'Could not start call.')
+    }
+}
+
     init = () => {
         this.cacheElements();
         this.loadAiSummaryPendingState();
