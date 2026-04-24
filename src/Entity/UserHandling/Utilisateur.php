@@ -74,7 +74,21 @@ class Utilisateur implements UserInterface, PasswordAuthenticatedUserInterface
         $this->email = $email;
         return $this;
     }
+/////////////////
+    #[ORM\Column(type: 'boolean')]
+private bool $is_blocked = false;
 
+public function isBlocked(): bool
+{
+    return $this->is_blocked;
+}
+
+public function setIsBlocked(bool $is_blocked): self
+{
+    $this->is_blocked = $is_blocked;
+    return $this;
+}
+////////////////
     #[ORM\Column(type: 'string', nullable: true)]
     private ?string $telephone = null;
 

@@ -3,6 +3,7 @@
 namespace App\Repository\ResourcesManagement;
 
 use App\Entity\ResourcesManagement\ResourceAssignment;
+use App\Entity\UserHandling\Utilisateur;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -14,6 +15,18 @@ class ResourceAssignmentRepository extends ServiceEntityRepository
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, ResourceAssignment::class);
+    }
+
+    public function countPendingRequestsByUser(Utilisateur $user): int
+    {
+        return (int) $this->createQueryBuilder('ra')
+            ->select('COUNT(ra.assignment_id)')
+            ->andWhere('ra.utilisateur = :user')
+            ->andWhere('ra.status = :status')
+            ->setParameter('user', $user)
+            ->setParameter('status', 'PENDING')
+            ->getQuery()
+            ->getSingleScalarResult();
     }
 
     //    /**

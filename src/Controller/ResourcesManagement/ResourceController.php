@@ -2,6 +2,7 @@
 
 namespace App\Controller\ResourcesManagement;
 
+use App\Repository\ResourcesManagement\ResourceAssignmentRepository;
 use App\Entity\ResourcesManagement\Resource;
 use App\Form\ResourcesManagement\ResourceType;
 use App\Repository\ResourcesManagement\ResourceRepository;
@@ -10,6 +11,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+
 
 #[Route('/admin/resources')]
 final class ResourceController extends AbstractController
@@ -134,4 +136,386 @@ final class ResourceController extends AbstractController
 
         return $this->redirectToRoute('app_resource_management_index');
     }
+    #[Route('/admin/returns', name: 'admin_active_returns')]
+public function activeReturns(
+    ResourceAssignmentRepository $repo,
+    ResourceRepository $resourceRepository
+): Response {
+
+    $assignments = $repo->createQueryBuilder('a')
+        ->where('a.status = :status')
+        ->andWhere('a.returned = false')
+        ->setParameter('status', 'ACCEPTED')
+        ->getQuery()
+        ->getResult();
+
+    $data = [];
+
+    foreach ($assignments as $assignment) {
+        $resource = $resourceRepository->find($assignment->getResourceId());
+
+        // 🔥 ONLY PHYSICAL
+        if ($resource && $resource->getResourceType() === 'PHYSICAL') {
+            $data[] = [
+                'assignment' => $assignment,
+                'resource' => $resource
+            ];
+        }
+    }
+
+    return $this->render('resources-management/admin-returns.html.twig', [
+        'data' => $data
+    ]);
+}
+#[Route('/admin/return/{id}', name: 'mark_returned')]
+public function markReturned(
+    int $id,
+    ResourceAssignmentRepository $repo,
+    EntityManagerInterface $em
+): Response {
+
+    $assignment = $repo->find($id);
+
+    if (!$assignment) {
+        throw $this->createNotFoundException('Assignment not found.');
+    }
+
+    if ($assignment->isReturned()) {
+        $this->addFlash('info', 'Already returned.');
+        return $this->redirectToRoute('admin_active_returns');
+    }
+
+    $user = $assignment->getUtilisateur();
+
+    $today = new \DateTime();
+    $returnDate = $assignment->getReturnDate();
+
+    // 🔥 SCORE CALCULATION
+    if ($today < $returnDate) {
+        $user->setScore($user->getScore() + 20);
+    } 
+    elseif ($today->format('Y-m-d') === $returnDate->format('Y-m-d')) {
+        $user->setScore($user->getScore() + 10);
+    } 
+    else {
+        $diff = $today->diff($returnDate)->days;
+        $penalty = $diff * 10;
+
+        $newScore = $user->getScore() - $penalty;
+
+        // prevent negative score
+        if ($newScore < 0) {
+            $newScore = 0;
+        }
+
+        $user->setScore($newScore);
+    }
+
+    // ✅ mark returned
+    $assignment->setReturned(true);
+
+    $em->flush();
+
+    $this->addFlash('success', 'Resource marked as returned and score updated.');
+
+    return $this->redirectToRoute('admin_active_returns');
+}
+#[Route('/admin/calendar', name: 'admin_calendar')]
+public function calendar(ResourceAssignmentRepository $repo): Response
+{
+    $assignments = $repo->findAll();
+
+    $events = [];
+    $dayData = [];
+
+    $today = new \DateTime();
+
+    foreach ($assignments as $a) {
+
+        if (!$a->getAssignmentDate() || !$a->getReturnDate()) {
+            continue;
+        }
+
+        $start = $a->getAssignmentDate();
+        $end = $a->getReturnDate();
+
+        $id = $a->getAssignment_id();
+        $resourceId = $a->getResourceId();
+
+        // =========================
+        // 📌 START DAY DATA
+        // =========================
+        $dayData[$start->format('Y-m-d')][] = [
+            'assignmentId' => $id,
+            'resource' => $resourceId,
+            'quantity' => $a->getQuantity(),
+            'status' => 'STARTED',
+            'returnDate' => $end->format('Y-m-d'),
+        ];
+
+        // =========================
+        // 📌 RETURN DAY DATA
+        // =========================
+        $isOverdue = $end < $today;
+        $isToday = $end->format('Y-m-d') === $today->format('Y-m-d');
+
+        if ($isOverdue) {
+            $status = 'OVERDUE';
+            $color = '#dc3545';
+        } elseif ($isToday) {
+            $status = 'DUE TODAY';
+            $color = '#fd7e14';
+        } else {
+            $status = 'ACTIVE';
+            $color = '#28a745';
+        }
+
+        $dayData[$end->format('Y-m-d')][] = [
+            'assignmentId' => $id,
+            'resource' => $resourceId,
+            'quantity' => $a->getQuantity(),
+            'status' => $status,
+            'returnDate' => $end->format('Y-m-d'),
+            'overdue' => $isOverdue
+        ];
+
+        // =========================
+        // 📌 CALENDAR EVENTS
+        // =========================
+
+        // START EVENT (blue)
+        $events[] = [
+            'id' => $id,
+            'title' => "Start #$resourceId",
+            'start' => $start->format('Y-m-d'),
+            'color' => '#0d6efd'
+        ];
+
+        // RETURN EVENT (status color)
+        $events[] = [
+            'id' => $id,
+            'title' => "$status #$resourceId",
+            'start' => $end->format('Y-m-d'),
+            'color' => $color,
+            'extendedProps' => [
+                'assignmentId' => $id,
+                'resourceId' => $resourceId,
+                'status' => $status,
+                'overdue' => $isOverdue
+            ]
+        ];
+    }
+
+    return $this->render('resources-management/calendar.html.twig', [
+        'events' => $events,
+        'dayData' => $dayData
+    ]);
+}
+#[Route('/admin/calendar/events', name: 'admin_calendar_events')]
+public function calendarEvents(ResourceAssignmentRepository $repo): Response
+{
+    $assignments = $repo->findAll();
+
+    $events = [];
+
+    foreach ($assignments as $a) {
+
+        $start = $a->getAssignmentDate()?->format('Y-m-d');
+        $end = $a->getReturnDate()?->format('Y-m-d');
+
+        $today = new \DateTime();
+
+        // 🎯 COLOR LOGIC
+        $color = '#28a745'; // green default
+
+        if ($a->getReturnDate() < $today) {
+            $color = '#dc3545'; // red (late)
+        } elseif ($a->getReturnDate()->format('Y-m-d') === $today->format('Y-m-d') ||
+                  $a->getReturnDate()->diff($today)->days == 1) {
+            $color = '#fd7e14'; // orange (today or next day)
+        }
+
+        $events[] = [
+            'title' => 'Resource #' . $a->getResourceId(),
+            'start' => $start,
+            'end' => $end,
+            'color' => $color,
+            'extendedProps' => [
+                'status' => $a->getStatus(),
+                'quantity' => $a->getQuantity()
+            ]
+        ];
+    }
+
+    return $this->json($events);
+}
+#[Route('/predict', name: 'resource_predict', methods: ['GET'])]
+public function predict(
+    ResourceAssignmentRepository $repo,
+    ResourceRepository $resourceRepository
+): Response
+{
+    return new Response((string) $this->runForecast(
+        $this->buildPredictionDataset($repo, $resourceRepository)
+    ), 200, [
+        'Content-Type' => 'text/plain'
+    ]);
+}
+#[Route('/prediction', name: 'resource_prediction_page')]
+public function predictionPage(
+    ResourceAssignmentRepository $repo,
+    ResourceRepository $resourceRepository
+): Response
+{
+    $resourceEntities = $resourceRepository->findAll();
+    $assignments = $repo->findAll();
+    $resources = array_map(
+        static fn (Resource $resource): array => [
+            'id' => $resource->getResourceId(),
+            'name' => $resource->getResourceName(),
+            'type' => $resource->getResourceType(),
+            'total' => $resource->getTotalQuantity(),
+            'available' => $resource->getAvailableQuantity(),
+        ],
+        $resourceEntities
+    );
+
+    $data = [];
+foreach ($assignments as $a) {
+
+    if (!$a->getAssignmentDate()) continue;
+
+    $resource = $resourceRepository->find($a->getResourceId());
+
+    if (!$resource) continue;
+
+    $data[] = [
+        'resource_id' => $resource->getResourceId(),
+        'resource_name' => $resource->getResourceName(),
+        'type' => $resource->getResourceType(),
+        'quantity' => $a->getQuantity(),
+        'date' => $a->getAssignmentDate()->format('Y-m-d')
+    ];
+}
+
+    $projectDir = $this->getParameter('kernel.project_dir');
+    $script = $projectDir . '/python/forecast.py';
+
+    $json = json_encode($data);
+
+    // 🔥 FIX: use stdin instead of shell arguments
+    $descriptorspec = [
+        0 => ["pipe", "r"], // stdin
+        1 => ["pipe", "w"], // stdout
+        2 => ["pipe", "w"]  // stderr
+    ];
+
+    $process = proc_open("python \"$script\"", $descriptorspec, $pipes);
+
+    $output = "0";
+
+    if (is_resource($process)) {
+        fwrite($pipes[0], $json);
+        fclose($pipes[0]);
+
+        $output = stream_get_contents($pipes[1]);
+        fclose($pipes[1]);
+
+        $error = stream_get_contents($pipes[2]);
+        fclose($pipes[2]);
+
+        proc_close($process);
+
+        // optional debug (uncomment if needed)
+        // if (!empty($error)) { dump($error); }
+    }
+
+    $prediction = is_numeric(trim($output)) ? round((float) trim($output), 2) : 0.0;
+
+    return $this->render('resources-management/prediction.html.twig', [
+        'prediction' => $prediction,
+        'data' => $data,
+        'resources' => $resources,
+    ]);
+}
+
+private function buildPredictionDataset(
+    ResourceAssignmentRepository $repo,
+    ResourceRepository $resourceRepository
+): array
+{
+    $resourceMap = [];
+
+    foreach ($resourceRepository->findAll() as $resource) {
+        $resourceMap[$resource->getResourceId()] = $resource;
+    }
+
+    $data = [];
+
+    foreach ($repo->findAll() as $assignment) {
+        if (!$assignment->getAssignmentDate()) {
+            continue;
+        }
+
+        $resource = $resourceMap[$assignment->getResourceId()] ?? null;
+
+        if (!$resource) {
+            continue;
+        }
+
+        $data[] = [
+            'resource_id' => $resource->getResourceId(),
+            'resource_name' => $resource->getResourceName(),
+            'type' => $resource->getResourceType(),
+            'quantity' => $assignment->getQuantity(),
+            'date' => $assignment->getAssignmentDate()->format('Y-m-d')
+        ];
+    }
+
+    return $data;
+}
+
+private function runForecast(array $data): float
+{
+    if ($data === []) {
+        return 0.0;
+    }
+
+    $json = json_encode($data);
+
+    if ($json === false) {
+        return 0.0;
+    }
+
+    $projectDir = $this->getParameter('kernel.project_dir');
+    $script = $projectDir . '/python/forecast.py';
+    $descriptorspec = [
+        0 => ['pipe', 'r'],
+        1 => ['pipe', 'w'],
+        2 => ['pipe', 'w']
+    ];
+    $process = proc_open("python \"$script\"", $descriptorspec, $pipes);
+
+    if (!is_resource($process)) {
+        return 0.0;
+    }
+
+    fwrite($pipes[0], $json);
+    fclose($pipes[0]);
+
+    $output = trim(stream_get_contents($pipes[1]));
+    fclose($pipes[1]);
+
+    $error = trim(stream_get_contents($pipes[2]));
+    fclose($pipes[2]);
+
+    proc_close($process);
+
+    if ($error !== '' || !is_numeric($output)) {
+        return 0.0;
+    }
+
+    return round((float) $output, 2);
+}
+
 }

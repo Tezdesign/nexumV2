@@ -3,6 +3,8 @@
 {% set title = 'Resources Catalog' %}
 
 {% block content %}
+{% set isblocked = isBlocked|default(false) %}
+
 {% for label, messages in app.flashes %}
     {% for message in messages %}
         <div class="alert alert-{{ label }} alert-dismissible fade show" role="alert">
@@ -12,6 +14,61 @@
     {% endfor %}
 {% endfor %}
 
+{% if isblocked %}
+
+<div style="
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:#8B0000;
+z-index:99999;
+display:flex;
+justify-content:center;
+align-items:center;
+">
+
+<div class="text-center text-white">
+
+<h1 style="
+font-size:70px;
+font-weight:bold;
+animation:pulse 1s infinite;
+">
+🚨 ACCESS BLOCKED
+</h1>
+
+<h3>
+Fraud Risk Detected
+</h3>
+
+<div class="alert alert-danger mt-3" role="alert" style="max-width:420px;margin:16px auto 0 auto;">
+Your account has been blocked because you have too many pending resource requests.
+</div>
+
+<p>
+Risk Score: {{ riskScore }}
+</p>
+
+<p>
+Resource requests temporarily unavailable.
+Contact administrator.
+</p>
+
+</div>
+
+</div>
+
+<style>
+@keyframes pulse{
+0%{transform:scale(1);}
+50%{transform:scale(1.08);}
+100%{transform:scale(1);}
+}
+</style>
+
+{% else %}
 <div class="container-fluid mt-4">
     <div class="d-flex align-items-center justify-content-between mb-4">
         <h4 class="text-primary fw-bold mb-0">Resources Catalog</h4>
@@ -51,6 +108,7 @@
 
                     <!-- Request Form -->
                     <form method="POST" action="{{ path('submit_resource_request') }}" class="request-form"
+                          data-turbo="false"
                           data-price="{{ resource.unitCost }}"
                           data-available="{{ resource.availableQuantity }}">
                         <input type="hidden" name="resource_id" value="{{ resource.resourceId }}">
@@ -82,7 +140,9 @@
         {% endfor %}
     </div>
 </div>
+{% endif %}
 {% endblock %}
+
 
 {% block script %}
 <script>

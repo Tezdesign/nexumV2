@@ -1,0 +1,107 @@
+{% extends 'layouts/admin_vertical.html.twig' %}
+
+{% block content %}
+<div class="container-fluid">
+
+    {# HEADER #}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="mb-1">Active Physical Resources</h3>
+            <small class="text-muted">Resources currently assigned and not yet returned</small>
+        </div>
+        <span class="badge bg-warning text-dark px-3 py-2">
+            Pending Returns: {{ data|length }}
+        </span>
+    </div>
+
+    {# CARD WRAPPER #}
+    <div class="card shadow-sm border-0">
+        <div class="card-body">
+
+            {# TABLE #}
+            <div class="table-responsive">
+                <table class="table align-middle table-hover">
+
+                    <thead class="table-light">
+                        <tr>
+                            <th>User</th>
+                            <th>Resource</th>
+                            <th>Qty</th>
+                            <th>Return Date</th>
+                            <th class="text-end">Action</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                    {% for item in data %}
+                        <tr>
+
+                            {# USER #}
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2">
+                                        {{ item.assignment.utilisateur.nom|first }}
+                                    </div>
+                                    <div>
+                                        <div class="fw-semibold">
+                                            {{ item.assignment.utilisateur.nom }} {{ item.assignment.utilisateur.prenom }}
+                                        </div>
+                                        <small class="text-muted">
+                                            {{ item.assignment.utilisateur.email ?? '' }}
+                                        </small>
+                                    </div>
+                                </div>
+                            </td>
+
+                            {# RESOURCE #}
+                            <td>
+                                <span class="fw-semibold">
+                                    {{ item.resource.resourceName }}
+                                </span>
+                            </td>
+
+                            {# QUANTITY #}
+                            <td>
+                                <span class="badge bg-info-subtle text-info px-3 py-2">
+                                    {{ item.assignment.quantity }}
+                                </span>
+                            </td>
+
+                            {# DATE #}
+                            <td>
+                                <span class="text-muted">
+                                    {{ item.assignment.returnDate|date('d M Y') }}
+                                </span>
+                            </td>
+
+                            {# ACTION #}
+                            <td class="text-end">
+
+                                <a href="{{ path('mark_returned', {'id': item.assignment.assignmentId}) }}"
+                                   class="btn btn-sm btn-success px-3"
+                                   onclick="return confirm('Confirm marking this resource as returned?')">
+
+                                    ✔ Mark Returned
+                                </a>
+
+                            </td>
+
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center py-5 text-muted">
+                                <i class="mdi mdi-check-circle-outline fs-2 d-block mb-2"></i>
+                                No active resources found
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+
+                </table>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+{% endblock %}
