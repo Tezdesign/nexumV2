@@ -31,9 +31,6 @@
 /templates/form-editors.html.twig
 .env.dev
 
-/templates/ui_ideas
-/MODAL_IMPLEMENTATION_GUIDE.md
-/.cached_plans/
 /.MA_cached_plans/
 
 

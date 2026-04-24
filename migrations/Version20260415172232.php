@@ -21,7 +21,7 @@ final class Version20260415172232 extends AbstractMigration
     {
         // this up() migration is auto-generated, please modify it to your needs
         $this->addSql('ALTER TABLE expense_draft ADD eval_data JSON DEFAULT NULL, CHANGE project_budget_related_id project_budget_related_id BIGINT NOT NULL');
-        $this->addSql('ALTER TABLE quiz RENAME INDEX formation_id TO IDX_A412FA925200282E');    }
+          }
 
     public function down(Schema $schema): void
     {

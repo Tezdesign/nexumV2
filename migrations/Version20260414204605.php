@@ -20,7 +20,7 @@ final class Version20260414204605 extends AbstractMigration
     public function up(Schema $schema): void
     {
         // this up() migration is auto-generated, please modify it to your needs
-        $this->addSql('ALTER TABLE expense_draft ADD subject VARCHAR(255) NOT NULL, CHANGE project_budget_related_id project_budget_related_id BIGINT NOT NULL');        $this->addSql('ALTER TABLE resultat RENAME INDEX formation_id TO IDX_E7DB5DE25200282E');    }
+        $this->addSql('ALTER TABLE expense_draft ADD subject VARCHAR(255) NOT NULL, CHANGE project_budget_related_id project_budget_related_id BIGINT NOT NULL');          }
 
     public function down(Schema $schema): void
     {

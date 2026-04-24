@@ -35,6 +35,9 @@
             "./migrations/.gitignore"
         ]
     },
+    "knplabs/knp-paginator-bundle": {
+        "version": "v6.10.0"
+    },
     "phpunit/phpunit": {
         "version": "11.5",
         "recipe": {
@@ -256,9 +259,6 @@
             "./templates/base.html.twig"
         ]
     },
-    "symfony/ux-native": {
-        "version": "v2.35.0"
-    },
     "symfony/ux-chartjs": {
         "version": "v2.35.0"
     },
@@ -273,6 +273,9 @@
         "files": [
             "config/routes/ux_live_component.yaml"
         ]
+    },
+    "symfony/ux-native": {
+        "version": "v2.35.0"
     },
     "symfony/ux-turbo": {
         "version": "2.34",
