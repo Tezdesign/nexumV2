@@ -22,4 +22,17 @@
             {% endif %}
         </div>
     </div>
+
+    {% include 'task/_kanban_board.html.twig' with {
+        columns: kanbanColumns|default([]),
+        currentUserId: currentUserId,
+        isManager: isManager,
+        usersById: membersById,
+        avatarUrlById: avatarUrlById,
+        boardId: 'projectKanbanBoard'
+    } %}
 </div>
+
+<script>
+    {% include 'task/_kanban_board_script.html.twig' with { boardSelector: '#projectKanbanBoard' } %}
+</script>
