@@ -4901,9 +4901,10 @@ class ChatApp {
             return
         }
 
-        this.startGlobalCallPolling()
         this.stompConnectRequested = true
         this.connectCallSocket()
+        // Disable polling for now to avoid 500 error
+        // this.startGlobalCallPolling()
     }
 
     // Java's startGlobalCallPolling equivalent
@@ -4937,6 +4938,11 @@ class ChatApp {
 
                 // Process new call messages
                 for (const callMsg of callMessages) {
+                    // Skip if conversation is currently active (handled by message poller)
+                    if (callMsg.conversationId === this.activeConversationId) {
+                        continue
+                    }
+
                     // Skip own messages
                     if (callMsg.senderId === this.currentUserId) {
                         continue
@@ -4947,14 +4953,14 @@ class ChatApp {
                         this.lastIncomingCallMsgId = callMsg.id
                     }
 
-                    this.onIncomingSignal({
-                        type: callMsg.type || 'RING',
-                        conversationId: callMsg.conversationId,
-                        fromUserId: callMsg.senderId,
-                        fromName: callMsg.fromName || `User ${callMsg.senderId}`,
-                        callKind: callMsg.callKind || (callMsg.video ? 'VIDEO' : 'AUDIO'),
-                        room: callMsg.room,
-                    })
+                    // Show incoming call popup
+                    this.showIncomingCallPopup(
+                        callMsg.conversationId,
+                        callMsg.video,
+                        callMsg.room,
+                        `User ${callMsg.senderId}`,
+                        callMsg.id
+                    )
                 }
 
             } catch (error) {
@@ -4987,20 +4993,19 @@ class ChatApp {
             return `${window.location.protocol}//${window.location.host}${raw}`
         }
 
-        try {
-            const parsed = new URL(raw.replace(/^ws:/i, 'http:').replace(/^wss:/i, 'https:'))
-            if (this.isLoopbackHost(parsed.hostname) && !this.isLoopbackHost(window.location.hostname)) {
-                parsed.hostname = window.location.hostname
-            }
-            return parsed.toString().replace(/\/$/, '')
-        } catch {
+        if (raw.startsWith('ws://')) {
+            return `http://${raw.slice('ws://'.length)}`
+        }
+
+        if (raw.startsWith('wss://')) {
+            return `https://${raw.slice('wss://'.length)}`
+        }
+
+        if (raw.startsWith('http://') || raw.startsWith('https://')) {
             return raw
         }
-    }
 
-    isLoopbackHost = (host) => {
-        const normalized = String(host || '').trim().toLowerCase()
-        return normalized === 'localhost' || normalized === '127.0.0.1' || normalized === '::1' || normalized === '[::1]'
+        return raw
     }
 
     subscribeCallTopic = (conversationId) => {
@@ -5046,7 +5051,7 @@ class ChatApp {
         }
 
         try {
-            this.stomp.send(destination, { 'content-type': 'application/json' }, JSON.stringify(payload))
+            this.stomp.send(destination, {}, JSON.stringify(payload))
             return true
         } catch (error) {
             console.error(`Failed to send ${destination}:`, error)
@@ -5130,65 +5135,12 @@ class ChatApp {
 }
 
     flushPendingCallAction = async () => {
-    if (!this.pendingOutgoingCall) {
+    if (!this.pendingOutgoingCall || !this.stompConnected || !this.stomp) {
         return
     }
 
     const { convId, video, popupRef } = this.pendingOutgoingCall
-
-    if (!this.pendingOutgoingCall.inviteSent) {
-        try {
-            if (!this.pendingOutgoingCall.inviteRequest) {
-                this.pendingOutgoingCall.inviteRequest = fetch(`/apps-chat/conversations/${convId}/call/invite`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                        'Accept': 'application/json',
-                    },
-                    body: new URLSearchParams({
-                        video: video ? '1' : '0',
-                    }),
-                }).then(async (response) => ({
-                    response,
-                    result: await response.json().catch(() => null),
-                }))
-            }
-
-            const { response, result } = await this.pendingOutgoingCall.inviteRequest
-            if (!response.ok || result?.success === false) {
-                throw new Error(result?.error || 'Failed to send call invitation.')
-            }
-
-            this.pendingOutgoingCall.inviteSent = true
-            this.pendingOutgoingCall.room = String(result?.room || `conv_${convId}`)
-            this.pendingOutgoingCall.messageId = parseInt(String(result?.messageId || '0'), 10) || 0
-        } catch (error) {
-            console.error('Failed to persist call invite:', error)
-            try {
-                popupRef?.close()
-            } catch {
-                // ignore
-            }
-            this.pendingOutgoingCall = null
-            this.showBottomNotice(error?.message || 'Failed to send call invitation.')
-            return
-        }
-    }
-
-    const room = this.pendingOutgoingCall.room || `conv_${convId}`
-
-    if (!this.stompConnected || !this.stomp) {
-        try {
-            if (popupRef && !popupRef.closed) {
-                popupRef.focus()
-                popupRef.document.body.innerHTML = '<p style="font-family:system-ui,sans-serif;padding:16px;">Waiting for the other user to accept...</p>'
-            }
-        } catch {
-            // ignore popup DOM access errors
-        }
-
-        return
-    }
+    const room = `conv-${convId}`
 
     const payload = {
         type: 'RING',
@@ -5273,20 +5225,17 @@ class ChatApp {
             video: false,
             popupRef: popup,
             useSameTabFallback: !popup,
-            inviteSent: false,
         }
 
         if (!this.stomp) {
             this.stompConnectRequested = true
             this.connectCallSocket()
             this.showBottomNotice('Connecting call socket...')
-            this.flushPendingCallAction()
             return
         }
 
         if (!this.stompConnected) {
             this.showBottomNotice('Connecting call socket...')
-            this.flushPendingCallAction()
             return
         }
 
@@ -5311,20 +5260,17 @@ class ChatApp {
             video: true,
             popupRef: popup,
             useSameTabFallback: !popup,
-            inviteSent: false,
         }
 
         if (!this.stomp) {
             this.stompConnectRequested = true
             this.connectCallSocket()
             this.showBottomNotice('Connecting call socket...')
-            this.flushPendingCallAction()
             return
         }
 
         if (!this.stompConnected) {
             this.showBottomNotice('Connecting call socket...')
-            this.flushPendingCallAction()
             return
         }
 
@@ -5350,7 +5296,7 @@ class ChatApp {
 
         const type = String(payload.type || '').toUpperCase()
         const video = String(payload.callKind || '').toUpperCase() === 'VIDEO'
-        const room = String(payload.room || `conv_${convId}`)
+        const room = String(payload.room || `conv-${convId}`)
         const fromName = String(payload.fromName || `User ${fromUserId}`)
 
         if (type === 'RING') {
@@ -5592,7 +5538,7 @@ class ChatApp {
     try {
         const roomName = String(room || '').trim() !== ''
             ? String(room).trim()
-            : `conv_${convId}`
+            : `conv-${convId}`
 
         const identity = `user-${this.currentUserId}`
         const myName = this.currentUserName || `User ${this.currentUserId}`

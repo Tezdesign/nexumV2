@@ -7,7 +7,7 @@ use Symfony\Component\HttpFoundation\File\File;
 
 class CompreFaceService
 {
-    private const API_KEY = '751f3a42-3684-4c35-aa0b-4aff7b67cda0';
+    private const API_KEY = 'db0b33a3-71d1-4c47-ba42-7e06b4cb8b77';
     private const BASE_URL = 'http://localhost:8000/api/v1/recognition';
     
     private HttpClientInterface $httpClient;
