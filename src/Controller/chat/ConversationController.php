@@ -9,10 +9,12 @@ use App\Entity\Chat\MessageAttachment;
 use App\Entity\UserHandling\Utilisateur;
 use App\Repository\Chat\ConversationParticipantRepository;
 use App\Repository\Chat\ConversationRepository;
+use App\Repository\Chat\MessageRepository;
 use App\Repository\UserHandling\UtilisateurRepository;
 use App\Service\Chat\ConversationSidebarProvider;
 use App\Service\AuthService;
 use Doctrine\ORM\EntityManagerInterface;
+use DateTime;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -181,7 +183,6 @@ class ConversationController extends AbstractController
     {
         $base = rtrim($this->readEnvSetting([
             'CHAT_CALL_AVATAR_PROXY_TARGET',
-            'CHAT_CALL_AVATAR_ENDPOINT',
         ], 'http://127.0.0.1:8090/livekit/avatar'), '/');
 
         $target = sprintf('%s/%d', $base, $userId);
@@ -244,7 +245,7 @@ class ConversationController extends AbstractController
                 return $this->json(['success' => false, 'error' => 'Conversation not found'], 404);
             }
 
-            $room = 'conv_' . $conversationId;
+            $room = 'conv-' . $conversationId;
 
             // Create CALL message
             $message = new Message();
@@ -252,7 +253,7 @@ class ConversationController extends AbstractController
             $message->setSenderId($currentUserId);
             $message->setKind('CALL');
             $message->setBody(($videoEnabled ? 'VIDEO|' : 'AUDIO|') . $room);
-            $message->setCreatedAt(new DateTimeImmutable());
+            $message->setCreatedAt(new DateTime());
 
             $entityManager->persist($message);
             $entityManager->flush();
@@ -296,7 +297,7 @@ class ConversationController extends AbstractController
                 return $this->json(['success' => false, 'error' => 'Access denied'], 403);
             }
 
-            $room = 'conv_' . $conversationId;
+            $room = 'conv-' . $conversationId;
 
             // Send STOMP signal
             if ($this->isCallSignalingEnabled()) {
@@ -337,7 +338,7 @@ class ConversationController extends AbstractController
                 return $this->json(['success' => false, 'error' => 'Access denied'], 403);
             }
 
-            $room = 'conv_' . $conversationId;
+            $room = 'conv-' . $conversationId;
 
             // Send STOMP signal
             if ($this->isCallSignalingEnabled()) {
@@ -408,7 +409,6 @@ class ConversationController extends AbstractController
 
             $tokenEndpoint = $this->readEnvSetting([
                 'CHAT_CALL_TOKEN_PROXY_TARGET',
-                'CHAT_CALL_TOKEN_ENDPOINT',
             ], 'http://127.0.0.1:8090/livekit/token');
 
             $response = $this->httpClient->request('GET', $tokenEndpoint, [
