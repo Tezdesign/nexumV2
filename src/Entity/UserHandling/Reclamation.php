@@ -120,24 +120,17 @@ class Reclamation
     /**
      * PDO may hydrate BLOB as a stream (resource); keep untyped so Doctrine can assign it.
      *
-     * @var resource|string|null
+     * @var string|null
      */
     #[ORM\Column(type: 'blob', nullable: true)]
-    private $fichier = null;
+    private ?string $fichier = null;
 
     public function getFichier(): ?string
     {
         if ($this->fichier === null) {
             return null;
         }
-        if (\is_resource($this->fichier)) {
-            $data = stream_get_contents($this->fichier);
-            $this->fichier = ($data !== false && $data !== '') ? $data : null;
-
-            return $this->fichier;
-        }
-
-        return \is_string($this->fichier) ? $this->fichier : null;
+        return $this->fichier;
     }
 
     public function setFichier(?string $fichier): self

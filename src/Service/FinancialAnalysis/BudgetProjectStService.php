@@ -16,6 +16,8 @@ class BudgetProjectStService
 
     /**
      * Calculates the statistical attributes and prediction for a project budget.
+     *
+     * @return array<string, mixed>
      */
     public function calculateProjectBudgetStatistics(ProjectBudget $budget): array
     {
@@ -49,7 +51,8 @@ class BudgetProjectStService
         }
 
         // 4. Calculate Prediction
-        $avgTransactionCost = $this->transactionRepository->getAverageTransactionCost($budget->getId());
+        $budgetId = $budget->getId();
+        $avgTransactionCost = $budgetId === null ? 0.0 : $this->transactionRepository->getAverageTransactionCost($budgetId);
         $projectedFutureSpend = $currentSpend + ($avgTransactionCost * 10);
         $projectedPercentage = $currentAllocated > 0 ? ($projectedFutureSpend / $currentAllocated) * 100 : 0;
         
@@ -91,6 +94,9 @@ class BudgetProjectStService
         ];
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     private function getEmptyStats(): array
     {
         return [

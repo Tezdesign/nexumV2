@@ -128,7 +128,7 @@ class Transaction
         return $this;
     }
 
-    public function getDateStamp(): ?\DateTime
+    public function getDateStamp(): ?\DateTimeInterface
     {
         return $this->date_stamp;
     }

@@ -40,6 +40,9 @@ class ExpenseDraftRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /**
+     * @return array<int, ExpenseDraft>
+     */
     public function findRecentDuplicates(int $budgetId, float $amount): array
     {
         $oneWeekAgo = new \DateTimeImmutable('-7 days');

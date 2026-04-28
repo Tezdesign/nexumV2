@@ -130,6 +130,20 @@ final class GeminiClient
             throw new \RuntimeException('Gemini returned an invalid task suggestion format.');
         }
 
-        return array_values(array_filter($decoded['tasks'], static fn (mixed $task): bool => is_array($task)));
+        $tasks = [];
+        foreach ($decoded['tasks'] as $task) {
+            if (!is_array($task)) {
+                continue;
+            }
+
+            $tasks[] = [
+                'title' => (string) ($task['title'] ?? ''),
+                'description' => (string) ($task['description'] ?? ''),
+                'priority' => (string) ($task['priority'] ?? 'medium'),
+                'due_offset_days' => (int) ($task['due_offset_days'] ?? 0),
+            ];
+        }
+
+        return $tasks;
     }
 }

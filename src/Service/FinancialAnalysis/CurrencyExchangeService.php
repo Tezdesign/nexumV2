@@ -20,9 +20,13 @@ class CurrencyExchangeService
         $url = "https://v6.exchangerate-api.com/v6/{$this->apiKey}/latest/{$baseCurrency}";
 
         $ch = curl_init($url);
+        if ($ch === false) {
+            return '{}';
+        }
+
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 
         $response = curl_exec($ch);
@@ -31,8 +35,12 @@ class CurrencyExchangeService
         curl_close($ch);
 
         // Return the raw API response
-        return $response;
+        return is_string($response) ? $response : '{}';
     }
+
+    /**
+     * @return array<int, array{text: string, children: array<int, array{id: string, text: string, rate: mixed}>}>
+     */
     public function parseAndGroupRatesForSelect(string $rawJson): array
     {
         $data = json_decode($rawJson, true);

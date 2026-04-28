@@ -6,6 +6,7 @@ use App\Controller\Trait\ValidationFlashTrait;
 use App\Entity\UserHandling\Reclamation;
 use App\Repository\UserHandling\ReclamationRepository;
 use App\Repository\UserHandling\UtilisateurRepository;
+use App\Entity\UserHandling\Utilisateur;
 use App\Service\AdminPdfExportService;
 use App\Service\AuthService;
 use App\Service\AdminMailService;
@@ -49,6 +50,9 @@ class ReclamationManagementController extends AbstractController
         return null;
     }
 
+    /**
+     * @return Utilisateur[]
+     */
     private function reclamationUsersList(): array
     {
         return $this->utilisateurRepository->findBy([], ['nom' => 'ASC', 'prenom' => 'ASC']);
@@ -178,7 +182,7 @@ class ReclamationManagementController extends AbstractController
             $this->attachUploadedFileIfAny($rec, $request, true);
 
             // Log reclamation creation
-            $this->historyService->logActivity($rec->getIdRec(), 'create', [
+            $this->historyService->logActivity((int) $rec->getIdRec(), 'create', [
                 'titre' => $rec->getTitre(),
                 'categorie' => $rec->getCategorie(),
                 'projet' => $rec->getProjet(),
@@ -279,7 +283,7 @@ class ReclamationManagementController extends AbstractController
             if (!empty($changes)) {
                 if (isset($changes['statut'])) {
                     // Status change is special - log it separately
-                    $this->historyService->logActivity($rec->getIdRec(), 'status_change', [
+                    $this->historyService->logActivity((int) $rec->getIdRec(), 'status_change', [
                         'old_status' => $changes['statut']['old'],
                         'new_status' => $changes['statut']['new']
                     ]);
@@ -290,11 +294,11 @@ class ReclamationManagementController extends AbstractController
                 
                 if (!empty($changes)) {
                     // Log other field changes
-                    $this->historyService->logActivity($rec->getIdRec(), 'update', $changes);
+                    $this->historyService->logActivity((int) $rec->getIdRec(), 'update', $changes);
                 }
                 
                 // Send status email if status changed
-                if (isset($newValues['statut']) && $oldValues['statut'] !== $newValues['statut']) {
+                if ($oldValues['statut'] !== $newValues['statut']) {
                     $owner = $this->utilisateurRepository->find((int) $rec->getIdUser());
                     $ownerEmail = trim((string) ($owner?->getEmail() ?? ''));
                     if ($ownerEmail !== '') {
@@ -358,7 +362,7 @@ class ReclamationManagementController extends AbstractController
         }
 
         // Log reclamation deletion before removing
-        $this->historyService->logActivity($rec->getIdRec(), 'delete', [
+        $this->historyService->logActivity((int) $rec->getIdRec(), 'delete', [
             'titre' => $rec->getTitre(),
             'categorie' => $rec->getCategorie(),
             'statut' => $rec->getStatut(),
@@ -419,9 +423,6 @@ class ReclamationManagementController extends AbstractController
     private function attachmentResponse(Reclamation $rec): Response
     {
         $data = $rec->getFichier();
-        if (\is_resource($data)) {
-            $data = stream_get_contents($data) ?: '';
-        }
         if (!\is_string($data) || $data === '') {
             throw $this->createNotFoundException('No attachment.');
         }

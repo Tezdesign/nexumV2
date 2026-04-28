@@ -2,10 +2,13 @@
 
 namespace App\Repository;
 
-use App\Entity\Training\Resultat;
+use App\Entity\Resultat;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
+/**
+ * @extends ServiceEntityRepository<Resultat>
+ */
 class ResultatRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
@@ -13,6 +16,15 @@ class ResultatRepository extends ServiceEntityRepository
         parent::__construct($registry, Resultat::class);
     }
 
+    /**
+     * @return array{
+     *   totalAttempts: int,
+     *   successCount: int,
+     *   failureCount: int,
+     *   averagePercent: float|int,
+     *   successRate: float|int,
+     * }
+     */
     public function getQuizStats(): array
     {
         $all = $this->findAll();
@@ -42,26 +54,32 @@ class ResultatRepository extends ServiceEntityRepository
         ];
     }
 
+    /**
+     * @return list<array<string,mixed>>
+     */
     public function getAverageScoreByFormation(): array
     {
-        return $this->createQueryBuilder('r')
+        return array_values($this->createQueryBuilder('r')
             ->select('f.titre AS formation')
             ->addSelect('AVG((r.score * 100.0) / NULLIF(r.total, 0)) AS avgPercent')
             ->join('r.formation', 'f')
             ->groupBy('f.id')
             ->orderBy('avgPercent', 'DESC')
             ->getQuery()
-            ->getArrayResult();
+            ->getArrayResult());
     }
 
+    /**
+     * @return list<array<string,mixed>>
+     */
     public function getMonthlyAttempts(): array
     {
-        return $this->createQueryBuilder('r')
+        return array_values($this->createQueryBuilder('r')
             ->select("DATE_FORMAT(r.datePassage, '%Y-%m') AS month")
             ->addSelect('COUNT(r.id) AS total')
             ->groupBy('month')
             ->orderBy('month', 'ASC')
             ->getQuery()
-            ->getArrayResult();
+            ->getArrayResult());
     }
 }

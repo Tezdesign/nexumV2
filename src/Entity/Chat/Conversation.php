@@ -193,7 +193,7 @@ class Conversation
     }
 
     #[ORM\Column(type: 'blob', nullable: true)]
-    private $avatar = null;
+    private mixed $avatar = null;
 
     public function getAvatar(): ?string
     {
@@ -355,19 +355,19 @@ class Conversation
         return $this;
     }
 
-    public function getLastMessageAt(): ?\DateTime
+    public function getLastMessageAt(): ?\DateTimeInterface
     {
         return $this->last_message_at;
     }
 
-    public function setLastMessageAt(?\DateTime $last_message_at): static
+    public function setLastMessageAt(?\DateTimeInterface $last_message_at): static
     {
         $this->last_message_at = $last_message_at;
 
         return $this;
     }
 
-    public function getCreatedAt(): ?\DateTime
+    public function getCreatedAt(): ?\DateTimeInterface
     {
         return $this->created_at;
     }

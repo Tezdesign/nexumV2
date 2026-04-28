@@ -117,6 +117,9 @@ class ProjectBudget
         return $this;
     }
 
+    /**
+     * @var Collection<int, Transaction>
+     */
     #[ORM\OneToMany(targetEntity: Transaction::class, mappedBy: 'projectBudget')]
     private Collection $transactions;
 
@@ -155,9 +158,6 @@ class ProjectBudget
      */
     public function getTransactions(): Collection
     {
-        if (!$this->transactions instanceof Collection) {
-            $this->transactions = new ArrayCollection();
-        }
         return $this->transactions;
     }
 

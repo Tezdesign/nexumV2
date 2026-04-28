@@ -67,9 +67,7 @@ class WelcomeController extends AbstractController
             if ($utilisateur) {
                 // Ensure session is saved first
                 $session = $request->getSession();
-                if ($session) {
-                    $session->save();
-                }
+                $session->save();
                 
                 // Add flash message after session is saved
                 $this->addFlash('success', 'Connexion réussie !');
@@ -152,9 +150,10 @@ class WelcomeController extends AbstractController
 
                 // Handle face registration
                 $faceData = $request->request->get('face_data');
-                if ($faceData && !empty($faceData)) {
+                if (is_string($faceData) && $faceData !== '') {
                     // Convert base64 to image data
-                    $imageData = base64_decode(preg_replace('/^data:image\/[a-z]+;base64,/', '', $faceData));
+                    $cleanFaceData = preg_replace('/^data:image\/[a-z]+;base64,/', '', $faceData) ?? '';
+                    $imageData = base64_decode($cleanFaceData);
                     if ($imageData) {
                         // Register face with CompreFace using email as subject identifier
                         $faceId = $this->compreFaceService->registerFace($imageData, $input->email);
@@ -256,9 +255,7 @@ class WelcomeController extends AbstractController
                         
                         // Ensure session is saved
                         $session = $request->getSession();
-                        if ($session) {
-                            $session->save();
-                        }
+                        $session->save();
                         
                         error_log('User authenticated successfully');
                         return new JsonResponse([

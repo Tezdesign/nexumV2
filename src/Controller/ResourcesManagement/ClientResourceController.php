@@ -213,12 +213,14 @@ public function submitRequest(
 
     // 🧾 CREATE ASSIGNMENT
     $assignment = new ResourceAssignment();
-    $assignment->setResourceId($resourceId);
+    $assignment->setResourceId((int) $resourceId);
     $assignment->setProjectCode((string)$project->getId());
     $assignment->setQuantity($quantity);
     $assignment->setAssignmentDate(new \DateTime());
     $assignment->setStatus($status);
-    $assignment->setTotalCost(bcmul($resource->getUnitCost(), $quantity, 2));
+    $unitCost = (float) ($resource->getUnitCost() ?? 0);
+    $totalCost = number_format($unitCost * $quantity, 2, '.', '');
+    $assignment->setTotalCost($totalCost);
 
     // 🔥 IMPORTANT: RETURN DATE = PROJECT END DATE
     $assignment->setReturnDate($project->getEndDate());
@@ -239,7 +241,7 @@ public function submitRequest(
         'user' => $user->getNom() . ' ' . $user->getPrenom(),
         'resource' => $resource->getResourceName(),
         'quantity' => $quantity,
-        'cost' => bcmul($resource->getUnitCost(), $quantity, 2),
+        'cost' => $totalCost,
         'date' => (new \DateTime())->format('Y-m-d H:i:s')
     ];
 
@@ -324,11 +326,11 @@ public function accept(
     // =========================
     // EMAIL NOTIFICATION
     // =========================
-    $fromAddress = $_ENV['MAILER_FROM'] ?? 'simawiyass124@gmail.com';
+    $fromAddress = $this->readEnvSetting(['MAILER_FROM'], 'simawiyass124@gmail.com');
 
     $email = (new Email())
         ->from($fromAddress)
-        ->to($client->getEmail())
+        ->to((string) $client->getEmail())
         ->subject('Resource Request Accepted - NEXUM')
         ->text($this->buildRequestEmailText($assignment, $client, 'accepted'))
         ->html($this->buildRequestEmailHtml($assignment, $client, 'accepted'));
@@ -367,10 +369,10 @@ public function accept(
         $em->flush();
 
         $client = $assignment->getUtilisateur();
-        $fromAddress = $_ENV['MAILER_FROM'] ?? 'simawiyass124@gmail.com';
+        $fromAddress = $this->readEnvSetting(['MAILER_FROM'], 'simawiyass124@gmail.com');
         $email = (new Email())
             ->from($fromAddress)
-            ->to($client->getEmail())
+            ->to((string) $client->getEmail())
             ->subject('Resource Request Update - NEXUM')
             ->text($this->buildRequestEmailText($assignment, $client, 'declined'))
             ->html($this->buildRequestEmailHtml($assignment, $client, 'declined'));
@@ -421,7 +423,7 @@ public function edit(
 
     // CSRF check
     $submittedToken = $request->request->get('_token');
-    if (!$this->isCsrfTokenValid('edit'.$id, $submittedToken)) {
+    if (!$this->isCsrfTokenValid('edit'.$id, is_string($submittedToken) ? $submittedToken : null)) {
         $this->addFlash('error', 'Invalid CSRF token.');
         return $this->redirectToRoute('client_resources_view');
     }
@@ -448,7 +450,7 @@ public function edit(
 
     // Update assignment
     $assignment->setQuantity($newQuantity);
-    $assignment->setReturnDate($newReturnDate ? new \DateTime($newReturnDate) : null);
+    $assignment->setReturnDate(is_string($newReturnDate) && $newReturnDate !== '' ? new \DateTime($newReturnDate) : null);
     $assignment->setStatus('PENDING'); // reset status to PENDING
     // totalCost remains unchanged
 
@@ -464,6 +466,26 @@ public function edit(
         Utilisateur $user
     ): int {
         return $assignmentRepository->countPendingRequestsByUser($user);
+    }
+
+    /**
+     * @param array<int, string> $keys
+     */
+    private function readEnvSetting(array $keys, string $fallback = ''): string
+    {
+        foreach ($keys as $key) {
+            $value = $_ENV[$key] ?? $_SERVER[$key] ?? getenv($key);
+            if ($value === false) {
+                continue;
+            }
+
+            $trimmed = trim((string) $value);
+            if ($trimmed !== '') {
+                return $trimmed;
+            }
+        }
+
+        return trim($fallback);
     }
 
     private function buildRequestEmailText(

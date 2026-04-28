@@ -161,9 +161,7 @@ final class TaskController extends AbstractController
                         $assignedUserId = (int) $currentUserId;
                     }
 
-                    if ($createForm->isValid() && $assignedUserId !== null && $assignedUserId > 0) {
-                        $this->applyWorkloadGuard($createForm, $taskRepository, $createTask, (int) $assignedUserId);
-                    }
+                    $this->applyWorkloadGuard($createForm, $taskRepository, $createTask, (int) $assignedUserId);
 
                     if ($createForm->isValid()) {
                         $canPersist = true;
@@ -778,12 +776,12 @@ final class TaskController extends AbstractController
         $tasks[] = $pendingTask;
         $assessment = TaskWorkloadEngine::assess($tasks);
 
-        if (($assessment['decision'] ?? 'ok') !== 'blocked') {
+        if ($assessment['decision'] !== 'blocked') {
             return;
         }
 
         $feedback = $this->formatWorkloadFeedback($assessment);
-        $message = (string) ($feedback['message'] ?? 'This user is overloaded and cannot receive another task.');
+        $message = (string) $feedback['message'];
 
         if ($form->has('assignedUser')) {
             $form->get('assignedUser')->addError(new FormError($message));

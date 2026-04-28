@@ -25,7 +25,6 @@ use Symfony\Component\Routing\Annotation\Route;
 class MessageController extends AbstractController
 {
 	private const LINK_PREVIEW_USER_AGENT = 'Mozilla/5.0 (compatible; NexumChatLinkPreview/1.0; +https://nexum.local)';
-	private const LM_BASE = 'http://localhost:1234/v1';
 	private const LM_CHAT_URL = 'http://localhost:1234/v1/chat/completions';
 	private const LM_MODEL = 'dolphin3.0-llama3.1-8b';
 	private const AI_SUMMARY_UNREAD_THRESHOLD = 10;
@@ -191,12 +190,12 @@ class MessageController extends AbstractController
 		// Build conversation text with "Me:" and "Other:" prefixes
 		$conversationText = '';
 		foreach ($contextMessages as $msg) {
-			$body = trim((string) ($msg['body'] ?? ''));
+			$body = trim($msg['body']);
 			if ($body === '') {
 				continue;
 			}
 
-			$senderId = (int) ($msg['senderId'] ?? 0);
+			$senderId = $msg['senderId'];
 			$who = ($senderId === $this->currentUserId()) ? 'Me' : 'Other';
 			$conversationText .= "{$who}: {$body}\n";
 		}
@@ -540,7 +539,8 @@ class MessageController extends AbstractController
 			]);
 
 			$finalUrl = $response->getInfo('url') ?: $url;
-			$contentType = strtolower((string) $response->getHeaders(false)['content-type'][0] ?? '');
+			$headers = $response->getHeaders(false);
+			$contentType = strtolower((string) ($headers['content-type'][0] ?? ''));
 
 			$preview['url'] = is_string($finalUrl) ? $finalUrl : $url;
 			$preview['displayUrl'] = $this->shortenUrlLabel($preview['url']);
@@ -556,7 +556,7 @@ class MessageController extends AbstractController
 			}
 
 			$html = $response->getContent(false);
-			if (!is_string($html) || trim($html) === '') {
+			if (trim($html) === '') {
 				return $this->json([
 					'success' => false,
 					'preview' => $preview,

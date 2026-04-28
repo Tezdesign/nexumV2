@@ -38,69 +38,42 @@ class ConversationController extends AbstractController
     {
         $sidebarData = $sidebarProvider->getSidebarData($this->currentUserId());
         $currentUserId = $this->currentUserId();
-        $gifApiKey = trim((string) (
-            $_ENV['KILPY']
-            ?? $_ENV['KLIPY_API_KEY']
-            ?? $_SERVER['KILPY']
-            ?? $_SERVER['KLIPY_API_KEY']
-            ?? getenv('KILPY')
-            ?? getenv('KLIPY_API_KEY')
-            ?? ''
-        ));
-        $gifApiBaseUrl = rtrim((string) (
-            $_ENV['KILPY_BASE_URL']
-            ?? $_ENV['KLIPY_BASE_URL']
-            ?? $_SERVER['KILPY_BASE_URL']
-            ?? $_SERVER['KLIPY_BASE_URL']
-            ?? getenv('KILPY_BASE_URL')
-            ?? getenv('KLIPY_BASE_URL')
-            ?? 'https://api.klipy.com'
-        ), '/');
-        $gifLocale = strtolower(trim((string) (
-            $_ENV['KILPY_LOCALE']
-            ?? $_ENV['KLIPY_LOCALE']
-            ?? $_SERVER['KILPY_LOCALE']
-            ?? $_SERVER['KLIPY_LOCALE']
-            ?? getenv('KILPY_LOCALE')
-            ?? getenv('KLIPY_LOCALE')
-            ?? 'tn'
-        )));
-        $callSocketUrl = trim((string) (
-            $_ENV['CHAT_CALL_SOCKET_URL']
-            ?? $_SERVER['CHAT_CALL_SOCKET_URL']
-            ?? getenv('CHAT_CALL_SOCKET_URL')
-            ?? 'ws://localhost:8090/ws'
-        ));
-        $callTokenEndpoint = trim((string) (
-            $_ENV['CHAT_CALL_TOKEN_ENDPOINT']
-            ?? $_SERVER['CHAT_CALL_TOKEN_ENDPOINT']
-            ?? getenv('CHAT_CALL_TOKEN_ENDPOINT')
-            ?? '/apps-chat/livekit/token'
-        ));
-        $callPageEndpoint = trim((string) (
-            $_ENV['CHAT_CALL_PAGE_ENDPOINT']
-            ?? $_SERVER['CHAT_CALL_PAGE_ENDPOINT']
-            ?? getenv('CHAT_CALL_PAGE_ENDPOINT')
-            ?? 'http://127.0.0.1:8090/livekit/call'
-        ));
-        $callLivekitUrl = trim((string) (
-            $_ENV['CHAT_CALL_LIVEKIT_URL']
-            ?? $_SERVER['CHAT_CALL_LIVEKIT_URL']
-            ?? getenv('CHAT_CALL_LIVEKIT_URL')
-            ?? 'ws://127.0.0.1:7880'
-        ));
-        $callAvatarEndpoint = trim((string) (
-            $_ENV['CHAT_CALL_AVATAR_ENDPOINT']
-            ?? $_SERVER['CHAT_CALL_AVATAR_ENDPOINT']
-            ?? getenv('CHAT_CALL_AVATAR_ENDPOINT')
-            ?? '/apps-chat/livekit/avatar'
-        ));
+        $gifApiKey = $this->readEnvSetting([
+            'KILPY', 'KLIPY_API_KEY'
+        ], '');
+
+        $gifApiBaseUrl = rtrim($this->readEnvSetting([
+            'KILPY_BASE_URL', 'KLIPY_BASE_URL'
+        ], 'https://api.klipy.com'), '/');
+
+        $gifLocale = strtolower($this->readEnvSetting([
+            'KILPY_LOCALE', 'KLIPY_LOCALE'
+        ], 'tn'));
+
+        $callSocketUrl = $this->readEnvSetting([
+            'CHAT_CALL_SOCKET_URL'
+        ], 'ws://localhost:8090/ws');
+
+        $callTokenEndpoint = $this->readEnvSetting([
+            'CHAT_CALL_TOKEN_ENDPOINT'
+        ], '/apps-chat/livekit/token');
+
+        $callPageEndpoint = $this->readEnvSetting([
+            'CHAT_CALL_PAGE_ENDPOINT'
+        ], 'http://127.0.0.1:8090/livekit/call');
+
+        $callLivekitUrl = $this->readEnvSetting([
+            'CHAT_CALL_LIVEKIT_URL'
+        ], 'ws://127.0.0.1:7880');
+
+        $callAvatarEndpoint = $this->readEnvSetting([
+            'CHAT_CALL_AVATAR_ENDPOINT'
+        ], '/apps-chat/livekit/avatar');
         $callSignalingEnabled = filter_var(
             (string) (
                 $_ENV['CHAT_CALL_SIGNALING_ENABLED']
                 ?? $_SERVER['CHAT_CALL_SIGNALING_ENABLED']
                 ?? getenv('CHAT_CALL_SIGNALING_ENABLED')
-                ?? '1'
             ),
             FILTER_VALIDATE_BOOL,
             FILTER_NULL_ON_FAILURE
@@ -202,6 +175,9 @@ class ConversationController extends AbstractController
         }
     }
 
+    /**
+     * @param array<int, string> $keys
+     */
     private function readEnvSetting(array $keys, string $fallback = ''): string
     {
         foreach ($keys as $key) {
@@ -964,6 +940,9 @@ class ConversationController extends AbstractController
         return $conversation;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     private function formatConversationUpdate(Conversation $conversation): array
     {
         return [
@@ -1200,10 +1179,10 @@ class ConversationController extends AbstractController
         }
 
         $knownUsers = $utilisateurRepository->findBy(['id' => $normalizedMemberIds]);
-        $knownUserIds = array_values(array_map(
+        $knownUserIds = array_map(
             static fn (Utilisateur $user): int => (int) $user->getId(),
             $knownUsers
-        ));
+        );
 
         if (count($knownUserIds) !== count($normalizedMemberIds)) {
             return $this->json([

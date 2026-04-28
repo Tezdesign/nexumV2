@@ -227,7 +227,7 @@ class ResourceAssignment
         return $this;
     }
 
-    public function getAssignmentDate(): ?\DateTime
+    public function getAssignmentDate(): ?\DateTimeInterface
     {
         return $this->assignment_date;
     }
@@ -239,12 +239,12 @@ class ResourceAssignment
         return $this;
     }
 
-    public function getReturnDate(): ?\DateTime
+    public function getReturnDate(): ?\DateTimeInterface
     {
         return $this->return_date;
     }
 
-    public function setReturnDate(?\DateTime $return_date): static
+    public function setReturnDate(?\DateTimeInterface $return_date): static
     {
         $this->return_date = $return_date;
 
@@ -286,8 +286,8 @@ class ResourceAssignment
 
         return $this;
     }
-    #[ORM\Column(type: 'boolean')]
-private $returned = false;
+#[ORM\Column(type: 'boolean')]
+private bool $returned = false;
 
 public function isReturned(): bool
 {

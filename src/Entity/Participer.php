@@ -25,10 +25,10 @@ class Participer
     private ?\DateTimeInterface $dateInscription = null;
 
     #[ORM\Column]
-    private ?int $progression = 0;
+    private int $progression = 0;
 
     #[ORM\Column(length: 50)]
-    private ?string $statut = 'EN_COURS';
+    private string $statut = 'EN_COURS';
 
     public function __construct()
     {
@@ -75,7 +75,7 @@ class Participer
         return $this;
     }
 
-    public function getProgression(): ?int
+    public function getProgression(): int
     {
         return $this->progression;
     }
@@ -86,7 +86,7 @@ class Participer
         return $this;
     }
 
-    public function getStatut(): ?string
+    public function getStatut(): string
     {
         return $this->statut;
     }

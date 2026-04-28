@@ -33,6 +33,8 @@ class ProjectBudgetRepository extends ServiceEntityRepository
 
     /**
      * Calculates the total allocated budgets and total expenses for all projects within a FY scope
+     *
+     * @return array{allocated: float, expenses: float}
      */
     public function getTotalsForFiscalYear(\DateTimeInterface $startDate, \DateTimeInterface $endDate): array
     {
@@ -139,6 +141,8 @@ class ProjectBudgetRepository extends ServiceEntityRepository
 
     /**
      * Calculates the sum of total_budget and actualSpend for all budgets under the exact same project.
+     *
+     * @return array{allocated: float, spent: float}
      */
     public function getProjectBudgetsAggregates(int $projectId): array
     {
@@ -158,6 +162,8 @@ class ProjectBudgetRepository extends ServiceEntityRepository
     /**
      * Evaluates the spending rank of the current budget compared to sibling budgets in the same project.
      * Returns an array with ['rank' => X, 'totalBudgets' => Y]
+     *
+     * @return array{rank: int, totalBudgets: int}
      */
     public function getBudgetSpendingRank(int $projectId, float $currentSpend): array
     {
@@ -203,6 +209,8 @@ class ProjectBudgetRepository extends ServiceEntityRepository
 
     /**
      * Gets the project name with the highest number of budgets in the specified fiscal year.
+     *
+     * @return array{projectName: string, budgetCount: int|string}
      */
     public function getProjectWithMostBudgetsForFY(\DateTimeInterface $start, \DateTimeInterface $end): array
     {

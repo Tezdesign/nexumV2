@@ -15,7 +15,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 )]
 class TestConnectionsCommand extends Command
 {
-    private $doctrine;
+    private ManagerRegistry $doctrine;
 
     public function __construct(ManagerRegistry $doctrine)
     {

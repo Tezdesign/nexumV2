@@ -18,6 +18,9 @@ class ReclamationHistoryService
         $this->logFile = $projectDir . '/var/logs/reclamation_history.log';
     }
 
+    /**
+     * @param array<string, mixed> $data
+     */
     public function logActivity(int $reclamationId, string $action, array $data = []): void
     {
         $user = $this->security->getUser();
@@ -43,6 +46,9 @@ class ReclamationHistoryService
         $this->writeToHistoryFile($logEntry);
     }
 
+    /**
+     * @return array<int, array<string, mixed>>
+     */
     public function getReclamationHistory(int $reclamationId): array
     {
         if (!file_exists($this->logFile)) {
@@ -51,16 +57,14 @@ class ReclamationHistoryService
 
         $history = [];
         $lines = file($this->logFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        if ($lines === false) {
+            return [];
+        }
 
         foreach ($lines as $line) {
-            try {
-                $entry = json_decode($line, true);
-                if ($entry && isset($entry['reclamation_id']) && $entry['reclamation_id'] == $reclamationId) {
-                    $history[] = $entry;
-                }
-            } catch (\Exception $e) {
-                // Skip invalid lines
-                continue;
+            $entry = json_decode($line, true);
+            if (is_array($entry) && isset($entry['reclamation_id']) && $entry['reclamation_id'] == $reclamationId) {
+                $history[] = $entry;
             }
         }
 
@@ -72,6 +76,9 @@ class ReclamationHistoryService
         return $history;
     }
 
+    /**
+     * @param array<string, mixed> $logEntry
+     */
     private function writeToHistoryFile(array $logEntry): void
     {
         $logDir = dirname($this->logFile);

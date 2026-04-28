@@ -39,25 +39,36 @@ final class CaptchaImageService
         }
 
         $bg = imagecolorallocate($im, random_int(245, 255), random_int(245, 255), random_int(245, 255));
+        if ($bg === false) {
+            throw new \RuntimeException('Could not allocate captcha background color.');
+        }
         imagefill($im, 0, 0, $bg);
 
         for ($i = 0; $i < 400; ++$i) {
+            $pixelColor = imagecolorallocate($im, random_int(200, 235), random_int(200, 235), random_int(200, 235));
+            if ($pixelColor === false) {
+                continue;
+            }
             imagesetpixel(
                 $im,
                 random_int(0, $width - 1),
                 random_int(0, $height - 1),
-                imagecolorallocate($im, random_int(200, 235), random_int(200, 235), random_int(200, 235))
+                $pixelColor
             );
         }
 
         for ($i = 0; $i < 5; ++$i) {
+            $lineColor = imagecolorallocate($im, random_int(180, 220), random_int(180, 220), random_int(180, 220));
+            if ($lineColor === false) {
+                continue;
+            }
             imageline(
                 $im,
                 random_int(0, $width),
                 random_int(0, $height),
                 random_int(0, $width),
                 random_int(0, $height),
-                imagecolorallocate($im, random_int(180, 220), random_int(180, 220), random_int(180, 220))
+                $lineColor
             );
         }
 
@@ -65,6 +76,9 @@ final class CaptchaImageService
         $x = 14;
         foreach ($chars as $ch) {
             $col = imagecolorallocate($im, random_int(20, 90), random_int(20, 90), random_int(20, 90));
+            if ($col === false) {
+                continue;
+            }
             $y = random_int(18, 26);
             imagestring($im, 5, $x, $y, $ch, $col);
             $x += random_int(26, 32);

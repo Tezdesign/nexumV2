@@ -137,7 +137,7 @@ class MobileHomeController extends AbstractController
 
         // Stats and Progress
         $projectTasks = $pid !== null ? $taskRepository->findForProject((int) $pid) : [];
-        $projectOverview = ProjectProgressEngine::build($project, $projectTasks);
+        $projectOverview = ProjectProgressEngine::build($projectTasks);
         $projectProgressPercent = (int) ($projectOverview['completion_percentage'] ?? 0);
         $statusCounts = (array) ($projectOverview['status_counts'] ?? []);
         $stats = [
@@ -278,7 +278,7 @@ class MobileHomeController extends AbstractController
                 $this->addFlash('error', 'First name, last name, and email are required.');
             } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 $this->addFlash('error', 'Please enter a valid email address.');
-            } elseif ($utilisateurRepository->existsOtherUserWithEmail($email, $utilisateur->getId())) {
+            } elseif ($utilisateur->getId() !== null && $utilisateurRepository->existsOtherUserWithEmail($email, $utilisateur->getId())) {
                 $this->addFlash('error', 'This email address is already used by another account.');
             } elseif ($newPassword !== '' && $newPassword !== $confirmPassword) {
                 $this->addFlash('error', 'The new password and confirmation do not match.');

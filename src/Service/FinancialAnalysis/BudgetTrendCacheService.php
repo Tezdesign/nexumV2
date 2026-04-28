@@ -45,6 +45,9 @@ class BudgetTrendCacheService
         });
     }
 
+    /**
+     * @return array<string, array<string, bool|string>>
+     */
     public function calculateTrends(BudgetProfile $profile, float $currentAllocated, float $currentExpenses): array
     {
         $id = $profile->getId();
@@ -67,7 +70,7 @@ class BudgetTrendCacheService
             ];
         });
 
-        if (!isset($oldState['timestamp']) || $oldState['timestamp'] >= (time() - 2)) {
+        if ($oldState['timestamp'] >= (time() - 2)) {
             return $this->getEmptyTrendData();
         }
 
@@ -76,11 +79,10 @@ class BudgetTrendCacheService
         $currentUtilization = $currentDisposable > 0 ? ($currentExpenses / $currentDisposable) * 100 : 0;
         $currentCashflow = $currentDisposable - $currentAllocated;
 
-        $oldDisposable = $oldState['disposable'] ?? $oldState['budget_disposable'] ?? 0.0;
-        $oldExpenses = $oldState['expenses'] ?? $oldState['total_expense'] ?? 0.0;
-        $oldRemaining = $oldState['remaining'] ?? 0.0;
-        $oldUtilization = $oldState['utilization'] ?? 0.0;
-        $oldCashflow = $oldState['cashflow'] ?? 0.0;
+        $oldDisposable = $oldState['disposable'];
+        $oldExpenses = $oldState['expenses'];
+        $oldRemaining = $oldState['remaining'];
+        $oldUtilization = $oldState['utilization'];
 
         return [
             'budget' => $this->calculateVarianceData($currentDisposable, $oldDisposable, 'up-is-good'),
@@ -91,6 +93,9 @@ class BudgetTrendCacheService
         ];
     }
 
+    /**
+     * @return array<string, bool|string>
+     */
     private function calculateVarianceData(float $current, float $old, string $mode): array
     {
         if ($old === 0.0) {
@@ -117,6 +122,9 @@ class BudgetTrendCacheService
         ];
     }
 
+    /**
+     * @return array<string, array<string, bool|string>>
+     */
     private function getEmptyTrendData(): array
     {
         $default = ['badge' => '0%', 'direction' => 'up', 'class' => 'secondary', 'is_different' => false];

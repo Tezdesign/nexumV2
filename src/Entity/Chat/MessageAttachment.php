@@ -89,7 +89,7 @@ class MessageAttachment
     }
 
     #[ORM\Column(type: 'blob', columnDefinition: 'LONGBLOB', nullable: false)]
-    private $data = null;
+    private mixed $data = null;
 
     public function getData(): mixed
     {
@@ -195,7 +195,7 @@ class MessageAttachment
         return $this;
     }
 
-    public function getCreatedAt(): ?\DateTime
+    public function getCreatedAt(): ?\DateTimeInterface
     {
         return $this->created_at;
     }

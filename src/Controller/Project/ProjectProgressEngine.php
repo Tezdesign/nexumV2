@@ -23,10 +23,6 @@ final class ProjectProgressEngine
         $memberStats = [];
 
         foreach ($tasks as $task) {
-            if (!$task instanceof Task) {
-                continue;
-            }
-
             $status = self::normalizeStatus($task->getStatus());
             $weightedCompletion += match ($status) {
                 'done' => 100,
@@ -86,9 +82,7 @@ final class ProjectProgressEngine
             $maxPoints = (int) $memberStat['max_points'];
             $memberCompletedCount = (int) $memberStat['completed_count'];
 
-            $memberStat['productivity_score'] = $maxPoints > 0
-                ? max(0, min(100, (int) round(($memberStat['points'] / $maxPoints) * 100)))
-                : 0;
+            $memberStat['productivity_score'] = max(0, min(100, (int) round(($memberStat['points'] / $maxPoints) * 100)));
             $memberStat['on_time_delivery_rate'] = $memberCompletedCount > 0
                 ? (int) round(($memberStat['completed_on_time_count'] / $memberCompletedCount) * 100)
                 : null;
@@ -104,8 +98,18 @@ final class ProjectProgressEngine
         });
 
         $taskCount = count($tasks);
+        if ($taskCount === 0) {
+            return [
+                'completion_percentage' => 0,
+                'tasks_total' => 0,
+                'tasks_completed' => 0,
+                'tasks_overdue' => 0,
+                'member_productivity' => [],
+            ];
+        }
+
         return [
-            'completion_percentage' => $taskCount > 0 ? (int) round($weightedCompletion / $taskCount) : 0,
+            'completion_percentage' => (int) round($weightedCompletion / $taskCount),
             'tasks_total' => $taskCount,
             'tasks_completed' => $completedCount,
             'tasks_overdue' => $overdueCount,

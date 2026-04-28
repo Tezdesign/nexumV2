@@ -100,9 +100,6 @@ final class ProjectTaskSuggestionService
             $offset = (int) ($row['due_offset_days'] ?? 0);
             $offset = max(0, min($durationDays, $offset));
             $dueDate = $start->modify('+' . $offset . ' days');
-            if (!$dueDate instanceof \DateTimeImmutable) {
-                $dueDate = $end;
-            }
 
             $normalized[] = [
                 'title' => $title,
@@ -156,7 +153,7 @@ final class ProjectTaskSuggestionService
 
         $tasks = [];
         foreach ($milestones as [$title, $description, $priority, $offset]) {
-            $dueDate = $startDate->modify('+' . (int) $offset . ' days') ?: $endDate;
+            $dueDate = $startDate->modify('+' . (int) $offset . ' days');
             if ($dueDate > $endDate) {
                 $dueDate = $endDate;
             }

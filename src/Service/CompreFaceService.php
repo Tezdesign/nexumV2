@@ -101,6 +101,9 @@ class CompreFaceService
     {
         try {
             $imageData = file_get_contents($file->getPathname());
+            if ($imageData === false) {
+                return null;
+            }
             return $this->registerFace($imageData, $subject);
         } catch (\Exception $e) {
             echo "Exception: " . $e->getMessage() . "\n";
@@ -115,6 +118,9 @@ class CompreFaceService
     {
         try {
             $imageData = file_get_contents($file->getPathname());
+            if ($imageData === false) {
+                return null;
+            }
             return $this->recognizeFace($imageData);
         } catch (\Exception $e) {
             echo "Exception: " . $e->getMessage() . "\n";

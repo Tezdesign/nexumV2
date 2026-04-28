@@ -2,6 +2,8 @@
 
 namespace App\Service;
 
+use App\Entity\Formation;
+use App\Entity\UserHandling\Utilisateur;
 use Symfony\Component\Mailer\Mailer;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mailer\Transport;
@@ -16,7 +18,7 @@ class MailService
     ) {
     }
 
-    public function sendCertificate($user, $formation, string $filePath, ?MailerInterface $mailer = null): void
+    public function sendCertificate(Utilisateur $user, Formation $formation, string $filePath, ?MailerInterface $mailer = null): void
     {
         if (!file_exists($filePath)) {
             throw new \Exception('Fichier certificat introuvable');
@@ -24,7 +26,7 @@ class MailService
 
         $email = (new Email())
             ->from($this->mailFrom)
-            ->to($user->getEmail())
+            ->to((string) $user->getEmail())
             ->subject('🎓 Votre certificat - '.$formation->getTitre())
             ->html("
                 <h2>Félicitations {$user->getNom()} 👏</h2>

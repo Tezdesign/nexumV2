@@ -115,7 +115,7 @@ class BudgetProfile
     private ?\DateTimeInterface $end_date = null;
 
     #[ORM\Column(type: 'string', length: 50, nullable: false, options: ['default' => 'DRAFT'])]
-    private ?string $status = 'DRAFT';
+    private string $status = 'DRAFT';
 
     public function __construct()
     {
@@ -219,7 +219,7 @@ class BudgetProfile
         return $this;
     }
 
-    public function getStatus(): ?string
+    public function getStatus(): string
     {
         return $this->status;
     }

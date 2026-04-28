@@ -2,7 +2,6 @@
 
 namespace App\Service;
 
-use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class TelegramNotificationService
@@ -29,7 +28,7 @@ class TelegramNotificationService
             ]);
 
             return $response->getStatusCode() === 200;
-        } catch (TransportExceptionInterface|\Throwable) {
+        } catch (\Throwable) {
             return false;
         }
     }

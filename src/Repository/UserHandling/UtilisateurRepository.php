@@ -4,6 +4,7 @@ namespace App\Repository\UserHandling;
 
 use App\Entity\UserHandling\Utilisateur;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
@@ -16,7 +17,7 @@ class UtilisateurRepository extends ServiceEntityRepository
         parent::__construct($registry, Utilisateur::class);
     }
 
-    private function applyNonAdminFilter($qb, string $alias = 'u'): void
+    private function applyNonAdminFilter(QueryBuilder $qb, string $alias = 'u'): void
     {
         $qb
             ->andWhere(sprintf('LOWER(%s.role) NOT LIKE :adminRole', $alias))
@@ -62,7 +63,7 @@ class UtilisateurRepository extends ServiceEntityRepository
      */
     public function findIndexedByIds(array $ids): array
     {
-        $ids = array_values(array_unique(array_map('intval', array_filter($ids, static fn ($v) => $v !== null))));
+        $ids = array_values(array_unique(array_map('intval', $ids)));
         if ($ids === []) {
             return [];
         }
@@ -87,7 +88,7 @@ class UtilisateurRepository extends ServiceEntityRepository
      */
     public function findNonAdminIndexedByIds(array $ids): array
     {
-        $ids = array_values(array_unique(array_map('intval', array_filter($ids, static fn ($v) => $v !== null))));
+        $ids = array_values(array_unique(array_map('intval', $ids)));
         if ($ids === []) {
             return [];
         }
@@ -308,11 +309,12 @@ class UtilisateurRepository extends ServiceEntityRepository
             $qb->addOrderBy('u.prenom', $direction);
         }
 
-        return $qb->getQuery()->getArrayResult();
+        return array_values($qb->getQuery()->getArrayResult());
     }
 
     /**
      * @deprecated use findForAdminListing()
+     * @return list<array<string, mixed>>
      */
     public function findAllForAdminListing(): array
     {

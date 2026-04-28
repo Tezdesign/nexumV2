@@ -29,7 +29,7 @@ class DraftNotificationService
         $item = $this->cache->getItem($key);
 
         // Fetch existing notifications or initialize empty array
-        $notifications = $item->isHit() ? $item->get() : [];
+        $notifications = $item->isHit() && is_array($item->get()) ? $item->get() : [];
 
         // Add new notification at the beginning
         $notificationId = uniqid('notif_', true);
@@ -54,6 +54,8 @@ class DraftNotificationService
 
     /**
      * Gets all undelivered notifications to trigger the popup, and marks them as delivered.
+     *
+     * @return array<int, array<string, mixed>>
      */
     public function popUndeliveredNotifications(int $userId): array
     {
@@ -65,6 +67,9 @@ class DraftNotificationService
         }
 
         $notifications = $item->get();
+        if (!is_array($notifications)) {
+            return [];
+        }
         $undelivered = [];
         $modified = false;
 
@@ -87,13 +92,16 @@ class DraftNotificationService
 
     /**
      * Gets all notifications for the user's Alerts page.
+     *
+     * @return array<int, array<string, mixed>>
      */
     public function getAllNotifications(int $userId): array
     {
         $key = $this->getCacheKey($userId);
         $item = $this->cache->getItem($key);
 
-        return $item->isHit() ? $item->get() : [];
+        $notifications = $item->isHit() ? $item->get() : [];
+        return is_array($notifications) ? $notifications : [];
     }
 
     /**
@@ -109,7 +117,12 @@ class DraftNotificationService
         }
 
         $count = 0;
-        foreach ($item->get() as $notif) {
+        $notifications = $item->get();
+        if (!is_array($notifications)) {
+            return 0;
+        }
+
+        foreach ($notifications as $notif) {
             if (!$notif['read']) {
                 $count++;
             }
@@ -131,6 +144,9 @@ class DraftNotificationService
         }
 
         $notifications = $item->get();
+        if (!is_array($notifications)) {
+            return;
+        }
         $modified = false;
 
         foreach ($notifications as &$notif) {

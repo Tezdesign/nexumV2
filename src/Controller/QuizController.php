@@ -7,6 +7,7 @@ use App\Entity\Quiz;
 use App\Form\QuizType;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -30,12 +31,13 @@ public function new(
 
         $imageFile = $form->get('imageFile')->getData();
 
-        if ($imageFile) {
+        if ($imageFile instanceof UploadedFile) {
             $fileName = uniqid().'.'.$imageFile->guessExtension();
-            $imageFile->move(
-                $this->getParameter('kernel.project_dir').'/public/uploads/quiz',
-                $fileName
-            );
+            $projectDir = $this->getParameter('kernel.project_dir');
+            if (!is_string($projectDir)) {
+                throw new \RuntimeException('Invalid project directory parameter.');
+            }
+            $imageFile->move($projectDir.'/public/uploads/quiz', $fileName);
             $quiz->setImage($fileName);
         }
 
@@ -66,21 +68,23 @@ public function edit(
     $quiz->setCorrect((int)$data['correct']);
 
     // 📸 IMAGE
-    $imageFile = $request->files->get('quiz')['imageFile'] ?? null;
+    $quizFiles = $request->files->get('quiz');
+    $imageFile = is_array($quizFiles) ? ($quizFiles['imageFile'] ?? null) : null;
 
-    if ($imageFile) {
+    if ($imageFile instanceof UploadedFile) {
         $fileName = uniqid().'.'.$imageFile->guessExtension();
-        $imageFile->move(
-            $this->getParameter('kernel.project_dir').'/public/uploads/quiz',
-            $fileName
-        );
+        $projectDir = $this->getParameter('kernel.project_dir');
+        if (!is_string($projectDir)) {
+            throw new \RuntimeException('Invalid project directory parameter.');
+        }
+        $imageFile->move($projectDir.'/public/uploads/quiz', $fileName);
         $quiz->setImage($fileName);
     }
 
     $em->flush();
 
     return $this->redirectToRoute('app_formation_show_admin', [
-        'id' => $quiz->getFormation()->getId(),
+        'id' => $quiz->getFormation()?->getId(),
     ]);
 }
 
@@ -90,7 +94,7 @@ public function edit(
         Quiz $quiz,
         EntityManagerInterface $em
     ): Response {
-        $formationId = $quiz->getFormation()->getId();
+        $formationId = $quiz->getFormation()?->getId();
         $em->remove($quiz);
         $em->flush();
 

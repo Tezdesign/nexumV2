@@ -55,12 +55,21 @@ class Formation
     )]
     private ?string $video3 = null;
 
+    /**
+     * @var Collection<int, Participer>
+     */
     #[ORM\OneToMany(mappedBy: 'formation', targetEntity: Participer::class, orphanRemoval: true)]
     private Collection $participations;
 
+    /**
+     * @var Collection<int, Quiz>
+     */
     #[ORM\OneToMany(mappedBy: 'formation', targetEntity: Quiz::class, orphanRemoval: true)]
     private Collection $quizzes;
 
+    /**
+     * @var Collection<int, Resultat>
+     */
     #[ORM\OneToMany(mappedBy: 'formation', targetEntity: Resultat::class, orphanRemoval: true)]
     private Collection $resultats;
 
@@ -134,6 +143,9 @@ class Formation
 
     // ===== RELATIONS =====
 
+    /**
+     * @return Collection<int, Participer>
+     */
     public function getParticipations(): Collection
     {
         return $this->participations;
@@ -158,6 +170,9 @@ class Formation
         return $this;
     }
 
+    /**
+     * @return Collection<int, Quiz>
+     */
     public function getQuizzes(): Collection
     {
         return $this->quizzes;
@@ -182,6 +197,9 @@ class Formation
         return $this;
     }
 
+    /**
+     * @return Collection<int, Resultat>
+     */
     public function getResultats(): Collection
     {
         return $this->resultats;

@@ -228,10 +228,10 @@ public function setIsBlocked(bool $is_blocked): self
      * so this property can't be typed as string.
      */
     #[ORM\Column(type: Types::BLOB, nullable: true)]
-    private $imagelink = null;
+    private mixed $imagelink = null;
 
 
-    public function getImagelink()
+    public function getImagelink(): ?string
     {
         if ($this->imagelink === null) {
             return null;
@@ -245,7 +245,7 @@ public function setIsBlocked(bool $is_blocked): self
         return is_string($this->imagelink) ? $this->imagelink : null;
     }
 
-    public function setImagelink($imagelink): self
+    public function setImagelink(mixed $imagelink): self
     {
         $this->imagelink = $imagelink;
         return $this;
@@ -265,6 +265,9 @@ public function setIsBlocked(bool $is_blocked): self
         return $this;
     }
 
+    /**
+     * @var Collection<int, ResourceAssignment>
+     */
     #[ORM\OneToMany(targetEntity: ResourceAssignment::class, mappedBy: 'utilisateur')]
     private Collection $resourceAssignments;
 
@@ -278,9 +281,6 @@ public function setIsBlocked(bool $is_blocked): self
      */
     public function getResourceAssignments(): Collection
     {
-        if (!$this->resourceAssignments instanceof Collection) {
-            $this->resourceAssignments = new ArrayCollection();
-        }
         return $this->resourceAssignments;
     }
 
@@ -298,7 +298,7 @@ public function setIsBlocked(bool $is_blocked): self
         return $this;
     }
 
-    public function getDateInscription(): ?\DateTime
+    public function getDateInscription(): ?\DateTimeInterface
     {
         return $this->date_inscription;
     }

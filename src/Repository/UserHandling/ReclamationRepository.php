@@ -135,7 +135,7 @@ class ReclamationRepository extends ServiceEntityRepository
         $orderExpr = $allowedSort[$sort] ?? 'r.idRec';
         $direction = strtoupper($direction) === 'ASC' ? 'ASC' : 'DESC';
 
-        return $this->createQueryBuilder('r')
+        return array_values($this->createQueryBuilder('r')
             ->select([
                 'r.idRec AS idRec',
                 'r.titre AS titre',
@@ -152,7 +152,7 @@ class ReclamationRepository extends ServiceEntityRepository
             ->orderBy($orderExpr, $direction)
             ->addOrderBy('r.idRec', $direction)
             ->getQuery()
-            ->getArrayResult();
+            ->getArrayResult());
     }
 
     /**
@@ -171,7 +171,7 @@ class ReclamationRepository extends ServiceEntityRepository
         $orderExpr = $allowedSort[$sort] ?? 'r.idRec';
         $direction = strtoupper($direction) === 'ASC' ? 'ASC' : 'DESC';
 
-        return $this->createQueryBuilder('r')
+        return array_values($this->createQueryBuilder('r')
             ->select([
                 'r.idRec AS idRec',
                 'r.titre AS titre',
@@ -186,7 +186,7 @@ class ReclamationRepository extends ServiceEntityRepository
             ->orderBy($orderExpr, $direction)
             ->addOrderBy('r.idRec', $direction)
             ->getQuery()
-            ->getArrayResult();
+            ->getArrayResult());
     }
 
     /**

@@ -151,7 +151,7 @@ class Message
         return $this;
     }
 
-    public function getCreatedAt(): ?\DateTime
+    public function getCreatedAt(): ?\DateTimeInterface
     {
         return $this->created_at;
     }
@@ -163,7 +163,7 @@ class Message
         return $this;
     }
 
-    public function getEditedAt(): ?\DateTime
+    public function getEditedAt(): ?\DateTimeInterface
     {
         return $this->edited_at;
     }

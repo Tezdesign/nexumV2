@@ -35,8 +35,15 @@ class TranslatorService
         return trim($translatedText);
     }
 
+    /**
+     * @return array<int, string>
+     */
     private function splitText(string $text, int $maxLength): array
     {
+        if ($maxLength < 1) {
+            $maxLength = 1;
+        }
+
         return str_split($text, $maxLength);
     }
 }

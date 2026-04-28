@@ -7,6 +7,7 @@ use App\Repository\Projects\ProjectAssignmentRepository;
 use App\Repository\Projects\ProjectRepository;
 use App\Repository\Tasks\TaskRepository;
 use App\Repository\UserHandling\UtilisateurRepository;
+use App\Entity\UserHandling\Utilisateur;
 use App\Support\UserDisplayName;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
@@ -53,7 +54,7 @@ class CalendarEventProvider
         $implicitManagerIds = $scope['implicitManagerIds'];
 
         $formatUserName = static function (int $uid) use ($usersById): string {
-            return isset($usersById[$uid])
+            return isset($usersById[$uid]) && $usersById[$uid] instanceof Utilisateur
                 ? UserDisplayName::format($usersById[$uid], $uid)
                 : 'Unknown user';
         };
@@ -230,7 +231,7 @@ class CalendarEventProvider
         }
 
         usort($events, static function (array $a, array $b): int {
-            return strcmp((string) ($a['start'] ?? ''), (string) ($b['start'] ?? ''));
+            return strcmp((string) $a['start'], (string) $b['start']);
         });
 
         return $events;

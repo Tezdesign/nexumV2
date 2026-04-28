@@ -32,10 +32,6 @@ final class TaskWorkloadEngine
         $overdueCount = 0;
 
         foreach ($tasks as $task) {
-            if (!$task instanceof Task) {
-                continue;
-            }
-
             $status = self::normalizeStatus($task->getStatus());
             if ($status === 'done') {
                 continue;

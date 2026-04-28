@@ -119,7 +119,7 @@ final class PublicHolidayProvider
 
                 $data = $response->toArray(false);
 
-                return is_array($data) ? $data : [];
+                return $data;
             } catch (\Throwable) {
                 return [];
             }

@@ -41,7 +41,7 @@ class PasswordResetController extends AbstractController
             }
 
             // Generate 6-digit code
-            $code = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+            $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
             
             // Store code in session with expiration (10 minutes)
             $session = $this->requestStack->getSession();
@@ -104,13 +104,17 @@ class PasswordResetController extends AbstractController
             return new JsonResponse(['success' => false, 'message' => 'Session expired. Please start over.']);
         }
 
+        if (!is_string($resetEmail)) {
+            return new JsonResponse(['success' => false, 'message' => 'Session expired. Please start over.']);
+        }
+
         $user = $this->utilisateurRepository->findByEmail($resetEmail);
         if (!$user) {
             return new JsonResponse(['success' => false, 'message' => 'User not found.']);
         }
 
         // Generate new code
-        $code = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
         
         // Update session
         $session->set('reset_code', $code);
@@ -154,6 +158,10 @@ class PasswordResetController extends AbstractController
             }
 
             $email = $session->get('reset_email');
+            if (!is_string($email)) {
+                $this->addFlash('error', 'Access denied. Please complete verification first.');
+                return $this->redirectToRoute('password_forgot');
+            }
             $user = $this->utilisateurRepository->findByEmail($email);
             
             if ($user) {

@@ -15,6 +15,9 @@ class ConversationParticipantRepository extends ServiceEntityRepository
         parent::__construct($registry, ConversationParticipant::class);
     }
 
+    /**
+     * @return array<int, int>
+     */
     public function findConversationIdsForUser(int $userId): array
     {
         $rows = $this->createQueryBuilder('cp')

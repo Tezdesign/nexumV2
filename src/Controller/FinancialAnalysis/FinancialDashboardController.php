@@ -14,6 +14,8 @@ use App\Repository\FinancialAnalysis\TransactionRepository;
 use App\Service\FinancialAnalysis\BudgetDashboardService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\Form\FormError;
+use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
@@ -56,7 +58,7 @@ class FinancialDashboardController extends AbstractController
         BudgetProfile $budgetProfile,
         \App\Service\FinancialAnalysis\CurrencyExchangeService $currencyExchangeService
     ): Response {
-        $rawJson = $currencyExchangeService->fetchRatesForProfile($budgetProfile->getId());
+        $rawJson = $currencyExchangeService->fetchRatesForProfile((int) $budgetProfile->getId());
         $selectData = $currencyExchangeService->parseAndGroupRatesForSelect($rawJson);
 
         return $this->json([
@@ -361,7 +363,8 @@ class FinancialDashboardController extends AbstractController
             return $this->redirectToRoute('apps-financial-analysis-budget-details', ['id' => $projectBudget->getId(), '_fragment' => 'transactions-tab']);
         }
 
-        $searchTerm = $request->query->get('q');
+        $searchTermRaw = $request->query->get('q');
+        $searchTerm = is_string($searchTermRaw) ? $searchTermRaw : null;
         $transactions = $dashboardService->formatTransactions($originalBudget, $searchTerm);
 
         if ($request->headers->get('X-Requested-With') === 'XMLHttpRequest') {
@@ -374,8 +377,8 @@ class FinancialDashboardController extends AbstractController
         $isConsultant = true;
 
         // Fetch Real Chart Data
-        $monthlyData = $transactionRepository->getMonthlyAggregation($originalBudget->getId());
-        $categoryData = $transactionRepository->getCategoryAggregation($originalBudget->getId());
+        $monthlyData = $transactionRepository->getMonthlyAggregation((int) $originalBudget->getId());
+        $categoryData = $transactionRepository->getCategoryAggregation((int) $originalBudget->getId());
 
         // Fetch Project Relation Stats (Use $projectBudget instead of cloned to avoid proxy loading issues)
         $budgetStats = $projectStService->calculateProjectBudgetStatistics($projectBudget);
@@ -506,12 +509,17 @@ class FinancialDashboardController extends AbstractController
 
             $this->addFlash('warning', 'Draft has been rejected.');
         } elseif ($action === 'to_transaction') {
+            if (!$pb) {
+                $this->addFlash('danger', 'Project budget not found for this draft.');
+                return $this->redirectToRoute('apps-financial-analysis-landing');
+            }
+
             $transactionDateStr = $request->request->get('transaction_date');
 
             // Fallback: convert the draft's createdAt (which might be immutable) to a mutable \DateTime
             $transactionDate = $draft->getCreatedAt() ? \DateTime::createFromInterface($draft->getCreatedAt()) : new \DateTime();
 
-            if ($transactionDateStr) {
+            if (is_string($transactionDateStr) && $transactionDateStr !== '') {
                 try {
                     $transactionDate = new \DateTime($transactionDateStr);
                 } catch (\Exception $e) {
@@ -526,7 +534,9 @@ class FinancialDashboardController extends AbstractController
             $randomDigits = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
             $transaction->setReference('TX-' . $randomDigits);
 
-            $transaction->setCost($draft->getAmount() ?: 0.0);
+            // Transaction::setCost expects a numeric string (DECIMAL stored as string internally)
+            $amountValue = $draft->getAmount() ?? 0.0;
+            $transaction->setCost(number_format((float) $amountValue, 2, '.', ''));
             $transaction->setDateStamp($transactionDate);
             $transaction->setExpenseCategory($draft->getCategory());
             $transaction->setDescription($draft->getDescription());
@@ -565,6 +575,11 @@ class FinancialDashboardController extends AbstractController
         BudgetDashboardService $dashboardService
     ): Response {
         $projectBudget = $transaction->getProjectBudget();
+        if (!$projectBudget) {
+            $this->addFlash('danger', 'Project budget not found for this transaction.');
+            return $this->redirectToRoute('apps-financial-analysis-landing');
+        }
+
         $profile = $dashboardService->getFiscalProfileForBudget($projectBudget);
 
         $form = $this->createForm(TransactionType::class, $transaction);
@@ -577,20 +592,24 @@ class FinancialDashboardController extends AbstractController
         }
 
         // Native PHP/Twig approach: store errors in session flash bag to survive the redirect
-        if ($form->isSubmitted() && !$form->isValid()) {
-            $this->addFlash('danger', 'Failed to update transaction. Please check the errors in the form.');
+            if ($form->isSubmitted() && !$form->isValid()) {
+                $this->addFlash('danger', 'Failed to update transaction. Please check the errors in the form.');
 
-            // Collect exact errors and put them in session
-            $errors = [];
-            foreach ($form->getErrors(true) as $error) {
-                $errors[$error->getOrigin()->getName()] = $error->getMessage();
+                // Collect exact errors and put them in session safely
+                $errors = [];
+                foreach ($form->getErrors(true) as $error) {
+                    $origin = null;
+                    if ($error instanceof FormError) {
+                        $origin = $error->getOrigin();
+                    }
+                    $name = $origin instanceof FormInterface ? $origin->getName() : 'transaction';
+                    $message = $error instanceof FormError ? $error->getMessage() : (string) $error;
+                    $errors[$name] = $message;
+                }
+
+                $this->addFlash('transaction_errors_' . $transaction->getId(), $errors);
+                $this->addFlash('transaction_data_' . $transaction->getId(), (array) $request->request->all('transaction'));
             }
-            // Store specific errors for this specific transaction ID
-            $request->getSession()->getFlashBag()->add('transaction_errors_' . $transaction->getId(), $errors);
-
-            // Store the submitted invalid data so the form doesn't revert to old DB data
-            $request->getSession()->getFlashBag()->add('transaction_data_' . $transaction->getId(), $request->request->all('transaction'));
-        }
 
         return $this->redirectToRoute('apps-financial-analysis-budget-details', ['id' => $projectBudget->getId(), '_fragment' => 'transactions-tab']);
     }
@@ -601,7 +620,7 @@ class FinancialDashboardController extends AbstractController
         BudgetDashboardService $dashboardService
     ): Response {
         $idsString = $request->request->get('transaction_ids');
-        if ($idsString) {
+        if (is_string($idsString) && $idsString !== '') {
             $ids = explode(',', $idsString);
             $profile = $dashboardService->getFiscalProfileForBudget($projectBudget);
             

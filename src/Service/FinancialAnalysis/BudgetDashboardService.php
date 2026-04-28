@@ -24,8 +24,10 @@ class BudgetDashboardService
 
     /**
      * Fetches all project budgets and formats them for the dashboard UI.
-     */
-    public function getFormattedBudgets(): array
+        *
+        * @return array<int, array<string, mixed>>
+        */
+        public function getFormattedBudgets(): array
     {
         $budgets = $this->projectBudgetRepository->findAll();
         
@@ -70,8 +72,10 @@ class BudgetDashboardService
 
     /**
      * Formats the project budget details for the UI.
-     */
-    public function formatBudgetDetails(ProjectBudget $budget): array
+        *
+        * @return array<string, mixed>
+        */
+        public function formatBudgetDetails(ProjectBudget $budget): array
     {
         $total = (float) $budget->getTotalBudget();
         $spend = (float) $budget->getActualSpend();
@@ -98,11 +102,18 @@ class BudgetDashboardService
 
     /**
      * Formats the list of transactions for the UI.
-     */
-    public function formatTransactions(ProjectBudget $budget, ?string $searchTerm = null): array
+        *
+        * @param ProjectBudget $budget
+        * @param string|null $searchTerm
+        * @return array<int, array<string, mixed>>
+        */
+        public function formatTransactions(ProjectBudget $budget, ?string $searchTerm = null): array
     {
         if ($searchTerm) {
-            $transactions = $this->transactionRepository->searchByReferenceOrDescriptionDql($budget->getId(), $searchTerm);
+            $budgetId = $budget->getId();
+            $transactions = $budgetId === null
+                ? []
+                : $this->transactionRepository->searchByReferenceOrDescriptionDql($budgetId, $searchTerm);
         } else {
             $transactions = $budget->getTransactions();
         }
@@ -126,7 +137,7 @@ class BudgetDashboardService
      */
     public function handleTransactionCascade(ProjectBudget $projectBudget, Transaction $transaction, ?BudgetProfile $profile): void
     {
-        if ($profile) {
+        if ($profile && $profile->getStartDate() && $profile->getEndDate()) {
             $totals = $this->projectBudgetRepository->getTotalsForFiscalYear($profile->getStartDate(), $profile->getEndDate());
             $this->trendCacheService->savePreUpdateState($profile, $totals['allocated'], $totals['expenses']);
         }
@@ -135,7 +146,12 @@ class BudgetDashboardService
         $this->transactionRepository->save($transaction, true);
         
         // 2. Recalculate ProjectBudget actualSpend
-        $totalCost = $this->transactionRepository->getTotalCostForProjectBudget($projectBudget->getId());
+        $projectBudgetId = $projectBudget->getId();
+        if ($projectBudgetId === null) {
+            return;
+        }
+
+        $totalCost = $this->transactionRepository->getTotalCostForProjectBudget($projectBudgetId);
         $projectBudget->setActualSpend((string) $totalCost);
         
         // 3. Recalculate ProjectBudget status
@@ -145,7 +161,7 @@ class BudgetDashboardService
         $this->projectBudgetRepository->updateActualSpendAndStatusDql($projectBudget);
         
         // 5. Recalculate and update BudgetProfile via DQL if it exists
-        if ($profile) {
+        if ($profile && $profile->getStartDate() && $profile->getEndDate()) {
             $totals = $this->projectBudgetRepository->getTotalsForFiscalYear($profile->getStartDate(), $profile->getEndDate());
             $this->budgetProfileRepository->updateTotalExpenseDql($profile, $totals['expenses']);
         }
@@ -156,7 +172,7 @@ class BudgetDashboardService
      */
     public function handleTransactionUpdateCascade(ProjectBudget $projectBudget, Transaction $transaction, ?BudgetProfile $profile): void
     {
-        if ($profile) {
+        if ($profile && $profile->getStartDate() && $profile->getEndDate()) {
             $totals = $this->projectBudgetRepository->getTotalsForFiscalYear($profile->getStartDate(), $profile->getEndDate());
             $this->trendCacheService->savePreUpdateState($profile, $totals['allocated'], $totals['expenses']);
         }
@@ -165,7 +181,12 @@ class BudgetDashboardService
         $this->transactionRepository->updateTransactionDql($transaction);
         
         // 2. Recalculate ProjectBudget actualSpend
-        $totalCost = $this->transactionRepository->getTotalCostForProjectBudget($projectBudget->getId());
+        $projectBudgetId = $projectBudget->getId();
+        if ($projectBudgetId === null) {
+            return;
+        }
+
+        $totalCost = $this->transactionRepository->getTotalCostForProjectBudget($projectBudgetId);
         $projectBudget->setActualSpend((string) $totalCost);
         
         // 3. Recalculate ProjectBudget status
@@ -175,7 +196,7 @@ class BudgetDashboardService
         $this->projectBudgetRepository->updateActualSpendAndStatusDql($projectBudget);
         
         // 5. Recalculate and update BudgetProfile via DQL if it exists
-        if ($profile) {
+        if ($profile && $profile->getStartDate() && $profile->getEndDate()) {
             $totals = $this->projectBudgetRepository->getTotalsForFiscalYear($profile->getStartDate(), $profile->getEndDate());
             $this->budgetProfileRepository->updateTotalExpenseDql($profile, $totals['expenses']);
         }
@@ -184,9 +205,12 @@ class BudgetDashboardService
     /**
      * Handles the cascading updates after multiple transactions are deleted.
      */
+    /**
+     * @param array<int, string> $ids
+     */
     public function handleBulkDeleteCascade(ProjectBudget $projectBudget, array $ids, ?BudgetProfile $profile): void
     {
-        if ($profile) {
+        if ($profile && $profile->getStartDate() && $profile->getEndDate()) {
             $totals = $this->projectBudgetRepository->getTotalsForFiscalYear($profile->getStartDate(), $profile->getEndDate());
             $this->trendCacheService->savePreUpdateState($profile, $totals['allocated'], $totals['expenses']);
         }
@@ -195,7 +219,12 @@ class BudgetDashboardService
         $this->transactionRepository->bulkDeleteDql($ids);
         
         // 2. Recalculate ProjectBudget actualSpend (now lower)
-        $totalCost = $this->transactionRepository->getTotalCostForProjectBudget($projectBudget->getId());
+        $projectBudgetId = $projectBudget->getId();
+        if ($projectBudgetId === null) {
+            return;
+        }
+
+        $totalCost = $this->transactionRepository->getTotalCostForProjectBudget($projectBudgetId);
         $projectBudget->setActualSpend((string) $totalCost);
         
         // 3. Recalculate ProjectBudget status (potentially improved)
@@ -205,7 +234,7 @@ class BudgetDashboardService
         $this->projectBudgetRepository->updateActualSpendAndStatusDql($projectBudget);
         
         // 5. Recalculate and update BudgetProfile via DQL if it exists
-        if ($profile) {
+        if ($profile && $profile->getStartDate() && $profile->getEndDate()) {
             $totals = $this->projectBudgetRepository->getTotalsForFiscalYear($profile->getStartDate(), $profile->getEndDate());
             $this->budgetProfileRepository->updateTotalExpenseDql($profile, $totals['expenses']);
         }
@@ -216,19 +245,24 @@ class BudgetDashboardService
      */
     public function handleProjectBudgetDeletionCascade(ProjectBudget $budget, ?BudgetProfile $profile): void
     {
-        if ($profile) {
+        if ($profile && $profile->getStartDate() && $profile->getEndDate()) {
             $totals = $this->projectBudgetRepository->getTotalsForFiscalYear($profile->getStartDate(), $profile->getEndDate());
             $this->trendCacheService->savePreUpdateState($profile, $totals['allocated'], $totals['expenses']);
         }
 
+        $budgetId = $budget->getId();
+        if ($budgetId === null) {
+            return;
+        }
+
         // 1. Delete all associated transactions
-        $this->transactionRepository->deleteByProjectBudgetDql($budget->getId());
+        $this->transactionRepository->deleteByProjectBudgetDql($budgetId);
 
         // 2. Delete the project budget itself
-        $this->projectBudgetRepository->deleteProjectBudgetDql($budget->getId());
+        $this->projectBudgetRepository->deleteProjectBudgetDql($budgetId);
 
         // 3. Recalculate and update BudgetProfile via DQL if it exists
-        if ($profile) {
+        if ($profile && $profile->getStartDate() && $profile->getEndDate()) {
             $totals = $this->projectBudgetRepository->getTotalsForFiscalYear($profile->getStartDate(), $profile->getEndDate());
             $this->budgetProfileRepository->updateTotalExpenseDql($profile, $totals['expenses']);
         }
@@ -248,7 +282,10 @@ class BudgetDashboardService
         }
 
         // 3. Finally delete the Profile itself
-        $this->budgetProfileRepository->deleteProfileDql($profile->getId());
+        $profileId = $profile->getId();
+        if ($profileId !== null) {
+            $this->budgetProfileRepository->deleteProfileDql($profileId);
+        }
     }
 
     /**
@@ -300,8 +337,14 @@ class BudgetDashboardService
         return $currencySymbols[$currencyCode] ?? $currencyCode; // Return abbreviation if symbol unknown
     }
 
-    function decreaseAndConvert(DateTimeImmutable $immutableDate): DateTime {
-
+    /**
+     * Convert a DateTimeImmutable to DateTime after decreasing two months.
+     *
+     * @param DateTimeImmutable $immutableDate
+     * @return DateTime
+     */
+    public function decreaseAndConvert(DateTimeImmutable $immutableDate): DateTime
+    {
         $decreasedDate = $immutableDate->modify('-2 months');
 
         return DateTime::createFromImmutable($decreasedDate);

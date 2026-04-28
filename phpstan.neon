@@ -1,0 +1,10 @@
+parameters:
+    reportUnmatchedIgnoredErrors: false
+    ignoreErrors:
+        - '#Call to an undefined method#'
+        - '#Property App\\Entity\\.*::\$id \(int\|null\) is never assigned int so it can be removed from the property type#'
+        - '#Property App\\Entity\\ResourcesManagement\\Resource::\$resource_id \(int\|null\) is never assigned int so it can be removed from the property type#'
+    level: 8
+    paths:
+        - src
+    

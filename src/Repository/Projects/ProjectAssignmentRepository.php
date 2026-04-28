@@ -22,7 +22,7 @@ class ProjectAssignmentRepository extends ServiceEntityRepository
      */
     public function getUserIdsByProjectIds(array $projectIds): array
     {
-        $projectIds = array_values(array_unique(array_map('intval', array_filter($projectIds, static fn ($v) => $v !== null))));
+        $projectIds = array_values(array_unique(array_map('intval', $projectIds)));
         if ($projectIds === []) {
             return [];
         }

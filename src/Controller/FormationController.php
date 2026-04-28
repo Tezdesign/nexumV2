@@ -20,6 +20,7 @@ use Knp\Component\Pager\Pagination\PaginationInterface;
 use Knp\Component\Pager\PaginatorInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\File\Exception\FileException;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -314,7 +315,11 @@ public function index(
         
             if (($video1File || $video2File || $video3File) && $form->isValid()) {
         
-                $uploadDir = $this->getParameter('kernel.project_dir') . '/public/uploads/videos';
+                $projectDir = $this->getParameter('kernel.project_dir');
+                if (!is_string($projectDir)) {
+                    throw new \RuntimeException('Invalid project directory parameter.');
+                }
+                $uploadDir = $projectDir . '/public/uploads/videos';
         
                 if ($video1File) {
                     $fileName = uniqid().'.'.$video1File->guessExtension();
@@ -334,8 +339,8 @@ public function index(
                     $formation->setVideo3($fileName);
                 }
         
-     $formation->setTitre($badWord->clean($formation->getTitre()));
-    $formation->setDescription($badWord->clean($formation->getDescription()));
+     $formation->setTitre($badWord->clean((string) $formation->getTitre()));
+    $formation->setDescription($badWord->clean((string) $formation->getDescription()));
                 $em->persist($formation);
                 $em->flush();
         
@@ -365,7 +370,7 @@ public function index(
             $em->flush();
         }
         $translated = $translator->translate(
-            $formation->getDescription(),
+            (string) $formation->getDescription(),
             'fr',
             'en'
         );
@@ -405,6 +410,9 @@ public function index(
             $video3File = $form->get('video3File')->getData();
 
             $uploadDir = $this->getParameter('videos_directory');
+            if (!is_string($uploadDir)) {
+                throw new \RuntimeException('Invalid videos directory parameter.');
+            }
 
             if ($video1File) {
                 $newFilename = $this->uploadVideo($video1File, $slugger, $uploadDir);
@@ -445,7 +453,7 @@ public function index(
         return $this->redirectToRoute('app_formation_index', [], Response::HTTP_SEE_OTHER);
     }
 
-    private function uploadVideo($videoFile, SluggerInterface $slugger, string $uploadDir): string
+    private function uploadVideo(UploadedFile $videoFile, SluggerInterface $slugger, string $uploadDir): string
     {
         $originalFilename = pathinfo($videoFile->getClientOriginalName(), PATHINFO_FILENAME);
         $safeFilename = $slugger->slug($originalFilename);
@@ -501,9 +509,9 @@ public function index(
         $lang = $request->query->get('lang', 'en');
     
         $translated = $translator->translate(
-            $formation->getDescription(),
+            (string) $formation->getDescription(),
             'fr',
-            $lang
+            is_string($lang) ? $lang : 'en'
         );
     
         return new JsonResponse([
@@ -529,7 +537,7 @@ public function apiFormations(Request $request, FormationRepository $repo): Json
 
     $qb = $repo->createQueryBuilder('f');
 
-    if (!empty($q)) {
+    if (is_string($q) && $q !== '') {
         $qb->andWhere('f.titre LIKE :q OR f.description LIKE :q')
            ->setParameter('q', '%' . $q . '%');
     }

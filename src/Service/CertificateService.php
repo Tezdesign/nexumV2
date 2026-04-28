@@ -3,10 +3,12 @@
 namespace App\Service;
 
 use Dompdf\Dompdf;
+use App\Entity\UserHandling\Utilisateur;
+use App\Entity\Formation;
 
 class CertificateService
 {
-    public function generate($user, $formation, ?string $qrPath = null): string
+    public function generate(Utilisateur $user, Formation $formation, ?string $qrPath = null): string
     {
         $dompdf = new Dompdf();
 
@@ -24,7 +26,10 @@ class CertificateService
             $fullPath = __DIR__ . '/../../public/' . $qrPath;
 
             if (file_exists($fullPath)) {
-                $qrBase64 = base64_encode(file_get_contents($fullPath));
+                $content = @file_get_contents($fullPath);
+                if ($content !== false) {
+                    $qrBase64 = base64_encode($content);
+                }
             }
         }
 

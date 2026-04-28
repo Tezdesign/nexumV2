@@ -33,6 +33,9 @@ final class TaskBoard
     #[LiveProp]
     public bool $canCreateTask = false;
 
+    /**
+     * @var array<string, mixed>|null
+     */
     private ?array $boardData = null;
 
     public function __construct(
@@ -114,6 +117,9 @@ final class TaskBoard
         return $this->urlGenerator->generate('app_task_index', $params);
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     private function getBoardData(): array
     {
         if ($this->boardData !== null) {

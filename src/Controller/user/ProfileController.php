@@ -65,7 +65,7 @@ class ProfileController extends AbstractController
                 $this->addFlash('error', 'First name, last name, and email are required.');
             } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 $this->addFlash('error', 'Please enter a valid email address.');
-            } elseif ($this->utilisateurRepository->existsOtherUserWithEmail($email, $utilisateur->getId())) {
+            } elseif ($utilisateur->getId() !== null && $this->utilisateurRepository->existsOtherUserWithEmail($email, $utilisateur->getId())) {
                 $this->addFlash('error', 'This email address is already used by another account.');
             } elseif ($newPassword !== '' && $newPassword !== $confirmPassword) {
                 $this->addFlash('error', 'The new password and confirmation do not match.');
@@ -126,8 +126,8 @@ class ProfileController extends AbstractController
             return $this->redirect('/images/users/avatar-1.jpg');
         }
 
-        $binary = \is_resource($blob) ? stream_get_contents($blob) : $blob;
-        if ($binary === false || $binary === '') {
+        $binary = $blob;
+        if ($binary === '') {
             return $this->redirect('/images/users/avatar-1.jpg');
         }
 

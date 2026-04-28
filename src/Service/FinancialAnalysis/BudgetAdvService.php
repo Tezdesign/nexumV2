@@ -2,20 +2,13 @@
 namespace App\Service\FinancialAnalysis;
 
 use App\Entity\FinancialAnalysis\ExpenseDraft;
-use App\Entity\FinancialAnalysis\Transaction;
-use App\Repository\FinancialAnalysis\BudgetProfileRepository;
 use App\Repository\FinancialAnalysis\ExpenseDraftRepository;
-use App\Repository\FinancialAnalysis\ProjectBudgetRepository;
 use App\Repository\FinancialAnalysis\TransactionRepository;
-use App\Repository\Projects\ProjectRepository;
 use MathPHP\Statistics\Average;
 use MathPHP\Statistics\Descriptive;
-use PhpParser\Node\Expr\Array_;
 
 class BudgetAdvService{
     public function __construct(
-        private ProjectBudgetRepository $projectBudgetRepository,
-        private BudgetProfileRepository $budgetProfileRepository,
         private TransactionRepository $transactionRepository,
         private ExpenseDraftRepository $expenseDraftRepository,
         private DraftNotificationService $notificationService){
@@ -23,18 +16,30 @@ class BudgetAdvService{
 
     }
 
-    public function returnCostArrayFromTransactions(array $transactions)
+    /**
+     * @param array<int, \App\Entity\FinancialAnalysis\Transaction> $transactions
+     * @return array<int, float>
+     */
+    public function returnCostArrayFromTransactions(array $transactions): array
     {
         $costArray = [];
         foreach ($transactions as $transaction) {
-            $costArray[] = $transaction->getCost();
+            $costArray[] = (float) $transaction->getCost();
         }
 
         return $costArray;
     }
-    public function getZscoreForDraft(ExpenseDraft $expenseDraft){
+    /**
+     * @return array<string, mixed>
+     */
+    public function getZscoreForDraft(ExpenseDraft $expenseDraft): array
+    {
 
         $Ref = $expenseDraft->getProjectBudgetRelated();
+        if (!$Ref || $Ref->getId() === null) {
+            return ['status' => 'Pass', 'z_score' => null, 'reason' => 'No project budget baseline'];
+        }
+
         $Sample=$this->transactionRepository->getTransactionsBasedonPB($Ref->getId());
         $costArray = $this->returnCostArrayFromTransactions($Sample);
         $n=count($Sample);
@@ -85,9 +90,20 @@ class BudgetAdvService{
     }
 
 
-    public function compareAgainstPB(ExpenseDraft $expenseDraft)
+    /**
+     * @return array<string, mixed>
+     */
+    public function compareAgainstPB(ExpenseDraft $expenseDraft): array
     {
         $projectbudget = $expenseDraft->getProjectBudgetRelated();
+        if (!$projectbudget) {
+            return [
+                'status' => 'Rejected',
+                'reason_code' => 'MISSING_PROJECT_BUDGET',
+                'message' => 'Draft has no related project budget.'
+            ];
+        }
+
         $totalBudget = (float) $projectbudget->getTotalBudget();
         $actualSpend = (float) $projectbudget->getActualSpend();
         $remaining = $totalBudget - $actualSpend;
@@ -134,9 +150,20 @@ class BudgetAdvService{
         ];
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function detectDuplicateDraft(ExpenseDraft $expenseDraft): array
     {
         $budget = $expenseDraft->getProjectBudgetRelated();
+        if (!$budget || $budget->getId() === null) {
+            return [
+                'status' => 'Pass',
+                'reason_code' => 'NO_PROJECT_BUDGET',
+                'message' => 'No related project budget for duplicate detection.'
+            ];
+        }
+
         $amount = (float) $expenseDraft->getAmount();
 
         // Check for duplicates, but exclude the current draft if it's already saved (e.g. during an update)

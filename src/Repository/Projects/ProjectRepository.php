@@ -41,7 +41,7 @@ class ProjectRepository extends ServiceEntityRepository
      */
     public function findIndexedByIds(array $ids): array
     {
-        $ids = array_values(array_unique(array_map('intval', array_filter($ids, static fn ($v) => $v !== null))));
+        $ids = array_values(array_unique(array_map('intval', $ids)));
         if ($ids === []) {
             return [];
         }

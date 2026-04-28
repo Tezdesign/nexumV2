@@ -91,6 +91,10 @@ final class LmStudioService
         }
     }
 
+    /**
+     * @param array<string, mixed> $projet
+     * @param array<int, array<string, mixed>> $taches
+     */
     public function genererRapport(array $projet, array $taches): string
     {
         $this->disableExecutionTimeLimit();
@@ -110,6 +114,10 @@ final class LmStudioService
         return $rapport;
     }
 
+    /**
+     * @param array<string, mixed> $projet
+     * @param array<int, array<string, mixed>> $taches
+     */
     public function streamerRapport(array $projet, array $taches): StreamedResponse
     {
         $payload = $this->buildPayload($projet, $taches, true);
@@ -181,6 +189,9 @@ final class LmStudioService
         }
     }
 
+    /**
+     * @param array<string, mixed> $payload
+     */
     private function buildPythonProcess(array $payload, bool $stream): Process
     {
         $command = ['python', $this->projectDir . '/scripts/generate_rapport.py'];        if ($stream) {
@@ -252,6 +263,11 @@ final class LmStudioService
         return 'Impossible de contacter LM Studio pour generer le rapport.';
     }
 
+    /**
+     * @param array<string, mixed> $projet
+     * @param array<int, array<string, mixed>> $taches
+     * @return array<string, mixed>
+     */
     private function buildPayload(array $projet, array $taches, bool $stream): array
     {
         return [
@@ -263,6 +279,8 @@ final class LmStudioService
     }
 
     /**
+     * @param array<string, mixed> $projet
+     * @param array<int, array<string, mixed>> $taches
      * @return array<int, array{role: string, content: string}>
      */
     private function buildPrompt(array $projet, array $taches): array

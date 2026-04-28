@@ -12,6 +12,9 @@ class RequestPdfService
     {
     }
 
+    /**
+     * @param array<string, mixed> $data
+     */
     public function generate(array $data): string
     {
         $options = new Options();
@@ -26,6 +29,6 @@ class RequestPdfService
         $dompdf->setPaper('A4');
         $dompdf->render();
 
-        return $dompdf->output();
+        return (string) $dompdf->output();
     }
 }

@@ -12,6 +12,9 @@ class InfobipSmsService
         private string $sender
     ) {}
 
+    /**
+     * @return array{statusCode: int, body: string}
+     */
     public function sendSms(string $to, string $message): array
     {
         $response = $this->client->request('POST', rtrim($this->baseUrl, '/') . '/sms/3/messages', [

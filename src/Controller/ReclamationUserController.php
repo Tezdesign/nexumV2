@@ -101,7 +101,7 @@ class ReclamationUserController extends AbstractController
         $this->entityManager->flush();
 
         // Log reclamation creation
-        $this->historyService->logActivity($rec->getIdRec(), 'create', [
+        $this->historyService->logActivity((int) $rec->getIdRec(), 'create', [
             'titre' => $rec->getTitre(),
             'categorie' => $rec->getCategorie(),
             'projet' => $rec->getProjet(),
@@ -173,7 +173,7 @@ class ReclamationUserController extends AbstractController
         }
 
         // Log reclamation deletion before removing
-        $this->historyService->logActivity($rec->getIdRec(), 'delete', [
+        $this->historyService->logActivity((int) $rec->getIdRec(), 'delete', [
             'titre' => $rec->getTitre(),
             'categorie' => $rec->getCategorie(),
             'statut' => $rec->getStatut()
@@ -189,9 +189,6 @@ class ReclamationUserController extends AbstractController
     private function attachmentResponse(Reclamation $rec): Response
     {
         $data = $rec->getFichier();
-        if (\is_resource($data)) {
-            $data = stream_get_contents($data) ?: '';
-        }
         if (!\is_string($data) || $data === '') {
             throw $this->createNotFoundException('No attachment.');
         }

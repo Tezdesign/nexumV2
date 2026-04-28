@@ -82,7 +82,8 @@ class MessageAttachmentController extends AbstractController
 					], 422);
 				}
 
-				if ($file->getSize() !== null && $file->getSize() > MessageAttachment::MAX_FILE_SIZE_BYTES) {
+				$uploadedSize = $file->getSize();
+				if ($uploadedSize !== false && $uploadedSize > MessageAttachment::MAX_FILE_SIZE_BYTES) {
 					return $this->json([
 						'success' => false,
 						'error' => 'File is too big. Maximum size is 30 MB.',
@@ -107,10 +108,10 @@ class MessageAttachmentController extends AbstractController
 					], 422);
 				}
 
-				$fileSize = (int) ($file->getSize() ?? 0);
+				$fileSize = $uploadedSize !== false ? $uploadedSize : 0;
 				if ($fileSize <= 0) {
 					$stats = @fstat($fileStream);
-					$fileSize = is_array($stats) && isset($stats['size']) ? (int) $stats['size'] : 0;
+					$fileSize = is_array($stats) ? (int) $stats['size'] : 0;
 				}
 
 				$message = new Message();
@@ -426,16 +427,13 @@ class MessageAttachmentController extends AbstractController
 			throw new InvalidArgumentException('Could not download GIF.');
 		}
 
-		$mimeType = $this->extractResponseMimeType($http_response_header ?? []) ?: 'image/gif';
+		$mimeType = $this->extractResponseMimeType($http_response_header) ?: 'image/gif';
 		if (!str_starts_with($mimeType, 'image/')) {
 			$mimeType = 'image/gif';
 		}
 
 		$fileName = $this->buildGifAttachmentFileName($gifUrl);
 		$fileSize = strlen($binary);
-		if ($fileSize <= 0) {
-			throw new InvalidArgumentException('Could not download GIF.');
-		}
 
 		return [$binary, $mimeType, $fileName, $fileSize];
 	}
@@ -457,10 +455,6 @@ class MessageAttachmentController extends AbstractController
 	private function extractResponseMimeType(array $headers): ?string
 	{
 		foreach ($headers as $header) {
-			if (!is_string($header)) {
-				continue;
-			}
-
 			if (stripos($header, 'Content-Type:') !== 0) {
 				continue;
 			}
@@ -744,7 +738,7 @@ class MessageAttachmentController extends AbstractController
 
 		if (is_resource($binary)) {
 			$stats = fstat($binary);
-			return is_array($stats) && isset($stats['size']) ? (int) $stats['size'] : 0;
+			return is_array($stats) ? (int) $stats['size'] : 0;
 		}
 
 		return 0;

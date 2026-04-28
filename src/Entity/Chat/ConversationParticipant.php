@@ -206,7 +206,7 @@ class ConversationParticipant
         return $this;
     }
 
-    public function getJoinedAt(): ?\DateTime
+    public function getJoinedAt(): ?\DateTimeInterface
     {
         return $this->joined_at;
     }
@@ -218,7 +218,7 @@ class ConversationParticipant
         return $this;
     }
 
-    public function getLeftAt(): ?\DateTime
+    public function getLeftAt(): ?\DateTimeInterface
     {
         return $this->left_at;
     }

@@ -47,11 +47,13 @@ final class ResourceController extends AbstractController
             // Handle image upload
             $imageFile = $form->get('image_path')->getData();
             if ($imageFile) {
-                $newFilename = uniqid() . '.' . $imageFile->guessExtension();
-                $imageFile->move(
-                    $this->getParameter('kernel.project_dir') . '/public/uploads',
-                    $newFilename
-                );
+                $ext = $imageFile->guessExtension() ?? '';
+                $newFilename = uniqid() . ($ext !== '' ? '.' . $ext : '');
+                $projectDir = $this->getParameter('kernel.project_dir');
+                if (!is_string($projectDir)) {
+                    throw new \RuntimeException('Invalid project directory parameter.');
+                }
+                $imageFile->move($projectDir . '/public/uploads', $newFilename);
                 $resource->setImagePath('uploads/' . $newFilename);
             }
 
@@ -65,7 +67,11 @@ final class ResourceController extends AbstractController
                 // Collect PHP validation errors
                 $errors = [];
                 foreach ($form->getErrors(true) as $error) {
-                    $errors[] = $error->getMessage();
+                    if ($error instanceof \Symfony\Component\Form\FormError) {
+                        $errors[] = $error->getMessage();
+                    } else {
+                        $errors[] = (string) $error;
+                    }
                 }
                 $this->addFlash('danger', implode('<br>', $errors));
             }
@@ -89,17 +95,19 @@ final class ResourceController extends AbstractController
             // Handle image upload
             $imageFile = $form->get('image_path')->getData();
             if ($imageFile) {
-                $newFilename = uniqid() . '.' . $imageFile->guessExtension();
-                $imageFile->move(
-                    $this->getParameter('kernel.project_dir') . '/public/uploads',
-                    $newFilename
-                );
+                $ext = $imageFile->guessExtension() ?? '';
+                $newFilename = uniqid() . ($ext !== '' ? '.' . $ext : '');
+                $projectDir = $this->getParameter('kernel.project_dir');
+                if (!is_string($projectDir)) {
+                    throw new \RuntimeException('Invalid project directory parameter.');
+                }
+                $imageFile->move($projectDir . '/public/uploads', $newFilename);
                 $resource->setImagePath('uploads/' . $newFilename);
             }
 
             if ($form->isValid()) {
                 // Update available quantity based on total_quantity
-                $resource->setAvailableQuantity($resource->getTotalQuantity() ?? $resource->getAvailableQuantity());
+                $resource->setAvailableQuantity((int) ($resource->getTotalQuantity() ?? $resource->getAvailableQuantity()));
 
                 $entityManager->flush();
 
@@ -128,7 +136,7 @@ final class ResourceController extends AbstractController
     #[Route('/{resource_id}', name: 'app_resources_management_resource_delete', methods: ['POST'])]
     public function delete(Request $request, Resource $resource, EntityManagerInterface $entityManager): Response
     {
-        if ($this->isCsrfTokenValid('delete' . $resource->getResourceId(), $request->request->get('_token'))) {
+        if ($this->isCsrfTokenValid('delete' . $resource->getResourceId(), (string) $request->request->get('_token'))) {
             $entityManager->remove($resource);
             $entityManager->flush();
             $this->addFlash('success', 'Resource deleted successfully!');
@@ -190,25 +198,25 @@ public function markReturned(
     $today = new \DateTime();
     $returnDate = $assignment->getReturnDate();
 
-    // 🔥 SCORE CALCULATION
-    if ($today < $returnDate) {
-        $user->setScore($user->getScore() + 20);
-    } 
-    elseif ($today->format('Y-m-d') === $returnDate->format('Y-m-d')) {
-        $user->setScore($user->getScore() + 10);
-    } 
-    else {
-        $diff = $today->diff($returnDate)->days;
-        $penalty = $diff * 10;
+    // 🔥 SCORE CALCULATION (only if user and return date exist)
+    if ($user instanceof \App\Entity\UserHandling\Utilisateur && $returnDate instanceof \DateTimeInterface) {
+        if ($today < $returnDate) {
+            $user->setScore($user->getScore() + 20);
+        } elseif ($today->format('Y-m-d') === $returnDate->format('Y-m-d')) {
+            $user->setScore($user->getScore() + 10);
+        } else {
+            $diff = $today->diff($returnDate)->days;
+            $penalty = $diff * 10;
 
-        $newScore = $user->getScore() - $penalty;
+            $newScore = $user->getScore() - $penalty;
 
-        // prevent negative score
-        if ($newScore < 0) {
-            $newScore = 0;
+            // prevent negative score
+            if ($newScore < 0) {
+                $newScore = 0;
+            }
+
+            $user->setScore($newScore);
         }
-
-        $user->setScore($newScore);
     }
 
     // ✅ mark returned
@@ -328,10 +336,12 @@ public function calendarEvents(ResourceAssignmentRepository $repo): Response
         // 🎯 COLOR LOGIC
         $color = '#28a745'; // green default
 
-        if ($a->getReturnDate() < $today) {
+        $returnDateObj = $a->getReturnDate();
+        if ($returnDateObj instanceof \DateTimeInterface && $returnDateObj < $today) {
             $color = '#dc3545'; // red (late)
-        } elseif ($a->getReturnDate()->format('Y-m-d') === $today->format('Y-m-d') ||
-                  $a->getReturnDate()->diff($today)->days == 1) {
+        } elseif ($returnDateObj instanceof \DateTimeInterface && (
+                  $returnDateObj->format('Y-m-d') === $today->format('Y-m-d') ||
+                  $returnDateObj->diff($today)->days == 1)) {
             $color = '#fd7e14'; // orange (today or next day)
         }
 
@@ -399,6 +409,9 @@ foreach ($assignments as $a) {
 }
 
     $projectDir = $this->getParameter('kernel.project_dir');
+    if (!is_string($projectDir)) {
+        throw new \RuntimeException('Invalid project directory parameter.');
+    }
     $script = $projectDir . '/python/forecast.py';
 
     $json = json_encode($data);
@@ -415,7 +428,7 @@ foreach ($assignments as $a) {
     $output = "0";
 
     if (is_resource($process)) {
-        fwrite($pipes[0], $json);
+        fwrite($pipes[0], $json ?: '[]');
         fclose($pipes[0]);
 
         $output = stream_get_contents($pipes[1]);
@@ -439,14 +452,19 @@ foreach ($assignments as $a) {
     ]);
 }
 
+/**
+ * @return array<int, array<string, mixed>>
+ */
 private function buildPredictionDataset(
     ResourceAssignmentRepository $repo,
     ResourceRepository $resourceRepository
 ): array
 {
+    /** @var array<int, \App\Entity\ResourcesManagement\Resource> $resourceMap */
     $resourceMap = [];
 
     foreach ($resourceRepository->findAll() as $resource) {
+        /** @var \App\Entity\ResourcesManagement\Resource $resource */
         $resourceMap[$resource->getResourceId()] = $resource;
     }
 
@@ -457,6 +475,7 @@ private function buildPredictionDataset(
             continue;
         }
 
+        /** @var \App\Entity\ResourcesManagement\Resource|null $resource */
         $resource = $resourceMap[$assignment->getResourceId()] ?? null;
 
         if (!$resource) {
@@ -475,6 +494,9 @@ private function buildPredictionDataset(
     return $data;
 }
 
+/**
+ * @param array<int, array<string, mixed>> $data
+ */
 private function runForecast(array $data): float
 {
     if ($data === []) {
@@ -488,6 +510,9 @@ private function runForecast(array $data): float
     }
 
     $projectDir = $this->getParameter('kernel.project_dir');
+    if (!is_string($projectDir)) {
+        return 0.0;
+    }
     $script = $projectDir . '/python/forecast.py';
     $descriptorspec = [
         0 => ['pipe', 'r'],

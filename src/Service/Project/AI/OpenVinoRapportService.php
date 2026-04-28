@@ -46,6 +46,10 @@ final class OpenVinoRapportService
         ];
     }
 
+    /**
+     * @param array<string, mixed> $projet
+     * @param array<int, array<string, mixed>> $taches
+     */
     public function genererRapport(array $projet, array $taches): string
     {
         $this->disableExecutionTimeLimit();
@@ -65,6 +69,10 @@ final class OpenVinoRapportService
         return $rapport;
     }
 
+    /**
+     * @param array<string, mixed> $projet
+     * @param array<int, array<string, mixed>> $taches
+     */
     public function streamerRapport(array $projet, array $taches): StreamedResponse
     {
         $payload = $this->buildPayload($projet, $taches);
@@ -136,6 +144,9 @@ final class OpenVinoRapportService
         }
     }
 
+    /**
+     * @param array<string, mixed> $payload
+     */
     private function buildPythonProcess(array $payload, bool $stream): Process
     {
         $command = ['python3', $this->projectDir . '/scripts/generate_rapport_openvino.py'];
@@ -155,6 +166,11 @@ final class OpenVinoRapportService
         return $process;
     }
 
+    /**
+     * @param array<string, mixed> $projet
+     * @param array<int, array<string, mixed>> $taches
+     * @return array<string, mixed>
+     */
     private function buildPayload(array $projet, array $taches): array
     {
         return [
@@ -163,6 +179,10 @@ final class OpenVinoRapportService
         ];
     }
 
+    /**
+     * @param array<string, mixed> $projet
+     * @param array<int, array<string, mixed>> $taches
+     */
     private function buildTextPrompt(array $projet, array $taches): string
     {
         $projectLines = [

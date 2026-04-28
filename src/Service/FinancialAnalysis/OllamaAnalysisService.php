@@ -36,11 +36,13 @@ class OllamaAnalysisService
 
             $data = $response->toArray();
 
-            return $data['response'] ?? '{"error": "Analysis generation failed: No response from model."}';
+            return is_string($data['response'] ?? null) ? $data['response'] : '{"error": "Analysis generation failed: No response from model."}';
         } catch (TransportExceptionInterface $e) {
-            return json_encode(["error" => "Error connecting to local Ollama instance at " . self::OLLAMA_URL . ".\nPlease ensure Ollama is running locally and you have pulled the model (`ollama run " . self::MODEL_NAME . "`)."]);
+            $encoded = json_encode(["error" => "Error connecting to local Ollama instance at " . self::OLLAMA_URL . ".\nPlease ensure Ollama is running locally and you have pulled the model (`ollama run " . self::MODEL_NAME . "`)."]);
+            return is_string($encoded) ? $encoded : '{"error":"Ollama connection failed"}';
         } catch (\Exception $e) {
-            return json_encode(["error" => "An unexpected error occurred during analysis: " . $e->getMessage()]);
+            $encoded = json_encode(["error" => "An unexpected error occurred during analysis: " . $e->getMessage()]);
+            return is_string($encoded) ? $encoded : '{"error":"Analysis failed"}';
         }
     }
 
@@ -48,7 +50,7 @@ class OllamaAnalysisService
     {
         $totalBudget = $budget->getTotalBudget();
         $actualSpend = $budget->getActualSpend();
-        $remaining = $totalBudget - $actualSpend;
+        $remaining = (float) $totalBudget - (float) $actualSpend;
         $status = $budget->getStatus();
         
         $transactions = $budget->getTransactions()->toArray();

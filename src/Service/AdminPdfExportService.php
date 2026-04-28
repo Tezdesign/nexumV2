@@ -32,10 +32,11 @@ class AdminPdfExportService
         $dompdf->render();
 
         $safeName = preg_replace('/[^a-zA-Z0-9._-]+/', '-', $downloadFilename);
+        $safeName = (string) $safeName;
         if ($safeName === '' || $safeName === '-') {
             $safeName = 'export.pdf';
         }
-        if (!str_ends_with(strtolower($safeName), '.pdf')) {
+        if (!str_ends_with(strtolower((string) $safeName), '.pdf')) {
             $safeName .= '.pdf';
         }
 

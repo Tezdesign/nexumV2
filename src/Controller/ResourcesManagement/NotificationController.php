@@ -51,8 +51,8 @@ class NotificationController extends AbstractController
                 "Reminder: Your resource #$resourceId is OVERDUE. Please return it ASAP."
             );
 
-            $statusCode = (int) ($result['statusCode'] ?? 0);
-            $rawBody = (string) ($result['body'] ?? '');
+            $statusCode = $result['statusCode'];
+            $rawBody = $result['body'];
             $body = json_decode($rawBody, true);
 
             if ($statusCode >= 200 && $statusCode < 300) {
@@ -61,7 +61,6 @@ class NotificationController extends AbstractController
                 $errorText = $body['requestError']['serviceException']['text']
                     ?? $body['requestError']['text']
                     ?? $body['error']['message']
-                    ?? $rawBody
                     ?? 'Unknown Infobip error.';
 
                 $this->addFlash('danger', 'SMS failed: ' . $errorText);

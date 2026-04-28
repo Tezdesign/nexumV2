@@ -19,6 +19,10 @@ class AIAuditService
     /**
      * Generate AI insights for user audit
      */
+    /**
+     * @param array<string,mixed> $userData
+     * @return array<string,mixed>
+     */
     public function generateUserAuditInsights(array $userData): array
     {
         $prompt = $this->buildUserAuditPrompt($userData);
@@ -36,6 +40,10 @@ class AIAuditService
 
     /**
      * Generate AI insights for reclamation audit
+     */
+    /**
+     * @param array<string,mixed> $reclamationData
+     * @return array<string,mixed>
      */
     public function generateReclamationAuditInsights(array $reclamationData): array
     {
@@ -55,6 +63,10 @@ class AIAuditService
     /**
      * Detect anomalies using AI
      */
+    /**
+     * @param array<string,mixed> $systemData
+     * @return array<string,mixed>
+     */
     public function detectAnomalies(array $systemData): array
     {
         $prompt = $this->buildAnomalyDetectionPrompt($systemData);
@@ -73,6 +85,10 @@ class AIAuditService
     /**
      * Generate summary statistics with AI analysis
      */
+    /**
+     * @param array<string,mixed> $stats
+     * @return array<string,mixed>
+     */
     public function generateAISummary(array $stats): array
     {
         $prompt = $this->buildSummaryPrompt($stats);
@@ -90,7 +106,8 @@ class AIAuditService
 
     private function callAI(string $prompt): string
     {
-        $process = new Process(['python', $this->pythonScriptPath]);
+        // ensure project root is used as working directory so static analysis sees $projectRoot used
+        $process = new Process(['python', $this->pythonScriptPath], $this->projectRoot);
         $process->setInput($prompt);
         $process->setTimeout(30); // 30 second timeout
         
@@ -107,6 +124,9 @@ class AIAuditService
         }
     }
 
+    /**
+     * @param array<string,mixed> $userData
+     */
     private function buildUserAuditPrompt(array $userData): string
     {
         $totalUsers = $userData['total_users'];
@@ -135,6 +155,9 @@ Provide analysis specific to these metrics, not generic statements.
 Format as JSON: {\"observations\": [\"specific data points\"], \"concerns\": [\"specific issues\"], \"recommendations\": [\"data-driven actions\"], \"risk_level\": \"low/medium/high\"}";
     }
 
+    /**
+     * @param array<string,mixed> $reclamationData
+     */
     private function buildReclamationAuditPrompt(array $reclamationData): string
     {
         $total = $reclamationData['total_reclamations'];
@@ -163,6 +186,9 @@ Provide analysis specific to these percentages and numbers, not generic statemen
 Format as JSON: {\"patterns\": [\"specific data patterns\"], \"response_assessment\": \"specific assessment\", \"efficiency\": \"specific efficiency analysis\", \"recommendations\": [\"data-driven actions\"]}";
     }
 
+    /**
+     * @param array<string,mixed> $systemData
+     */
     private function buildAnomalyDetectionPrompt(array $systemData): string
     {
         return "As an AI security auditor, analyze the following system metrics for anomalies:
@@ -181,6 +207,9 @@ Please identify:
 Format your response as JSON with keys: anomalies, security_concerns, performance_issues, recommendations";
     }
 
+    /**
+     * @param array<string,mixed> $stats
+     */
     private function buildSummaryPrompt(array $stats): string
     {
         $users = $stats['users'] ?? [];
@@ -218,15 +247,15 @@ Focus analysis on these actual numbers, not generic statements.
 Format as JSON: {\"health_assessment\": \"specific assessment\", \"metrics_summary\": [\"specific metrics\"], \"trend_analysis\": [\"specific trends\"], \"action_items\": [\"specific actions\"]}";
     }
 
+    /**
+     * @param string $response
+     * @return array<string,mixed>
+     */
     private function parseAIResponse(string $response): array
     {
-        try {
-            $data = json_decode($response, true);
-            if (json_last_error() === JSON_ERROR_NONE) {
-                return $data;
-            }
-        } catch (\Exception $e) {
-            // Fall through to text parsing
+        $data = json_decode($response, true);
+        if (json_last_error() === JSON_ERROR_NONE && is_array($data)) {
+            return $data;
         }
         
         // Fallback: parse text response
@@ -236,6 +265,10 @@ Format as JSON: {\"health_assessment\": \"specific assessment\", \"metrics_summa
         ];
     }
 
+    /**
+     * @param string $response
+     * @return array<string,mixed>
+     */
     private function parseAnomalies(string $response): array
     {
         $parsed = $this->parseAIResponse($response);
@@ -247,6 +280,10 @@ Format as JSON: {\"health_assessment\": \"specific assessment\", \"metrics_summa
         ];
     }
 
+    /**
+     * @param string $response
+     * @return array<string,mixed>
+     */
     private function parseSummary(string $response): array
     {
         $parsed = $this->parseAIResponse($response);
@@ -258,6 +295,10 @@ Format as JSON: {\"health_assessment\": \"specific assessment\", \"metrics_summa
         ];
     }
 
+    /**
+     * @param string $text
+     * @return array<string,mixed>
+     */
     private function extractInsightsFromText(string $text): array
     {
         // Simple text parsing fallback
@@ -268,6 +309,10 @@ Format as JSON: {\"health_assessment\": \"specific assessment\", \"metrics_summa
     }
 
     // Fallback methods when AI is unavailable
+    /**
+     * @param array<string,mixed> $userData
+     * @return array<string,mixed>
+     */
     private function getFallbackUserInsights(array $userData): array
     {
         return [
@@ -281,6 +326,10 @@ Format as JSON: {\"health_assessment\": \"specific assessment\", \"metrics_summa
         ];
     }
 
+    /**
+     * @param array<string,mixed> $reclamationData
+     * @return array<string,mixed>
+     */
     private function getFallbackReclamationInsights(array $reclamationData): array
     {
         return [
@@ -291,6 +340,10 @@ Format as JSON: {\"health_assessment\": \"specific assessment\", \"metrics_summa
         ];
     }
 
+    /**
+     * @param array<string,mixed> $systemData
+     * @return array<string,mixed>
+     */
     private function getFallbackAnomalies(array $systemData): array
     {
         return [
@@ -301,6 +354,10 @@ Format as JSON: {\"health_assessment\": \"specific assessment\", \"metrics_summa
         ];
     }
 
+    /**
+     * @param array<string,mixed> $stats
+     * @return array<string,mixed>
+     */
     private function getFallbackSummary(array $stats): array
     {
         return [

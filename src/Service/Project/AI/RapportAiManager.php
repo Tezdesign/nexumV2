@@ -13,11 +13,19 @@ final class RapportAiManager
     ) {
     }
 
+    /**
+     * @param array<string, mixed> $projet
+     * @param array<int, array<string, mixed>> $taches
+     */
     public function genererRapport(array $projet, array $taches): string
     {
         return $this->resolveBackend()->genererRapport($projet, $taches);
     }
 
+    /**
+     * @param array<string, mixed> $projet
+     * @param array<int, array<string, mixed>> $taches
+     */
     public function streamerRapport(array $projet, array $taches): StreamedResponse
     {
         return $this->resolveBackend()->streamerRapport($projet, $taches);

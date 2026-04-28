@@ -227,7 +227,8 @@ class UserManagementController extends AbstractController
                     ]);
             }
 
-            if ($this->utilisateurRepository->existsOtherUserWithEmail($email, $utilisateur->getId())) {
+            $utilisateurId = $utilisateur->getId();
+            if ($utilisateurId !== null && $this->utilisateurRepository->existsOtherUserWithEmail($email, $utilisateurId)) {
                 $this->addFlash('error', 'This email is already used by another account.');
 
                 return $modal

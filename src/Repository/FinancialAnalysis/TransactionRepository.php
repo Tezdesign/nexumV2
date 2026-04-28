@@ -37,6 +37,9 @@ class TransactionRepository extends ServiceEntityRepository
         return $result ? (float) $result : 0.0;
     }
 
+    /**
+     * @return array<int, Transaction>
+     */
     public function getTransactionsBasedonPB(int $projectBudgetId): array
     {
         return $this->createQueryBuilder('t')
@@ -49,6 +52,9 @@ class TransactionRepository extends ServiceEntityRepository
 
     }
 
+    /**
+     * @return array<int, Transaction>
+     */
     public function searchByReferenceOrDescriptionDql(int $projectBudgetId, string $searchTerm): array
     {
         return $this->createQueryBuilder('t')
@@ -81,6 +87,9 @@ class TransactionRepository extends ServiceEntityRepository
             ->execute();
     }
 
+    /**
+     * @param array<int, int|string> $ids
+     */
     public function bulkDeleteDql(array $ids): void
     {
         $this->createQueryBuilder('t')
@@ -117,6 +126,8 @@ class TransactionRepository extends ServiceEntityRepository
 
     /**
      * Aggregates transaction count and volume by month for a project.
+     *
+     * @return array{months: array<int, mixed>, counts: array<int, int>, volumes: array<int, float>}
      */
     public function getMonthlyAggregation(int $projectBudgetId): array
     {
@@ -150,6 +161,8 @@ class TransactionRepository extends ServiceEntityRepository
 
     /**
      * Aggregates transaction counts by category for a project.
+     *
+     * @return array{labels: array<int, mixed>, counts: array<int, int>}
      */
     public function getCategoryAggregation(int $projectBudgetId): array
     {

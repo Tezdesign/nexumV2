@@ -23,6 +23,9 @@ class ConversationSidebarProvider
     ) {
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function getSidebarData(int $requestedUserId): array
     {
         $currentUser = $this->utilisateurRepository->find($requestedUserId);
@@ -36,6 +39,9 @@ class ConversationSidebarProvider
         ];
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     private function emptyCurrentUser(): array
     {
         return [
@@ -46,6 +52,9 @@ class ConversationSidebarProvider
         ];
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     private function formatCurrentUser(?Utilisateur $user): array
     {
         if ($user === null) {
@@ -63,7 +72,8 @@ class ConversationSidebarProvider
     }
 
     /**
-     * @param int[] $conversationIds
+     * @param array<int, int> $conversationIds
+     * @return array<int, array<string, mixed>>
      */
     private function formatConversations(array $conversationIds, int $userId): array
     {
@@ -105,6 +115,9 @@ class ConversationSidebarProvider
         return $items;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     private function formatConversation(Conversation $conversation, int $userId, ?Message $latestMessage, ?ConversationParticipant $participant): array
     {
         if ($this->isDirectConversation($conversation)) {
@@ -139,6 +152,9 @@ class ConversationSidebarProvider
         return $conversation->getDmKey() !== null;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     private function formatDirectConversation(Conversation $conversation, int $userId, ?Message $latestMessage, ?ConversationParticipant $participant): array
     {
         $other = $this->participantRepository->findOtherParticipant((int) $conversation->getId(), $userId);

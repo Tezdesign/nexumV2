@@ -6,7 +6,6 @@ use App\Entity\UserHandling\Utilisateur;
 use App\Repository\UserHandling\UtilisateurRepository;
 use Symfony\Component\HttpFoundation\Session\SessionInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
-use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 
@@ -17,7 +16,6 @@ class AuthService
     public function __construct(
         private readonly UtilisateurRepository $utilisateurRepository,
         private readonly RequestStack $requestStack,
-        private readonly UserPasswordHasherInterface $passwordHasher,
         private readonly TokenStorageInterface $tokenStorage,
     ) {
     }
@@ -50,7 +48,8 @@ class AuthService
     {
         try {
             // Vérifier si l'email existe déjà
-            if ($this->utilisateurRepository->findByEmail($utilisateur->getEmail())) {
+            $email = $utilisateur->getEmail();
+            if ($email === null || $this->utilisateurRepository->findByEmail($email)) {
                 return false;
             }
 
@@ -96,6 +95,9 @@ class AuthService
         return $session !== null && $session->has('user');
     }
 
+    /**
+     * @return array<string, mixed>|null
+     */
     public function getCurrentUser(): ?array
     {
         $session = $this->session();
