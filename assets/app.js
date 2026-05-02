@@ -8,3 +8,13 @@ import './bootstrap.js';
 import './styles/app.css';
 
 console.log('This log comes from assets/app.js - welcome to AssetMapper! 🎉');
+
+/*
+// ==========================================
+// GLOBALLY DISABLE TURBO
+// Uncomment the following lines to completely disable Turbo Drive 
+// across the entire application and force traditional page reloads.
+// ==========================================
+import * as Turbo from '@hotwired/turbo';
+Turbo.session.drive = false;
+*/
