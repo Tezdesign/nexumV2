@@ -1091,8 +1091,8 @@ final class ProjectController extends AbstractController
             }
 
             $session = $request->getSession();
-            $session->getFlashBag()->add('draft_errors_' . $draft->getId(), $errorMap);
-            $session->getFlashBag()->add('draft_data_' . $draft->getId(), $data);
+            $this->addFlash('draft_errors_' . $draft->getId(), $errorMap);
+            $this->addFlash('draft_data_' . $draft->getId(), $data);
 
             return $this->redirectToRoute('app_project_show', ['id' => $pid, 'tab' => 'drafts']);
         }

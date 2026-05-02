@@ -27,7 +27,7 @@
 {% endblock %}
 
 {% block content %}
-    <div class="container-fluid pt-4">
+    <div class="container-fluid pt-4" data-turbo="false">
         <!-- Flash Messages -->
         {% for label, messages in app.flashes %}
             {% for message in messages %}

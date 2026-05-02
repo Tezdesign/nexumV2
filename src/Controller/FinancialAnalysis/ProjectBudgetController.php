@@ -29,11 +29,18 @@ final class ProjectBudgetController extends AbstractController
         $form = $this->createForm(ProjectBudgetType::class, $projectBudget);
         $form->handleRequest($request);
 
-        if ($form->isSubmitted() && $form->isValid()) {
-            $entityManager->persist($projectBudget);
-            $entityManager->flush();
+        if ($form->isSubmitted()) {
+            if ($form->isValid()) {
+                $entityManager->persist($projectBudget);
+                $entityManager->flush();
+                $this->addFlash('success', 'Project budget created successfully.');
 
-            return $this->redirectToRoute('app_financial_analysis_project_budget_index', [], Response::HTTP_SEE_OTHER);
+                return $this->redirectToRoute('app_financial_analysis_project_budget_index', [], Response::HTTP_SEE_OTHER);
+            }
+
+            foreach ($form->getErrors(true) as $error) {
+                $this->addFlash('error', $error->getMessage());
+            }
         }
 
         return $this->render('financial-analysis/project_budget/new.html.twig', [
@@ -56,10 +63,17 @@ final class ProjectBudgetController extends AbstractController
         $form = $this->createForm(ProjectBudgetType::class, $projectBudget);
         $form->handleRequest($request);
 
-        if ($form->isSubmitted() && $form->isValid()) {
-            $entityManager->flush();
+        if ($form->isSubmitted()) {
+            if ($form->isValid()) {
+                $entityManager->flush();
+                $this->addFlash('success', 'Project budget updated successfully.');
 
-            return $this->redirectToRoute('app_financial_analysis_project_budget_index', [], Response::HTTP_SEE_OTHER);
+                return $this->redirectToRoute('app_financial_analysis_project_budget_index', [], Response::HTTP_SEE_OTHER);
+            }
+
+            foreach ($form->getErrors(true) as $error) {
+                $this->addFlash('error', $error->getMessage());
+            }
         }
 
         return $this->render('financial-analysis/project_budget/edit.html.twig', [
@@ -74,6 +88,9 @@ final class ProjectBudgetController extends AbstractController
         if ($this->isCsrfTokenValid('delete'.$projectBudget->getId(), $request->getPayload()->getString('_token'))) {
             $entityManager->remove($projectBudget);
             $entityManager->flush();
+            $this->addFlash('success', 'Project budget deleted successfully.');
+        } else {
+            $this->addFlash('error', 'Invalid CSRF token.');
         }
 
         return $this->redirectToRoute('app_financial_analysis_project_budget_index', [], Response::HTTP_SEE_OTHER);

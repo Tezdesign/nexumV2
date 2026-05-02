@@ -356,11 +356,31 @@ class FinancialDashboardController extends AbstractController
         $transactionForm = $this->createForm(TransactionType::class, $transaction);
         $transactionForm->handleRequest($request);
 
-        if ($transactionForm->isSubmitted() && $transactionForm->isValid()) {
-            $transaction->setProjectBudget($projectBudget);
-            $dashboardService->handleTransactionCascade($projectBudget, $transaction, $profile);
-            $this->addFlash('success', 'Transaction added successfully! Spending updated.');
-            return $this->redirectToRoute('apps-financial-analysis-budget-details', ['id' => $projectBudget->getId(), '_fragment' => 'transactions-tab']);
+        if ($transactionForm->isSubmitted()) {
+            if ($transactionForm->isValid()) {
+                $transaction->setProjectBudget($projectBudget);
+                $dashboardService->handleTransactionCascade($projectBudget, $transaction, $profile);
+                $this->addFlash('success', 'Transaction added successfully! Spending updated.');
+                return $this->redirectToRoute('apps-financial-analysis-budget-details', ['id' => $projectBudget->getId(), '_fragment' => 'transactions-tab']);
+            } else {
+                $this->addFlash('danger', 'Failed to add transaction. Please check the errors in the form.');
+
+                $errors = [];
+                foreach ($transactionForm->getErrors(true) as $error) {
+                    $origin = null;
+                    if ($error instanceof FormError) {
+                        $origin = $error->getOrigin();
+                    }
+                    $name = $origin instanceof FormInterface ? $origin->getName() : 'transaction';
+                    $message = $error instanceof FormError ? $error->getMessage() : (string) $error;
+                    $errors[$name] = $message;
+                }
+
+                $this->addFlash('transaction_errors_new', $errors);
+                $this->addFlash('transaction_data_new', (array) $request->request->all('transaction'));
+                
+                return $this->redirectToRoute('apps-financial-analysis-budget-details', ['id' => $projectBudget->getId(), '_fragment' => 'transactions-tab']);
+            }
         }
 
         $searchTermRaw = $request->query->get('q');

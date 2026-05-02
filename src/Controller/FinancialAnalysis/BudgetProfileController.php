@@ -29,11 +29,18 @@ final class BudgetProfileController extends AbstractController
         $form = $this->createForm(BudgetProfileType::class, $budgetProfile);
         $form->handleRequest($request);
 
-        if ($form->isSubmitted() && $form->isValid()) {
-            $entityManager->persist($budgetProfile);
-            $entityManager->flush();
+        if ($form->isSubmitted()) {
+            if ($form->isValid()) {
+                $entityManager->persist($budgetProfile);
+                $entityManager->flush();
+                $this->addFlash('success', 'Budget profile created successfully.');
 
-            return $this->redirectToRoute('app_financial_analysis_budget_profile_index', [], Response::HTTP_SEE_OTHER);
+                return $this->redirectToRoute('app_financial_analysis_budget_profile_index', [], Response::HTTP_SEE_OTHER);
+            }
+
+            foreach ($form->getErrors(true) as $error) {
+                $this->addFlash('error', $error->getMessage());
+            }
         }
 
         return $this->render('financial-analysis/budget_profile/new.html.twig', [
@@ -56,10 +63,17 @@ final class BudgetProfileController extends AbstractController
         $form = $this->createForm(BudgetProfileType::class, $budgetProfile);
         $form->handleRequest($request);
 
-        if ($form->isSubmitted() && $form->isValid()) {
-            $entityManager->flush();
+        if ($form->isSubmitted()) {
+            if ($form->isValid()) {
+                $entityManager->flush();
+                $this->addFlash('success', 'Budget profile updated successfully.');
 
-            return $this->redirectToRoute('app_financial_analysis_budget_profile_index', [], Response::HTTP_SEE_OTHER);
+                return $this->redirectToRoute('app_financial_analysis_budget_profile_index', [], Response::HTTP_SEE_OTHER);
+            }
+
+            foreach ($form->getErrors(true) as $error) {
+                $this->addFlash('error', $error->getMessage());
+            }
         }
 
         return $this->render('financial-analysis/budget_profile/edit.html.twig', [
@@ -74,8 +88,13 @@ final class BudgetProfileController extends AbstractController
         if ($this->isCsrfTokenValid('delete'.$budgetProfile->getId(), $request->getPayload()->getString('_token'))) {
             $entityManager->remove($budgetProfile);
             $entityManager->flush();
+            $this->addFlash('success', 'Budget profile deleted successfully.');
+        } else {
+            $this->addFlash('error', 'Invalid CSRF token.');
         }
 
         return $this->redirectToRoute('app_financial_analysis_budget_profile_index', [], Response::HTTP_SEE_OTHER);
     }
+
+
 }

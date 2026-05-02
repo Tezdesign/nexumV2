@@ -10,7 +10,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             
-            <form action="{{ path('apps-financial-analysis-update-transaction', {id: transaction.id}) }}" method="POST" id="updateTransactionForm_{{ transaction.id }}" novalidate="novalidate">
+            <form action="{{ path('apps-financial-analysis-update-transaction', {id: transaction.id}) }}" method="POST" id="updateTransactionForm_{{ transaction.id }}" novalidate="novalidate" data-turbo="false">
                 <div class="modal-body p-4">
 
                     <div class="row">

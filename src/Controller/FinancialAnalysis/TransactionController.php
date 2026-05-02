@@ -29,11 +29,18 @@ final class TransactionController extends AbstractController
         $form = $this->createForm(TransactionType::class, $transaction);
         $form->handleRequest($request);
 
-        if ($form->isSubmitted() && $form->isValid()) {
-            $entityManager->persist($transaction);
-            $entityManager->flush();
+        if ($form->isSubmitted()) {
+            if ($form->isValid()) {
+                $entityManager->persist($transaction);
+                $entityManager->flush();
+                $this->addFlash('success', 'Transaction created successfully.');
 
-            return $this->redirectToRoute('app_financial_analysis_transaction_index', [], Response::HTTP_SEE_OTHER);
+                return $this->redirectToRoute('app_financial_analysis_transaction_index', [], Response::HTTP_SEE_OTHER);
+            }
+
+            foreach ($form->getErrors(true) as $error) {
+                $this->addFlash('error', $error->getMessage());
+            }
         }
 
         return $this->render('financial-analysis/transaction/new.html.twig', [
@@ -56,10 +63,17 @@ final class TransactionController extends AbstractController
         $form = $this->createForm(TransactionType::class, $transaction);
         $form->handleRequest($request);
 
-        if ($form->isSubmitted() && $form->isValid()) {
-            $entityManager->flush();
+        if ($form->isSubmitted()) {
+            if ($form->isValid()) {
+                $entityManager->flush();
+                $this->addFlash('success', 'Transaction updated successfully.');
 
-            return $this->redirectToRoute('app_financial_analysis_transaction_index', [], Response::HTTP_SEE_OTHER);
+                return $this->redirectToRoute('app_financial_analysis_transaction_index', [], Response::HTTP_SEE_OTHER);
+            }
+
+            foreach ($form->getErrors(true) as $error) {
+                $this->addFlash('error', $error->getMessage());
+            }
         }
 
         return $this->render('financial-analysis/transaction/edit.html.twig', [
@@ -74,6 +88,9 @@ final class TransactionController extends AbstractController
         if ($this->isCsrfTokenValid('delete'.$transaction->getId(), $request->getPayload()->getString('_token'))) {
             $entityManager->remove($transaction);
             $entityManager->flush();
+            $this->addFlash('success', 'Transaction deleted successfully.');
+        } else {
+            $this->addFlash('error', 'Invalid CSRF token.');
         }
 
         return $this->redirectToRoute('app_financial_analysis_transaction_index', [], Response::HTTP_SEE_OTHER);

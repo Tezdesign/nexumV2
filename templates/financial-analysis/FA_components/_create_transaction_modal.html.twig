@@ -1,4 +1,7 @@
 <!-- Create Transaction Modal -->
+{% set tx_errors_new = app.flashes('transaction_errors_new')|first %}
+{% set tx_data_new = app.flashes('transaction_data_new')|first %}
+
 <div class="modal fade" id="createTransactionModal" tabindex="-1" aria-labelledby="createTransactionModalLabel" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
@@ -7,35 +10,34 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             
-            {{ form_start(transactionForm, {'attr': {'id': 'createTransactionForm', 'novalidate': 'novalidate'}}) }}
+            {{ form_start(transactionForm, {'attr': {'id': 'createTransactionForm', 'novalidate': 'novalidate', 'data-turbo': 'false'}}) }}
             <div class="modal-body p-4">
 
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         {{ form_label(transactionForm.reference, 'Reference'|trans, {'label_attr': {'class': 'form-label'}}) }}
+                        {% set ref_has_error = tx_errors_new and tx_errors_new['reference'] is defined %}
                         {{ form_widget(transactionForm.reference, {'attr': {
-                            'class': 'form-control ' ~ (transactionForm.reference.vars.valid ? '' : 'is-invalid')
+                            'class': 'form-control ' ~ (ref_has_error ? 'is-invalid' : ''),
+                            'value': tx_data_new ? tx_data_new['reference']|default('') : ''
                         }}) }}
-                        {% if not transactionForm.reference.vars.valid %}
+                        {% if ref_has_error %}
                             <div class="text-danger mt-1" style="font-size: 0.875em; display: block;">
-                                {% for error in transactionForm.reference.vars.errors %}
-                                    <span class="d-block">{{ error.message }}</span>
-                                {% endfor %}
+                                <span class="d-block">{{ tx_errors_new['reference'] }}</span>
                             </div>
                         {% endif %}
                     </div>
                     
                     <div class="col-md-6 mb-3">
                         {{ form_label(transactionForm.expense_category, 'Expense Category'|trans, {'label_attr': {'class': 'form-label'}}) }}
+                        {% set cat_has_error = tx_errors_new and tx_errors_new['expense_category'] is defined %}
                         {{ form_widget(transactionForm.expense_category, {'attr': {
-                            'class': 'form-select ' ~ (transactionForm.expense_category.vars.valid ? '' : 'is-invalid'),
+                            'class': 'form-select ' ~ (cat_has_error ? 'is-invalid' : ''),
                             'data-toggle': 'select2'
-                        }}) }}
-                        {% if not transactionForm.expense_category.vars.valid %}
+                        }, 'value': tx_data_new ? tx_data_new['expense_category']|default('') : ''}) }}
+                        {% if cat_has_error %}
                             <div class="text-danger mt-1" style="font-size: 0.875em; display: block;">
-                                {% for error in transactionForm.expense_category.vars.errors %}
-                                    <span class="d-block">{{ error.message }}</span>
-                                {% endfor %}
+                                <span class="d-block">{{ tx_errors_new['expense_category'] }}</span>
                             </div>
                         {% endif %}
                     </div>
@@ -46,32 +48,32 @@
                         {{ form_label(transactionForm.cost, 'Cost'|trans, {'label_attr': {'class': 'form-label'}}) }}
                         <div class="input-group">
                             <span class="input-group-text" id="tx-cost-addon">{{ currency_symbol|default('$') }}</span>
+                            {% set cost_has_error = tx_errors_new and tx_errors_new['cost'] is defined %}
                             {{ form_widget(transactionForm.cost, {'attr': {
-                                'class': 'form-control ' ~ (transactionForm.cost.vars.valid ? '' : 'is-invalid'),
-                                'aria-describedby': 'tx-cost-addon'
+                                'class': 'form-control ' ~ (cost_has_error ? 'is-invalid' : ''),
+                                'aria-describedby': 'tx-cost-addon',
+                                'value': tx_data_new ? tx_data_new['cost']|default('') : ''
                             }}) }}
                         </div>
-                        {% if not transactionForm.cost.vars.valid %}
+                        {% if cost_has_error %}
                             <div class="text-danger mt-1" style="font-size: 0.875em; display: block;">
-                                {% for error in transactionForm.cost.vars.errors %}
-                                    <span class="d-block">{{ error.message }}</span>
-                                {% endfor %}
+                                <span class="d-block">{{ tx_errors_new['cost'] }}</span>
                             </div>
                         {% endif %}
                     </div>
 
                     <div class="col-md-6 mb-3">
                         {{ form_label(transactionForm.date_stamp, 'Transaction Date'|trans, {'label_attr': {'class': 'form-label'}}) }}
+                        {% set date_has_error = tx_errors_new and tx_errors_new['date_stamp'] is defined %}
                         {{ form_widget(transactionForm.date_stamp, {'attr': {
-                            'class': 'form-control ' ~ (transactionForm.date_stamp.vars.valid ? '' : 'is-invalid'),
+                            'class': 'form-control ' ~ (date_has_error ? 'is-invalid' : ''),
                             'data-provider': 'flatpickr',
-                            'data-date-format': 'Y-m-d'
+                            'data-date-format': 'Y-m-d',
+                            'value': tx_data_new ? tx_data_new['date_stamp']|default('') : ''
                         }}) }}
-                        {% if not transactionForm.date_stamp.vars.valid %}
+                        {% if date_has_error %}
                             <div class="text-danger mt-1" style="font-size: 0.875em; display: block;">
-                                {% for error in transactionForm.date_stamp.vars.errors %}
-                                    <span class="d-block">{{ error.message }}</span>
-                                {% endfor %}
+                                <span class="d-block">{{ tx_errors_new['date_stamp'] }}</span>
                             </div>
                         {% endif %}
                     </div>
@@ -80,14 +82,13 @@
                 <div class="row">
                     <div class="col-12 mb-3">
                         {{ form_label(transactionForm.description, 'Description'|trans, {'label_attr': {'class': 'form-label'}}) }}
+                        {% set desc_has_error = tx_errors_new and tx_errors_new['description'] is defined %}
                         {{ form_widget(transactionForm.description, {'attr': {
-                            'class': 'form-control ' ~ (transactionForm.description.vars.valid ? '' : 'is-invalid')
-                        }}) }}
-                        {% if not transactionForm.description.vars.valid %}
+                            'class': 'form-control ' ~ (desc_has_error ? 'is-invalid' : '')
+                        }, 'value': tx_data_new ? tx_data_new['description']|default('') : ''}) }}
+                        {% if desc_has_error %}
                             <div class="text-danger mt-1" style="font-size: 0.875em; display: block;">
-                                {% for error in transactionForm.description.vars.errors %}
-                                    <span class="d-block">{{ error.message }}</span>
-                                {% endfor %}
+                                <span class="d-block">{{ tx_errors_new['description'] }}</span>
                             </div>
                         {% endif %}
                     </div>
@@ -107,7 +108,10 @@
     document.addEventListener('DOMContentLoaded', function () {
         const modalEl = document.getElementById('createTransactionModal');
         if (modalEl) {
-            {% if transactionForm is defined and transactionForm.vars.submitted and not transactionForm.vars.valid %}
+            {% if tx_errors_new %}
+                if (modalEl.parentNode !== document.body) {
+                    document.body.appendChild(modalEl);
+                }
                 const myModal = bootstrap.Modal.getOrCreateInstance(modalEl);
                 myModal.show();
             {% endif %}
