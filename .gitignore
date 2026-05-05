@@ -32,7 +32,11 @@
 .env.dev
 
 /.MA_cached_plans/
+/MOBILE_PUSH_NOTIFICATIONS_HISTORY.md
+/PUSH_NOTIFICATIONS_SETUP.md
 
 
 # IDEs
 /.idea/
+
+fcm-token-extraction.md
