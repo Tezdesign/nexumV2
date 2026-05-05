@@ -30,10 +30,12 @@
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         {{ form_label(createDraftForm.category, 'Category'|trans, {'label_attr': {'class': 'form-label'}}) }}
-                        {{ form_widget(createDraftForm.category, {'attr': {
-                            'class': 'form-select ' ~ (createDraftForm.category.vars.valid ? '' : 'is-invalid'),
-                            'data-toggle': 'select2'
-                        }}) }}
+                        <div class="{% if not is_mobile_view %}select2-wrapper{% endif %}">
+                            {{ form_widget(createDraftForm.category, {'attr': {
+                                'class': 'form-select ' ~ (createDraftForm.category.vars.valid ? '' : 'is-invalid') ~ (not is_mobile_view ? ' select2' : ''),
+                                'data-toggle': not is_mobile_view ? 'select2' : ''
+                            }}) }}
+                        </div>
                         {% if not createDraftForm.category.vars.valid %}
                             <div class="text-danger mt-1" style="font-size: 0.875em; display: block;">
                                 {% for error in createDraftForm.category.vars.errors %}
