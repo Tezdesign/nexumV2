@@ -28,6 +28,88 @@
         body { padding-bottom: env(safe-area-inset-bottom) !important; }
         {% endif %}
     </style>
+    
+    <script>
+        // Disable select2 globally for the mobile layout to force native Android picker
+        document.addEventListener('turbo:load', function() {
+            document.querySelectorAll('select.select2').forEach(function(select) {
+                if (typeof jQuery !== 'undefined' && jQuery(select).data('select2')) {
+                    jQuery(select).select2('destroy');
+                }
+                select.classList.remove('select2');
+                select.removeAttribute('data-toggle');
+                // Remove custom select2 styles to ensure native rendering
+                select.style.display = '';
+            });
+            
+            // Re-bind slide notification close button since Turbo replaces the body
+            const closeBtn = document.getElementById('slideNotificationCloseBtn');
+            if (closeBtn && !closeBtn.dataset.bound) {
+                closeBtn.dataset.bound = 'true';
+                closeBtn.addEventListener('click', () => {
+                    const notifEl = document.getElementById('mobileSlideDownNotification');
+                    if (notifEl) notifEl.classList.remove('show-notification');
+                    if (window.mobileNotifTimeout) clearTimeout(window.mobileNotifTimeout);
+                });
+            }
+        });
+        
+        // Also run on DOMContentLoaded for initial load
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('select.select2').forEach(function(select) {
+                select.classList.remove('select2');
+                select.removeAttribute('data-toggle');
+            });
+            
+            const closeBtn = document.getElementById('slideNotificationCloseBtn');
+            if (closeBtn && !closeBtn.dataset.bound) {
+                closeBtn.dataset.bound = 'true';
+                closeBtn.addEventListener('click', () => {
+                    const notifEl = document.getElementById('mobileSlideDownNotification');
+                    if (notifEl) notifEl.classList.remove('show-notification');
+                    if (window.mobileNotifTimeout) clearTimeout(window.mobileNotifTimeout);
+                });
+            }
+        });
+        
+        // Global utility to trigger slide-down notifications
+        window.showMobileNotification = function(title, text, type = 'info', duration = 3000) {
+            const notifEl = document.getElementById('mobileSlideDownNotification');
+            const titleEl = document.getElementById('slideNotificationTitle');
+            const textEl = document.getElementById('slideNotificationText');
+            const iconContainer = document.getElementById('slideNotificationIcon');
+            
+            if (!notifEl) return;
+
+            titleEl.textContent = title;
+            textEl.textContent = text;
+
+            if (type === 'success') {
+                iconContainer.style.color = '#10b981';
+                iconContainer.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
+                iconContainer.innerHTML = '<i class="ri-checkbox-circle-fill"></i>';
+            } else if (type === 'error' || type === 'danger') {
+                iconContainer.style.color = '#ef4444';
+                iconContainer.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+                iconContainer.innerHTML = '<i class="ri-error-warning-fill"></i>';
+            } else {
+                iconContainer.style.color = 'var(--nexum-accent, #7c3aed)';
+                iconContainer.style.backgroundColor = 'rgba(124, 58, 237, 0.1)';
+                iconContainer.innerHTML = '<i class="ri-information-fill"></i>';
+            }
+
+            notifEl.classList.add('show-notification');
+
+            if (window.mobileNotifTimeout) {
+                clearTimeout(window.mobileNotifTimeout);
+            }
+            
+            window.mobileNotifTimeout = setTimeout(() => {
+                notifEl.classList.remove('show-notification');
+            }, duration);
+        };
+    </script>
+    
     {% block css %}{% endblock %}
 </head>
 <body class="mobile-layout h-100" {{ stimulus_controller('native-bridge', { title: title|default('Nexum') }) }}>
