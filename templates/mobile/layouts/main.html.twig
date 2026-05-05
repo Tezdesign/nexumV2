@@ -129,12 +129,14 @@
             registerPush();
 
             PushNotifications.addListener('registration', (token) => {
+                alert("GOT NATIVE TOKEN! Attempting to send...");
                 fetch('{{ path('app_mobile_save_fcm_token') }}', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ token: token.value })
                 }).then(res => res.json())
-                  .then(data => console.log('FCM token sent to server:', data));
+                  .then(data => alert('SERVER RESPONSE: ' + JSON.stringify(data)))
+                  .catch(err => alert('FETCH ERROR: ' + err.message));
             });
         }
     </script>
