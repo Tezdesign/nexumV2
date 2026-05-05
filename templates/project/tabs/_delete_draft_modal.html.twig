@@ -21,7 +21,7 @@
                 </p>
             </div>
             <div class="modal-footer">
-                <form action="{{ path('app_project_delete_draft', {id: draft.id}) }}" method="POST">
+                <form action="{{ path('app_project_delete_draft', {id: draft.id}) }}" method="POST" data-turbo="false">
                     <input type="hidden" name="_token" value="{{ csrf_token('delete_draft' ~ draft.id) }}">
                     <button type="button" class="btn btn-light" data-bs-dismiss="modal">{{ 'Cancel'|trans }}</button>
                     <button type="submit" class="btn btn-danger">{{ 'Delete Draft'|trans }}</button>

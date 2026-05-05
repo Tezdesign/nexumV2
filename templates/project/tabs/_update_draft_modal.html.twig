@@ -18,7 +18,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             
-            <form action="{{ path('app_project_update_draft', {id: draft.id}) }}" method="POST" id="updateDraftForm_{{ draft.id }}" novalidate="novalidate">
+            <form action="{{ path('app_project_update_draft', {id: draft.id}) }}" method="POST" id="updateDraftForm_{{ draft.id }}" novalidate="novalidate" data-turbo="false">
                 <div class="modal-body p-4">
 
                     <div class="row">

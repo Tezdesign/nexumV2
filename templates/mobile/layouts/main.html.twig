@@ -61,8 +61,8 @@
 
     {% if not hide_bottom_nav|default(false) %}
     <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const badge = document.getElementById('mobile-notif-badge');
+    if (!window.mobilePollStarted) {
+        window.mobilePollStarted = true;
         
         function pollNotifications() {
             fetch('{{ path('app_mobile_notifications_poll') }}', {
@@ -73,7 +73,8 @@
                 return response.json();
             })
             .then(data => {
-                // Update badge
+                // Fetch fresh DOM element because Turbo might have replaced the body
+                const badge = document.getElementById('mobile-notif-badge');
                 if (badge) {
                     if (data.unreadCount > 0) {
                         badge.textContent = data.unreadCount;
@@ -86,7 +87,6 @@
                 // Trigger popups for new undelivered notifications
                 if (data.undelivered && data.undelivered.length > 0) {
                     data.undelivered.forEach((notif, index) => {
-                        // Stagger popups if multiple arrived at once
                         setTimeout(() => {
                             if (typeof window.showMobileNotification === 'function') {
                                 window.showMobileNotification(notif.title, notif.message, notif.type);
@@ -103,7 +103,7 @@
         // Poll immediately, then every 10 seconds
         pollNotifications();
         setInterval(pollNotifications, 10000);
-    });
+    }
     </script>
     {% endif %}
 
@@ -130,14 +130,11 @@
             registerPush();
 
             PushNotifications.addListener('registration', (token) => {
-                alert("GOT NATIVE TOKEN! Attempting to send...");
                 fetch('{{ path('app_mobile_save_fcm_token') }}', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ token: token.value })
-                }).then(res => res.json())
-                  .then(data => alert('SERVER RESPONSE: ' + JSON.stringify(data)))
-                  .catch(err => alert('FETCH ERROR: ' + err.message));
+                }).catch(err => console.error('Token save error:', err));
             });
         }
     </script>

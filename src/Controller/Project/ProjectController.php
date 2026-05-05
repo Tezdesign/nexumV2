@@ -1075,9 +1075,12 @@ final class ProjectController extends AbstractController
             }
         }
 
+        $referer = $request->headers->get('referer', '');
+        $routeName = str_contains((string) $referer, '/mobile/') ? 'app_mobile_project_show' : 'app_project_show';
+
         if (!$this->isCsrfTokenValid('expense_draft', (string) ($data['_token'] ?? ''))) {
             $this->addFlash('danger', 'Invalid CSRF token.');
-            return $this->redirectToRoute('app_project_show', ['id' => $pid, 'tab' => 'drafts']);
+            return $this->redirectToRoute($routeName, ['id' => $pid, 'tab' => 'drafts']);
         }
 
         $errors = $validator->validate($draft);
@@ -1094,13 +1097,13 @@ final class ProjectController extends AbstractController
             $this->addFlash('draft_errors_' . $draft->getId(), $errorMap);
             $this->addFlash('draft_data_' . $draft->getId(), $data);
 
-            return $this->redirectToRoute('app_project_show', ['id' => $pid, 'tab' => 'drafts']);
+            return $this->redirectToRoute($routeName, ['id' => $pid, 'tab' => 'drafts']);
         }
 
         $budgetAdvService->evaluateDraft($draft);
         $this->addFlash('success', 'Draft updated successfully!');
 
-        return $this->redirectToRoute('app_project_show', ['id' => $pid, 'tab' => 'drafts']);
+        return $this->redirectToRoute($routeName, ['id' => $pid, 'tab' => 'drafts']);
     }
 
     #[Route('/draft/{id}/delete', name: 'app_project_delete_draft', methods: ['POST'])]
@@ -1126,7 +1129,10 @@ final class ProjectController extends AbstractController
             $this->addFlash('danger', 'Invalid CSRF token for deletion.');
         }
 
-        return $this->redirectToRoute('app_project_show', ['id' => $pid, 'tab' => 'drafts']);
+        $referer = $request->headers->get('referer', '');
+        $routeName = str_contains((string) $referer, '/mobile/') ? 'app_mobile_project_show' : 'app_project_show';
+
+        return $this->redirectToRoute($routeName, ['id' => $pid, 'tab' => 'drafts']);
     }
 
     /**

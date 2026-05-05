@@ -51,24 +51,3 @@
     {% endif %}
 </div>
 {% endblock %}
-
-{% block script %}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const testBtn = document.getElementById('testNotifBtn');
-    
-    if(testBtn) {
-        testBtn.addEventListener('click', function() {
-            // Trigger the new custom slide-down notification
-            if (typeof window.showMobileNotification === 'function') {
-                window.showMobileNotification(
-                    'New Alert', 
-                    'New notification received! Please check your alerts.', 
-                    'info'
-                );
-            }
-        });
-    }
-});
-</script>
-{% endblock %}
