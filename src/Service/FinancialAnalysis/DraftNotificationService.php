@@ -7,12 +7,14 @@ use Psr\Cache\CacheItemPoolInterface;
 class DraftNotificationService
 {
     private CacheItemPoolInterface $cache;
+    private \App\Service\FirebaseNotificationService $firebaseService;
 
-    public function __construct(CacheItemPoolInterface $cache)
+    public function __construct(CacheItemPoolInterface $cache, \App\Service\FirebaseNotificationService $firebaseService)
     {
         // By default, Symfony auto-wires the cache.app pool here
         // which uses the filesystem and survives server restarts
         $this->cache = $cache;
+        $this->firebaseService = $firebaseService;
     }
 
     private function getCacheKey(int $userId): string
@@ -50,6 +52,9 @@ class DraftNotificationService
 
         $item->set($notifications);
         $this->cache->save($item);
+
+        // Trigger native Firebase push notification
+        $this->firebaseService->sendPushNotification($title, $message);
     }
 
     /**

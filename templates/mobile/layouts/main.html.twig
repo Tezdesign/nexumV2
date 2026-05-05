@@ -105,5 +105,38 @@
     });
     </script>
     {% endif %}
+
+    <script type="module">
+        import { PushNotifications } from '@capacitor/push-notifications';
+
+        const registerPush = async () => {
+            try {
+                let permStatus = await PushNotifications.checkPermissions();
+                if (permStatus.receive === 'prompt') {
+                    permStatus = await PushNotifications.requestPermissions();
+                }
+                if (permStatus.receive !== 'granted') {
+                    return;
+                }
+                await PushNotifications.register();
+            } catch (e) {
+                console.error('Push error:', e);
+            }
+        };
+
+        // only run if inside native capacitor app
+        if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+            registerPush();
+
+            PushNotifications.addListener('registration', (token) => {
+                fetch('{{ path('app_mobile_save_fcm_token') }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: token.value })
+                }).then(res => res.json())
+                  .then(data => console.log('FCM token sent to server:', data));
+            });
+        }
+    </script>
 </body>
 </html>

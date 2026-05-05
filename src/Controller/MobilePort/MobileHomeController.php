@@ -15,6 +15,7 @@ use App\Service\AuthService;
 use App\Service\ProjectActivityFeed;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
@@ -358,5 +359,20 @@ class MobileHomeController extends AbstractController
             'undelivered' => $undelivered,
             'unreadCount' => $unreadCount
         ]);
+    }
+
+    #[Route('/mobile/api/save-fcm-token', name: 'app_mobile_save_fcm_token', methods: ['POST'])]
+    public function saveFcmToken(Request $request, \Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface $params): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+        $token = $data['token'] ?? null;
+        $projectDir = $params->get('kernel.project_dir');
+
+        if ($token) {
+            file_put_contents($projectDir . '/var/fcm_token.txt', $token);
+            return $this->json(['status' => 'success', 'token' => $token]);
+        }
+
+        return $this->json(['status' => 'error'], 400);
     }
 }

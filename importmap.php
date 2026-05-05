@@ -59,4 +59,10 @@ return [
     'chart.js' => [
         'version' => '3.9.1',
     ],
+    '@capacitor/core' => [
+        'version' => '8.3.1',
+    ],
+    '@capacitor/push-notifications' => [
+        'version' => '8.0.3',
+    ],
 ];
