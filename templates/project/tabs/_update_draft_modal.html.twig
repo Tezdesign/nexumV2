@@ -1,6 +1,7 @@
 <!-- Update Draft Modal for Draft {{ draft.id }} -->
 {% set draft_errors = app.flashes('draft_errors_' ~ draft.id)|first %}
 {% set draft_data = app.flashes('draft_data_' ~ draft.id)|first %}
+{% set is_mobile_view = app.request.attributes.get('_route', '') matches '/mobile/' %}
 
 <div class="modal fade nexum-update-draft-modal" id="updateDraftModal_{{ draft.id }}" tabindex="-1" aria-labelledby="updateDraftModalLabel_{{ draft.id }}" aria-hidden="true" data-bs-backdrop="static"
     data-draft-id="{{ draft.id }}"

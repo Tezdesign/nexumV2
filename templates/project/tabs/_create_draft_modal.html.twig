@@ -1,4 +1,5 @@
 <!-- Create Draft Modal -->
+{% set is_mobile_view = ('mobile' in app.request.attributes.get('_route', '')) %}
 <div class="modal fade" id="createDraftModal" tabindex="-1" aria-labelledby="createDraftModalLabel" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
