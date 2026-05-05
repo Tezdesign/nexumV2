@@ -23,20 +23,32 @@ class SyncStatusController extends AbstractController
         $lastSyncTimeStr = $healthService->getLastSyncTime();
 
         // Get pending changes count directly from raw DBAL to avoid issues if entity isn't fully set up yet
-        $pendingCount = 0;
+        $pendingCountLocal = 0;
+        $pendingCountRemote = 0;
         try {
             $conn = $em->getConnection();
-            $pendingCount = (int) $conn->fetchOne('SELECT COUNT(id) FROM sync_log');
+            $pendingCountLocal = (int) $conn->fetchOne('SELECT COUNT(id) FROM sync_log');
         } catch (\Throwable $e) {
             // Table might not exist yet or connection failed
-            $pendingCount = 0;
+            $pendingCountLocal = 0;
         }
+
+        if ($isOnline) {
+            try {
+                $remoteConn = $em->getConnection('remote');
+                $pendingCountRemote = (int) $remoteConn->fetchOne('SELECT COUNT(id) FROM sync_log');
+            } catch (\Throwable $e) {
+                $pendingCountRemote = 0;
+            }
+        }
+        
+        $totalPendingCount = $pendingCountLocal + $pendingCountRemote;
 
         // Auto-Sync Trigger: Immediate if DB changes exist, otherwise fallback 15-minute sync
         if ($isActive && $isOnline && $isSchemaMatching) {
             $shouldRun = false;
             
-            if ($pendingCount > 0) {
+            if ($totalPendingCount > 0) {
                 $shouldRun = true;
             } elseif (!$lastSyncTimeStr) {
                 $shouldRun = true;
@@ -69,7 +81,7 @@ class SyncStatusController extends AbstractController
                     $application->run($input, $output);
                     
                     // Re-calculate pending count after sync
-                    $pendingCount = (int) $conn->fetchOne('SELECT COUNT(id) FROM sync_log');
+                    $pendingCountLocal = (int) $conn->fetchOne('SELECT COUNT(id) FROM sync_log');
                 } catch (\Throwable $e) {
                     // Silently fail for the AJAX request so the UI doesn't crash
                 }
@@ -80,7 +92,7 @@ class SyncStatusController extends AbstractController
         return $this->json([
             'is_remote_online' => $isOnline,
             'schema_mismatch' => !$isSchemaMatching,
-            'pending_changes_count' => $pendingCount,
+            'pending_changes_count' => $pendingCountLocal,
             'last_sync_time' => $healthService->getLastSyncTime(),
             'is_sync_active' => $isActive
         ]);
