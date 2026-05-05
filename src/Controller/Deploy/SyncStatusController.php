@@ -22,10 +22,23 @@ class SyncStatusController extends AbstractController
         $isActive = $healthService->isSyncActive();
         $lastSyncTimeStr = $healthService->getLastSyncTime();
 
-        // 15-Minute Auto-Sync Trigger
+        // Get pending changes count directly from raw DBAL to avoid issues if entity isn't fully set up yet
+        $pendingCount = 0;
+        try {
+            $conn = $em->getConnection();
+            $pendingCount = (int) $conn->fetchOne('SELECT COUNT(id) FROM sync_log');
+        } catch (\Throwable $e) {
+            // Table might not exist yet or connection failed
+            $pendingCount = 0;
+        }
+
+        // Auto-Sync Trigger: Immediate if DB changes exist, otherwise fallback 15-minute sync
         if ($isActive && $isOnline && $isSchemaMatching) {
             $shouldRun = false;
-            if (!$lastSyncTimeStr) {
+            
+            if ($pendingCount > 0) {
+                $shouldRun = true;
+            } elseif (!$lastSyncTimeStr) {
                 $shouldRun = true;
             } else {
                 try {
@@ -54,20 +67,13 @@ class SyncStatusController extends AbstractController
                     
                     $output = new \Symfony\Component\Console\Output\NullOutput();
                     $application->run($input, $output);
+                    
+                    // Re-calculate pending count after sync
+                    $pendingCount = (int) $conn->fetchOne('SELECT COUNT(id) FROM sync_log');
                 } catch (\Throwable $e) {
                     // Silently fail for the AJAX request so the UI doesn't crash
                 }
             }
-        }
-
-        // Get pending changes count directly from raw DBAL to avoid issues if entity isn't fully set up yet
-        $pendingCount = 0;
-        try {
-            $conn = $em->getConnection();
-            $pendingCount = (int) $conn->fetchOne('SELECT COUNT(id) FROM sync_log');
-        } catch (\Throwable $e) {
-            // Table might not exist yet or connection failed
-            $pendingCount = 0;
         }
 
         // Re-fetch last sync time in case it was updated during the run

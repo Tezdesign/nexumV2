@@ -64,10 +64,12 @@
                 <div class="row">
                     <div class="col-12 mb-3">
                         {{ form_label(createDraftForm.project_budget_related, 'Project Budget'|trans, {'label_attr': {'class': 'form-label'}}) }}
-                        {{ form_widget(createDraftForm.project_budget_related, {'attr': {
-                            'class': 'form-select ' ~ (createDraftForm.project_budget_related.vars.valid ? '' : 'is-invalid'),
-                            'data-toggle': 'select2'
-                        }}) }}
+                        <div class="{% if not is_mobile_view %}select2-wrapper{% endif %}">
+                            {{ form_widget(createDraftForm.project_budget_related, {'attr': {
+                                'class': 'form-select ' ~ (createDraftForm.project_budget_related.vars.valid ? '' : 'is-invalid') ~ (not is_mobile_view ? ' select2' : ''),
+                                'data-toggle': not is_mobile_view ? 'select2' : ''
+                            }}) }}
+                        </div>
                         {% if not createDraftForm.project_budget_related.vars.valid %}
                             <div class="text-danger mt-1" style="font-size: 0.875em; display: block;">
                                 {% for error in createDraftForm.project_budget_related.vars.errors %}

@@ -36,7 +36,7 @@
                         <div class="col-md-6 mb-3">
                             <label class="form-label">{{ 'Category'|trans }}</label>
                             {% set cat_val = draft_data ? draft_data.category|default('') : draft.category %}
-                            <select name="expense_draft[category]" id="draft_cat_{{ draft.id }}" class="form-select select2 {% if draft_errors and draft_errors.category is defined %}is-invalid{% endif %}" data-toggle="select2">
+                            <select name="expense_draft[category]" id="draft_cat_{{ draft.id }}" class="form-select {% if not is_mobile_view %}select2{% endif %} {% if draft_errors and draft_errors.category is defined %}is-invalid{% endif %}" {% if not is_mobile_view %}data-toggle="select2"{% endif %}>
                                 <option value="">{{ 'Select a Category...'|trans }}</option>
                                 {% for category in ['HARDWARE', 'SOFTWARE', 'SERVICES', 'TRAVEL', 'MARKETING', 'OTHER'] %}
                                     <option value="{{ category }}" {% if cat_val == category %}selected{% endif %}>{{ category|capitalize }}</option>
@@ -64,7 +64,7 @@
                         <div class="col-12 mb-3">
                             <label class="form-label">{{ 'Project Budget'|trans }}</label>
                             {% set budget_val = draft_data ? draft_data.project_budget_related|default('') : (draft.projectBudgetRelated ? draft.projectBudgetRelated.id : '') %}
-                            <select name="expense_draft[project_budget_related]" id="draft_budget_{{ draft.id }}" class="form-select select2 {% if draft_errors and draft_errors.project_budget_related is defined %}is-invalid{% endif %}" data-toggle="select2">
+                            <select name="expense_draft[project_budget_related]" id="draft_budget_{{ draft.id }}" class="form-select {% if not is_mobile_view %}select2{% endif %} {% if draft_errors and draft_errors.project_budget_related is defined %}is-invalid{% endif %}" {% if not is_mobile_view %}data-toggle="select2"{% endif %}>
                                 <option value="">{{ 'Select a budget'|trans }}</option>
                                 {% if projectBudgets is defined %}
                                     {% for budget in projectBudgets %}
