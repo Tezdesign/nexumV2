@@ -3,6 +3,7 @@
 <head>
     {{ include('partials/title-meta.html.twig') }}
     {{ include('partials/head-css.html.twig') }}
+    {% block importmap %}{{ importmap('app') }}{% endblock %}
     <link href="/css/FA.css?v={{ random() }}" rel="stylesheet" type="text/css" />
     <link href="/css/FA_mobile.css?v={{ random() }}" rel="stylesheet" type="text/css" />
     {% include 'partials/_task_project_design_system.html.twig' %}
