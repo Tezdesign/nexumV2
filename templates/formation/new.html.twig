@@ -11,8 +11,13 @@
         <p class="text-muted">Ajoutez les informations principales ainsi que 3 vidéos maximum.</p>
     </div>
 
-{{ form_start(form, {'attr': {'novalidate': 'novalidate'}}) }}
-
+{{ form_start(form, {
+    'attr': {
+        'novalidate': 'novalidate',
+        'enctype': 'multipart/form-data'
+    }
+}) }}
+{{form_errors(form)}}
 <div class="card shadow-sm border-0 rounded-4">
     <div class="card-body p-4">
 

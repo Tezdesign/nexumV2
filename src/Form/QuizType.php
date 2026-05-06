@@ -105,6 +105,15 @@ class QuizType extends AbstractType
                     ]),
                 ],
             ])
+            ->add('generatedImage', TextType::class, [
+                'label' => 'Image générée',
+                'mapped' => false,
+                'required' => false,
+                'attr' => [
+                    'class' => 'form-control',
+                    'id' => 'quizGeneratedImageField',
+                ],
+            ])
         ;
     }
 

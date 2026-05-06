@@ -23,9 +23,6 @@ class FormationRepository extends ServiceEntityRepository
 
 
 
-    /**
-     * @param array<string, mixed> $filters
-     */
     public function createAdminListQuery(array $filters = []): QueryBuilder
     {
         $qb = $this->createQueryBuilder('f')
@@ -56,9 +53,6 @@ class FormationRepository extends ServiceEntityRepository
         return $qb;
     }
 
-    /**
-     * @return array<int, array<string, mixed>>
-     */
     public function getTopFormationsStats(): array
     {
         return $this->createQueryBuilder('f')

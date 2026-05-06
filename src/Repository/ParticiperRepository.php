@@ -6,9 +6,6 @@ use App\Entity\Participer;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
-/**
- * @extends ServiceEntityRepository<Participer>
- */
 class ParticiperRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
@@ -16,9 +13,6 @@ class ParticiperRepository extends ServiceEntityRepository
         parent::__construct($registry, Participer::class);
     }
 
-    /**
-     * @return array<string, int>
-     */
     public function getGlobalStats(): array
     {
         $qb = $this->createQueryBuilder('p');
@@ -64,9 +58,6 @@ class ParticiperRepository extends ServiceEntityRepository
             ->getSingleScalarResult();
     }
 
-    /**
-     * @return array<string, int>
-     */
     public function getProgressBuckets(): array
     {
         return [
@@ -88,9 +79,6 @@ class ParticiperRepository extends ServiceEntityRepository
             ->getSingleScalarResult();
     }
 
-    /**
-     * @return array<int, array<string, mixed>>
-     */
     public function getMonthlyInscriptions(): array
     {
         return $this->createQueryBuilder('p')

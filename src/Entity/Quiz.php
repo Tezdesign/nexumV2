@@ -5,6 +5,7 @@ namespace App\Entity;
 use App\Repository\QuizRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
+use DateTime;
 
 #[ORM\Entity(repositoryClass: QuizRepository::class)]
 class Quiz
@@ -54,10 +55,31 @@ class Quiz
     #[Assert\NotNull(message: "Veuillez choisir la bonne réponse")]
     #[Assert\Range(
         min: 1,
-        max: 3,
-        notInRangeMessage: "La réponse correcte doit être entre 1 et 3"
+        max: 4,
+        notInRangeMessage: "La réponse correcte doit être entre 1 et 4"
     )]
     private ?int $correct = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $r4 = null;
+
+    #[ORM\Column(length: 50)]
+    private ?string $type = 'mcq';
+
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $answerText = null;
+
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $explanation = null;
+
+    #[ORM\Column(length: 50, nullable: true)]
+    private ?string $difficulty = null;
+
+    #[ORM\Column(type: 'datetime', nullable: true)]
+    private ?DateTime $createdAt = null;
+
+    #[ORM\Column(length: 50, nullable: true)]
+    private ?string $source = null;
 
     public function getId(): ?int
     {
@@ -138,6 +160,83 @@ class Quiz
     public function setCorrect(int $correct): self
     {
         $this->correct = $correct;
+        return $this;
+    }
+
+    public function getR4(): ?string
+    {
+        return $this->r4;
+    }
+
+    public function setR4(?string $r4): self
+    {
+        $this->r4 = $r4;
+        return $this;
+    }
+
+    public function getType(): ?string
+    {
+        return $this->type;
+    }
+
+    public function setType(string $type): self
+    {
+        $this->type = $type;
+        return $this;
+    }
+
+    public function getAnswerText(): ?string
+    {
+        return $this->answerText;
+    }
+
+    public function setAnswerText(?string $answerText): self
+    {
+        $this->answerText = $answerText;
+        return $this;
+    }
+
+    public function getExplanation(): ?string
+    {
+        return $this->explanation;
+    }
+
+    public function setExplanation(?string $explanation): self
+    {
+        $this->explanation = $explanation;
+        return $this;
+    }
+
+    public function getDifficulty(): ?string
+    {
+        return $this->difficulty;
+    }
+
+    public function setDifficulty(?string $difficulty): self
+    {
+        $this->difficulty = $difficulty;
+        return $this;
+    }
+
+    public function getCreatedAt(): ?DateTime
+    {
+        return $this->createdAt;
+    }
+
+    public function setCreatedAt(?DateTime $createdAt): self
+    {
+        $this->createdAt = $createdAt;
+        return $this;
+    }
+
+    public function getSource(): ?string
+    {
+        return $this->source;
+    }
+
+    public function setSource(?string $source): self
+    {
+        $this->source = $source;
         return $this;
     }
 }

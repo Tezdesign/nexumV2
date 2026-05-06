@@ -13,7 +13,7 @@ class Participer
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\ManyToOne]
+    #[ORM\ManyToOne(inversedBy: 'participations')]
     #[ORM\JoinColumn(nullable: false)]
     private ?User $user = null;
 
@@ -25,10 +25,13 @@ class Participer
     private ?\DateTimeInterface $dateInscription = null;
 
     #[ORM\Column]
-    private int $progression = 0;
+    private ?int $progression = 0;
 
     #[ORM\Column(length: 50)]
-    private string $statut = 'EN_COURS';
+    private ?string $statut = 'EN_COURS';
+
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $localisation = null;
 
     public function __construct()
     {
@@ -75,7 +78,7 @@ class Participer
         return $this;
     }
 
-    public function getProgression(): int
+    public function getProgression(): ?int
     {
         return $this->progression;
     }
@@ -86,7 +89,7 @@ class Participer
         return $this;
     }
 
-    public function getStatut(): string
+    public function getStatut(): ?string
     {
         return $this->statut;
     }
@@ -94,6 +97,17 @@ class Participer
     public function setStatut(string $statut): self
     {
         $this->statut = $statut;
+        return $this;
+    }
+
+    public function getLocalisation(): ?string
+    {
+        return $this->localisation;
+    }
+
+    public function setLocalisation(?string $localisation): self
+    {
+        $this->localisation = $localisation;
         return $this;
     }
 }

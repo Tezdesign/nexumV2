@@ -8,6 +8,11 @@
 /vendor/
 ###< symfony/framework-bundle ###
 
+
+/pfe_ferdawes_linedata_fst/
+/.env.local/
+/.env
+
 ###> phpunit/phpunit ###
 /phpunit.xml
 /.phpunit.cache/

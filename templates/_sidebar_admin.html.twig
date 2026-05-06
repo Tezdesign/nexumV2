@@ -36,7 +36,7 @@
 
         <!-- DASHBOARD -->
     <li class="menu-item {{ app.request.get('_route') == 'app_formation_index_admin' ? 'active' }}">
-        <a href="" class="menu-link">
+        <a href="{{ path('app_formation_index_admin') }}" class="menu-link">
             <i class="menu-icon bi bi-speedometer2"></i>
             <div>Formations</div>
         </a>

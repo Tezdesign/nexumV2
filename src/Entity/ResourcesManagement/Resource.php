@@ -26,7 +26,7 @@ class Resource
     )]
     private ?string $resource_code = null;
 
-    #[ORM\Column(type: 'string', length: 255, nullable: false)]
+    #[ORM\Column(type: 'string', length: 191, nullable: false)]
     #[Assert\NotBlank(message: "Le nom de la ressource est obligatoire.")]
     #[Assert\Length(
         min: 3,
@@ -56,7 +56,7 @@ class Resource
     #[ORM\Column(type: 'string', length: 50, nullable: true)]
     private ?string $status = null;
 
-    #[ORM\Column(type: 'string', length: 255, nullable: true)]
+    #[ORM\Column(type: 'string', length: 191, nullable: true)]
     private ?string $image_path = null;
 
     // --- GETTERS & SETTERS ---

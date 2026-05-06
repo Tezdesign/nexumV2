@@ -1,0 +1,542 @@
+{% extends 'base_modern.html.twig' %}
+
+{% block title %}Générer un Quiz IA - NEXUM Academy{% endblock %}
+
+{% block stylesheets %}
+<style>
+.upload-section {
+    background: linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%);
+    border: 1px solid rgba(6, 182, 212, 0.2);
+    border-radius: var(--radius-lg);
+    padding: 2rem;
+    backdrop-filter: blur(20px);
+}
+
+.upload-area {
+    border: 2px dashed var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 3rem 2rem;
+    text-align: center;
+    transition: var(--transition);
+    background: var(--bg-card);
+    position: relative;
+    overflow: hidden;
+}
+
+.upload-area:hover {
+    border-color: var(--neon-cyan);
+    background: var(--bg-card-hover);
+}
+
+.upload-area.dragover {
+    border-color: var(--neon-cyan);
+    background: rgba(6, 182, 212, 0.1);
+}
+
+.upload-icon {
+    font-size: 4rem;
+    color: var(--neon-cyan);
+    margin-bottom: 1rem;
+}
+
+.upload-text {
+    color: var(--text-primary);
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.upload-subtext {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 2rem;
+}
+
+.file-input {
+    display: none;
+}
+
+.btn-upload {
+    background: var(--accent-gradient);
+    color: white;
+    padding: 0.75rem 2rem;
+    border: none;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-upload:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 20px rgba(6, 182, 212, 0.4);
+}
+
+.processing-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.9);
+    backdrop-filter: blur(10px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-lg);
+    z-index: 1000;
+}
+
+.processing-spinner {
+    width: 60px;
+    height: 60px;
+    border: 4px solid var(--border-color);
+    border-top: 4px solid var(--neon-cyan);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 1rem;
+}
+
+.processing-text {
+    color: var(--text-primary);
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.processing-subtext {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-top: 2rem;
+}
+
+.feature-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    text-align: center;
+    transition: var(--transition);
+}
+
+.feature-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    border-color: rgba(59, 130, 246, 0.3);
+}
+
+.feature-icon {
+    font-size: 2.5rem;
+    color: var(--neon-cyan);
+    margin-bottom: 1rem;
+}
+
+.feature-title {
+    color: var(--text-primary);
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.feature-description {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.formats-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 0.5rem 1rem;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.formats-badge i {
+    color: var(--neon-cyan);
+}
+
+.ai-glow {
+    box-shadow: 0 0 30px rgba(6, 182, 212, 0.2);
+}
+
+.progress-steps {
+    display: flex;
+    justify-content: space-between;
+    margin: 2rem 0;
+    position: relative;
+}
+
+.progress-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+    position: relative;
+}
+
+.progress-step::before {
+    content: '';
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    right: -50%;
+    height: 2px;
+    background: var(--border-color);
+    z-index: 0;
+}
+
+.progress-step:last-child::before {
+    display: none;
+}
+
+.progress-step.active::before {
+    background: var(--primary-gradient);
+}
+
+.step-number {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    color: var(--text-secondary);
+    z-index: 1;
+    position: relative;
+}
+
+.progress-step.active .step-number {
+    background: var(--primary-gradient);
+    border-color: transparent;
+    color: white;
+}
+
+.step-text {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.progress-step.active .step-text {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="page-header">
+    <h1 class="page-title">
+        <i class="mdi mdi-robot" style="color: var(--neon-cyan); margin-right: 0.5rem;"></i>
+        Générer un Quiz IA
+    </h1>
+    <p class="page-subtitle">Transformez vos documents PDF en quiz interactifs avec l'intelligence artificielle</p>
+</div>
+
+<!-- PROGRESS STEPS -->
+<div class="progress-steps">
+    <div class="progress-step active" id="step1">
+        <div class="step-number">1</div>
+        <div class="step-text">Upload PDF</div>
+    </div>
+    <div class="progress-step" id="step2">
+        <div class="step-number">2</div>
+        <div class="step-text">Analyse IA</div>
+    </div>
+    <div class="progress-step" id="step3">
+        <div class="step-number">3</div>
+        <div class="step-text">Génération</div>
+    </div>
+    <div class="progress-step" id="step4">
+        <div class="step-number">4</div>
+        <div class="step-text">Quiz Prêt</div>
+    </div>
+</div>
+
+<!-- UPLOAD SECTION -->
+<div class="upload-section ai-glow fade-in">
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="mdi mdi-cloud-upload" style="color: var(--neon-cyan); margin-right: 0.5rem;"></i>
+                Upload votre document
+            </h3>
+            <p class="card-subtitle">Notre IA analysera votre PDF pour créer un quiz personnalisé</p>
+        </div>
+        
+        <div class="card-body">
+            {{ form_start(form, {
+                action: path('app_quiz_ai_generate'),
+                method: 'POST',
+                attr: { 
+                    novalidate: 'novalidate',
+                    class: 'ai-upload-form',
+                    id: 'aiUploadForm'
+                },
+                multipart: true
+            }) }}
+
+            <div class="upload-area" id="uploadArea">
+                <i class="mdi mdi-file-pdf-box upload-icon"></i>
+                <div class="upload-text">Glissez votre PDF ici</div>
+                <div class="upload-subtext">ou cliquez pour parcourir vos fichiers</div>
+                
+                <input type="file" id="pdfInput" class="file-input" accept=".pdf">
+                
+                <button type="button" class="btn-upload" onclick="document.getElementById('pdfInput').click()">
+                    <i class="mdi mdi-folder-open"></i>
+                    Choisir un fichier
+                </button>
+                
+                <div style="margin-top: 1rem;">
+                    <span class="formats-badge">
+                        <i class="mdi mdi-file-pdf"></i>
+                        PDF uniquement
+                    </span>
+                    <span class="formats-badge">
+                        <i class="mdi mdi-database"></i>
+                        Max 25 Mo
+                    </span>
+                </div>
+            </div>
+
+            {{ form_widget(form.pdf, { 
+                attr: { 
+                    class: 'file-input',
+                    id: 'formPdfInput'
+                } 
+            }) }}
+            {{ form_errors(form.pdf) }}
+
+            <div class="d-flex justify-content-between align-items-center mt-4">
+                <a href="{{ path('app_formation_index') }}" class="btn btn-secondary">
+                    <i class="mdi mdi-arrow-left"></i>
+                    Retour aux formations
+                </a>
+                
+                <button type="submit" class="btn btn-accent" id="generateBtn" disabled>
+                    <i class="mdi mdi-robot"></i>
+                    Générer le quiz
+                </button>
+            </div>
+
+            {{ form_end(form) }}
+        </div>
+    </div>
+</div>
+
+<!-- PROCESSING OVERLAY -->
+<div class="processing-overlay" id="processingOverlay" style="display: none;">
+    <div class="processing-spinner"></div>
+    <div class="processing-text">Analyse en cours...</div>
+    <div class="processing-subtext">Notre IA traite votre document</div>
+    <div class="progress-bar" style="width: 200px; margin-top: 1rem;">
+        <div class="progress-fill" id="progressFill" style="width: 0%;"></div>
+    </div>
+</div>
+
+<!-- FEATURES -->
+<div class="page-header">
+    <h2 class="page-title">Fonctionnalités IA</h2>
+    <p class="page-subtitle">Découvrez comment notre technologie transforme l'apprentissage</p>
+</div>
+
+<div class="features-grid">
+    <div class="feature-card fade-in" style="animation-delay: 0.1s;">
+        <i class="mdi mdi-brain feature-icon"></i>
+        <h3 class="feature-title">Analyse Intelligente</h3>
+        <p class="feature-description">Compréhension profonde du contenu pour des questions pertinentes</p>
+    </div>
+    
+    <div class="feature-card fade-in" style="animation-delay: 0.2s;">
+        <i class="mdi mdi-lightbulb feature-icon"></i>
+        <h3 class="feature-title">Questions Pertinentes</h3>
+        <p class="feature-description">Génération automatique de quiz basés sur les concepts clés</p>
+    </div>
+    
+    <div class="feature-card fade-in" style="animation-delay: 0.3s;">
+        <i class="mdi mdi-speedometer feature-icon"></i>
+        <h3 class="feature-title">Traitement Rapide</h3>
+        <p class="feature-description">Analyse locale sans délai d'attente ou API externe</p>
+    </div>
+    
+    <div class="feature-card fade-in" style="animation-delay: 0.4s;">
+        <i class="mdi mdi-shield-check feature-icon"></i>
+        <h3 class="feature-title">Sécurité</h3>
+        <p class="feature-description">Vos documents restent sur votre infrastructure</p>
+    </div>
+</div>
+
+<!-- JavaScript -->
+<script>
+// File upload handling
+const uploadArea = document.getElementById('uploadArea');
+const pdfInput = document.getElementById('pdfInput');
+const formPdfInput = document.getElementById('formPdfInput');
+const generateBtn = document.getElementById('generateBtn');
+const processingOverlay = document.getElementById('processingOverlay');
+const progressFill = document.getElementById('progressFill');
+const aiUploadForm = document.getElementById('aiUploadForm');
+
+// Drag and drop
+uploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadArea.classList.add('dragover');
+});
+
+uploadArea.addEventListener('dragleave', () => {
+    uploadArea.classList.remove('dragover');
+});
+
+uploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadArea.classList.remove('dragover');
+    
+    const files = e.dataTransfer.files;
+    if (files.length > 0 && files[0].type === 'application/pdf') {
+        handleFileSelect(files[0]);
+    }
+});
+
+// File selection
+pdfInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+        handleFileSelect(e.target.files[0]);
+    }
+});
+
+function handleFileSelect(file) {
+    // Validate file size (25MB max)
+    if (file.size > 25 * 1024 * 1024) {
+        alert('Le fichier est trop volumineux. Taille maximale: 25 Mo');
+        return;
+    }
+    
+    // Update both inputs
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(file);
+    formPdfInput.files = dataTransfer.files;
+    
+    // Update UI
+    uploadArea.innerHTML = `
+        <i class="mdi mdi-file-check upload-icon" style="color: var(--success);"></i>
+        <div class="upload-text">${file.name}</div>
+        <div class="upload-subtext">${(file.size / 1024 / 1024).toFixed(2)} Mo</div>
+        <button type="button" class="btn btn-secondary" onclick="resetUpload()">
+            <i class="mdi mdi-close"></i>
+            Changer de fichier
+        </button>
+    `;
+    
+    generateBtn.disabled = false;
+    updateProgressStep(2);
+}
+
+function resetUpload() {
+    pdfInput.value = '';
+    formPdfInput.value = '';
+    generateBtn.disabled = true;
+    
+    uploadArea.innerHTML = `
+        <i class="mdi mdi-file-pdf-box upload-icon"></i>
+        <div class="upload-text">Glissez votre PDF ici</div>
+        <div class="upload-subtext">ou cliquez pour parcourir vos fichiers</div>
+        
+        <input type="file" id="pdfInput" class="file-input" accept=".pdf">
+        
+        <button type="button" class="btn-upload" onclick="document.getElementById('pdfInput').click()">
+            <i class="mdi mdi-folder-open"></i>
+            Choisir un fichier
+        </button>
+        
+        <div style="margin-top: 1rem;">
+            <span class="formats-badge">
+                <i class="mdi mdi-file-pdf"></i>
+                PDF uniquement
+            </span>
+            <span class="formats-badge">
+                <i class="mdi mdi-database"></i>
+                Max 25 Mo
+            </span>
+        </div>
+    `;
+    
+    // Re-attach event listener
+    document.getElementById('pdfInput').addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            handleFileSelect(e.target.files[0]);
+        }
+    });
+    
+    updateProgressStep(1);
+}
+
+function updateProgressStep(stepNumber) {
+    document.querySelectorAll('.progress-step').forEach((step, index) => {
+        if (index < stepNumber) {
+            step.classList.add('active');
+        } else {
+            step.classList.remove('active');
+        }
+    });
+}
+
+// Form submission
+aiUploadForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    
+    updateProgressStep(3);
+    processingOverlay.style.display = 'flex';
+    
+    // Simulate progress
+    let progress = 0;
+    const progressInterval = setInterval(() => {
+        progress += Math.random() * 15;
+        if (progress > 90) progress = 90;
+        progressFill.style.width = progress + '%';
+        
+        if (progress >= 90) {
+            clearInterval(progressInterval);
+        }
+    }, 500);
+    
+    // Submit form
+    setTimeout(() => {
+        aiUploadForm.submit();
+    }, 2000);
+});
+
+// Re-initialize pdfInput after reset
+document.addEventListener('DOMContentLoaded', () => {
+    const newPdfInput = document.getElementById('pdfInput');
+    if (newPdfInput) {
+        newPdfInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

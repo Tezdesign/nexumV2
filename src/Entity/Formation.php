@@ -55,29 +55,24 @@ class Formation
     )]
     private ?string $video3 = null;
 
-    /**
-     * @var Collection<int, Participer>
-     */
     #[ORM\OneToMany(mappedBy: 'formation', targetEntity: Participer::class, orphanRemoval: true)]
     private Collection $participations;
 
-    /**
-     * @var Collection<int, Quiz>
-     */
     #[ORM\OneToMany(mappedBy: 'formation', targetEntity: Quiz::class, orphanRemoval: true)]
     private Collection $quizzes;
 
-    /**
-     * @var Collection<int, Resultat>
-     */
     #[ORM\OneToMany(mappedBy: 'formation', targetEntity: Resultat::class, orphanRemoval: true)]
     private Collection $resultats;
+
+    #[ORM\OneToMany(mappedBy: 'formation', targetEntity: Rating::class, orphanRemoval: true)]
+    private Collection $ratings;
 
     public function __construct()
     {
         $this->participations = new ArrayCollection();
         $this->quizzes = new ArrayCollection();
         $this->resultats = new ArrayCollection();
+        $this->ratings = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -143,9 +138,6 @@ class Formation
 
     // ===== RELATIONS =====
 
-    /**
-     * @return Collection<int, Participer>
-     */
     public function getParticipations(): Collection
     {
         return $this->participations;
@@ -170,9 +162,6 @@ class Formation
         return $this;
     }
 
-    /**
-     * @return Collection<int, Quiz>
-     */
     public function getQuizzes(): Collection
     {
         return $this->quizzes;
@@ -197,9 +186,6 @@ class Formation
         return $this;
     }
 
-    /**
-     * @return Collection<int, Resultat>
-     */
     public function getResultats(): Collection
     {
         return $this->resultats;
@@ -222,5 +208,43 @@ class Formation
             }
         }
         return $this;
+    }
+
+    public function getRatings(): Collection
+    {
+        return $this->ratings;
+    }
+
+    public function addRating(Rating $rating): self
+    {
+        if (!$this->ratings->contains($rating)) {
+            $this->ratings->add($rating);
+            $rating->setFormation($this);
+        }
+        return $this;
+    }
+
+    public function removeRating(Rating $rating): self
+    {
+        if ($this->ratings->removeElement($rating)) {
+            if ($rating->getFormation() === $this) {
+                $rating->setFormation(null);
+            }
+        }
+        return $this;
+    }
+
+    public function getAverageRating(): float
+    {
+        if ($this->ratings->isEmpty()) {
+            return 0.0;
+        }
+
+        $total = 0;
+        foreach ($this->ratings as $rating) {
+            $total += $rating->getValue();
+        }
+
+        return round($total / $this->ratings->count(), 1);
     }
 }

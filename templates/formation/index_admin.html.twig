@@ -5,25 +5,28 @@
 {% block css %}
 <style>
     :root {
-        --primary-color: #696cff;
-        --primary-dark: #5b5fe8;
-        --secondary-color: #8592a3;
-        --success-color: #71dd37;
-        --danger-color: #ff3e1d;
-        --warning-color: #ffab00;
-        --card-border: rgba(105, 108, 255, 0.08);
-        --soft-bg: #f8f9ff;
-        --text-dark: #233446;
+        --primary-color: #8b5cf6;
+        --primary-dark: #7c3aed;
+        --secondary-color: #6b7280;
+        --success-color: #10b981;
+        --danger-color: #ef4444;
+        --warning-color: #f59e0b;
+        --card-border: rgba(139, 92, 246, 0.12);
+        --soft-bg: #fafafa;
+        --text-dark: #111827;
+        --text-muted: #6b7280;
+        --bg-white: #ffffff;
+        --bg-gray: #f9fafb;
     }
 
     .page-header-box {
-        background: linear-gradient(135deg, #696cff 0%, #8f94fb 100%);
+        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
         border-radius: 24px;
         padding: 30px;
         color: white;
         position: relative;
         overflow: hidden;
-        box-shadow: 0 18px 40px rgba(105, 108, 255, 0.20);
+        box-shadow: 0 18px 40px rgba(139, 92, 246, 0.25);
     }
 
     .page-header-box::before {
@@ -31,7 +34,7 @@
         position: absolute;
         width: 220px;
         height: 220px;
-        background: rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.10);
         border-radius: 50%;
         top: -60px;
         right: -60px;
@@ -42,7 +45,7 @@
         position: absolute;
         width: 140px;
         height: 140px;
-        background: rgba(255,255,255,0.06);
+        background: rgba(255,255,255,0.08);
         border-radius: 50%;
         bottom: -40px;
         left: -40px;
@@ -56,28 +59,29 @@
     }
 
     .btn-create {
-        background: #fff;
+        background: var(--bg-white);
         color: var(--primary-color);
-        border: none;
+        border: 2px solid var(--primary-color);
         border-radius: 999px;
         padding: 12px 22px;
         font-weight: 700;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.10);
+        box-shadow: 0 10px 25px rgba(139, 92, 246, 0.15);
         transition: all .25s ease;
     }
 
     .btn-create:hover {
         transform: translateY(-2px);
-        background: #f8f9ff;
-        color: var(--primary-dark);
+        background: var(--primary-color);
+        color: var(--bg-white);
+        box-shadow: 0 15px 35px rgba(139, 92, 246, 0.30);
     }
 
     .toolbar-box {
-        background: #fff;
+        background: var(--bg-white);
         border-radius: 22px;
         padding: 18px;
-        box-shadow: 0 10px 35px rgba(31, 45, 61, 0.06);
-        border: 1px solid rgba(105, 108, 255, 0.06);
+        box-shadow: 0 10px 35px rgba(0, 0, 0, 0.08);
+        border: 1px solid var(--card-border);
     }
 
     .search-box {
@@ -120,16 +124,16 @@
         position: relative;
         border: 1px solid var(--card-border);
         border-radius: 22px;
-        background: #fff;
+        background: var(--bg-white);
         overflow: hidden;
         transition: all .30s ease;
-        box-shadow: 0 12px 28px rgba(31, 45, 61, 0.06);
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08);
     }
 
     .formation-card:hover {
         transform: translateY(-8px);
-        box-shadow: 0 20px 40px rgba(31, 45, 61, 0.12);
-        border-color: rgba(105,108,255,.18);
+        box-shadow: 0 20px 40px rgba(139, 92, 246, 0.15);
+        border-color: var(--primary-color);
     }
 
     .formation-card::before {
@@ -139,7 +143,7 @@
         left: 0;
         height: 5px;
         width: 100%;
-        background: linear-gradient(90deg, #696cff, #8f94fb);
+        background: linear-gradient(90deg, var(--primary-color), var(--primary-dark));
     }
 
     .formation-card-body {
@@ -150,7 +154,7 @@
     }
 
     .badge-id {
-        background: rgba(105,108,255,.10);
+        background: rgba(139, 92, 246, 0.12);
         color: var(--primary-color);
         padding: 7px 12px;
         border-radius: 999px;
@@ -165,7 +169,7 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        background: rgba(105,108,255,.10);
+        background: rgba(139, 92, 246, 0.12);
         color: var(--primary-color);
         font-size: 18px;
     }
@@ -226,27 +230,29 @@
     }
 
     .btn-view {
-        border: 1px solid rgba(105,108,255,.25);
+        border: 2px solid var(--primary-color);
         color: var(--primary-color);
-        background: #fff;
+        background: var(--bg-white);
     }
 
     .btn-view:hover {
-        background: rgba(105,108,255,.06);
-        color: var(--primary-dark);
-        border-color: rgba(105,108,255,.35);
+        background: var(--primary-color);
+        color: var(--bg-white);
+        border-color: var(--primary-dark);
+        transform: translateY(-1px);
+        box-shadow: 0 8px 20px rgba(139, 92, 246, 0.20);
     }
 
     .btn-edit {
-        background: linear-gradient(135deg, #696cff 0%, #8f94fb 100%);
-        color: #fff;
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+        color: var(--bg-white);
         border: none;
     }
 
     .btn-edit:hover {
-        color: #fff;
+        color: var(--bg-white);
         transform: translateY(-1px);
-        box-shadow: 0 12px 24px rgba(105,108,255,.24);
+        box-shadow: 0 12px 24px rgba(139, 92, 246, 0.30);
     }
 
     .empty-state {
@@ -334,9 +340,13 @@
             </div>
 
             <div>
+                 <a href="{{ path('app_formation_export_xls') }}" class="btn btn-create">
+                    <i class="bi bi-file-earmark-excel me-2"></i>Exporter en Excel
+                </a>
                 <a href="{{ path('app_formation_new') }}" class="btn btn-create">
                     <i class="bi bi-plus-circle me-2"></i>Créer une formation
                 </a>
+           
                  <a href="{{ path('admin_dashboard_formation') }}" class="btn btn-create">
                     <span class="menu-icon"><i class="ti ti-school"></i></span>
                     <span class="menu-text"> Training Stats</span>

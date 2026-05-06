@@ -1,236 +1,590 @@
 {% extends 'layouts/vertical.html.twig' %}
 
-{% set title = 'Projects' %}
+{% set title = 'Training Analytics' %}
 
-{% block css %}{% endblock %}
+{% block css %}
+<style>
+    :root {
+        --dash-purple: #6f42c1;
+        --dash-purple-soft: rgba(111, 66, 193, 0.10);
+        --dash-purple-glow: rgba(111, 66, 193, 0.22);
+        --dash-dark: #111827;
+        --dash-muted: #6b7280;
+        --dash-border: rgba(17, 24, 39, 0.08);
+        --dash-card: #ffffff;
+        --dash-bg: #f7f7fb;
+        --dash-green: #198754;
+        --dash-yellow: #ffc107;
+        --dash-blue: #0d6efd;
+    }
+
+    .training-dashboard {
+        min-height: 100vh;
+        background:
+            radial-gradient(circle at top left, rgba(111, 66, 193, 0.12), transparent 34%),
+            linear-gradient(180deg, #fbfbff 0%, var(--dash-bg) 100%);
+        padding-bottom: 40px;
+    }
+
+    .dashboard-hero {
+        border: 1px solid var(--dash-border);
+        border-radius: 28px;
+        background:
+            linear-gradient(135deg, rgba(255,255,255,0.96), rgba(255,255,255,0.82)),
+            linear-gradient(135deg, rgba(111,66,193,0.10), rgba(13,110,253,0.04));
+        box-shadow: 0 20px 50px rgba(17, 24, 39, 0.08);
+        padding: 28px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .dashboard-hero::after {
+        content: "";
+        position: absolute;
+        width: 260px;
+        height: 260px;
+        right: -110px;
+        top: -120px;
+        background: rgba(111,66,193,0.16);
+        border-radius: 50%;
+        filter: blur(3px);
+    }
+
+    .hero-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        border-radius: 999px;
+        background: var(--dash-purple-soft);
+        color: var(--dash-purple);
+        font-size: 13px;
+        font-weight: 700;
+        margin-bottom: 12px;
+    }
+
+    .hero-title {
+        font-size: clamp(28px, 4vw, 42px);
+        font-weight: 800;
+        color: var(--dash-dark);
+        letter-spacing: -0.04em;
+        margin-bottom: 8px;
+    }
+
+    .hero-subtitle {
+        color: var(--dash-muted);
+        max-width: 720px;
+        margin-bottom: 0;
+        font-size: 15px;
+        line-height: 1.7;
+    }
+
+    .hero-actions {
+        position: relative;
+        z-index: 2;
+    }
+
+    .btn-soft-purple {
+        border: 1px solid rgba(111, 66, 193, 0.20);
+        color: var(--dash-purple);
+        background: rgba(111, 66, 193, 0.08);
+        border-radius: 999px;
+        font-weight: 700;
+        padding: 10px 18px;
+        transition: all .2s ease;
+    }
+
+    .btn-soft-purple:hover {
+        background: var(--dash-purple);
+        color: #fff;
+        box-shadow: 0 12px 28px var(--dash-purple-glow);
+        transform: translateY(-1px);
+    }
+
+    .kpi-card {
+        border: 1px solid var(--dash-border);
+        border-radius: 24px;
+        background: var(--dash-card);
+        box-shadow: 0 16px 36px rgba(17, 24, 39, 0.06);
+        padding: 22px;
+        height: 100%;
+        position: relative;
+        overflow: hidden;
+        transition: all .2s ease;
+    }
+
+    .kpi-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 22px 46px rgba(17, 24, 39, 0.09);
+    }
+
+    .kpi-card::before {
+        content: "";
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 5px;
+        background: var(--accent);
+    }
+
+    .kpi-icon {
+        width: 46px;
+        height: 46px;
+        border-radius: 16px;
+        display: grid;
+        place-items: center;
+        background: var(--accent-soft);
+        color: var(--accent);
+        font-size: 21px;
+        margin-bottom: 16px;
+    }
+
+    .kpi-label {
+        color: var(--dash-muted);
+        font-size: 13px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+        margin-bottom: 8px;
+    }
+
+    .kpi-value {
+        font-size: 32px;
+        font-weight: 850;
+        color: var(--dash-dark);
+        letter-spacing: -0.04em;
+        margin-bottom: 0;
+    }
+
+    .kpi-helper {
+        color: var(--dash-muted);
+        font-size: 13px;
+        margin-top: 8px;
+        margin-bottom: 0;
+    }
+
+    .kpi-purple {
+        --accent: #6f42c1;
+        --accent-soft: rgba(111, 66, 193, 0.12);
+    }
+
+    .kpi-green {
+        --accent: #198754;
+        --accent-soft: rgba(25, 135, 84, 0.12);
+    }
+
+    .kpi-yellow {
+        --accent: #d89b00;
+        --accent-soft: rgba(255, 193, 7, 0.18);
+    }
+
+    .kpi-dark {
+        --accent: #111827;
+        --accent-soft: rgba(17, 24, 39, 0.10);
+    }
+
+    .analytics-card {
+        border: 1px solid var(--dash-border);
+        border-radius: 26px;
+        background: rgba(255,255,255,0.92);
+        box-shadow: 0 18px 42px rgba(17, 24, 39, 0.07);
+        padding: 24px;
+        height: 100%;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .analytics-card::before {
+        content: "";
+        position: absolute;
+        width: 140px;
+        height: 140px;
+        right: -70px;
+        top: -70px;
+        border-radius: 50%;
+        background: rgba(111, 66, 193, 0.10);
+    }
+
+    .chart-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 18px;
+        position: relative;
+        z-index: 2;
+    }
+
+    .chart-title {
+        font-size: 16px;
+        font-weight: 800;
+        color: var(--dash-dark);
+        margin-bottom: 4px;
+    }
+
+    .chart-subtitle {
+        color: var(--dash-muted);
+        font-size: 13px;
+        margin-bottom: 0;
+    }
+
+    .chart-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 7px 11px;
+        border-radius: 999px;
+        background: rgba(111, 66, 193, 0.08);
+        color: var(--dash-purple);
+        font-size: 12px;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .chart-wrap {
+        position: relative;
+        min-height: 310px;
+        z-index: 2;
+    }
+
+    .chart-wrap canvas {
+        width: 100% !important;
+        max-height: 310px;
+    }
+
+    .dashboard-footer-note {
+        margin-top: 20px;
+        border: 1px dashed rgba(111, 66, 193, 0.22);
+        background: rgba(111, 66, 193, 0.06);
+        color: #5b3aa3;
+        padding: 14px 16px;
+        border-radius: 18px;
+        font-size: 13px;
+    }
+
+    @media (max-width: 768px) {
+        .dashboard-hero {
+            padding: 22px;
+        }
+
+        .chart-header {
+            flex-direction: column;
+        }
+
+        .chart-wrap {
+            min-height: 260px;
+        }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
 
-<div class="container py-4">
+<div class="training-dashboard">
+    <div class="container py-4 py-lg-5">
 
-    <h2 class="fw-bold mb-4">Admin Dashboard</h2>
+        <div class="dashboard-hero mb-4">
+            <div class="row align-items-center g-4">
+                <div class="col-lg-8">
+                    <div class="hero-badge">
+                        <i class="bi bi-graph-up-arrow"></i>
+                        Training Analytics
+                    </div>
 
-    <!-- 🔥 STATS -->
-    <div class="row g-3 mb-4">
-        <div class="col-md-3">
-            <div class="card stat-card bg1">
-                <h6>Total</h6>
-                <h3>{{ stats.formations }}</h3>
+                    <h1 class="hero-title">Admin Dashboard</h1>
+
+                    <p class="hero-subtitle">
+                        Suivez les formations, les quiz, les réussites et les performances globales de votre plateforme.
+                    </p>
+                </div>
+
+                <div class="col-lg-4 text-lg-end hero-actions">
+                    <a href="{{ path('app_formation_index_admin') }}" class="btn btn-soft-purple">
+                        <i class="bi bi-mortarboard me-1"></i>
+                        Gérer les formations
+                    </a>
+                </div>
             </div>
         </div>
 
-        <div class="col-md-3">
-            <div class="card stat-card bg2">
-                <h6>Réussi</h6>
-                <h3>{{ stats.reussi }}</h3>
+        <div class="row g-3 g-lg-4 mb-4">
+            <div class="col-md-6 col-xl-3">
+                <div class="kpi-card kpi-purple">
+                    <div class="kpi-icon">
+                        <i class="bi bi-collection-play"></i>
+                    </div>
+                    <div class="kpi-label">Total formations</div>
+                    <h3 class="kpi-value">{{ stats.formations }}</h3>
+                    <p class="kpi-helper">Catalogue actif</p>
+                </div>
+            </div>
+
+            <div class="col-md-6 col-xl-3">
+                <div class="kpi-card kpi-green">
+                    <div class="kpi-icon">
+                        <i class="bi bi-patch-check"></i>
+                    </div>
+                    <div class="kpi-label">Réussites</div>
+                    <h3 class="kpi-value">{{ stats.reussi }}</h3>
+                    <p class="kpi-helper">Participants validés</p>
+                </div>
+            </div>
+
+            <div class="col-md-6 col-xl-3">
+                <div class="kpi-card kpi-yellow">
+                    <div class="kpi-icon">
+                        <i class="bi bi-question-circle"></i>
+                    </div>
+                    <div class="kpi-label">Quiz</div>
+                    <h3 class="kpi-value">{{ stats.quiz }}</h3>
+                    <p class="kpi-helper">Questions disponibles</p>
+                </div>
+            </div>
+
+            <div class="col-md-6 col-xl-3">
+                <div class="kpi-card kpi-dark">
+                    <div class="kpi-icon">
+                        <i class="bi bi-lightning-charge"></i>
+                    </div>
+                    <div class="kpi-label">Success rate</div>
+                    <h3 class="kpi-value">{{ stats.successRate }}%</h3>
+                    <p class="kpi-helper">Taux de validation</p>
+                </div>
             </div>
         </div>
 
-        <div class="col-md-3">
-            <div class="card stat-card bg3">
-                <h6>Quiz</h6>
-                <h3>{{ stats.quiz }}</h3>
+        <div class="row g-4">
+            <div class="col-xl-5">
+                <div class="analytics-card">
+                    <div class="chart-header">
+                        <div>
+                            <h6 class="chart-title">Répartition globale</h6>
+                            <p class="chart-subtitle">Vue synthétique des statuts principaux.</p>
+                        </div>
+                        <span class="chart-chip">
+                            <i class="bi bi-pie-chart"></i>
+                            Global
+                        </span>
+                    </div>
+
+                    <div class="chart-wrap">
+                        <canvas id="chartGlobal"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-7">
+                <div class="analytics-card">
+                    <div class="chart-header">
+                        <div>
+                            <h6 class="chart-title">Top formations</h6>
+                            <p class="chart-subtitle">Classement par nombre de participants.</p>
+                        </div>
+                        <span class="chart-chip">
+                            <i class="bi bi-trophy"></i>
+                            Ranking
+                        </span>
+                    </div>
+
+                    <div class="chart-wrap">
+                        <canvas id="chartTop"></canvas>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div class="col-md-3">
-            <div class="card stat-card bg4">
-                <h6>Success</h6>
-                <h3>{{ stats.successRate }}%</h3>
-            </div>
+        <div class="dashboard-footer-note">
+            <i class="bi bi-info-circle me-1"></i>
+            Les graphiques sont mis à jour automatiquement depuis les endpoints statistiques de l’administration.
         </div>
+
     </div>
-
-<div class="row g-4 mb-4">
-
-    <!-- 🔵 CHART GLOBAL -->
-    <div class="col-md-6">
-        <div class="card p-4 h-100">
-            <h6 class="fw-bold mb-3">Répartition</h6>
-            <canvas id="chartGlobal"></canvas>
-        </div>
-    </div>
-
-    <!-- 📈 MONTHLY -->
-    
-
-    <!-- 🏆 TOP FORMATIONS -->
-    <div class="col-md-6">
-        <div class="card p-4 h-100">
-            <h6 class="fw-bold mb-3">Top formations</h6>
-            <canvas id="chartTop"></canvas>
-        </div>
-    </div>
-
 </div>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<script>
-// 🎨 CONFIG STYLE GLOBAL
-Chart.defaults.font.family = 'Inter, sans-serif';
-Chart.defaults.plugins.legend.position = 'bottom';
-
-// 🔥 GRADIENT FUNCTION
-function gradient(ctx, color1, color2) {
-    const grad = ctx.createLinearGradient(0, 0, 0, 300);
-    grad.addColorStop(0, color1);
-    grad.addColorStop(1, color2);
-    return grad;
-}
-
-// ================= GLOBAL =================
-fetch("{{ path('admin_chart') }}")
-.then(r=>r.json())
-.then(data=>{
-
-    const ctx = document.getElementById('chartGlobal').getContext('2d');
-
-    new Chart(ctx,{
-        type:'doughnut',
-        data:{
-            labels:data.labels,
-            datasets:[{
-                data:data.data,
-                backgroundColor:[
-                    '#6f42c1',
-                    '#ffc107',
-                    '#198754'
-                ],
-                borderWidth:0
-            }]
-        },
-        options:{
-            cutout:'70%',
-            plugins:{
-                legend:{
-                    labels:{usePointStyle:true}
-                }
-            }
-        }
-    });
-
-});
-
-// ================= MONTHLY =================
-fetch("{{ path('admin_chart_monthly') }}")
-.then(r=>r.json())
-.then(data=>{
-
-    const ctx = document.getElementById('chartMonthly').getContext('2d');
-
-    const grad = gradient(ctx, '#6f42c1', '#9d6bff');
-
-    new Chart(ctx,{
-        type:'line',
-        data:{
-            labels:data.labels,
-            datasets:[{
-                label:'Inscriptions',
-                data:data.data,
-                borderColor:'#6f42c1',
-                backgroundColor:grad,
-                fill:true,
-                tension:0.4
-            }]
-        },
-        options:{
-            responsive:true,
-            scales:{
-                y:{beginAtZero:true}
-            }
-        }
-    });
-
-});
-
-// ================= TOP =================
-fetch("{{ path('admin_chart_top') }}")
-.then(r=>r.json())
-.then(data=>{
-
-    const ctx = document.getElementById('chartTop').getContext('2d');
-
-    const grad = gradient(ctx, '#198754', '#20c997');
-
-    new Chart(ctx,{
-        type:'bar',
-        data:{
-            labels:data.labels,
-            datasets:[{
-                label:'Participants',
-                data:data.data,
-                backgroundColor:grad,
-                borderRadius:10
-            }]
-        },
-        options:{
-            indexAxis:'y',
-            scales:{
-                x:{beginAtZero:true}
-            }
-        }
-    });
-
-});
-</script>
- 
- 
-
-</div>
-
-<style>
-.stat-card {
-    padding:20px;
-    border-radius:15px;
-    color:white;
-}
-.bg1 {background:#6f42c1;}
-.bg2 {background:#198754;}
-.bg3 {background:#ffc107;}
-.bg4 {background:#212529;}
-</style>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-// 🔥 CHART
-fetch("{{ path('admin_chart') }}")
-.then(r=>r.json())
-.then(data=>{
-    new Chart(document.getElementById('chart'),{
-        type:'doughnut',
-        data:{
-            labels:data.labels,
-            datasets:[{data:data.data}]
+(function () {
+    let chartsInitialized = false;
+    let chartGlobalInstance = null;
+    let chartTopInstance = null;
+
+    function destroyExistingCharts() {
+        if (chartGlobalInstance) {
+            chartGlobalInstance.destroy();
+            chartGlobalInstance = null;
         }
-    });
-});
 
-// 🔥 AJAX
-function load(page=1){
-    let q=document.getElementById('search').value;
-    let sort=document.getElementById('sort').value;
-
-    fetch(`?q=${q}&sort=${sort}&page=${page}`,{
-        headers:{'X-Requested-With':'XMLHttpRequest'}
-    })
-    .then(r=>r.text())
-    .then(html=>{
-        document.getElementById('list-container').innerHTML=html;
-    });
-}
-
-document.getElementById('search').addEventListener('keyup',()=>load());
-document.getElementById('sort').addEventListener('change',()=>load());
-
-document.addEventListener('click',function(e){
-    if(e.target.closest('.pagination a')){
-        e.preventDefault();
-        let url=e.target.closest('a').href;
-        let page=new URL(url).searchParams.get('page');
-        load(page);
+        if (chartTopInstance) {
+            chartTopInstance.destroy();
+            chartTopInstance = null;
+        }
     }
-});
+
+    function createGradient(ctx, color1, color2) {
+        const grad = ctx.createLinearGradient(0, 0, 0, 320);
+        grad.addColorStop(0, color1);
+        grad.addColorStop(1, color2);
+        return grad;
+    }
+
+    async function fetchJson(url) {
+        const response = await fetch(url, {
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('HTTP ' + response.status);
+        }
+
+        return response.json();
+    }
+
+    async function initTrainingCharts() {
+        if (typeof Chart === 'undefined') {
+            console.error('Chart.js not loaded');
+            return;
+        }
+
+        const chartGlobalEl = document.getElementById('chartGlobal');
+        const chartTopEl = document.getElementById('chartTop');
+
+        if (!chartGlobalEl && !chartTopEl) {
+            return;
+        }
+
+        destroyExistingCharts();
+
+        Chart.defaults.font.family = 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+        Chart.defaults.color = '#6b7280';
+        Chart.defaults.plugins.legend.position = 'bottom';
+
+        if (chartGlobalEl) {
+            try {
+                const data = await fetchJson("{{ path('admin_chart') }}");
+                const ctx = chartGlobalEl.getContext('2d');
+
+                chartGlobalInstance = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: data.labels || [],
+                        datasets: [{
+                            data: data.data || [],
+                            backgroundColor: [
+                                '#6f42c1',
+                                '#ffc107',
+                                '#198754',
+                                '#0d6efd'
+                            ],
+                            borderColor: '#ffffff',
+                            borderWidth: 4,
+                            hoverOffset: 8
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '72%',
+                        plugins: {
+                            legend: {
+                                labels: {
+                                    usePointStyle: true,
+                                    boxWidth: 8,
+                                    boxHeight: 8,
+                                    padding: 18,
+                                    font: {
+                                        size: 12,
+                                        weight: '600'
+                                    }
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: '#111827',
+                                padding: 12,
+                                cornerRadius: 12
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('chartGlobal error:', error);
+            }
+        }
+
+        if (chartTopEl) {
+            try {
+                const data = await fetchJson("{{ path('admin_chart_top') }}");
+                const ctx = chartTopEl.getContext('2d');
+
+                const grad = createGradient(ctx, 'rgba(111, 66, 193, 0.88)', 'rgba(13, 110, 253, 0.72)');
+
+                chartTopInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: data.labels || [],
+                        datasets: [{
+                            label: 'Participants',
+                            data: data.data || [],
+                            backgroundColor: grad,
+                            borderRadius: 12,
+                            borderSkipped: false,
+                            barThickness: 24,
+                            maxBarThickness: 30
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        indexAxis: 'y',
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                backgroundColor: '#111827',
+                                padding: 12,
+                                cornerRadius: 12
+                            }
+                        },
+                        scales: {
+                            x: {
+                                beginAtZero: true,
+                                grid: {
+                                    color: 'rgba(17, 24, 39, 0.06)',
+                                    drawBorder: false
+                                },
+                                ticks: {
+                                    precision: 0
+                                }
+                            },
+                            y: {
+                                grid: {
+                                    display: false,
+                                    drawBorder: false
+                                },
+                                ticks: {
+                                    font: {
+                                        weight: '600'
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('chartTop error:', error);
+            }
+        }
+
+        chartsInitialized = true;
+    }
+
+    document.addEventListener('DOMContentLoaded', initTrainingCharts);
+    document.addEventListener('turbo:load', initTrainingCharts);
+    document.addEventListener('turbo:before-cache', destroyExistingCharts);
+})();
 </script>
 
 {% endblock %}

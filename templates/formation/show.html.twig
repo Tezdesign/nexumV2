@@ -45,6 +45,19 @@
 }
 </style>
 
+{# Leaflet (OpenStreetMap) #}
+<link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+  crossorigin=""
+/>
+<script
+  src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+  crossorigin=""
+></script>
+
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 <section class="section light-background">
 
@@ -89,6 +102,61 @@
     </p>
 
 </div>
+<!-- LOCALISATION -->
+<div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+        <h5 class="fw-bold mb-0">
+            <i class="bi bi-geo-alt-fill text-primary me-2"></i>
+            Localisation
+        </h5>
+        <small class="text-muted">Optionnel</small>
+    </div>
+
+    <div class="input-group">
+        <input
+            id="localisationField"
+            type="text"
+            class="form-control"
+            placeholder="Choisir une localisation..."
+            value="{{ participation.localisation ?? '' }}"
+        >
+        <button id="openMapBtn" class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#localisationMapModal">
+            <i class="bi bi-map"></i>
+            Carte
+        </button>
+        <button id="saveLocalisationBtn" class="btn btn-primary" type="button">
+            Enregistrer
+        </button>
+    </div>
+    <div id="localisationSaveHint" class="small text-muted mt-2" style="display:none;"></div>
+</div>
+
+<!-- MAP MODAL -->
+<div class="modal fade" id="localisationMapModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content rounded-4">
+      <div class="modal-header">
+        <h5 class="modal-title">
+            <i class="bi bi-map me-2"></i>Choisir une localisation
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+          <small class="text-muted">Clique sur la carte pour sélectionner un emplacement.</small>
+          <small id="reverseGeoStatus" class="text-muted"></small>
+        </div>
+        <div id="localisationMap" style="height: 420px; border-radius: 16px; overflow: hidden;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fermer</button>
+      </div>
+    </div>
+  </div>
+</div>
+aaaa
+
+
 
 <div id="loaderOverlay" class="loader-overlay" style="display:none;">
     <div class="loader-box text-center">
@@ -204,9 +272,20 @@ document.getElementById('langSelect').addEventListener('change', function(){
                     <p class="fw-semibold text-center">{{ quiz.question }}</p>
 
                     {% if quiz.image %}
+                        {% set imagePath = quiz.image starts with('/uploads/')
+                            ? quiz.image|slice(1)
+                            : (quiz.image starts with('uploads/')
+                                ? quiz.image
+                                : 'uploads/quiz/' ~ quiz.image) %}
+
                         <div class="text-center">
-                            <img src="{{ asset('uploads/quiz/' ~ quiz.image) }}"
-                                 class="quiz-img">
+                            <img src="{{ asset(imagePath) }}"
+                                 class="quiz-img"
+                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+                                 alt="Quiz image">
+                            <div style="display:none;" class="p-3 bg-light border rounded text-center text-muted">
+                                <small>Image non disponible</small>
+                            </div>
                         </div>
                     {% endif %}
 
@@ -265,6 +344,113 @@ document.getElementById('langSelect').addEventListener('change', function(){
 <script>
 let formationId = {{ formation.id }};
 let progression = {{ participation.progression ?? 0 }};
+
+// ===== Localisation picker (OSM + Geocoder) =====
+let mapInstance = null;
+let mapMarker = null;
+let mapInitialized = false;
+
+const localisationField = document.getElementById('localisationField');
+const saveLocalisationBtn = document.getElementById('saveLocalisationBtn');
+const localisationSaveHint = document.getElementById('localisationSaveHint');
+const reverseGeoStatus = document.getElementById('reverseGeoStatus');
+
+async function saveLocalisation(value) {
+    localisationSaveHint.style.display = 'block';
+    localisationSaveHint.innerText = 'Enregistrement...';
+
+    const res = await fetch("{{ path('app_participation_localisation_update') }}", {
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        body: new URLSearchParams({
+            formationId: formationId,
+            localisation: value ?? ''
+        })
+    });
+
+    if (!res.ok) {
+        localisationSaveHint.innerText = 'Erreur lors de l’enregistrement.';
+        return;
+    }
+
+    const data = await res.json();
+    localisationField.value = data.localisation ?? '';
+    localisationSaveHint.innerText = 'Localisation enregistrée.';
+    setTimeout(() => { localisationSaveHint.style.display = 'none'; }, 2000);
+}
+
+saveLocalisationBtn?.addEventListener('click', () => {
+    saveLocalisation(localisationField.value);
+});
+
+document.getElementById('localisationMapModal')?.addEventListener('shown.bs.modal', () => {
+    if (!mapInitialized) {
+        mapInitialized = true;
+
+        mapInstance = L.map('localisationMap', {
+            scrollWheelZoom: true
+        }).setView([36.8065, 10.1815], 12); // Tunis par défaut
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap'
+        }).addTo(mapInstance);
+
+        // Center on user if available
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition((pos) => {
+                const { latitude, longitude } = pos.coords;
+                mapInstance.setView([latitude, longitude], 15);
+            }, () => {});
+        }
+
+        mapInstance.on('click', async (e) => {
+            const { lat, lng } = e.latlng;
+            reverseGeoStatus.innerText = 'Recherche adresse...';
+
+            if (mapMarker) {
+                mapMarker.setLatLng([lat, lng]);
+            } else {
+                mapMarker = L.marker([lat, lng]).addTo(mapInstance);
+            }
+
+            try {
+                const url = new URL('https://nominatim.openstreetmap.org/reverse');
+                url.searchParams.set('format', 'jsonv2');
+                url.searchParams.set('lat', String(lat));
+                url.searchParams.set('lon', String(lng));
+
+                const r = await fetch(url.toString(), {
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (!r.ok) {
+                    reverseGeoStatus.innerText = 'Adresse introuvable.';
+                    return;
+                }
+
+                const json = await r.json();
+                const label = json.display_name || `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+                localisationField.value = label;
+                reverseGeoStatus.innerText = 'Adresse trouvée.';
+
+                // auto-save after selection
+                await saveLocalisation(label);
+            } catch (err) {
+                reverseGeoStatus.innerText = 'Erreur géocodage.';
+            } finally {
+                setTimeout(() => { reverseGeoStatus.innerText = ''; }, 2000);
+            }
+        });
+    }
+
+    // Leaflet needs invalidateSize after modal opens
+    setTimeout(() => {
+        mapInstance?.invalidateSize();
+    }, 150);
+});
 
 // 🎥 TRACK VIDEO
 document.querySelectorAll('.video-player').forEach(video => {
@@ -331,9 +517,36 @@ function submitQuiz(){
             answers: answers
         })
     })
-    .then(r=>r.json())
-    .then(data=>{
-        showResult(data.score, data.total);
+    .then(res => {
+        // Check if response is ok (status 200-299)
+        if (!res.ok) {
+            return res.text().then(text => {
+                throw new Error(`HTTP ${res.status}: ${text}`);
+            });
+        }
+        return res.text();
+    })
+    .then(text => {
+        try {
+            const data = JSON.parse(text);
+            
+            if (data.success === false) {
+                // Handle backend error
+                alert('Erreur: ' + (data.error || 'Une erreur est survenue'));
+                return;
+            }
+            
+            // Success case
+            showResult(data.score, data.total);
+            
+        } catch (parseError) {
+            console.error('Invalid JSON response:', text);
+            alert('Erreur de communication avec le serveur. Réponse invalide.');
+        }
+    })
+    .catch(error => {
+        console.error('Quiz submission error:', error);
+        alert('Erreur lors de la soumission du quiz: ' + error.message);
     });
 }
 

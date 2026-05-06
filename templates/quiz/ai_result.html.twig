@@ -1,0 +1,99 @@
+{% extends 'layouts/vertical.html.twig' %}
+
+{% set title = 'Quiz IA généré' %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+
+    <div class="d-flex justify-content-between align-items-start mb-4">
+        <div>
+            <h3 class="fw-bold mb-1">{{ title }}</h3>
+            <div class="text-muted">Résultat généré localement via Python.</div>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ path('app_quiz_ai_upload') }}" class="btn btn-outline-secondary">
+                Générer un autre PDF
+            </a>
+        </div>
+    </div>
+
+    {% set quizTitle = quiz.title ?? quiz.titre ?? 'Quiz' %}
+    {% set questions = quiz.questions ?? quiz.items ?? quiz.quiz ?? [] %}
+
+    <div class="card shadow-sm rounded-4 mb-4">
+        <div class="card-body p-4">
+            <h5 class="fw-bold mb-0">{{ quizTitle }}</h5>
+            <div class="text-muted small mt-1">
+                {{ questions is iterable ? (questions|length ~ ' question(s)') : 'Questions indisponibles' }}
+            </div>
+        </div>
+    </div>
+
+    {% if questions is not iterable or questions|length == 0 %}
+        <div class="alert alert-warning">
+            Aucune question n’a été détectée dans le JSON retourné par Python.
+        </div>
+        <pre class="bg-light p-3 rounded-3 small mb-0">{{ quiz|json_encode(constant('JSON_PRETTY_PRINT')) }}</pre>
+    {% else %}
+        {% for q in questions %}
+            {% set qType = q.type ?? q.question_type ?? 'N/A' %}
+            {% set qText = q.question ?? q.enonce ?? q.text ?? '' %}
+            {% set qChoices = q.choices ?? q.options ?? q.choix ?? [] %}
+            {% set qAnswer = q.answer ?? q.reponse ?? q.correct_answer ?? '' %}
+            {% set qExplanation = q.explanation ?? q.explication ?? '' %}
+            {% set qDifficulty = q.difficulty ?? q.difficulte ?? '' %}
+
+            <div class="card shadow-sm rounded-4 mb-3">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-start gap-3">
+                        <h6 class="fw-bold mb-2">
+                            Question {{ loop.index }}
+                        </h6>
+                        <div class="text-end">
+                            <div class="badge bg-light text-dark border">{{ qType }}</div>
+                            {% if qDifficulty is not empty %}
+                                <div class="badge bg-secondary ms-1">{{ qDifficulty }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    {% if qText %}
+                        <div class="mb-3">{{ qText }}</div>
+                    {% endif %}
+
+                    {% if qChoices is iterable and qChoices|length > 0 %}
+                        <div class="mb-3">
+                            <div class="fw-semibold mb-2">Choix</div>
+                            <ul class="list-group">
+                                {% for c in qChoices %}
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <span>{{ c }}</span>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="p-3 rounded-3 border bg-light h-100">
+                                <div class="fw-semibold mb-1">Réponse</div>
+                                <div>{{ qAnswer ?: 'N/A' }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="p-3 rounded-3 border bg-white h-100">
+                                <div class="fw-semibold mb-1">Explication</div>
+                                <div class="text-muted">{{ qExplanation ?: '—' }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+</div>
+{% endblock %}
+

@@ -64,13 +64,6 @@ services:
             $countryCode: '%app.holiday_country_code%'
 
 
-
-
-    App\Service\MailService:
-        arguments:
-            $mailFrom: '%env(MAILER_FROM_NEXUM)%'
-            $mailDsn: '%env(MAILER_DSN_NEXUM)%'
-
     App\Service\TelegramNotificationService:
         arguments:
             $botToken: '%env(TELEGRAM_BOT_TOKEN)%'
@@ -97,3 +90,14 @@ services:
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
+    App\Service\CertificateService:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+
+    App\Service\QrService:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+
+    App\Service\QuizImageGenerator:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
