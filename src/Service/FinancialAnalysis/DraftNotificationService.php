@@ -3,16 +3,17 @@
 namespace App\Service\FinancialAnalysis;
 
 use Psr\Cache\CacheItemPoolInterface;
+use Symfony\Component\DependencyInjection\Attribute\Target;
 
 class DraftNotificationService
 {
     private CacheItemPoolInterface $cache;
     private \App\Service\FirebaseNotificationService $firebaseService;
 
-    public function __construct(CacheItemPoolInterface $cache, \App\Service\FirebaseNotificationService $firebaseService)
-    {
-        // By default, Symfony auto-wires the cache.app pool here
-        // which uses the filesystem and survives server restarts
+    public function __construct(
+        #[Target('cache.notifications')] CacheItemPoolInterface $cache, 
+        \App\Service\FirebaseNotificationService $firebaseService
+    ) {
         $this->cache = $cache;
         $this->firebaseService = $firebaseService;
     }
