@@ -2,25 +2,63 @@
 
 namespace App\Service\FinancialAnalysis;
 
-use Psr\Cache\CacheItemPoolInterface;
-use Symfony\Component\DependencyInjection\Attribute\Target;
+use Predis\Client;
 
 class DraftNotificationService
 {
-    private CacheItemPoolInterface $cache;
+    private ?Client $redis = null;
     private \App\Service\FirebaseNotificationService $firebaseService;
 
-    public function __construct(
-        #[Target('cache.notifications')] CacheItemPoolInterface $cache, 
-        \App\Service\FirebaseNotificationService $firebaseService
-    ) {
-        $this->cache = $cache;
+    public function __construct(\App\Service\FirebaseNotificationService $firebaseService)
+    {
         $this->firebaseService = $firebaseService;
+        
+        $url = $_ENV['REDIS_URL'] ?? null;
+        if ($url) {
+            $parsed = parse_url($url);
+            $host = $parsed['host'] ?? '127.0.0.1';
+            $port = $parsed['port'] ?? 6379;
+            $pass = isset($parsed['pass']) ? $parsed['pass'] : '';
+            
+            $clientParams = [
+                'scheme' => 'tcp',
+                'host'   => $host,
+                'port'   => $port,
+                'timeout' => 2.5,
+            ];
+            
+            if (!empty($pass)) {
+                $clientParams['password'] = $pass;
+            }
+            
+            $this->redis = new Client($clientParams);
+        }
     }
 
     private function getCacheKey(int $userId): string
     {
         return 'draft_notifications_user_' . $userId;
+    }
+    
+    private function getNotificationsFromRedis(string $key): array
+    {
+        if (!$this->redis) return [];
+        try {
+            $data = $this->redis->get($key);
+            if ($data) {
+                $decoded = json_decode($data, true);
+                return is_array($decoded) ? $decoded : [];
+            }
+        } catch (\Exception $e) {}
+        return [];
+    }
+    
+    private function saveNotificationsToRedis(string $key, array $notifications): void
+    {
+        if (!$this->redis) return;
+        try {
+            $this->redis->set($key, json_encode($notifications));
+        } catch (\Exception $e) {}
     }
 
     /**
@@ -29,10 +67,7 @@ class DraftNotificationService
     public function addNotification(int $userId, string $title, string $message, string $type = 'info'): void
     {
         $key = $this->getCacheKey($userId);
-        $item = $this->cache->getItem($key);
-
-        // Fetch existing notifications or initialize empty array
-        $notifications = $item->isHit() && is_array($item->get()) ? $item->get() : [];
+        $notifications = $this->getNotificationsFromRedis($key);
 
         // Add new notification at the beginning
         $notificationId = uniqid('notif_', true);
@@ -51,8 +86,7 @@ class DraftNotificationService
             $notifications = array_slice($notifications, 0, 50);
         }
 
-        $item->set($notifications);
-        $this->cache->save($item);
+        $this->saveNotificationsToRedis($key, $notifications);
 
         // Trigger native Firebase push notification
         $this->firebaseService->sendPushNotification($title, $message);
@@ -66,16 +100,12 @@ class DraftNotificationService
     public function popUndeliveredNotifications(int $userId): array
     {
         $key = $this->getCacheKey($userId);
-        $item = $this->cache->getItem($key);
+        $notifications = $this->getNotificationsFromRedis($key);
 
-        if (!$item->isHit()) {
+        if (empty($notifications)) {
             return [];
         }
 
-        $notifications = $item->get();
-        if (!is_array($notifications)) {
-            return [];
-        }
         $undelivered = [];
         $modified = false;
 
@@ -89,8 +119,7 @@ class DraftNotificationService
         unset($notif);
 
         if ($modified) {
-            $item->set($notifications);
-            $this->cache->save($item);
+            $this->saveNotificationsToRedis($key, $notifications);
         }
 
         return $undelivered;
@@ -104,10 +133,7 @@ class DraftNotificationService
     public function getAllNotifications(int $userId): array
     {
         $key = $this->getCacheKey($userId);
-        $item = $this->cache->getItem($key);
-
-        $notifications = $item->isHit() ? $item->get() : [];
-        return is_array($notifications) ? $notifications : [];
+        return $this->getNotificationsFromRedis($key);
     }
 
     /**
@@ -116,18 +142,13 @@ class DraftNotificationService
     public function getUnreadCount(int $userId): int
     {
         $key = $this->getCacheKey($userId);
-        $item = $this->cache->getItem($key);
+        $notifications = $this->getNotificationsFromRedis($key);
 
-        if (!$item->isHit()) {
+        if (empty($notifications)) {
             return 0;
         }
 
         $count = 0;
-        $notifications = $item->get();
-        if (!is_array($notifications)) {
-            return 0;
-        }
-
         foreach ($notifications as $notif) {
             if (!$notif['read']) {
                 $count++;
@@ -143,16 +164,12 @@ class DraftNotificationService
     public function markAllAsRead(int $userId): void
     {
         $key = $this->getCacheKey($userId);
-        $item = $this->cache->getItem($key);
+        $notifications = $this->getNotificationsFromRedis($key);
 
-        if (!$item->isHit()) {
+        if (empty($notifications)) {
             return;
         }
 
-        $notifications = $item->get();
-        if (!is_array($notifications)) {
-            return;
-        }
         $modified = false;
 
         foreach ($notifications as &$notif) {
@@ -166,8 +183,7 @@ class DraftNotificationService
         unset($notif);
 
         if ($modified) {
-            $item->set($notifications);
-            $this->cache->save($item);
+            $this->saveNotificationsToRedis($key, $notifications);
         }
     }
 }
