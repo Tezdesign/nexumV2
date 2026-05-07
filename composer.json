@@ -21,6 +21,7 @@
         "markrogoyski/math-php": "^2.13",
         "phpdocumentor/reflection-docblock": "^5.2",
         "phpstan/phpdoc-parser": "^2.3",
+        "predis/predis": "^3.4",
         "stof/doctrine-extensions-bundle": "^1.15",
         "symfony/asset": "6.4.*",
         "symfony/asset-mapper": "6.4.*",
