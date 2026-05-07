@@ -40,6 +40,9 @@ class DraftNotificationService
         return 'draft_notifications_user_' . $userId;
     }
     
+    /**
+     * @return array<int, array<string, mixed>>
+     */
     private function getNotificationsFromRedis(string $key): array
     {
         if (!$this->redis) return [];
@@ -53,6 +56,9 @@ class DraftNotificationService
         return [];
     }
     
+    /**
+     * @param array<int, array<string, mixed>> $notifications
+     */
     private function saveNotificationsToRedis(string $key, array $notifications): void
     {
         if (!$this->redis) return;

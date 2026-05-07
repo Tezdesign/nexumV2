@@ -10,7 +10,7 @@ use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 
 class FirebaseNotificationService
 {
-    private $messaging;
+    private ?\Kreait\Firebase\Contract\Messaging $messaging = null;
     private LoggerInterface $logger;
     private string $devFcmToken;
 
@@ -19,6 +19,8 @@ class FirebaseNotificationService
         $this->logger = $logger;
         
         $projectDir = $params->get('kernel.project_dir');
+        $projectDir = is_string($projectDir) ? $projectDir : '';
+        
         $credentialsPath = $projectDir . '/nexum-aca87-firebase-adminsdk-fbsvc-476323cec1.json';
         
         // Read token from .env. If not set, push will gracefully abort.

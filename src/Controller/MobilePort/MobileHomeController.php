@@ -367,6 +367,7 @@ class MobileHomeController extends AbstractController
         $data = json_decode($request->getContent(), true);
         $token = $data['token'] ?? null;
         $projectDir = $params->get('kernel.project_dir');
+        $projectDir = is_string($projectDir) ? $projectDir : '';
 
         if ($token) {
             file_put_contents($projectDir . '/var/fcm_token.txt', $token);
