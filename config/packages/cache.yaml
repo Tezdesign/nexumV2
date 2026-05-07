@@ -19,3 +19,6 @@ framework:
             cache.notifications:
                 adapter: cache.adapter.redis
                 provider: '%env(REDIS_URL)%'
+                default_lifetime: 31536000 # 1 year
+                # Critical: Force a static namespace so Desktop and Mobile don't generate different path-based prefixes
+                namespace: 'nexum_notifications'
