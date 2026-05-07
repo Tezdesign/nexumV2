@@ -1,7 +1,7 @@
 framework:
     cache:
         # Unique name of your app: used to compute stable namespaces for cache keys.
-        #prefix_seed: your_vendor_name/app_name
+        prefix_seed: nexum_app
 
         # The "app" cache stores to the filesystem by default.
         # The data in this cache should persist between deploys.
@@ -20,5 +20,3 @@ framework:
                 adapter: cache.adapter.redis
                 provider: '%env(REDIS_URL)%'
                 default_lifetime: 31536000 # 1 year
-                # Critical: Force a static namespace so Desktop and Mobile don't generate different path-based prefixes
-                namespace: 'nexum_notifications'
