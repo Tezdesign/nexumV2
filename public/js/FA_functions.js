@@ -437,21 +437,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 if (data.status === 'success') {
                     try {
-                        const aiData = JSON.parse(data.analysis);
+                        const aiData = typeof data.analysis === 'string' ? JSON.parse(data.analysis) : data.analysis;
                         
                         // Populate Text Fields
-                        if (resVariance) resVariance.innerText = aiData.variance_amount || 'N/A';
+                        if (resVariance) resVariance.innerText = aiData.variance || 'N/A';
                         if (resVarianceSub) resVarianceSub.innerText = aiData.variance_status || 'N/A';
                         if (resTotal) resTotal.innerText = aiData.projected_total || 'N/A';
                         if (resDate) resDate.innerText = aiData.inflection_date || 'N/A';
 
                         // Populate Risk Badge
                         if (resRiskBadge) {
-                            resRiskBadge.innerText = (aiData.risk_level || 'Unknown').toUpperCase() + ' RISK';
+                            const riskLevel = aiData.risk_level || 'Unknown';
+                            resRiskBadge.innerText = riskLevel.toUpperCase() + ' RISK';
                             resRiskBadge.className = 'badge rounded-pill px-2 py-1 fs-12 ';
-                            if (aiData.risk_level.toLowerCase().includes('high')) {
+                            if (riskLevel.toLowerCase().includes('high')) {
                                 resRiskBadge.classList.add('bg-danger');
-                            } else if (aiData.risk_level.toLowerCase().includes('medium')) {
+                            } else if (riskLevel.toLowerCase().includes('medium')) {
                                 resRiskBadge.classList.add('bg-warning');
                             } else {
                                 resRiskBadge.classList.add('bg-success');
@@ -459,7 +460,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
 
                         // Animate SVG Progress Ring
-                        const probability = parseInt(aiData.success_probability) || 0;
+                        const probability = parseInt(aiData.success_probability || aiData.probability_of_success) || 0;
                         if (resProbRing && resProbText) {
                             // The radius is 60 as defined in the SVG
                             const circumference = 60 * 2 * Math.PI; // approx 376.99
@@ -489,7 +490,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
 
                         // Inject the Markdown response. 
-                        let formattedText = aiData.recommended_solutions || 'No detailed recommendations provided.';
+                        let formattedText = aiData.recommended_solutions || aiData.executive_summary || 'No detailed recommendations provided.';
                         
                         // Basic Markdown Parsing
                         formattedText = formattedText.replace(/^### (.*$)/gim, '<h5 class="text-primary mt-3 mb-2">$1</h5>');
@@ -502,7 +503,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         
                     } catch (e) {
                         console.error('Failed to parse AI JSON:', e, data.analysis);
-                        aiAnalysisContent.innerHTML = `<div class="alert alert-danger">Error interpreting AI response. Expected JSON. <br><br>Raw response:<br> ${data.analysis}</div>`;
+                        const rawOutput = typeof data.analysis === 'object' ? JSON.stringify(data.analysis, null, 2) : data.analysis;
+                        aiAnalysisContent.innerHTML = `<div class="alert alert-danger">Error rendering AI response. <br><br><b>Error:</b> ${e.message}<br><br><b>Raw response:</b><br><pre>${rawOutput}</pre></div>`;
                     }
                 } else {
                     aiAnalysisContent.innerHTML = '<div class="alert alert-danger">Failed to generate analysis.</div>';

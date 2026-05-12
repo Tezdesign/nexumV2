@@ -11,7 +11,7 @@ class OpenVinoAnalysisService
         private HttpClientInterface $httpClient
     ) {}
 
-    public function analyzeProjectBudget(ProjectBudget $budget, ?string $userContext = null): string
+    public function analyzeProjectBudget(ProjectBudget $budget, ?string $userContext = null): array
     {
         $transactions = [];
         foreach ($budget->getTransactions() as $tx) {
@@ -39,12 +39,12 @@ class OpenVinoAnalysisService
                 'json' => $payload,
                 'timeout' => 300,
             ]);
-            return $response->getContent(false); // return raw JSON string to match original return type
+            return $response->toArray(false); // Return parsed array
         } catch (\Exception $e) {
-            return json_encode([
+            return [
                 "status" => "ERROR", 
                 "message" => "Failed to connect to Nexum Engine: " . $e->getMessage()
-            ]);
+            ];
         }
     }
 }

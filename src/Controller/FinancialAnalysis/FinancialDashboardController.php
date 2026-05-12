@@ -421,12 +421,12 @@ class FinancialDashboardController extends AbstractController
     public function generateAnalysis(
         ProjectBudget $projectBudget,
         Request $request,
-        \App\Service\FinancialAnalysis\OllamaAnalysisService $ollamaService
+        \App\Service\FinancialAnalysis\OpenVinoAnalysisService $analysisService
     ): Response {
         $payload = json_decode($request->getContent(), true);
         $userContext = $payload['userContext'] ?? null;
 
-        $analysisJson = $ollamaService->analyzeProjectBudget($projectBudget, $userContext);
+        $analysisJson = $analysisService->analyzeProjectBudget($projectBudget, $userContext);
 
         return $this->json([
             'status' => 'success',
