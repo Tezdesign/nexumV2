@@ -52,7 +52,7 @@ class ConversationController extends AbstractController
 
         $callSocketUrl = $this->readEnvSetting([
             'CHAT_CALL_SOCKET_URL'
-        ], 'ws://localhost:8090/ws');
+        ], 'ws://10.102.88.72:8090/ws');
 
         $callTokenEndpoint = $this->readEnvSetting([
             'CHAT_CALL_TOKEN_ENDPOINT'
@@ -60,11 +60,11 @@ class ConversationController extends AbstractController
 
         $callPageEndpoint = $this->readEnvSetting([
             'CHAT_CALL_PAGE_ENDPOINT'
-        ], 'http://127.0.0.1:8090/livekit/call');
+        ], 'http://10.102.88.72:8090/livekit/call');
 
         $callLivekitUrl = $this->readEnvSetting([
             'CHAT_CALL_LIVEKIT_URL'
-        ], 'ws://127.0.0.1:7880');
+        ], 'ws://10.102.88.72:7880');
 
         $callAvatarEndpoint = $this->readEnvSetting([
             'CHAT_CALL_AVATAR_ENDPOINT'
@@ -115,7 +115,7 @@ class ConversationController extends AbstractController
 
         $tokenEndpoint = $this->readEnvSetting([
             'CHAT_CALL_TOKEN_PROXY_TARGET',
-        ], 'http://127.0.0.1:8090/livekit/token');
+        ], 'http://10.102.88.72:8090/livekit/token');
 
         try {
             $upstream = $this->httpClient->request('GET', $tokenEndpoint, [
@@ -156,7 +156,7 @@ class ConversationController extends AbstractController
     {
         $base = rtrim($this->readEnvSetting([
             'CHAT_CALL_AVATAR_PROXY_TARGET',
-        ], 'http://127.0.0.1:8090/livekit/avatar'), '/');
+        ], 'http://10.102.88.72:8090/livekit/avatar'), '/');
 
         $target = sprintf('%s/%d', $base, $userId);
 
@@ -385,7 +385,7 @@ class ConversationController extends AbstractController
 
             $tokenEndpoint = $this->readEnvSetting([
                 'CHAT_CALL_TOKEN_PROXY_TARGET',
-            ], 'http://127.0.0.1:8090/livekit/token');
+            ], 'http://10.102.88.72:8090/livekit/token');
 
             $response = $this->httpClient->request('GET', $tokenEndpoint, [
                 'query' => [
@@ -443,8 +443,8 @@ class ConversationController extends AbstractController
 
     private function buildCallUrl(bool $videoEnabled, string $room): string
     {
-        $livekitUrl = $this->readEnvSetting(['CHAT_CALL_LIVEKIT_URL'], 'ws://127.0.0.1:7880');
-        $callPageEndpoint = $this->readEnvSetting(['CHAT_CALL_PAGE_ENDPOINT'], 'http://127.0.0.1:8090/livekit/call');
+        $livekitUrl = $this->readEnvSetting(['CHAT_CALL_LIVEKIT_URL'], 'ws://10.102.88.72:7880');
+        $callPageEndpoint = $this->readEnvSetting(['CHAT_CALL_PAGE_ENDPOINT'], 'http://10.102.88.72:8090/livekit/call');
         
         // This would normally fetch a token, but for now we'll return the base URL
         return $callPageEndpoint . '?wsUrl=' . urlencode($livekitUrl) . '&room=' . urlencode($room) . '&mic=true&cam=' . ($videoEnabled ? 'true' : 'false');

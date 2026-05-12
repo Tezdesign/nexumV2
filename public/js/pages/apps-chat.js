@@ -118,8 +118,8 @@ class ChatApp {
         this.callPopupWindow = null
         this.callSocketUrl = 'ws://localhost:8090/ws'
         this.callTokenEndpoint = '/apps-chat/livekit/token'
-        this.callPageEndpoint = 'http://127.0.0.1:8090/livekit/call'
-        this.callLivekitUrl = 'ws://127.0.0.1:7880'
+        this.callPageEndpoint = 'http://10.102.88.72:8090/livekit/call'
+        this.callLivekitUrl = 'ws://10.102.88.72:7880'
         this.callAvatarEndpoint = '/apps-chat/livekit/avatar'
         this.callSignalingEnabled = true
         this.messagesSimplebar = null

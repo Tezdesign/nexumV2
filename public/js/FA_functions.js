@@ -410,6 +410,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const resRiskBadge = document.getElementById('res-risk-badge');
     const resProbRing = document.getElementById('res-prob-ring');
     const resProbText = document.getElementById('res-prob-text');
+    let aiChartInstance = null;
 
     if (btnGenerateAi) {
         btnGenerateAi.addEventListener('click', function() {
@@ -500,6 +501,89 @@ document.addEventListener('DOMContentLoaded', function() {
                         formattedText = formattedText.replace(/\n/g, '<br>');
                         
                         aiAnalysisContent.innerHTML = formattedText;
+                        
+                        // Apex Chart Initialization (with bulletproof data mapping)
+                        if (aiData.predictions && Array.isArray(aiData.predictions) && typeof ApexCharts !== 'undefined') {
+                            const chartContainer = document.getElementById('ai-chart-container');
+                            if (chartContainer) chartContainer.classList.remove('d-none');
+                            
+                            const chartElementId = '#ai-predictions-chart';
+                            const chartElement = document.querySelector(chartElementId);
+                            
+                            if (chartElement) {
+                                // Destroy existing chart instance if rerun
+                                if (aiChartInstance) {
+                                    aiChartInstance.destroy();
+                                }
+                                
+                                // Map the native LLM output keys to ApexCharts required x/y keys safely
+                                const mappedData = aiData.predictions.map(p => {
+                                    return {
+                                        x: p.date || p.x || '',
+                                        y: p.cumulative_spend !== undefined ? p.cumulative_spend : (p.y !== undefined ? p.y : 0)
+                                    };
+                                });
+                                
+                                const themeColor = chartElement.getAttribute('data-colors') || '#fa5c7c';
+                                
+                                const options = {
+                                    series: [{
+                                        name: 'Predicted Spend',
+                                        data: mappedData
+                                    }],
+                                    chart: {
+                                        type: 'area',
+                                        height: 250,
+                                        toolbar: {
+                                            show: true,
+                                            tools: {
+                                                download: true,
+                                                selection: true,
+                                                zoom: true,
+                                                zoomin: true,
+                                                zoomout: true,
+                                                pan: true,
+                                                reset: true
+                                            }
+                                        }
+                                    },
+                                    colors: [themeColor],
+                                    dataLabels: {
+                                        enabled: false
+                                    },
+                                    stroke: {
+                                        curve: 'smooth',
+                                        width: 2
+                                    },
+                                    xaxis: {
+                                        type: 'datetime',
+                                        labels: {
+                                            datetimeFormatter: {
+                                                year: 'yyyy',
+                                                month: 'MMM \'yy',
+                                                day: 'dd MMM',
+                                                hour: 'HH:mm'
+                                            }
+                                        }
+                                    },
+                                    yaxis: {
+                                        labels: {
+                                            formatter: function (value) {
+                                                return "$" + value.toFixed(0);
+                                            }
+                                        }
+                                    },
+                                    tooltip: {
+                                        x: {
+                                            format: 'dd MMM yyyy'
+                                        }
+                                    }
+                                };
+                                
+                                aiChartInstance = new ApexCharts(document.querySelector(chartElementId), options);
+                                aiChartInstance.render();
+                            }
+                        }
                         
                     } catch (e) {
                         console.error('Failed to parse AI JSON:', e, data.analysis);

@@ -126,7 +126,7 @@ Provide a JSON response with the following keys exactly:
 - "risk_level": Exactly one of: Low, Medium, High.
 - "success_probability": An integer (0-100) representing confidence in staying under budget.
 - "recommended_solutions": Detailed markdown text combining an executive summary and actionable advice.
-- "predictions": A list of objects containing "x" (date string YYYY-MM-DD) and "y" (numeric cumulative spend) for the next 4-6 milestones to align with an Apex chart."""
+- "predictions": A list of objects containing "date" (YYYY-MM-DD) and "cumulative_spend" (numeric value) for the next 4-6 milestones."""
 
     # Note the temp=0.6 here to allow for creative advice and graph generation
     return _run_inference(system_instruction, user_prompt, max_tokens=800, temp=0.6)
