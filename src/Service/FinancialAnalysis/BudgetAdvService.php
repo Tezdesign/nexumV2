@@ -11,7 +11,8 @@ class BudgetAdvService{
     public function __construct(
         private TransactionRepository $transactionRepository,
         private ExpenseDraftRepository $expenseDraftRepository,
-        private DraftNotificationService $notificationService){
+        private DraftNotificationService $notificationService,
+        private DraftPolicyService $draftPolicyService){
 
 
     }
@@ -204,6 +205,42 @@ class BudgetAdvService{
      */
     public function evaluateDraft(ExpenseDraft $draft): void
     {
+        $evaluatedAt = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
+        
+        // 1. Run AI Policy Evaluation first
+        $aiPolicyEval = $this->draftPolicyService->evaluatePolicy($draft);
+        $aiDecision = strtoupper($aiPolicyEval['decision'] ?? 'APPROVE');
+
+        // 2. Short-circuit: If AI rejects, skip mathematical checks to save execution time
+        if ($aiDecision === 'REJECT') {
+            $reason = $aiPolicyEval['reason'] ?? 'Rejected by AI Policy Auditor';
+            
+            $evalPayload = [
+                'evaluated_at' => $evaluatedAt,
+                'final_decision' => 'REJECTED',
+                'tests' => [
+                    'ai_policy_audit' => $aiPolicyEval
+                ],
+                'rejection_data' => [
+                    'reason' => $reason,
+                    'rejected_at' => $evaluatedAt,
+                    'rejected_by' => 'System (Auto)',
+                ]
+            ];
+
+            $creatorId = $draft->getCreatedBy() ? $draft->getCreatedBy()->getId() : null;
+            if ($creatorId) {
+                $this->notificationService->addNotification($creatorId, 'Draft Auto-Rejected', 'Your draft "' . $draft->getSubject() . '" was automatically rejected: ' . $reason, 'error');
+            }
+
+            $draft->setStatus('REJECTED');
+            $draft->setEvalData($evalPayload);
+            $this->expenseDraftRepository->save($draft, true);
+            
+            return; // Pass the torch ends here
+        }
+
+        // 3. AI Approved or Flagged. "Pass the torch" to Mathematical/Statistical Evaluation
         $budgetEval = $this->compareAgainstPB($draft);
         $zScoreEval = $this->getZscoreForDraft($draft);
         $duplicateEval = $this->detectDuplicateDraft($draft);
@@ -215,16 +252,17 @@ class BudgetAdvService{
         } elseif (
             (isset($budgetEval['status']) && strtoupper($budgetEval['status']) === 'FLAGGED') ||
             (isset($zScoreEval['status']) && strtoupper($zScoreEval['status']) === 'FLAGGED') ||
-            (isset($duplicateEval['status']) && strtoupper($duplicateEval['status']) === 'FLAGGED')
+            (isset($duplicateEval['status']) && strtoupper($duplicateEval['status']) === 'FLAGGED') ||
+            $aiDecision === 'FLAG_FOR_HUMAN'
         ) {
             $finalStatus = 'FLAGGED';
         }
 
-        $evaluatedAt = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
         $evalPayload = [
             'evaluated_at' => $evaluatedAt,
             'final_decision' => $finalStatus,
             'tests' => [
+                'ai_policy_audit' => $aiPolicyEval,
                 'budget_capacity' => $budgetEval,
                 'statistical_anomaly' => $zScoreEval,
                 'duplicate_check' => $duplicateEval
@@ -233,6 +271,7 @@ class BudgetAdvService{
 
         if ($finalStatus === 'REJECTED') {
             $reason = 'Auto-rejected by system: ' . ($budgetEval['message'] ?? 'Insufficient Funds');
+            
             $evalPayload['rejection_data'] = [
                 'reason' => $reason,
                 'rejected_at' => $evaluatedAt,
