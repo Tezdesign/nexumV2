@@ -118,12 +118,14 @@ Recent Transactions: {json.dumps(data.get('transactions', []))}
 Additional Context: {data.get('user_context', '')}
 
 Provide a JSON response with the following keys exactly:
-- "executive_summary": A 2-3 paragraph summary.
-- "variance": Estimated budget variance.
-- "projected_spending": Estimated total spend at completion.
-- "probability_of_success": A percentage (e.g., "85%").
-- "advice_section": A short, actionable list of recommendations.
-- "predictions": A list of objects containing "date" and "cumulative_spend" for the next 4-6 milestones."""
+- "variance": Estimated budget variance as a percentage (e.g., "18.75%").
+- "variance_status": "Over Budget", "Under Budget", or "On Track".
+- "projected_total": Estimated total spend at completion as a formatted currency string.
+- "inflection_date": Predicted date funds run out (YYYY-MM-DD), or "N/A" if safe.
+- "risk_level": Exactly one of: Low, Medium, High.
+- "success_probability": An integer (0-100) representing confidence in staying under budget.
+- "recommended_solutions": Detailed markdown text combining an executive summary and actionable advice.
+- "predictions": A list of objects containing "x" (date string YYYY-MM-DD) and "y" (numeric cumulative spend) for the next 4-6 milestones to align with an Apex chart."""
 
     # Note the temp=0.6 here to allow for creative advice and graph generation
     return _run_inference(system_instruction, user_prompt, max_tokens=800, temp=0.6)

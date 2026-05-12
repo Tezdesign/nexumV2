@@ -43,7 +43,7 @@ class TestNexumCommand extends Command
         if ($budget) {
             $output->writeln("✓ Found Budget: " . $budget->getName());
             $output->writeln("Sending to /api/nexum/analyze...");
-            $analysisResult = $this->analysisService->analyzeProjectBudget($budget, 'Testing the AI API from CLI. Please provide a full, detailed analysis including variance, projected spending, probability of success, advice section, and predictions for the next 4-6 milestones.');
+            $analysisResult = $this->analysisService->analyzeProjectBudget($budget, 'Testing the AI API from CLI. Please provide a full, detailed analysis following the newly defined strict JSON schema (including formatting predictions for Apex charts and variance as a percentage).');
             
             // Try to parse the output nicely if it's JSON
             $decoded = json_decode($analysisResult, true);
