@@ -7,9 +7,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 final class RapportAiManager
 {
     public function __construct(
-        private readonly LmStudioService $lmStudioService,
-        private readonly OpenVinoRapportService $openVinoRapportService,
-        private readonly string $aiBackend,
+        private readonly OpenVinoRapportService $openVinoRapportService
     ) {
     }
 
@@ -19,7 +17,7 @@ final class RapportAiManager
      */
     public function genererRapport(array $projet, array $taches): string
     {
-        return $this->resolveBackend()->genererRapport($projet, $taches);
+        return $this->openVinoRapportService->genererRapport($projet, $taches);
     }
 
     /**
@@ -28,7 +26,7 @@ final class RapportAiManager
      */
     public function streamerRapport(array $projet, array $taches): StreamedResponse
     {
-        return $this->resolveBackend()->streamerRapport($projet, $taches);
+        return $this->openVinoRapportService->streamerRapport($projet, $taches);
     }
 
     /**
@@ -36,17 +34,6 @@ final class RapportAiManager
      */
     public function getBackendStatus(): array
     {
-        return match (strtolower(trim($this->aiBackend))) {
-            'openvino' => $this->openVinoRapportService->getStatus(),
-            default => $this->lmStudioService->getStatus(),
-        };
-    }
-
-    private function resolveBackend(): LmStudioService|OpenVinoRapportService
-    {
-        return match (strtolower(trim($this->aiBackend))) {
-            'openvino' => $this->openVinoRapportService,
-            default => $this->lmStudioService,
-        };
+        return $this->openVinoRapportService->getStatus();
     }
 }

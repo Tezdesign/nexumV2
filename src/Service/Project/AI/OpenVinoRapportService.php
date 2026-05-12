@@ -3,14 +3,12 @@
 namespace App\Service\Project\AI;
 
 use Symfony\Component\HttpFoundation\StreamedResponse;
-use Symfony\Component\Process\Process;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final class OpenVinoRapportService
 {
     public function __construct(
-        private readonly string $projectDir,
-        private readonly string $openVinoModelPath,
-        private readonly string $openVinoPipeline,
+        private HttpClientInterface $httpClient
     ) {
     }
 
@@ -19,30 +17,23 @@ final class OpenVinoRapportService
      */
     public function getStatus(): array
     {
-        $modelPath = trim($this->openVinoModelPath);
-        if ($modelPath === '') {
+        // Simply check if we have an AI API configured
+        $apiUrl = $_ENV['AI_API_URL'] ?? 'http://127.0.0.1:5000';
+        
+        if (empty($apiUrl)) {
             return [
-                'backend' => 'openvino',
-                'label' => 'OpenVINO local',
+                'backend' => 'openvino_api',
+                'label' => 'Nexum AI Engine',
                 'available' => false,
-                'message' => 'OPENVINO_MODEL_PATH n est pas configure.',
-            ];
-        }
-
-        if (!file_exists($modelPath)) {
-            return [
-                'backend' => 'openvino',
-                'label' => 'OpenVINO local',
-                'available' => false,
-                'message' => sprintf('Le modele OpenVINO est introuvable: %s', $modelPath),
+                'message' => 'AI_API_URL n est pas configure dans le fichier .env.',
             ];
         }
 
         return [
-            'backend' => 'openvino',
-            'label' => 'OpenVINO local',
+            'backend' => 'openvino_api',
+            'label' => 'Nexum AI Engine',
             'available' => true,
-            'message' => sprintf('OpenVINO est configure avec le modele %s.', $modelPath),
+            'message' => sprintf('Connecte a l\'API Nexum via %s', $apiUrl),
         ];
     }
 
@@ -52,21 +43,19 @@ final class OpenVinoRapportService
      */
     public function genererRapport(array $projet, array $taches): string
     {
-        $this->disableExecutionTimeLimit();
+        $payload = $this->buildPayload($projet, $taches);
+        $apiUrl = $_ENV['AI_API_URL'] ?? 'http://127.0.0.1:5000';
 
-        $process = $this->buildPythonProcess($this->buildPayload($projet, $taches), false);
-        $process->run();
+        try {
+            $response = $this->httpClient->request('POST', rtrim($apiUrl, '/') . '/api/nexum/rapport/generate', [
+                'json' => $payload,
+                'timeout' => 300,
+            ]);
 
-        if (!$process->isSuccessful()) {
-            throw new \RuntimeException($this->extractProcessError($process));
+            return $response->getContent();
+        } catch (\Exception $e) {
+            throw new \RuntimeException('Impossible de contacter l\'API Nexum: ' . $e->getMessage());
         }
-
-        $rapport = trim($process->getOutput());
-        if ($rapport === '') {
-            throw new \RuntimeException("Le modele OpenVINO n'a retourne aucun rapport exploitable.");
-        }
-
-        return $rapport;
     }
 
     /**
@@ -81,52 +70,22 @@ final class OpenVinoRapportService
             @ini_set('zlib.output_compression', '0');
             $this->disableExecutionTimeLimit();
 
+            $apiUrl = $_ENV['AI_API_URL'] ?? 'http://127.0.0.1:5000';
+
             try {
-                $process = $this->buildPythonProcess($payload, true);
-                $process->start();
+                $response = $this->httpClient->request('POST', rtrim($apiUrl, '/') . '/api/nexum/rapport/stream', [
+                    'json' => $payload,
+                    'buffer' => false, // Ensure we receive chunks immediately
+                    'timeout' => 300,
+                ]);
 
-                $buffer = '';
-                $completed = false;
-                $errorEmitted = false;
-
-                foreach ($process as $type => $data) {
-                    if ($type !== Process::OUT) {
-                        continue;
-                    }
-
-                    $buffer .= $data;
-
-                    while (($lineBreak = strpos($buffer, "\n")) !== false) {
-                        $line = trim(substr($buffer, 0, $lineBreak));
-                        $buffer = substr($buffer, $lineBreak + 1);
-
-                        if ($line === '') {
-                            continue;
-                        }
-
-                        $this->handlePythonStreamLine($line, $completed, $errorEmitted);
-                    }
+                foreach ($this->httpClient->stream($response) as $chunk) {
+                    echo $chunk->getContent();
+                    $this->flushStream();
                 }
-
-                if (trim($buffer) !== '') {
-                    $this->handlePythonStreamLine(trim($buffer), $completed, $errorEmitted);
-                }
-
-                if ($errorEmitted) {
-                    return;
-                }
-
-                if (!$process->isSuccessful()) {
-                    $this->emitServerError($this->extractProcessError($process));
-
-                    return;
-                }
-
-                if (!$completed) {
-                    $this->emitDone();
-                }
+                
             } catch (\Throwable $exception) {
-                $this->emitServerError('Impossible de lancer le processus Python OpenVINO pour generer le rapport.');
+                $this->emitServerError('Impossible de connecter au flux Nexum AI: ' . $exception->getMessage());
             }
         }, 200, [
             'Content-Type' => 'text/event-stream; charset=utf-8',
@@ -145,28 +104,6 @@ final class OpenVinoRapportService
     }
 
     /**
-     * @param array<string, mixed> $payload
-     */
-    private function buildPythonProcess(array $payload, bool $stream): Process
-    {
-        $command = ['python3', $this->projectDir . '/scripts/generate_rapport_openvino.py'];
-        if ($stream) {
-            $command[] = '--stream';
-        }
-
-        $input = json_encode([
-            'model_path' => $this->openVinoModelPath,
-            'pipeline' => $this->openVinoPipeline,
-            'payload' => $payload,
-        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-
-        $process = new Process($command, $this->projectDir, ['PYTHONUNBUFFERED' => '1'], $input);
-        $process->setTimeout(null);
-
-        return $process;
-    }
-
-    /**
      * @param array<string, mixed> $projet
      * @param array<int, array<string, mixed>> $taches
      * @return array<string, mixed>
@@ -175,15 +112,15 @@ final class OpenVinoRapportService
     {
         return [
             'max_new_tokens' => 900,
-            'prompt' => $this->buildTextPrompt($projet, $taches),
+            'project' => $this->buildProjectPrompt($projet),
+            'tasks' => $this->buildTasksPrompt($taches),
         ];
     }
 
     /**
      * @param array<string, mixed> $projet
-     * @param array<int, array<string, mixed>> $taches
      */
-    private function buildTextPrompt(array $projet, array $taches): string
+    private function buildProjectPrompt(array $projet): string
     {
         $projectLines = [
             'Nom du projet : ' . ($projet['nom'] ?? 'Projet sans nom'),
@@ -199,7 +136,15 @@ final class OpenVinoRapportService
             'Taches terminees : ' . ($projet['stats']['completed'] ?? 0),
             'Taches en retard : ' . ($projet['stats']['overdue'] ?? 0),
         ];
+        
+        return implode("\n", $projectLines);
+    }
 
+    /**
+     * @param array<int, array<string, mixed>> $taches
+     */
+    private function buildTasksPrompt(array $taches): string
+    {
         $taskLines = [];
         foreach ($taches as $index => $tache) {
             $taskLines[] = sprintf(
@@ -215,31 +160,10 @@ final class OpenVinoRapportService
         }
 
         if ($taskLines === []) {
-            $taskLines[] = 'Aucune tache n est associee a ce projet pour le moment.';
+            return 'Aucune tache n est associee a ce projet pour le moment.';
         }
-
-        $instructions = implode("\n", [
-            'Tu es un assistant de gestion de projet francophone.',
-            'Tu rediges un rapport professionnel, clair et utile pour un manager.',
-            'Le rapport doit etre entierement en francais.',
-            'N utilise jamais de tableaux, ni en texte, ni en Markdown, ni sous forme de colonnes.',
-            'Le rapport doit contenir les sections suivantes, avec des titres visibles :',
-            '0. Membres du projet',
-            '1. Resume executif',
-            '2. Etat d avancement global',
-            '3. Analyse des taches par statut',
-            '4. Risques identifies et recommandations',
-            '5. Conclusion et prochaines etapes',
-            'La section "Membres du projet" doit apparaitre au debut du rapport, avant le resume executif, sous forme de liste simple.',
-            'Quand une information manque, indique-le sobrement au lieu d inventer.',
-        ]);
-
-        return implode("\n\n", [
-            "Instructions :\n" . $instructions,
-            "Informations sur le projet :\n" . implode("\n", $projectLines),
-            "Liste des taches :\n" . implode("\n", $taskLines),
-            'Genere maintenant un rapport detaille et professionnel en francais sur ce projet.',
-        ]);
+        
+        return implode("\n", $taskLines);
     }
 
     private function formatProjectMembers(mixed $members): string
@@ -258,73 +182,6 @@ final class OpenVinoRapportService
         }
 
         return implode(', ', $cleanMembers);
-    }
-
-    private function handlePythonStreamLine(string $line, bool &$completed, bool &$errorEmitted): void
-    {
-        $event = json_decode($line, true);
-        if (!is_array($event)) {
-            return;
-        }
-
-        $type = $event['type'] ?? null;
-        if (!is_string($type)) {
-            return;
-        }
-
-        if ($type === 'token') {
-            $token = $event['content'] ?? null;
-            if (is_string($token) && $token !== '') {
-                $this->emitToken($token);
-            }
-
-            return;
-        }
-
-        if ($type === 'done') {
-            $completed = true;
-            $this->emitDone();
-
-            return;
-        }
-
-        if ($type === 'error') {
-            $errorEmitted = true;
-            $message = $event['message'] ?? null;
-            $this->emitServerError(
-                is_string($message) && trim($message) !== ''
-                    ? trim($message)
-                    : 'OpenVINO a retourne une erreur.'
-            );
-        }
-    }
-
-    private function extractProcessError(Process $process): string
-    {
-        $errorOutput = trim($process->getErrorOutput());
-        if ($errorOutput !== '') {
-            return $errorOutput;
-        }
-
-        $output = trim($process->getOutput());
-        if ($output !== '') {
-            return $output;
-        }
-
-        return 'Impossible de lancer OpenVINO pour generer le rapport.';
-    }
-
-    private function emitToken(string $token): void
-    {
-        echo 'data: ' . json_encode(['token' => $token], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n\n";
-        $this->flushStream();
-    }
-
-    private function emitDone(): void
-    {
-        echo "event: done\n";
-        echo "data: " . json_encode(['done' => true], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n\n";
-        $this->flushStream();
     }
 
     private function emitServerError(string $message): void

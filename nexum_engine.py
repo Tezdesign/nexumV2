@@ -1,6 +1,7 @@
 import json
 import logging
-from transformers import AutoProcessor
+import threading
+from transformers import AutoProcessor, TextIteratorStreamer
 from optimum.intel.openvino import OVModelForVisualCausalLM
 
 # Suppress background warnings
@@ -129,3 +130,62 @@ Provide a JSON response with the following keys exactly:
 
     # Note the temp=0.6 here to allow for creative advice and graph generation
     return _run_inference(system_instruction, user_prompt, max_tokens=800, temp=0.6)
+
+# --- TASK 4: Generate Project Report Stream ---
+def generate_project_report(data):
+    """Generator function that yields SSE chunks."""
+    system_instruction = (
+        "Tu es un assistant de gestion de projet francophone.\n"
+        "Tu rediges un rapport professionnel, clair et utile pour un manager.\n"
+        "Le rapport doit etre entierement en francais.\n"
+        "N utilise jamais de tableaux, ni en texte, ni en Markdown, ni sous forme de colonnes.\n"
+        "Le rapport doit contenir les sections suivantes, avec des titres visibles :\n"
+        "0. Membres du projet\n"
+        "1. Resume executif\n"
+        "2. Etat d avancement global\n"
+        "3. Analyse des taches par statut\n"
+        "4. Risques identifies et recommandations\n"
+        "5. Conclusion et prochaines etapes\n"
+        "La section 'Membres du projet' doit apparaitre au debut du rapport, avant le resume executif, sous forme de liste simple.\n"
+        "Quand une information manque, indique-le sobrement au lieu d inventer."
+    )
+    
+    user_prompt = f"Informations sur le projet :\n{data.get('project', '')}\n\nListe des taches :\n{data.get('tasks', '')}\n\nGenere maintenant un rapport detaille et professionnel en francais sur ce projet."
+
+    chat_history = [
+        {"role": "system", "content": [{"type": "text", "text": system_instruction}]},
+        {"role": "user", "content": [{"type": "text", "text": user_prompt}]}
+    ]
+
+    try:
+        inputs = processor.apply_chat_template(
+            chat_history, tokenize=True, return_dict=True, return_tensors="pt", add_generation_prompt=True
+        )
+
+        streamer = TextIteratorStreamer(processor.tokenizer, skip_prompt=True, skip_special_tokens=True)
+        generation_kwargs = dict(
+            **inputs,
+            streamer=streamer,
+            max_new_tokens=data.get('max_new_tokens', 900),
+            do_sample=True,
+            temperature=0.6,
+            top_p=0.9
+        )
+        
+        thread = threading.Thread(target=model.generate, kwargs=generation_kwargs)
+        thread.start()
+
+        for new_text in streamer:
+            if new_text:
+                # The frontend expects data: {"token": "..."}\n\n
+                payload = json.dumps({"token": new_text}, ensure_ascii=False)
+                yield f"data: {payload}\n\n"
+                
+        # Signal completion to frontend
+        yield "event: done\n"
+        yield f"data: {json.dumps({'done': True})}\n\n"
+
+    except Exception as e:
+        error_payload = json.dumps({"message": str(e)}, ensure_ascii=False)
+        yield "event: server-error\n"
+        yield f"data: {error_payload}\n\n"

@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 import nexum_engine # Imports your model and loads it into the GPU
 
@@ -41,6 +41,18 @@ def handle_analyze():
 
     status_code = 200 if result.get("status") == "SUCCESS" else 500
     return jsonify(result), status_code
+
+# 4. Endpoint for Project AI Report Generation (Streaming)
+@app.route('/api/nexum/rapport/stream', methods=['POST'])
+def handle_rapport_stream():
+    data = request.json
+    if not data:
+        return jsonify({"status": "ERROR", "message": "No JSON payload provided"}), 400
+
+    return Response(
+        nexum_engine.generate_project_report(data),
+        mimetype='text/event-stream'
+    )
 
 if __name__ == '__main__':
     print("Starting Flask Server on port 5000...")
