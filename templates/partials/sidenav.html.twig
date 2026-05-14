@@ -90,13 +90,16 @@
                 </a>
             </li>
 
+            {% if is_granted('ROLE_ADMIN') or is_granted('ROLE_MANAGER') or is_granted('ROLE_EMPLOYEE') or is_granted('ROLE_CONSULTANT') %}
             <li class="side-nav-item">
                 <a href="{{ path('app_project_index') }}" class="side-nav-link">
                     <span class="menu-icon"><i class="ti ti-briefcase"></i></span>
                     <span class="menu-text"> Projects </span>
                 </a>
             </li>
+            {% endif %}
 
+            {% if is_granted('ROLE_ADMIN') or is_granted('ROLE_MANAGER') or is_granted('ROLE_EMPLOYEE') %}
             <li class="side-nav-item">
                 <a href="{{ path('client_resources_view') }}" class="side-nav-link{{ _ar is not null and (_ar starts with 'client_resources' or _ar starts with 'request_resource' or _ar starts with 'manage_requests') ? ' active' : '' }}">
                     <span class="menu-icon"><i class="ti ti-box"></i></span>
@@ -126,6 +129,7 @@
                     </ul>
                 </div>
             </li>
+            {% endif %}
 
             <li class="side-nav-item">
                 <a href="{{path('app_formation_index')}}" class="side-nav-link">
@@ -134,12 +138,14 @@
                 </a>
             </li>
 
+            {% if is_granted('ROLE_ADMIN') or is_granted('ROLE_CONSULTANT') %}
             <li class="side-nav-item">
                 <a href="/apps-financial-analysis" class="side-nav-link">
                     <span class="menu-icon"><i class="ti ti-chart-infographic"></i></span>
                     <span class="menu-text"> Financial Analysis </span>
                 </a>
             </li>
+            {% endif %}
             {% endif %}
 
         </ul>

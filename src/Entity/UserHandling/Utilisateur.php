@@ -136,6 +136,9 @@ public function setIsBlocked(bool $is_blocked): self
 
     public function getStatut(): ?string
     {
+        if (strtolower(trim((string) $this->statut)) === 'actif') {
+            return 'active';
+        }
         return $this->statut;
     }
 
@@ -194,8 +197,8 @@ public function setIsBlocked(bool $is_blocked): self
             'admin', 'administrator' => ['ROLE_ADMIN'],
             'manager' => ['ROLE_MANAGER'],
             'employee' => ['ROLE_EMPLOYEE'],
-            'finance' => ['ROLE_FINANCE'],
-            'hr' => ['ROLE_HR'],
+            'consultant' => ['ROLE_CONSULTANT'],
+            'formateur' => ['ROLE_FORMATEUR'],
             default => ['ROLE_USER'],
         };
 

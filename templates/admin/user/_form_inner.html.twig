@@ -47,10 +47,10 @@
             <select name="role" class="form-select">
                 {% set r = user is not null ? user.role : '' %}
                 <option value="employee" {{ r == 'employee' ? 'selected' }}>Employee</option>
+                <option value="consultant" {{ r == 'consultant' ? 'selected' }}>Consultant</option>
+                <option value="formateur" {{ r == 'formateur' ? 'selected' }}>Formateur</option>
                 <option value="manager" {{ r == 'manager' ? 'selected' }}>Manager</option>
                 <option value="admin" {{ r == 'admin' ? 'selected' }}>Administrator</option>
-                <option value="hr" {{ r == 'hr' ? 'selected' }}>HR</option>
-                <option value="finance" {{ r == 'finance' ? 'selected' }}>Finance</option>
             </select>
         </div>
         <div class="col-md-6">
