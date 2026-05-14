@@ -3047,6 +3047,7 @@ class ChatApp {
                 },
                 body: JSON.stringify({
                     title: titleSnapshot,
+                    messages: this.aiPendingMessages || [],
                 }),
             })
 

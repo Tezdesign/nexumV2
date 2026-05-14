@@ -25,7 +25,7 @@ use Symfony\Component\Routing\Annotation\Route;
 class MessageController extends AbstractController
 {
 	private const LINK_PREVIEW_USER_AGENT = 'Mozilla/5.0 (compatible; NexumChatLinkPreview/1.0; +https://nexum.local)';
-	private const LM_CHAT_URL = 'http://localhost:1234/v1/chat/completions';
+	//private const LM_CHAT_URL = 'http://localhost:1234/v1/chat/completions';
 	private const LM_MODEL = 'dolphin3.0-llama3.1-8b';
 	private const AI_SUMMARY_UNREAD_THRESHOLD = 10;
 	private const AI_SUMMARY_TIMEOUT = 30;
@@ -229,9 +229,14 @@ class MessageController extends AbstractController
 			throw new \RuntimeException('Failed to encode JSON request.');
 		}
 
+		$lmUrl = $_ENV['LM_STUDIO_URL'] ?? $_SERVER['LM_STUDIO_URL'] ?? 'http://localhost:1234/v1/chat/completions';
+		if (!str_ends_with($lmUrl, '/v1/chat/completions')) {
+			$lmUrl = rtrim($lmUrl, '/') . '/v1/chat/completions';
+		}
+
 		// Call LM Studio via HTTP
 		try {
-			$response = $this->httpClient->request('POST', self::LM_CHAT_URL, [
+			$response = $this->httpClient->request('POST', $lmUrl, [
 				'headers' => [
 					'Authorization' => 'Bearer lm-studio',
 					'Content-Type' => 'application/json',
