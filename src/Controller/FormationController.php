@@ -39,10 +39,13 @@ final class FormationController extends AbstractController
     
     
     #[Route('/progress/update', name: 'app_progress_update', methods: ['POST'])]
-    public function updateProgress(Request $request, EntityManagerInterface $em): JsonResponse
+    public function updateProgress(Request $request, EntityManagerInterface $em, \App\Service\AuthService $authService): JsonResponse
     {
-        // 🔥 USER TEMPORAIRE (remplace plus tard)
-        $user = $em->getRepository(\App\Entity\UserHandling\Utilisateur::class)->find(1);
+        $currentUserId = (int) ($authService->getCurrentUserId() ?? 0);
+        if ($currentUserId <= 0) {
+            return new JsonResponse(['error' => 'Unauthorized'], 401);
+        }
+        $user = $em->getRepository(\App\Entity\UserHandling\Utilisateur::class)->find($currentUserId);
     
         $formationId = $request->request->get('formationId');
         $progress = (int)$request->request->get('progress');
@@ -88,12 +91,12 @@ final class FormationController extends AbstractController
     }
 
     #[Route('/localisation/update', name: 'app_participation_localisation_update', methods: ['POST'])]
-    public function updateParticipationLocalisation(Request $request, EntityManagerInterface $em): JsonResponse
+    public function updateParticipationLocalisation(Request $request, EntityManagerInterface $em, \App\Service\AuthService $authService): JsonResponse
     {
-        // ⚠️ temporaire
-        $user = $em->getRepository(\App\Entity\UserHandling\Utilisateur::class)->find(1);
+        $userId = (int) ($authService->getCurrentUserId() ?? 0);
+        $user = $userId > 0 ? $em->getRepository(\App\Entity\UserHandling\Utilisateur::class)->find($userId) : null;
         if (!$user) {
-            return new JsonResponse(['error' => 'User not found'], 404);
+            return new JsonResponse(['error' => 'User not found or not authenticated'], 401);
         }
 
         $formationId = $request->request->get('formationId');
@@ -152,7 +155,8 @@ public function submitQuiz(
     CertificateService $certificateService,
     MailService $mailService,
     MailerInterface $mailer,
-    \App\Service\QrService $qrService
+    \App\Service\QrService $qrService,
+    \App\Service\AuthService $authService
 ): JsonResponse {
     $debugInfo = [
         'entered_submitQuiz' => true,
@@ -179,7 +183,8 @@ public function submitQuiz(
         error_log('[Quiz] Content-Type: ' . ($request->headers->get('Content-Type') ?? 'null'));
         error_log('[Quiz] Raw body length: ' . strlen((string) $request->getContent()));
 
-        $user = $em->getRepository(\App\Entity\UserHandling\Utilisateur::class)->find(1);
+        $userId = (int) ($authService->getCurrentUserId() ?? 0);
+        $user = $userId > 0 ? $em->getRepository(\App\Entity\UserHandling\Utilisateur::class)->find($userId) : null;
         if (!$user) {
             $debugInfo['error'] = 'User not found';
             error_log('[Quiz] ERROR: User not found');
@@ -412,18 +417,19 @@ public function index(
     Request $request,
     FormationRepository $formationRepository,
     EntityManagerInterface $em,
-    PaginatorInterface $paginator
+    PaginatorInterface $paginator,
+    \App\Service\AuthService $authService
 ): Response {
 
-
-    if ($this->getUser()->getRole()=='admin') {
+    if ($authService->isAdmin()) {
                 return $this->redirectToRoute('app_formation_index_admin');
     }
 
-
-
-    // ⚠️ temporaire
-    $user = $em->getRepository(\App\Entity\UserHandling\Utilisateur::class)->find(1);
+    $userId = (int) ($authService->getCurrentUserId() ?? 0);
+    $user = $userId > 0 ? $em->getRepository(\App\Entity\UserHandling\Utilisateur::class)->find($userId) : null;
+    if (!$user) {
+        return $this->redirectToRoute('login'); // Safely redirect if not logged in
+    }
 
     $q = trim((string) $request->query->get('q', ''));
     $page = $request->query->getInt('page', 1);
@@ -614,8 +620,13 @@ public function index_admin(FormationRepository $formationRepository,Request $re
         ]);
     }
     #[Route('/{id}', name: 'app_formation_show', methods: ['GET'])]
-    public function show(Formation $formation, EntityManagerInterface $em, TranslatorService $translator): Response    {
-        $user = $em->getRepository(\App\Entity\UserHandling\Utilisateur::class)->find(1);
+    public function show(Formation $formation, EntityManagerInterface $em, TranslatorService $translator, \App\Service\AuthService $authService): Response    {
+        $userId = (int) ($authService->getCurrentUserId() ?? 0);
+        $user = $userId > 0 ? $em->getRepository(\App\Entity\UserHandling\Utilisateur::class)->find($userId) : null;
+        
+        if (!$user) {
+            return $this->redirectToRoute('login'); // Safely redirect if not logged in
+        }
     
         $participation = $em->getRepository(Participer::class)
             ->findOneBy(['user'=>$user,'formation'=>$formation]);
