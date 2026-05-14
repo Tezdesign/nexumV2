@@ -1135,5 +1135,14 @@
 {% block script %}
     <script src="/js/vendor/sockjs.min.js"></script>
     <script src="/js/vendor/stomp.min.js"></script>
+    <script>
+         window.chatEnvConfig = {
+              socketUrl: '{{ callSocketUrl|escape('js') }}',
+              livekitUrl: '{{ callLivekitUrl|escape('js') }}',
+              pageEndpoint: '{{ callPageEndpoint|escape('js') }}',
+              tokenEndpoint: '{{ callTokenEndpoint|escape('js') }}',
+              avatarEndpoint: '{{ callAvatarEndpoint|escape('js') }}'
+             };
+    </script>
     <script src="/js/pages/apps-chat.js?v=20260423b"></script>
 {% endblock %}

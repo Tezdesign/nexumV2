@@ -50,9 +50,11 @@ class ConversationController extends AbstractController
             'KILPY_LOCALE', 'KLIPY_LOCALE'
         ], 'tn'));
 
+        $wbHost = $this->readEnvSetting(['UNIVERSEL_WB_URL'], '10.102.88.72');
+
         $callSocketUrl = $this->readEnvSetting([
             'CHAT_CALL_SOCKET_URL'
-        ], 'ws://10.102.88.72:8090/ws');
+        ], 'ws://' . $wbHost . ':8090/ws');
 
         $callTokenEndpoint = $this->readEnvSetting([
             'CHAT_CALL_TOKEN_ENDPOINT'
@@ -60,11 +62,11 @@ class ConversationController extends AbstractController
 
         $callPageEndpoint = $this->readEnvSetting([
             'CHAT_CALL_PAGE_ENDPOINT'
-        ], 'http://10.102.88.72:8090/livekit/call');
+        ], 'http://' . $wbHost . ':8090/livekit/call');
 
         $callLivekitUrl = $this->readEnvSetting([
             'CHAT_CALL_LIVEKIT_URL'
-        ], 'ws://10.102.88.72:7880');
+        ], 'ws://' . $wbHost . ':7880');
 
         $callAvatarEndpoint = $this->readEnvSetting([
             'CHAT_CALL_AVATAR_ENDPOINT'

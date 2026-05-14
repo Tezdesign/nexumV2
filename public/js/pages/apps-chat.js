@@ -116,11 +116,13 @@ class ChatApp {
         this.pendingIncomingCall = null
         this.pendingOutgoingCall = null
         this.callPopupWindow = null
-        this.callSocketUrl = 'ws://localhost:8090/ws'
-        this.callTokenEndpoint = '/apps-chat/livekit/token'
-        this.callPageEndpoint = 'http://10.102.88.72:8090/livekit/call'
-        this.callLivekitUrl = 'ws://10.102.88.72:7880'
-        this.callAvatarEndpoint = '/apps-chat/livekit/avatar'
+        const envConfig = window.chatEnvConfig || {};
+         // 2. Assign the URLs, falling back to localhost ONLY if the Twig config is missing
+        this.callSocketUrl = envConfig.socketUrl || 'ws://localhost:8090/ws';
+        this.callTokenEndpoint = envConfig.tokenEndpoint || '/apps-chat/livekit/token';
+        this.callPageEndpoint = envConfig.pageEndpoint || 'http://localhost:8090/livekit/call';
+        this.callLivekitUrl = envConfig.livekitUrl || 'ws://localhost:7880';
+        this.callAvatarEndpoint = envConfig.avatarEndpoint || '/apps-chat/livekit/avatar';
         this.callSignalingEnabled = true
         this.messagesSimplebar = null
         this.chatForm = null

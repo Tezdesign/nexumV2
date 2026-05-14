@@ -1003,7 +1003,7 @@ final class ProjectController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}', name: 'app_project_delete', methods: ['POST'])]
+    #[Route('/{id}/delete', name: 'app_project_delete', methods: ['POST'])]
     public function delete(Request $request, Project $project, TaskRepository $taskRepository, UtilisateurRepository $utilisateurRepository, AuthService $authService, ProjectActivityLogger $activityLogger, EntityManagerInterface $entityManager): Response
     {
         $currentUserId = (int) ($authService->getCurrentUserId() ?? 0);
@@ -1033,6 +1033,9 @@ final class ProjectController extends AbstractController
                     ->setParameter('pid', (int) $pid)
                     ->getQuery()
                     ->execute();
+            }
+            else {
+                dd('FAIL: The CSRF token did not match.');
             }
 
             $entityManager->remove($project);
