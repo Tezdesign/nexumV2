@@ -7,12 +7,9 @@ use Predis\Client;
 class DraftNotificationService
 {
     private ?Client $redis = null;
-    private \App\Service\FirebaseNotificationService $firebaseService;
 
-    public function __construct(\App\Service\FirebaseNotificationService $firebaseService)
+    public function __construct()
     {
-        $this->firebaseService = $firebaseService;
-        
         $url = $_ENV['REDIS_URL'] ?? null;
         if ($url) {
             $parsed = parse_url($url);
@@ -93,9 +90,6 @@ class DraftNotificationService
         }
 
         $this->saveNotificationsToRedis($key, $notifications);
-
-        // Trigger native Firebase push notification
-        $this->firebaseService->sendPushNotification($title, $message);
     }
 
     /**
