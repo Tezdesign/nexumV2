@@ -384,27 +384,6 @@
             </div>
 
             <div class="form-group">
-                <label>Face Registration (Optional)</label>
-                <div class="face-capture-container">
-                    <video id="faceVideo" width="320" height="240" style="display: none; border-radius: 10px; margin-bottom: 10px;"></video>
-                    <canvas id="faceCanvas" width="320" height="240" style="display: none;"></canvas>
-                    <div class="face-capture-buttons">
-                        <button type="button" id="startCameraBtn" class="btn-secondary" style="padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); cursor: pointer; margin-right: 10px;">
-                            📷 Start Camera
-                        </button>
-                        <button type="button" id="captureFaceBtn" class="btn-secondary" style="padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); cursor: pointer; margin-right: 10px; display: none;">
-                            📸 Capture Face
-                        </button>
-                        <button type="button" id="stopCameraBtn" class="btn-secondary" style="padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); cursor: pointer; display: none;">
-                            🛑 Stop Camera
-                        </button>
-                    </div>
-                    <div id="facePreview" style="margin-top: 10px;"></div>
-                    <input type="hidden" name="face_data" id="faceDataInput">
-                </div>
-            </div>
-
-            <div class="form-group">
                 <label>First Name</label>
                 <div class="input-wrapper">
                     <svg class="input-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
@@ -446,7 +425,6 @@
                         <option value="consultant">Consultant</option>
                         <option value="formateur">Formateur</option>
                         <option value="manager">Manager</option>
-                        <option value="admin">Administrator</option>
                     </select>
                 </div>
             </div>
@@ -506,81 +484,5 @@ document.getElementById('imageInput').addEventListener('change', function(e) {
         reader.readAsDataURL(file);
     }
 });
-
-// Face capture functionality
-let stream = null;
-const video = document.getElementById('faceVideo');
-const canvas = document.getElementById('faceCanvas');
-const startCameraBtn = document.getElementById('startCameraBtn');
-const captureFaceBtn = document.getElementById('captureFaceBtn');
-const stopCameraBtn = document.getElementById('stopCameraBtn');
-const facePreview = document.getElementById('facePreview');
-const faceDataInput = document.getElementById('faceDataInput');
-
-startCameraBtn.addEventListener('click', async function() {
-    try {
-        stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { 
-                width: { ideal: 640 },
-                height: { ideal: 480 },
-                facingMode: 'user'
-            } 
-        });
-        video.srcObject = stream;
-        video.style.display = 'block';
-        video.play();
-        
-        startCameraBtn.style.display = 'none';
-        captureFaceBtn.style.display = 'inline-block';
-        stopCameraBtn.style.display = 'inline-block';
-    } catch (err) {
-        console.error('Error accessing camera:', err);
-        alert('Unable to access camera. Please ensure you have granted camera permissions.');
-    }
-});
-
-captureFaceBtn.addEventListener('click', function() {
-    const context = canvas.getContext('2d');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    
-    canvas.toBlob(function(blob) {
-        const reader = new FileReader();
-        reader.onloadend = function() {
-            const base64data = reader.result;
-            faceDataInput.value = base64data;
-            
-            // Show preview
-            const img = document.createElement('img');
-            img.src = base64data;
-            img.style.width = '160px';
-            img.style.height = '120px';
-            img.style.borderRadius = '10px';
-            img.style.border = '2px solid var(--primary-purple)';
-            
-            facePreview.innerHTML = '<p style="margin-bottom: 5px; font-size: 13px; color: var(--text-muted);">Face captured successfully!</p>';
-            facePreview.appendChild(img);
-            
-            // Stop camera after capture
-            stopCamera();
-        };
-        reader.readAsDataURL(blob);
-    }, 'image/jpeg', 0.9);
-});
-
-stopCameraBtn.addEventListener('click', stopCamera);
-
-function stopCamera() {
-    if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-        video.style.display = 'none';
-        canvas.style.display = 'none';
-        
-        startCameraBtn.style.display = 'inline-block';
-        captureFaceBtn.style.display = 'none';
-        stopCameraBtn.style.display = 'none';
-    }
-}
 </script>
 {% endblock %}

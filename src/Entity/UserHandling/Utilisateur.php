@@ -17,6 +17,12 @@ use App\Repository\UserHandling\UtilisateurRepository;
 #[ORM\UniqueConstraint(name: "email", columns: ["email"])]
 class Utilisateur implements UserInterface, PasswordAuthenticatedUserInterface
 {
+    /** Roles a visitor may pick when signing up. Admin accounts are created by admins only. */
+    public const SELF_REGISTRATION_ROLES = ['employee', 'consultant', 'formateur', 'manager'];
+
+    /** Every role an admin may assign. hr and finance are legacy values still present in the database. */
+    public const ASSIGNABLE_ROLES = ['employee', 'consultant', 'formateur', 'manager', 'admin', 'hr', 'finance'];
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: 'integer')]
@@ -254,20 +260,6 @@ public function setIsBlocked(bool $is_blocked): self
         return $this;
     }
 
-    #[ORM\Column(type: 'string', nullable: true)]
-    private ?string $face_id = null;
-
-    public function getFace_id(): ?string
-    {
-        return $this->face_id;
-    }
-
-    public function setFace_id(?string $face_id): self
-    {
-        $this->face_id = $face_id;
-        return $this;
-    }
-
     /**
      * @var Collection<int, ResourceAssignment>
      */
@@ -312,17 +304,4 @@ public function setIsBlocked(bool $is_blocked): self
 
         return $this;
     }
-
-    public function getFaceId(): ?string
-    {
-        return $this->face_id;
-    }
-
-    public function setFaceId(?string $face_id): static
-    {
-        $this->face_id = $face_id;
-
-        return $this;
-    }
-
 }

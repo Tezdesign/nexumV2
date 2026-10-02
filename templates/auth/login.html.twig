@@ -321,19 +321,6 @@
         background: rgba(124, 58, 237, 0.1);
         border-radius: 10px;
     }
-
-    /* Face authentication button hover effects */
-    .btn-face-auth:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(124, 58, 237, 0.4);
-        opacity: 0.9;
-    }
-
-    .btn-secondary:hover {
-        border-color: var(--primary-purple);
-        background: #faf5ff;
-        transform: translateY(-1px);
-    }
 </style>
 {% endblock %}
 
@@ -395,29 +382,6 @@
             <button type="submit" class="btn-signin">Sign In</button>
         </form>
 
-        <!-- Face Authentication -->
-        <div style="margin-top: 30px; padding-top: 30px; border-top: 1px solid var(--border-color);">
-            <p style="text-align: center; margin-bottom: 20px; font-size: 14px; color: var(--text-muted);">Or sign in with your face</p>
-
-            <div class="face-auth-container">
-                <video id="faceAuthVideo" width="320" height="240" style="display: none; border-radius: 10px; margin: 0 auto 10px; display: block;"></video>
-                <canvas id="faceAuthCanvas" width="320" height="240" style="display: none;"></canvas>
-                <div class="face-auth-buttons" style="text-align: center;">
-                    <button type="button" id="startAuthCameraBtn" class="btn-face-auth" style="padding: 14px 28px; border-radius: 12px; border: 2px solid var(--primary-purple); background: linear-gradient(135deg, var(--primary-purple) 0%, #6d28d9 100%); color: white; cursor: pointer; font-size: 15px; font-weight: 600; margin-right: 10px; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3);">
-                        &#x1f4f7; Start Face Authentication
-                    </button>
-                    <button type="button" id="authenticateFaceBtn" class="btn-face-auth" style="padding: 14px 28px; border-radius: 12px; border: 2px solid var(--primary-purple); background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; cursor: pointer; font-size: 15px; font-weight: 600; margin-right: 10px; display: none; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);">
-                        &#x1f510; Authenticate
-                    </button>
-                    <button type="button" id="stopAuthCameraBtn" class="btn-secondary" style="padding: 12px 24px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); cursor: pointer; display: none; transition: all 0.3s ease;">
-                        &#x1f5d1; Stop Camera
-                    </button>
-                </div>
-                <div id="faceAuthResult" style="margin-top: 15px; text-align: center;"></div>
-                <input type="hidden" name="auth_face_data" id="authFaceDataInput">
-            </div>
-        </div>
-
         <p class="footer-text">
             Don't have an account? <a href="{{ path('signin') }}" class="get-started">Get Started</a>
         </p>
@@ -447,105 +411,5 @@
         });
     }
 })();
-
-// Face authentication functionality
-let authStream = null;
-const authVideo = document.getElementById('faceAuthVideo');
-const authCanvas = document.getElementById('faceAuthCanvas');
-const startAuthCameraBtn = document.getElementById('startAuthCameraBtn');
-const authenticateFaceBtn = document.getElementById('authenticateFaceBtn');
-const stopAuthCameraBtn = document.getElementById('stopAuthCameraBtn');
-const faceAuthResult = document.getElementById('faceAuthResult');
-const authFaceDataInput = document.getElementById('authFaceDataInput');
-
-startAuthCameraBtn.addEventListener('click', async function() {
-    try {
-        authStream = await navigator.mediaDevices.getUserMedia({
-            video: {
-                width: { ideal: 640 },
-                height: { ideal: 480 },
-                facingMode: 'user'
-            }
-        });
-        authVideo.srcObject = authStream;
-        authVideo.style.display = 'block';
-        authVideo.play();
-
-        startAuthCameraBtn.style.display = 'none';
-        authenticateFaceBtn.style.display = 'inline-block';
-        stopAuthCameraBtn.style.display = 'inline-block';
-    } catch (err) {
-        console.error('Error accessing camera:', err);
-        alert('Unable to access camera. Please ensure you have granted camera permissions.');
-    }
-});
-
-authenticateFaceBtn.addEventListener('click', function() {
-    const context = authCanvas.getContext('2d');
-    authCanvas.width = authVideo.videoWidth;
-    authCanvas.height = authVideo.videoHeight;
-    context.drawImage(authVideo, 0, 0, authCanvas.width, authCanvas.height);
-
-    authCanvas.toBlob(function(blob) {
-        const reader = new FileReader();
-        reader.onloadend = function() {
-            const base64data = reader.result;
-            authFaceDataInput.value = base64data;
-
-            // Show loading state
-            faceAuthResult.innerHTML = '<div class="alert alert-info">Authenticating... Please wait.</div>';
-
-            // Send face data to server for authentication
-            fetch('{{ path("face_authenticate") }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: JSON.stringify({
-                    face_data: base64data
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                console.log('Face authentication response:', data);
-                if (data.success) {
-                    faceAuthResult.innerHTML = '<div class="alert alert-success">Face authentication successful! Redirecting...</div>';
-                    console.log('Redirecting to:', data.redirect_url);
-                    setTimeout(() => {
-                        console.log('Performing redirect to:', data.redirect_url);
-                        // Force a page reload instead of direct navigation to ensure session is properly loaded
-                        window.location.href = data.redirect_url + '?t=' + Date.now();
-                    }, 2000); // Increased delay to 2 seconds
-                } else {
-                    console.log('Face authentication failed:', data.message);
-                    faceAuthResult.innerHTML = '<div class="alert alert-danger">' + (data.message || 'Face authentication failed. Please try again.') + '</div>';
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                faceAuthResult.innerHTML = '<div class="alert alert-danger">An error occurred during face authentication. Please try again.</div>';
-            })
-            .finally(() => {
-                stopAuthCamera();
-            });
-        };
-        reader.readAsDataURL(blob);
-    }, 'image/jpeg', 0.9);
-});
-
-stopAuthCameraBtn.addEventListener('click', stopAuthCamera);
-
-function stopAuthCamera() {
-    if (authStream) {
-        authStream.getTracks().forEach(track => track.stop());
-        authVideo.style.display = 'none';
-        authCanvas.style.display = 'none';
-
-        startAuthCameraBtn.style.display = 'inline-block';
-        authenticateFaceBtn.style.display = 'none';
-        stopAuthCameraBtn.style.display = 'none';
-    }
-}
 </script>
 {% endblock %}

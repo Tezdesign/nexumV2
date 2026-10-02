@@ -35,6 +35,8 @@ class AuthService
         $utilisateur = $this->utilisateurRepository->login($email, $password);
         
         if ($utilisateur) {
+            // New session id on login so a pre login session id cannot be reused.
+            $this->session()?->migrate(true);
             $this->refreshSessionUser($utilisateur);
             $this->authenticateSymfonyUser($utilisateur);
             
@@ -46,29 +48,17 @@ class AuthService
 
     public function register(Utilisateur $utilisateur): bool
     {
-        try {
-            // Vérifier si l'email existe déjà
-            $email = $utilisateur->getEmail();
-            if ($email === null || $this->utilisateurRepository->findByEmail($email)) {
-                return false;
-            }
-
-            // Définir la date d'inscription et le statut par défaut
-            $utilisateur->setDateInscription(new \DateTime());
-            if (!$utilisateur->getStatut()) {
-                $utilisateur->setStatut('pending');
-            }
-            if ($utilisateur->getScore() === 0) {
-                $utilisateur->setScore(100);
-            }
-            
-            // Sauvegarder en base de données
-            $this->utilisateurRepository->create($utilisateur);
-            
-            return true;
-        } catch (\Exception $e) {
+        $email = $utilisateur->getEmail();
+        if ($email === null || $this->utilisateurRepository->findByEmail($email)) {
             return false;
         }
+
+        if (!$utilisateur->getStatut()) {
+            $utilisateur->setStatut('pending');
+        }
+        $this->utilisateurRepository->create($utilisateur);
+
+        return true;
     }
 
     public function logout(): void
