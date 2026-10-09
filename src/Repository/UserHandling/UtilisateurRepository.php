@@ -169,6 +169,21 @@ class UtilisateurRepository extends ServiceEntityRepository
         return $other !== null && $other->getId() !== $excludeUserId;
     }
 
+    /** Active administrators other than $excludeUserId (role contains "admin", status active or actif). */
+    public function countOtherActiveAdmins(int $excludeUserId): int
+    {
+        return (int) $this->createQueryBuilder('u')
+            ->select('COUNT(u.id)')
+            ->andWhere('LOWER(u.role) LIKE :admin')
+            ->andWhere('LOWER(u.statut) IN (:active)')
+            ->andWhere('u.id <> :id')
+            ->setParameter('admin', '%admin%')
+            ->setParameter('active', ['active', 'actif'])
+            ->setParameter('id', $excludeUserId)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
     /**
      * @return array{total: int, active: int, pending: int, admins: int}
      */

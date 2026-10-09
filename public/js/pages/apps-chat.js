@@ -1444,7 +1444,7 @@ class ChatApp {
 
         if (this.detailsDangerAction) {
             if (conversationTypeRaw === 'DM') {
-                this.detailsDangerAction.textContent = 'Delete conversation'
+                this.detailsDangerAction.textContent = 'Remove conversation'
             } else {
                 this.detailsDangerAction.textContent = isAdmin ? 'Delete conversation' : 'Leave conversation'
             }

@@ -6,7 +6,7 @@ use App\Entity\FinancialAnalysis\Transaction;
 use App\Repository\FinancialAnalysis\ExpenseDraftRepository;
 use App\Repository\FinancialAnalysis\TransactionRepository;
 use App\Service\FinancialAnalysis\BudgetAdvService;
-use App\Service\FinancialAnalysis\DraftNotificationService;
+use App\Service\FinancialAnalysis\DraftPolicyService;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
@@ -14,19 +14,19 @@ class BudgetAdvServiceTest extends TestCase
 {
     private TransactionRepository&MockObject $transactionRepo;
     private ExpenseDraftRepository&MockObject $expenseDraftRepo;
-    private DraftNotificationService&MockObject $notificationService;
+    private DraftPolicyService&MockObject $policyService;
     private BudgetAdvService $service;
 
     protected function setUp(): void
     {
         $this->transactionRepo = $this->createMock(TransactionRepository::class);
         $this->expenseDraftRepo = $this->createMock(ExpenseDraftRepository::class);
-        $this->notificationService = $this->createMock(DraftNotificationService::class);
+        $this->policyService = $this->createMock(DraftPolicyService::class);
 
         $this->service = new BudgetAdvService(
             $this->transactionRepo,
             $this->expenseDraftRepo,
-            $this->notificationService
+            $this->policyService
         );
     }
 

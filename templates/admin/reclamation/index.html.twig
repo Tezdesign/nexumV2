@@ -191,6 +191,7 @@
                                         <i class="ri-pencil-line"></i>
                                     </button>
                                     <form method="post" action="{{ path('admin_reclamations_delete', {id: r.idRec}) }}" class="d-inline" onsubmit="return confirm('Delete this reclamation?');">
+<input type="hidden" name="_token" value="{{ csrf_token('admin_reclamations') }}">
                                         <button type="submit" class="btn btn-sm btn-soft-danger" title="Delete">
                                             <i class="ri-delete-bin-line"></i>
                                         </button>

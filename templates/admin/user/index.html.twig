@@ -170,6 +170,7 @@
                                 <td class="text-end text-nowrap">
                                     {% if u.statut|lower != 'active' %}
                                     <form method="post" action="{{ path('admin_users_activate', {id: u.id}) }}" class="d-inline">
+<input type="hidden" name="_token" value="{{ csrf_token('admin_users') }}">
                                         <button type="submit" class="btn btn-sm btn-soft-success" title="Activate user">
                                             <i class="ri-user-follow-line"></i>
                                         </button>
@@ -180,6 +181,7 @@
                                     </button>
                                     {% if u.id != auth_service.getCurrentUserId() %}
                                     <form method="post" action="{{ path('admin_users_delete', {id: u.id}) }}" class="d-inline" onsubmit="return confirm('Delete this user permanently?');">
+<input type="hidden" name="_token" value="{{ csrf_token('admin_users') }}">
                                         <button type="submit" class="btn btn-sm btn-soft-danger" title="Delete">
                                             <i class="ri-delete-bin-line"></i>
                                         </button>

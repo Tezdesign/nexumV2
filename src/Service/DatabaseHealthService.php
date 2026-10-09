@@ -13,6 +13,14 @@ class DatabaseHealthService
         private CacheInterface $cache
     ) {}
 
+    public const ACTIVE_KEY = 'database_auto_sync_active';
+
+    /** True when a `remote` Doctrine connection exists (it was removed from doctrine.yaml, so today this is false). */
+    public function isRemoteConfigured(): bool
+    {
+        return array_key_exists('remote', $this->registry->getConnectionNames());
+    }
+
     public function pingRemote(): bool
     {
         return $this->cache->get('remote_db_ping', function (ItemInterface $item) {
@@ -73,15 +81,15 @@ class DatabaseHealthService
     
     public function isSyncActive(): bool
     {
-        return $this->cache->get('database_auto_sync_active', function() {
+        return $this->cache->get(self::ACTIVE_KEY, function() {
             return false;
         });
     }
     
     public function setSyncActive(bool $isActive): void
     {
-        $this->cache->delete('database_auto_sync_active');
-        $this->cache->get('database_auto_sync_active', function(ItemInterface $item) use ($isActive) {
+        $this->cache->delete(self::ACTIVE_KEY);
+        $this->cache->get(self::ACTIVE_KEY, function(ItemInterface $item) use ($isActive) {
             return $isActive;
         });
     }

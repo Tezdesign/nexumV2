@@ -1,8 +1,8 @@
 {% extends 'layouts/vertical.html.twig' %}
 
 {% set backendStatus = rapportBackendStatus|default({
-    backend: 'lmstudio',
-    label: 'LM Studio local',
+    backend: 'openvino_api',
+    label: 'Nexum AI Engine',
     available: false,
     message: 'Statut du backend indisponible.'
 }) %}

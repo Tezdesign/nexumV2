@@ -16,10 +16,6 @@ return [
         'path' => './assets/app.js',
         'entrypoint' => true,
     ],
-    'mobile_push' => [
-        'path' => './assets/mobile_push.js',
-        'entrypoint' => true,
-    ],
     '@hotwired/stimulus' => [
         'version' => '3.2.2',
     ],
@@ -62,11 +58,5 @@ return [
     ],
     'chart.js' => [
         'version' => '3.9.1',
-    ],
-    '@capacitor/core' => [
-        'version' => '8.3.1',
-    ],
-    '@capacitor/push-notifications' => [
-        'version' => '8.0.3',
     ],
 ];

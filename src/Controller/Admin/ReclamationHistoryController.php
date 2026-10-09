@@ -2,6 +2,7 @@
 
 namespace App\Controller\Admin;
 
+use App\Attribute\RequireAdmin;
 use App\Entity\UserHandling\Reclamation;
 use App\Repository\UserHandling\ReclamationRepository;
 use App\Service\ReclamationHistoryService;
@@ -10,6 +11,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 
 #[Route('/admin/reclamations')]
+#[RequireAdmin]
 class ReclamationHistoryController extends AbstractController
 {
     public function __construct(

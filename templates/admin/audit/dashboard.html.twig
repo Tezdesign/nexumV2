@@ -258,24 +258,6 @@
             </div>
         </div>
     </div>
-    
-    <div class="col-lg-4">
-        <div class="card audit-card h-100">
-            <div class="card-body text-center">
-                <div class="audit-icon bg-warning-subtle text-warning mx-auto mb-3">
-                    <i class="ri-bug-line"></i>
-                </div>
-                <h5 class="card-title mb-3">Anomaly Search</h5>
-                <p class="card-text text-muted mb-4">
-                    Detect and investigate system anomalies, unusual patterns, and potential security issues across the platform.
-                </p>
-                <a href="{{ path('admin_audit_anomalies') }}" class="audit-btn audit-btn-warning w-100">
-                    <i class="ri-search-line"></i>
-                    Search Anomalies
-                </a>
-            </div>
-        </div>
-    </div>
 </div>
 
 <!-- AI Insights Section -->
@@ -285,7 +267,7 @@
             <i class="ri-robot-line me-2"></i>
             AI-Powered Insights
         </h5>
-        <span class="badge bg-success">Live Analysis</span>
+        {% if aiInsights.error is defined %}<span class="badge bg-secondary">AI unavailable</span>{% else %}<span class="badge bg-success">Live Analysis</span>{% endif %}
     </div>
     <div class="card-body">
         {% if aiInsights.error is defined %}
@@ -300,7 +282,7 @@
                         <i class="ri-heart-pulse-line me-2"></i>
                         System Health Assessment
                     </h6>
-                    <p class="mb-3">{{ aiInsights.health_assessment ?? 'System operating normally' }}</p>
+                    <p class="mb-3">{{ aiInsights.health_assessment ?? 'No assessment available' }}</p>
                     
                     <h6 class="text-info mb-3">
                         <i class="ri-line-chart-line me-2"></i>

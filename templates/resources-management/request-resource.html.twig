@@ -111,6 +111,7 @@ Contact administrator.
                           data-turbo="false"
                           data-price="{{ resource.unitCost }}"
                           data-available="{{ resource.availableQuantity }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('submit_resource_request') }}">
                         <input type="hidden" name="resource_id" value="{{ resource.resourceId }}">
 
                         <div class="mb-2">

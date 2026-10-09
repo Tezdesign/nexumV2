@@ -7,6 +7,7 @@ use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Form\Extension\Core\Type\FileType;
+use Symfony\Component\Validator\Constraints\Image;
 
 class ResourceType extends AbstractType
 {
@@ -21,6 +22,14 @@ class ResourceType extends AbstractType
         ->add('image_path', FileType::class, [
             'mapped' => false,
             'required' => false,
+            // Real images only (no SVG or HTML: files in public/ are served from the app's own origin).
+            'constraints' => [
+                new Image(
+                    maxSize: '2M',
+                    mimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+                    mimeTypesMessage: 'Please upload a JPEG, PNG, GIF or WebP image.',
+                ),
+            ],
         ]);
 }
 

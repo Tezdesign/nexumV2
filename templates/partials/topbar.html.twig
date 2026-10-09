@@ -42,8 +42,9 @@
 
         <div class="d-flex align-items-center gap-2">
 
+            {% if auth_service.isAdmin() %}
             <!-- Database Sync Status & Toggle -->
-            <div class="topbar-item d-none d-lg-flex align-items-center me-2 pe-3 border-end border-dashed">
+            <div id="sync-widget" class="topbar-item d-none d-lg-flex align-items-center me-2 pe-3 border-end border-dashed">
                 <div class="d-flex flex-column text-end me-2" id="sync-status-text">
                     <span class="fs-12 fw-medium text-muted mb-0">Pending: <span id="sync-pending-count" class="text-dark">0</span></span>
                     <span class="fs-11 text-muted">Last: <span id="sync-last-time">Never</span></span>
@@ -73,10 +74,11 @@
                 </div>
                 
                 <div class="mb-0" title="Toggle Auto-Sync">
-                    <input type="checkbox" id="sync-toggle-switch" data-switch="success">
+                    <input type="checkbox" id="sync-toggle-switch" data-switch="success" data-token="{{ csrf_token('sync_toggle') }}">
                     <label for="sync-toggle-switch" data-on-label="Yes" data-off-label="No" class="mb-0 d-block cursor-pointer" ></label>
                 </div>
             </div>
+            {% endif %}
 
             <!-- Search for small devices -->
             <div class="topbar-item d-flex d-xl-none">
@@ -138,57 +140,6 @@
                             <span class="align-middle">Russian</span>
                         </a>
 
-                    </div>
-                </div>
-            </div>
-
-            <!-- Notification Dropdown -->
-            <div class="topbar-item">
-                <div class="dropdown">
-                    <button id="desktop-notif-dropdown-btn" class="topbar-link dropdown-toggle drop-arrow-none" data-bs-toggle="dropdown"
-                        data-bs-offset="0,25" type="button" data-bs-auto-close="outside" aria-haspopup="false"
-                        aria-expanded="false">
-                        <i class="ri-notification-snooze-line fs-22"></i>
-                        <span class="noti-icon-badge" id="desktop-notif-badge" style="display: none;"></span>
-                    </button>
-
-                    <div class="dropdown-menu p-0 dropdown-menu-end dropdown-menu-lg" style="min-height: 300px;">
-                        <div class="p-2 border-bottom position-relative border-dashed">
-                            <div class="row align-items-center">
-                                <div class="col">
-                                    <h6 class="m-0 fs-16 fw-semibold"> Notifications</h6>
-                                </div>
-                                <div class="col-auto">
-                                    <div class="dropdown">
-                                        <a href="#" class="dropdown-toggle drop-arrow-none link-dark"
-                                            data-bs-toggle="dropdown" data-bs-offset="0,15" aria-expanded="false">
-                                            <i class="ri-settings-2-line fs-22 align-middle"></i>
-                                        </a>
-                                        <div class="dropdown-menu dropdown-menu-end">
-                                            <!-- item-->
-                                            <a href="javascript:void(0);" class="dropdown-item" id="btn-mark-read">Mark as Read</a>
-                                            <!-- item-->
-                                            <a href="javascript:void(0);" class="dropdown-item" id="btn-clear-all">Delete All</a>
-                                            <!-- item-->
-                                            <a href="javascript:void(0);" class="dropdown-item">Do not Disturb</a>
-                                            <!-- item-->
-                                            <a href="javascript:void(0);" class="dropdown-item">Other Settings</a>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="position-relative rounded-0" style="max-height: 300px; overflow-y: auto;" data-simplebar id="desktop-notification-list">
-                            <!-- item-->
-                            
-                        </div>
-
-                        <!-- All-->
-                        <a href="javascript:void(0);"
-                            class="dropdown-item notification-item text-center text-reset text-decoration-underline fw-bold notify-item border-top border-light py-2">
-                            View All
-                        </a>
                     </div>
                 </div>
             </div>
@@ -388,8 +339,12 @@
     </div>
 </div>
 
+{% if auth_service.isAdmin() %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const syncWidget = document.getElementById('sync-widget');
+    if (!syncWidget) return; // only admins get the widget
+    let syncTimer = null;
     const statusIcon = document.getElementById('sync-status-icon');
     const remoteStatusBadge = document.getElementById('sync-remote-status');
     const pendingCountBadge = document.getElementById('sync-pending-count');
@@ -403,6 +358,12 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch('/api/sync/status')
             .then(r => r.json())
             .then(data => {
+                if (data.configured === false) {
+                    // No remote database: hide the widget and stop asking.
+                    syncWidget.remove();
+                    clearInterval(syncTimer);
+                    return;
+                }
                 // Update text counts
                 if (pendingCountBadge) pendingCountBadge.textContent = data.pending_changes_count;
                 if (pendingDetail) pendingDetail.textContent = data.pending_changes_count;
@@ -452,7 +413,7 @@ document.addEventListener('DOMContentLoaded', function() {
         toggleSwitch.addEventListener('change', function() {
             fetch('/api/sync/toggle', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': this.dataset.token },
                 body: JSON.stringify({ active: this.checked })
             });
         });
@@ -460,6 +421,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Poll immediately, then every 30 seconds
     pollSyncStatus();
-    setInterval(pollSyncStatus, 30000);
+    syncTimer = setInterval(pollSyncStatus, 30000);
 });
 </script>
+{% endif %}

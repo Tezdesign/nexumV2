@@ -1,397 +1,250 @@
-# Nexum – Esprit PIDEV 3A3 (2025–2026)
+# Nexum
 
-Nexum is a **Symfony 6.4** platform designed around collaborative project management, task tracking, financial analysis, communication, and AI-assisted workflows.
+**Esprit PIDEV 3A3 (2025/2026)**
 
-This branch also includes a **Python AI service** for advanced financial and project-report capabilities.
+Nexum is a web platform that brings project management, task tracking, financial analysis, team chat, resource booking and employee training into one application. It is built with **Symfony 6.4** and shares one **MySQL** database with a legacy **JavaFX desktop app**.
 
 ---
 
-## Table of Contents
+## Table of contents
 
-- [Overview](#overview)
-- [Main Features](#main-features)
-- [Tech Stack](#tech-stack)
-- [Repository Structure](#repository-structure)
-- [Architecture](#architecture)
-- [Prerequisites](#prerequisites)
-- [Installation & Setup](#installation--setup)
-- [Environment Variables](#environment-variables)
-- [Database & Migrations](#database--migrations)
-- [Run the Project](#run-the-project)
-- [Testing & Quality](#testing--quality)
-- [AI Services](#ai-services)
-- [Common Commands](#common-commands)
-- [Security Notes](#security-notes)
+- [Features](#features)
+- [Tech stack](#tech-stack)
+- [How access works](#how-access-works)
+- [Getting started](#getting-started)
+- [Configuration](#configuration)
+- [Email](#email)
+- [Database and migrations](#database-and-migrations)
+- [Running the tests and checks](#running-the-tests-and-checks)
+- [Project structure](#project-structure)
+- [Known limitations](#known-limitations)
+- [Security notes](#security-notes)
 - [Contributing](#contributing)
-- [License](#license)
 
 ---
 
-## Overview
+## Features
 
-Nexum is a modular web platform that combines:
-
-- User and admin management
-- Project and task lifecycle tools
-- Financial dashboards and budgeting
-- Messaging/chat components
-- Notifications and integrations
-- AI-powered analysis and report generation
-
-The codebase is centered on Symfony, with complementary Python services for ML/AI scenarios.
-
----
-
-## Main Features
-
-### 1. User & Administration
-
-- User accounts and profile handling
-- Admin-side user, reclamation, and audit management
-- Mobile-oriented authentication endpoints
-
-### 2. Project Management
-
-- Project CRUD and assignment flows
-- Project file support
-- Project progress-related logic
-
-### 3. Task Management
-
-- Task workflows and Kanban support
-- Calendar integration
-- Workload-related engine logic
-
-### 4. Financial Analysis
-
-- Budget profiles and project budgets
-- Transactions and financial dashboards
-- Expense draft and policy evaluation support
-
-### 5. Communication
-
-- Conversations and messages
-- Message attachments
-- Notification endpoints
-
-### 6. AI Capabilities
-
-- Intent extraction from natural language drafts
-- Expense policy evaluation
-- Financial projection and analysis assistance
-- Streaming project report generation using SSE
+| Module | What it does |
+|---|---|
+| **Accounts** | Sign up with a profile photo, login with a captcha, profile page with password change. A new account stays `pending` until an administrator activates it. |
+| **Administration** | Users (create, edit, activate, delete, PDF export), reclamations (complaints with attachments and a history log), audit pages with AI comments. |
+| **Projects** | Project creation with a team, files, progress, an AI task suggestion helper (Gemini) and a project report page. |
+| **Tasks** | Personal and project tasks, Kanban board, calendar, workload check before assigning. |
+| **Resources** | Inventory with derived stock, resource requests with admin approval, returns, calendar, quantity forecast. |
+| **Chat** | Direct and group conversations, attachments, GIFs, link previews, call invitations. |
+| **Training** | Formations with videos, progress milestones, quizzes, ratings, PDF certificates with a QR code, translation of descriptions, AI quiz generation from a PDF. |
+| **Financial analysis** | Fiscal year profiles, project budgets, transactions, expense drafts reviewed by a consultant, trends, currency rates. |
 
 ---
 
-## Tech Stack
+## Tech stack
 
-### Backend
-
-- PHP 8.2+
-- Symfony 6.4
-- Doctrine ORM
-- Doctrine Migrations
-- Twig
-
-### Data & Infrastructure
-
-- MySQL for the application database
-- PostgreSQL available through Docker Compose for optional workflows
-- Redis support through Predis for messenger/transport scenarios
-- Mailpit for local mail testing
-
-### AI & Data
-
-- Python
-- Flask
-- Transformers
-- OpenVINO for local inference
-- scikit-learn
-- NumPy
+- **PHP 8.2+**, **Symfony 6.4**, Doctrine ORM 3, Twig, AssetMapper with Stimulus and Turbo (no Node build step)
+- **MySQL 8** (shared with the Java app)
+- Libraries: KnpPaginator, Symfony UX (Chart.js, Live Components), Dompdf, PhpSpreadsheet, Endroid QR Code
+- **Email:** Mailjet through Symfony Mailer
+- **AI:** Gemini over HTTPS for task suggestions. The local AI engine (Flask) was removed and will be rebuilt.
+- **Python 3** helper scripts (resource forecast, reclamation audit wrapper, optional AI quiz generator)
 
 ---
 
-## Repository Structure
+## How access works
 
-```text
-.
-├── src/
-│   ├── Controller/
-│   ├── Entity/
-│   ├── Repository/
-│   ├── Service/
-│   ├── Command/
-│   └── aitools/
-├── config/
-├── templates/
-├── migrations/
-├── tests/
-├── python/
-├── public/
-├── compose.yaml
-├── compose.override.yaml
-├── composer.json
-└── app.py
-```
+Authentication is custom (no Symfony firewall). A user logs in with email and password, and the session keeps a `user` array and a security token.
+
+- **Visitor:** can only see the welcome, login and sign up pages. Any other page redirects to `/welcome`; fetch calls get 401.
+- **Logged in user:** the app modules. Routes marked `#[RequireLogin]` are checked by `AccessGuardSubscriber`.
+- **Administrator:** a user whose `role` contains `admin` (case insensitive). Routes marked `#[RequireAdmin]` answer 403 to everyone else. The last active administrator cannot be demoted or deleted, and nobody can remove their own admin access.
+- **Roles for sign up:** `employee`, `consultant`, `formateur`, `manager`. The admin form also offers `admin`, `hr` and `finance`.
+- **Activation:** only users with status `active` (or `actif`) can log in.
+- All state changing forms carry a CSRF token.
 
 ---
 
-## Architecture
+## Getting started
 
-Nexum uses a hybrid architecture composed of a Symfony web application and a Python AI service.
+### Requirements
 
-### Symfony Web Application
+- PHP 8.2 or newer with the usual Symfony extensions (`pdo_mysql`, `intl`, `mbstring`, `gd`, `fileinfo`)
+- Composer 2
+- MySQL 8
+- Python 3.10+ (only for the helper scripts)
 
-The Symfony application is the main platform. It handles:
-
-- Domain logic
-- Routing
-- Persistence
-- Views
-- Feature modules
-
-### Python AI Service
-
-The Python AI service is exposed through `app.py` and provides AI endpoints consumed by Symfony components.
-
-Available endpoints include:
-
-```text
-/api/nexum/intent
-/api/nexum/evaluate
-/api/nexum/analyze
-/api/nexum/rapport/stream
-```
-
-### Auxiliary ML Scripts
-
-The project also includes auxiliary ML scripts, such as:
-
-```text
-python/forecast.py
-```
-
-This script is used for quantity forecasting from time-series-like input.
-
----
-
-## Prerequisites
-
-Before running the project, make sure you have the following installed:
-
-- PHP 8.2+
-- Composer 2+
-- MySQL 8+ or compatible
-- Python 3.10+ recommended
-- Node.js, only if mobile or Capacitor-related assets are used
-- Docker, optional for local services such as database and Mailpit
-
----
-
-## Installation & Setup
-
-### 1. Clone the Repository
+### Install
 
 ```bash
-git clone <repo-url>
-cd Esprit-PIDEV-3A3-2526-Nexum
-```
-
-### 2. Install PHP Dependencies
-
-```bash
+git clone https://github.com/Tezdesign/nexumV2.git
+cd nexumV2
 composer install
 ```
 
-### 3. Configure Environment
+### Configure
 
-Copy the required `.env` values into a local override file:
+Create a local file for your own values. It is ignored by git. Only put the values you need to change in it, starting with the database:
 
-```bash
-.env.local
+```env
+# .env.local
+DATABASE_URL="mysql://USER:PASSWORD@127.0.0.1:3306/nexum?serverVersion=8.0&charset=utf8mb4"
 ```
 
-Then configure your local values for:
+See [Configuration](#configuration) for the other variables.
 
-- Database
-- Mailer
-- AI service
-- Integrations
-
-### 4. Prepare the Database
+### Prepare the database
 
 ```bash
 php bin/console doctrine:database:create --if-not-exists
 php bin/console doctrine:migrations:migrate
 ```
 
-### 5. Optional: Start Local Infrastructure with Docker
+The database is shared with the Java app. Read [`MIGRATION_GUIDE.md`](MIGRATION_GUIDE.md) before changing the schema.
+
+### Create the first administrator
+
+Public sign up cannot create administrators. Insert one directly (choose your own password):
+
+```sql
+INSERT INTO utilisateurs (nom, prenom, email, role, statut, date_inscription, password, score)
+VALUES ('Admin', 'Nexum', 'admin@example.com', 'admin', 'active', CURDATE(), 'choose-a-password', 100);
+```
+
+Passwords are stored as plain text because the Java app reads the same column. Change it from the profile page after the first login.
+
+### Run
 
 ```bash
-docker compose up -d
+symfony server:start
+# or
+php -S 127.0.0.1:8000 -t public
 ```
+
+Open `http://127.0.0.1:8000`.
 
 ---
 
-## Environment Variables
+## Configuration
 
-Core variables used in this branch include:
+Put real values in `.env.local`. The tracked `.env` must only hold safe defaults.
+
+| Variable | Purpose |
+|---|---|
+| `APP_ENV`, `APP_SECRET` | Symfony environment and secret |
+| `DATABASE_URL` | MySQL connection |
+| `MAILER_DSN`, `MAILER_FROM`, `ADMIN_ALERT_EMAIL` | Email, see [Email](#email) |
+| `GEMINI_API_KEY`, `GEMINI_MODEL` | Project task suggestions |
+| `AI_API_URL` | Local AI engine address (removed for now, features answer "offline") |
+| `CURRENCY_API_KEY` | Exchange rates for budget profiles |
+| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Media storage |
+| `UNIVERSEL_WB_URL`, `CHAT_CALL_*` | Chat call and websocket servers |
+| `QUIZ_PYTHON_BIN`, `QUIZ_GENERATOR_SCRIPT` | Optional AI quiz generator from a PDF |
+| `HOLIDAY_COUNTRY_CODE` | Holidays shown on the calendar |
+
+---
+
+## Email
+
+Mail is sent through **Mailjet**. The only email today is an alert to the administrator when a new account is waiting for activation. It is sent after the page response, so a mail problem never blocks a sign up.
+
+In `.env.local`:
 
 ```env
-APP_ENV=
-APP_SECRET=
-DATABASE_URL=
-MAILER_DSN=
-AI_API_URL=
-AI_BACKEND=
-LM_STUDIO_URL=
+MAILER_DSN=mailjet+api://YOUR_API_KEY:YOUR_SECRET_KEY@api.mailjet.com
+MAILER_FROM=an-address-verified-in-mailjet@example.com
+ADMIN_ALERT_EMAIL=the-admin-inbox@example.com
 ```
 
-Other variables may also be required for:
-
-- Chat and call signaling
-- Cloud providers
-- Media providers
-- AI backend configuration
-
-Use local environment files for machine-specific values and secrets:
-
-```text
-.env.local
-.env.<env>.local
-```
+While `MAILER_FROM` or `ADMIN_ALERT_EMAIL` is empty, nothing is sent.
 
 ---
 
-## Database & Migrations
+## Database and migrations
 
-This branch includes a legacy-database-aware migration process.
+The database was created by the Java app. Rules:
 
-Please read:
-
-```text
-MIGRATION_GUIDE.md
-```
-
-Recommended flow when generating migrations:
+- Never accept Doctrine's automatic renames of indexes or foreign keys.
+- After generating a migration, always run the cleaner:
 
 ```bash
 php bin/console make:migration
 php bin/clean_migration.php
 ```
 
-Then:
-
-1. Review the generated migration manually.
-2. Run the migration:
-
-```bash
-php bin/console doctrine:migrations:migrate
-```
+- Review the migration by hand, then run `php bin/console doctrine:migrations:migrate`.
 
 ---
 
-## Run the Project
-
-### Symfony Application
+## Running the tests and checks
 
 ```bash
-symfony server:start
+php bin/phpunit                 # PHPUnit, SQLite test database
+php vendor/phpstan/phpstan/phpstan.phar analyse --memory-limit=1G   # static analysis (level 8)
+php bin/console lint:container
+php bin/console lint:twig templates
 ```
 
-Or:
+Notes:
 
-```bash
-php -S 127.0.0.1:8000 -t public
-```
-
-### Python AI Service
-
-```bash
-python app.py
-```
+- `vendor/bin/phpstan` may print nothing on some setups, so use the phar as shown. A number of older findings exist, so check the files you touched.
+- Tests that extend `KernelTestCase` or `WebTestCase` need `KERNEL_CLASS=App\Kernel` in the PHPUnit environment. Without it they error before running.
+- Several newer tests build their own kernel with SQLite, so they run without MySQL.
 
 ---
 
-## Testing & Quality
-
-### PHPUnit
-
-```bash
-php bin/phpunit
-```
-
-The project uses `phpunit.dist.xml` with a SQLite test database configuration.
-
-### PHPStan
-
-```bash
-vendor/bin/phpstan analyse
-```
-
----
-
-## AI Services
-
-The `app.py` file loads the Nexum AI engine and exposes endpoints for:
-
-- Intent extraction from user text
-- Policy evaluation for expense drafts
-- Financial analysis with recommendations
-- Streaming project report generation in French using SSE output
-
-Additional local AI tooling is available under:
+## Project structure
 
 ```text
-src/aitools/userai/
+.
+├── src/
+│   ├── Attribute/        RequireLogin, RequireAdmin
+│   ├── Controller/       Web routes by module (Admin, Project, tasks, chat, ResourcesManagement, ...)
+│   ├── Entity/           Doctrine entities, one folder per module
+│   ├── Repository/       Queries
+│   ├── Service/          Business logic and integrations
+│   ├── EventSubscriber/  Access guard, sync log
+│   ├── Command/          Console commands
+│   └── aitools/          Python wrapper for the audit AI comments
+├── templates/            Twig views (layouts, auth, admin, one folder per module)
+├── migrations/           Schema changes against the legacy database
+├── python/               forecast.py (resource quantity forecast)
+├── config/               Symfony configuration and services
+├── tests/                Controller, Service and Entity tests
+└── public/               Web root and uploaded assets
 ```
 
-This folder contains Gemma, OpenVINO, and LM Studio-oriented utilities.
+Each large area has its own `AGENTS.md` with the rules and gotchas of that module.
 
 ---
 
-## Common Commands
+## Known limitations
 
-```bash
-# Clear Symfony cache
-php bin/console cache:clear
-
-# List routes
-php bin/console debug:router
-
-# Run Doctrine migrations
-php bin/console doctrine:migrations:migrate
-
-# Run tests
-php bin/phpunit
-
-# Run static analysis
-vendor/bin/phpstan analyse
-```
+- **Plain text passwords.** They are compared as plain text because the Java app reads the same column. Changing this affects the desktop app.
+- **No limit on failed logins.** The captcha slows scripts down, but accounts are not locked after repeated failures.
+- **Database sync is unfinished.** The `remote` connection was removed. `/api/sync/*` answers "not configured" and the top bar widget hides itself.
+- **Local AI engine removed.** The project report, the financial draft analysis and the audit comments use fallbacks or show an offline message until it returns.
+- **Forgot password flow removed.** An administrator changes a forgotten password.
+- **AI quiz generator** needs a Python script that is not in the repository (`QUIZ_GENERATOR_SCRIPT`).
 
 ---
 
-## Security Notes
+## Security notes
 
-- Never commit real secrets, tokens, or production credentials.
-- Rotate exposed credentials immediately if they were ever committed.
-- Keep API keys and DSNs in local/private environment files.
-- Validate and sanitize all user-provided input, especially in AI-related flows.
+- Never commit secrets. `.env` is tracked by git, so keep real keys in `.env.local` only.
+- If a credential was ever committed, treat it as exposed and rotate it.
+- Uploaded files (photos, attachments, certificates) are checked by real content type and size. Certificates and QR images live outside `public/`.
+- Report a security problem privately to the maintainers, not in a public issue.
 
 ---
 
 ## Contributing
 
-1. Create a feature branch.
-2. Keep commits focused and descriptive.
-3. Run tests and static analysis before opening a pull request.
-4. Follow existing project and module conventions.
-5. Document important behavior changes.
+1. Create a branch for your change.
+2. Keep each commit small and clear.
+3. Run the tests and PHPStan before opening a pull request.
+4. Follow the conventions of the module you edit (see its `AGENTS.md`).
+5. Write down behavior changes in the pull request description.
 
 ---
 
 ## License
 
-This project is marked as proprietary in `composer.json`.
-
-Use and distribution are subject to the repository owner or team policy.
+Proprietary, as set in `composer.json`. Use and distribution follow the policy of the repository owner.

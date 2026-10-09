@@ -1,8 +1,11 @@
 <?php
 
 namespace App\Service\FinancialAnalysis;
+
 use App\Repository\FinancialAnalysis\BudgetProfileRepository;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class CurrencyExchangeService
 {
@@ -10,33 +13,40 @@ class CurrencyExchangeService
         #[Autowire(env: 'CURRENCY_API_KEY')]
         private string $apiKey,
         private BudgetProfileRepository $budgetProfileRepository,
+        private HttpClientInterface $httpClient,
+        private LoggerInterface $logger,
     ) {}
 
+    /** The provider's JSON answer, or '{}' when the call fails (the caller then shows an empty list). */
     public function fetchRatesForProfile(int $profileId): string
     {
         $profile = $this->budgetProfileRepository->find($profileId);
-        $baseCurrency = $profile ? $profile->getBaseCurrency() : 'TND';
-
-        $url = "https://v6.exchangerate-api.com/v6/{$this->apiKey}/latest/{$baseCurrency}";
-
-        $ch = curl_init($url);
-        if ($ch === false) {
+        $baseCurrency = strtoupper(trim((string) ($profile?->getBaseCurrency() ?? 'TND')));
+        if (preg_match('/^[A-Z]{3}$/', $baseCurrency) !== 1) {
             return '{}';
         }
 
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        try {
+            // The key goes in a header, not in the URL, so it never lands in logs or error pages.
+            $response = $this->httpClient->request('GET', 'https://v6.exchangerate-api.com/v6/latest/' . $baseCurrency, [
+                'auth_bearer' => $this->apiKey,
+                'timeout' => 10,
+            ]);
 
-        $response = curl_exec($ch);
-        $curlError = curl_error($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        // Return the raw API response
-        return is_string($response) ? $response : '{}';
+            return $response->getStatusCode() === 200 ? $response->getContent() : $this->failed('HTTP ' . $response->getStatusCode());
+        } catch (\Throwable $e) {
+            return $this->failed($e->getMessage());
+        }
     }
+
+    private function failed(string $reason): string
+    {
+        $this->logger->warning('Exchange rate call failed', ['reason' => $reason]);
+
+        return '{}';
+    }
+
+
 
     /**
      * @return array<int, array{text: string, children: array<int, array{id: string, text: string, rate: mixed}>}>

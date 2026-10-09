@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Attribute\RequireAdmin;
 use App\Entity\Formation;
 use App\Entity\Participer;
 use App\Repository\FormationRepository;
@@ -15,6 +16,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 #[Route('/admin')]
+#[RequireAdmin]
 class AdminControllerFormation extends AbstractController
 {
     #[Route('/training-stats', name: 'admin_dashboard_formation')]

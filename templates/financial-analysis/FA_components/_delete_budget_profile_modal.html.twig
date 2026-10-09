@@ -33,6 +33,8 @@
             </div>
             <div class="modal-footer">
                 <form action="{{ path('apps-financial-analysis-delete-profile', {id: budgetProfile.id}) }}" method="POST">
+                    <input type="hidden" name="_token" value="{{ csrf_token('fa_write') }}">
+                    <input type="text" name="confirm_year" class="form-control mb-3" required autocomplete="off" placeholder="{{ 'Type the fiscal year to confirm'|trans }}: {{ budgetProfile.fiscalYear }}">
                     <button type="button" class="btn btn-light" data-bs-dismiss="modal">{{ 'Cancel'|trans }}</button>
                     <button type="submit" class="btn btn-danger px-4">{{ 'Delete Everything Permanently'|trans }}</button>
                 </form>

@@ -15,6 +15,8 @@ parameters:
     app.openvino_model_path: '%env(string:OPENVINO_MODEL_PATH)%'
     app.openvino_pipeline: '%env(string:OPENVINO_PIPELINE)%'
     app.holiday_country_code: '%env(string:HOLIDAY_COUNTRY_CODE)%'
+    app.python_default: 'python'
+    videos_directory: '%kernel.project_dir%/public/uploads/videos'
 
 services:
     # default configuration for services in *this* file
@@ -54,29 +56,18 @@ services:
             $countryCode: '%app.holiday_country_code%'
 
 
-    App\Service\TelegramNotificationService:
+    App\Service\AdminAlertMailer:
         arguments:
-            $botToken: '%env(TELEGRAM_BOT_TOKEN)%'
-            $defaultChatId: '%env(TELEGRAM_CHAT_ID)%'
+            $from: '%env(MAILER_FROM)%'
+            $to: '%env(ADMIN_ALERT_EMAIL)%'
 
     App\Service\ReclamationHistoryService:
         arguments:
             $projectDir: '%kernel.project_dir%'
 
-    App\Service\AdminMailService:
-        arguments:
-            $mailFrom: '%env(MAILER_FROM_NEXUM)%'
-            $mailDsn: '%env(MAILER_DSN_NEXUM)%'
-
     App\Service\AIAuditService:
         arguments:
             $projectDir: '%kernel.project_dir%'
-
-    App\Service\Sms\InfobipSmsService:
-        arguments:
-            $apiKey: '%env(INFOBIP_API_KEY)%'
-            $baseUrl: '%env(resolve:INFOBIP_BASE_URL)%'
-            $sender: '%env(INFOBIP_SENDER)%'
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
@@ -91,3 +82,14 @@ services:
     App\Service\QuizImageGenerator:
         arguments:
             $projectDir: '%kernel.project_dir%'
+
+    App\Service\ResourcesManagement\ResourceForecastService:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+            $pythonBin: '%env(default:app.python_default:PYTHON_BIN)%'
+
+    App\Service\PythonQuizGeneratorService:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+            $pythonBin: '%env(default::QUIZ_PYTHON_BIN)%'
+            $scriptPath: '%env(default::QUIZ_GENERATOR_SCRIPT)%'

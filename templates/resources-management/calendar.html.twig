@@ -61,9 +61,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const events = {{ events|json_encode|raw }};
     const dayData = {{ dayData|json_encode|raw }};
 
-    // ✅ base route for SMS (we replace ID later)
-    const notifyBaseUrl = "{{ path('notify_overdue_sms', {'id': 'ID_PLACEHOLDER'}) }}";
-
     const calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'dayGridMonth',
         height: 'auto',
@@ -96,19 +93,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     else if (item.status === "ACTIVE") badgeClass = "bg-success";
                     else if (item.status === "DUE TODAY") badgeClass = "bg-warning";
                     else if (item.status === "OVERDUE") badgeClass = "bg-danger";
-
-                    // ✅ FIX: generate URL in JS
-                    let actionBtn = "";
-
-                    if (item.status === "OVERDUE") {
-                        const url = notifyBaseUrl.replace('ID_PLACEHOLDER', item.assignmentId);
-
-                        actionBtn = `
-                            <a href="${url}" class="btn btn-sm btn-danger">
-                                Notify SMS
-                            </a>
-                        `;
-                    }
+                    else if (item.status === "RETURNED") badgeClass = "bg-secondary";
 
                     tableBody.innerHTML += `
                         <tr>
@@ -116,7 +101,6 @@ document.addEventListener('DOMContentLoaded', function () {
                             <td>${item.quantity}</td>
                             <td><span class="badge ${badgeClass}">${item.status}</span></td>
                             <td>${item.returnDate ?? 'N/A'}</td>
-                            <td>${actionBtn}</td>
                         </tr>
                     `;
                 });

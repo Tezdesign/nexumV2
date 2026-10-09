@@ -29,6 +29,20 @@ class ResourceAssignmentRepository extends ServiceEntityRepository
             ->getSingleScalarResult();
     }
 
+    /** Units held by accepted assignments that have not been returned. */
+    public function sumHeldQuantity(int $resourceId): int
+    {
+        return (int) $this->createQueryBuilder('ra')
+            ->select('COALESCE(SUM(ra.quantity), 0)')
+            ->andWhere('ra.resource_id = :resource')
+            ->andWhere('ra.status = :status')
+            ->andWhere('ra.returned = false')
+            ->setParameter('resource', $resourceId)
+            ->setParameter('status', 'ACCEPTED')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
     //    /**
     //     * @return ResourceAssignment[] Returns an array of ResourceAssignment objects
     //     */

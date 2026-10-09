@@ -2,38 +2,54 @@
 
 namespace App\Service\Project\AI;
 
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Contracts\Cache\CacheInterface;
+use Symfony\Contracts\Cache\ItemInterface;
+use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final class OpenVinoRapportService
 {
+    private const STATUS_CACHE_SECONDS = 10;
+    private const PROBE_PATH = '/api/nexum/rapport/stream';
+
     public function __construct(
-        private HttpClientInterface $httpClient
+        private HttpClientInterface $httpClient,
+        private CacheInterface $cache,
     ) {
     }
 
     /**
+     * Probes the engine so the report page can show it as offline. A plain GET on the POST only stream
+     * route must come back as 405 (route exists) or a success; a closed port, or another program on the
+     * same port (macOS AirPlay answers 403 on :5000), counts as offline. The result is cached for a few
+     * seconds because an unreachable host costs the full connect timeout on every page load.
+     *
      * @return array{backend: string, label: string, available: bool, message: string}
      */
     public function getStatus(): array
     {
-        // Simply check if we have an AI API configured
-        $apiUrl = $_ENV['AI_API_URL'] ?? 'http://127.0.0.1:5000';
-        
-        if (empty($apiUrl)) {
-            return [
-                'backend' => 'openvino_api',
-                'label' => 'Nexum AI Engine',
-                'available' => false,
-                'message' => 'AI_API_URL n est pas configure dans le fichier .env.',
-            ];
-        }
+        $apiUrl = (string) ($_ENV['AI_API_URL'] ?? 'http://127.0.0.1:5000');
+        $available = $apiUrl !== '' && $this->cache->get('rapport_ai_engine_online', function (ItemInterface $item) use ($apiUrl): bool {
+            $item->expiresAfter(self::STATUS_CACHE_SECONDS);
+
+            try {
+                $code = $this->httpClient->request('GET', rtrim($apiUrl, '/') . self::PROBE_PATH, ['timeout' => 2, 'max_duration' => 3])->getStatusCode();
+
+                return $code < 400 || $code === Response::HTTP_METHOD_NOT_ALLOWED;
+            } catch (TransportExceptionInterface) {
+                return false;
+            }
+        });
 
         return [
             'backend' => 'openvino_api',
             'label' => 'Nexum AI Engine',
-            'available' => true,
-            'message' => sprintf('Connecte a l\'API Nexum via %s', $apiUrl),
+            'available' => $available,
+            'message' => $available
+                ? 'Moteur IA Nexum en ligne.'
+                : 'Le moteur IA Nexum est hors ligne pour le moment. La generation de rapport reviendra quand il sera disponible.',
         ];
     }
 
@@ -78,6 +94,12 @@ final class OpenVinoRapportService
                     'buffer' => false, // Ensure we receive chunks immediately
                     'timeout' => 300,
                 ]);
+
+                if ($response->getStatusCode() >= 400) {
+                    $this->emitServerError('Le moteur IA Nexum a refuse la demande (HTTP ' . $response->getStatusCode() . ').');
+
+                    return;
+                }
 
                 foreach ($this->httpClient->stream($response) as $chunk) {
                     echo $chunk->getContent();

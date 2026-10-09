@@ -65,9 +65,7 @@
                                                     {{ historyService.getActionLabel(entry.action) }}
                                                 </h6>
                                                 <p class="text-muted fs-13 mb-2">
-                                                    <span class="me-3"><i class="ri-user-line"></i> {{ entry.user_email }}</span>
-                                                    <span class="me-3"><i class="ri-time-line"></i> {{ entry.timestamp }}</span>
-                                                    <span><i class="ri-computer-line"></i> {{ entry.ip }}</span>
+                                                    <span><i class="ri-time-line"></i> {{ entry.timestamp }}</span>
                                                 </p>
                                                 {% if entry.data is not empty %}
                                                     <div class="bg-light rounded p-2 mt-2">

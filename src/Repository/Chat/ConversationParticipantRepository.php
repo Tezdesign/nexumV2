@@ -24,6 +24,7 @@ class ConversationParticipantRepository extends ServiceEntityRepository
             ->select('cp.conversation_id AS conversationId')
             ->innerJoin('App\\Entity\\Chat\\Conversation', 'c', 'ON', 'c.id = cp.conversation_id')
             ->andWhere('cp.user_id = :userId')
+            ->andWhere('cp.left_at IS NULL')
             ->setParameter('userId', $userId)
             ->orderBy('c.last_message_at', 'DESC')
             ->addOrderBy('c.created_at', 'DESC')
@@ -31,6 +32,68 @@ class ConversationParticipantRepository extends ServiceEntityRepository
             ->getArrayResult();
 
         return array_map(static fn (array $row): int => (int) $row['conversationId'], $rows);
+    }
+
+    /**
+     * Conversations the user removed from their own list (a direct message they "deleted").
+     *
+     * @return int[]
+     */
+    public function findLeftConversationIdsForUser(int $userId): array
+    {
+        $rows = $this->createQueryBuilder('cp')
+            ->select('cp.conversation_id AS conversationId')
+            ->andWhere('cp.user_id = :userId')
+            ->andWhere('cp.left_at IS NOT NULL')
+            ->setParameter('userId', $userId)
+            ->getQuery()
+            ->getArrayResult();
+
+        return array_map(static fn (array $row): int => (int) $row['conversationId'], $rows);
+    }
+
+    /**
+     * "Delete" a direct message for one person: it disappears from their list and they lose access, but the
+     * messages stay for the other person. The row is kept (with `left_at`) so it can be brought back.
+     */
+    public function leaveDirectConversation(int $conversationId, int $userId): void
+    {
+        $participant = $this->findOneBy(['conversation_id' => $conversationId, 'user_id' => $userId]);
+
+        if (!$participant instanceof ConversationParticipant) {
+            // A direct message known only through its dm_key (no participant row): add one that is already left.
+            $participant = (new ConversationParticipant())
+                ->setConversation_id($conversationId)
+                ->setUser_id($userId)
+                ->setRole('member')
+                ->setNickname(null)
+                ->setAdded_by(null)
+                ->setJoined_at(new \DateTime());
+            $this->getEntityManager()->persist($participant);
+        }
+
+        $participant->setLeft_at(new \DateTime());
+        $this->getEntityManager()->flush();
+    }
+
+    /**
+     * Brings back people who removed a direct message from their list, for one user or for everyone in it.
+     * Used when someone writes in it again or the user starts that conversation again.
+     */
+    public function reactivateLeftParticipants(int $conversationId, ?int $userId = null): void
+    {
+        $qb = $this->createQueryBuilder('cp')
+            ->update()
+            ->set('cp.left_at', 'NULL')
+            ->andWhere('cp.conversation_id = :conversationId')
+            ->andWhere('cp.left_at IS NOT NULL')
+            ->setParameter('conversationId', $conversationId);
+
+        if ($userId !== null) {
+            $qb->andWhere('cp.user_id = :userId')->setParameter('userId', $userId);
+        }
+
+        $qb->getQuery()->execute();
     }
 
     public function findOtherParticipant(int $conversationId, int $userId): ?ConversationParticipant

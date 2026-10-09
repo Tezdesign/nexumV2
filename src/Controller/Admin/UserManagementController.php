@@ -2,26 +2,30 @@
 
 namespace App\Controller\Admin;
 
+use App\Controller\Trait\ProfilePhotoTrait;
 use App\Controller\Trait\ValidationFlashTrait;
 use App\Entity\Dto\Admin\AdminUserWriteInput;
 use App\Entity\UserHandling\Utilisateur;
 use App\Repository\UserHandling\UtilisateurRepository;
 use App\Service\AdminPdfExportService;
 use App\Service\AuthService;
-use App\Service\AdminMailService;
+use Doctrine\DBAL\Exception\ForeignKeyConstraintViolationException;
 use Doctrine\DBAL\Exception\TableNotFoundException;
 use Doctrine\ORM\EntityManagerInterface;
+use App\Attribute\RequireAdmin;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 #[Route('/admin')]
+#[RequireAdmin]
 class UserManagementController extends AbstractController
 {
+    use ProfilePhotoTrait;
     use ValidationFlashTrait;
 
     public function __construct(
@@ -29,22 +33,14 @@ class UserManagementController extends AbstractController
         private readonly UtilisateurRepository $utilisateurRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly ValidatorInterface $validator,
-        private readonly AdminMailService $adminMailService,
     ) {
     }
 
-    private function ensureAdmin(): ?Response
+    private function checkCsrf(Request $request): void
     {
-        if (!$this->authService->isLoggedIn()) {
-            return $this->redirectToRoute('welcome');
+        if (!$this->isCsrfTokenValid('admin_users', (string) $request->request->get('_token'))) {
+            throw new AccessDeniedHttpException('Invalid CSRF token.');
         }
-        if (!$this->authService->isAdmin()) {
-            $this->addFlash('error', 'You do not have access to the administration area.');
-
-            return $this->redirectToRoute('dashboard');
-        }
-
-        return null;
     }
 
     private function isModalSubmit(Request $request): bool
@@ -72,20 +68,12 @@ class UserManagementController extends AbstractController
     #[Route('', name: 'admin_home', methods: ['GET'])]
     public function home(): Response
     {
-        if ($r = $this->ensureAdmin()) {
-            return $r;
-        }
-
         return $this->redirectToRoute('admin_users_index');
     }
 
     #[Route('/users', name: 'admin_users_index', methods: ['GET'])]
     public function index(Request $request): Response
     {
-        if ($r = $this->ensureAdmin()) {
-            return $r;
-        }
-
         $sort = (string) $request->query->get('sort', 'nom');
         $dir = strtoupper((string) $request->query->get('dir', 'ASC')) === 'DESC' ? 'DESC' : 'ASC';
 
@@ -109,10 +97,6 @@ class UserManagementController extends AbstractController
     #[Route('/users/export.pdf', name: 'admin_users_export_pdf', methods: ['GET'])]
     public function exportUsersPdf(Request $request, AdminPdfExportService $pdfExport): Response
     {
-        if ($r = $this->ensureAdmin()) {
-            return $r;
-        }
-
         $sort = (string) $request->query->get('sort', 'nom');
         $dir = strtoupper((string) $request->query->get('dir', 'ASC')) === 'DESC' ? 'DESC' : 'ASC';
 
@@ -132,11 +116,8 @@ class UserManagementController extends AbstractController
     #[Route('/users/new', name: 'admin_users_new', methods: ['GET', 'POST'])]
     public function newUser(Request $request): Response
     {
-        if ($r = $this->ensureAdmin()) {
-            return $r;
-        }
-
         if ($request->isMethod('POST')) {
+            $this->checkCsrf($request);
             $modal = $this->isModalSubmit($request);
             $email = trim((string) $request->request->get('email', ''));
 
@@ -166,22 +147,9 @@ class UserManagementController extends AbstractController
             $utilisateur->setDateInscription(new \DateTime());
             $utilisateur->setScore(100);
             $this->attachUploadedImageIfAny($utilisateur, $request, false);
-            $temporaryPassword = trim((string) $request->request->get('_password', ''));
 
             $this->entityManager->persist($utilisateur);
             $this->entityManager->flush();
-
-            if ($temporaryPassword !== '') {
-                try {
-                    $this->adminMailService->sendInvitationEmail(
-                        (string) $utilisateur->getEmail(),
-                        (string) ($utilisateur->getPrenom() ?? $utilisateur->getNom() ?? 'Utilisateur'),
-                        $temporaryPassword
-                    );
-                } catch (\Throwable) {
-                    $this->addFlash('warning', 'User created but invitation email could not be sent.');
-                }
-            }
 
             $this->addFlash('success', 'User created successfully.');
 
@@ -203,19 +171,15 @@ class UserManagementController extends AbstractController
     #[Route('/users/{id}/edit', name: 'admin_users_edit', requirements: ['id' => '\d+'], methods: ['GET', 'POST'])]
     public function edit(Request $request, int $id): Response
     {
-        if ($r = $this->ensureAdmin()) {
-            return $r;
-        }
-
         $utilisateur = $this->utilisateurRepository->find($id);
         if (!$utilisateur instanceof Utilisateur) {
             throw $this->createNotFoundException('User not found.');
         }
 
         if ($request->isMethod('POST')) {
+            $this->checkCsrf($request);
             $modal = $this->isModalSubmit($request);
             $email = trim((string) $request->request->get('email', ''));
-            $oldStatus = strtolower(trim((string) $utilisateur->getStatut()));
 
             $dto = AdminUserWriteInput::fromRequest($request, false);
             if ($this->flashValidationErrors($this->validator->validate($dto))) {
@@ -239,17 +203,20 @@ class UserManagementController extends AbstractController
                     ]);
             }
 
+            $lockout = $this->lockoutReason($utilisateur, $dto->role, $dto->statut);
+            if ($lockout !== null) {
+                $this->addFlash('error', $lockout);
+
+                return $modal
+                    ? $this->userFormPartialResponse('edit', $utilisateur, Response::HTTP_UNPROCESSABLE_ENTITY)
+                    : $this->render('admin/user/form.html.twig', [
+                        'mode' => 'edit',
+                        'user' => $utilisateur,
+                    ]);
+            }
+
             $this->fillUserFromRequest($utilisateur, $request, false);
             $this->entityManager->flush();
-            $newStatus = strtolower(trim((string) $utilisateur->getStatut()));
-
-            if ($oldStatus !== $newStatus && trim((string) $utilisateur->getEmail()) !== '') {
-                try {
-                    $this->adminMailService->sendStatusChangeEmail((string) $utilisateur->getEmail(), $newStatus);
-                } catch (\Throwable) {
-                    $this->addFlash('warning', 'User updated, but status notification email could not be sent.');
-                }
-            }
 
             $this->attachUploadedImageIfAny($utilisateur, $request, true);
 
@@ -273,37 +240,36 @@ class UserManagementController extends AbstractController
     #[Route('/users/{id}/delete', name: 'admin_users_delete', requirements: ['id' => '\d+'], methods: ['POST'])]
     public function delete(Request $request, int $id): Response
     {
-        if ($r = $this->ensureAdmin()) {
-            return $r;
-        }
-
+        $this->checkCsrf($request);
         $utilisateur = $this->utilisateurRepository->find($id);
         if (!$utilisateur instanceof Utilisateur) {
             throw $this->createNotFoundException('User not found.');
         }
 
-        if ($utilisateur->getId() === $this->authService->getCurrentUserId()) {
-            $this->addFlash('error', 'You cannot delete your own account.');
+        if ($lockout = $this->lockoutReason($utilisateur, '', 'deleted')) {
+            $this->addFlash('error', $lockout);
 
             return $this->redirectToRoute('admin_users_index');
         }
 
-        $this->deleteResourceAssignmentsSql((int) $utilisateur->getId());
-
-        $this->entityManager->remove($utilisateur);
-        $this->entityManager->flush();
-        $this->addFlash('success', 'User deleted.');
+        try {
+            $this->entityManager->wrapInTransaction(function () use ($utilisateur): void {
+                $this->deleteResourceAssignmentsSql((int) $utilisateur->getId());
+                $this->entityManager->remove($utilisateur);
+            });
+            $this->addFlash('success', 'User deleted.');
+        } catch (ForeignKeyConstraintViolationException) {
+            // Nothing was removed: the transaction rolled back. Keep the history, block the account instead.
+            $this->addFlash('error', 'This user still has tasks, messages or other records. Set the status to pending instead of deleting.');
+        }
 
         return $this->redirectToRoute('admin_users_index');
     }
 
     #[Route('/users/{id}/activate', name: 'admin_users_activate', requirements: ['id' => '\d+'], methods: ['POST'])]
-    public function activate(int $id): Response
+    public function activate(Request $request, int $id): Response
     {
-        if ($r = $this->ensureAdmin()) {
-            return $r;
-        }
-
+        $this->checkCsrf($request);
         $utilisateur = $this->utilisateurRepository->find($id);
         if (!$utilisateur instanceof Utilisateur) {
             throw $this->createNotFoundException('User not found.');
@@ -317,16 +283,35 @@ class UserManagementController extends AbstractController
 
         $utilisateur->setStatut('active');
         $this->entityManager->flush();
-        if (trim((string) $utilisateur->getEmail()) !== '') {
-            try {
-                $this->adminMailService->sendStatusChangeEmail((string) $utilisateur->getEmail(), 'active');
-            } catch (\Throwable) {
-                $this->addFlash('warning', 'User activated, but status email could not be sent.');
-            }
-        }
         $this->addFlash('success', 'User activated.');
 
         return $this->redirectToRoute('admin_users_index');
+    }
+
+    /**
+     * Why $user may not become $newRole / $newStatus ("deleted" for a deletion), or null when it is fine.
+     * An admin cannot take their own admin access away, and the last active admin cannot be removed.
+     */
+    private function lockoutReason(Utilisateur $user, string $newRole, string $newStatus): ?string
+    {
+        $staysActiveAdmin = str_contains($newRole, 'admin') && in_array($newStatus, ['active', 'actif'], true);
+        if ($staysActiveAdmin) {
+            return null;
+        }
+
+        if ($user->getId() === $this->authService->getCurrentUserId()) {
+            return $newStatus === 'deleted'
+                ? 'You cannot delete your own account.'
+                : 'You cannot remove your own administrator access or deactivate your own account.';
+        }
+
+        $wasActiveAdmin = str_contains(strtolower((string) $user->getRole()), 'admin')
+            && in_array(strtolower((string) $user->getStatut()), ['active', 'actif'], true);
+        if ($wasActiveAdmin && $this->utilisateurRepository->countOtherActiveAdmins((int) $user->getId()) === 0) {
+            return 'This is the last active administrator. Make someone else an administrator first.';
+        }
+
+        return null;
     }
 
     /**
@@ -367,16 +352,8 @@ class UserManagementController extends AbstractController
      */
     private function attachUploadedImageIfAny(Utilisateur $utilisateur, Request $request, bool $isExistingEntity): void
     {
-        $file = $request->files->get('imagelink');
-        if (!$file instanceof UploadedFile || $file->getError() !== UPLOAD_ERR_OK) {
-            return;
-        }
-
-        $path = $file->getRealPath() ?: $file->getPathname();
-        $binary = @file_get_contents($path);
-        if ($binary === false || $binary === '') {
-            $this->addFlash('warning', 'Profile image could not be read.');
-
+        $binary = $this->uploadedPhoto($request->files->get('imagelink'));
+        if ($binary === null) {
             return;
         }
 

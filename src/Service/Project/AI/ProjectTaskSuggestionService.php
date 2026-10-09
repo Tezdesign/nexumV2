@@ -28,7 +28,7 @@ final class ProjectTaskSuggestionService
     ): array {
         $rawTasks = $this->geminiClient->suggestProjectTasks($name, $description, $startDate, $endDate);
 
-        return $this->normalizeTasks($rawTasks, $name, $startDate, $endDate);
+        return $this->normalizeTasks($rawTasks, $name, $startDate, $endDate, padWithFallback: true);
     }
 
     /**
@@ -53,7 +53,8 @@ final class ProjectTaskSuggestionService
 
         $rows = array_values(array_filter($decoded, static fn (mixed $row): bool => is_array($row)));
 
-        return $this->normalizeTasks($rows, $projectName, $startDate, $endDate);
+        // Only what the user accepted: an empty list must stay empty.
+        return $this->normalizeTasks($rows, $projectName, $startDate, $endDate, padWithFallback: false);
     }
 
     /**
@@ -71,6 +72,7 @@ final class ProjectTaskSuggestionService
         string $projectName,
         \DateTimeInterface $startDate,
         \DateTimeInterface $endDate,
+        bool $padWithFallback,
     ): array {
         $normalized = [];
         $start = \DateTimeImmutable::createFromInterface($startDate)->setTime(0, 0);
@@ -97,7 +99,7 @@ final class ProjectTaskSuggestionService
                 $priority = 'medium';
             }
 
-            $offset = (int) ($row['due_offset_days'] ?? 0);
+            $offset = $this->dueOffsetDays($row, $start);
             $offset = max(0, min($durationDays, $offset));
             $dueDate = $start->modify('+' . $offset . ' days');
 
@@ -110,7 +112,7 @@ final class ProjectTaskSuggestionService
             ];
         }
 
-        if (count($normalized) < 5) {
+        if ($padWithFallback && count($normalized) < 5) {
             foreach ($this->fallbackTasks($projectName, $start, $end) as $fallback) {
                 if (count($normalized) >= 5) {
                     break;
@@ -126,6 +128,23 @@ final class ProjectTaskSuggestionService
         }
 
         return array_slice($normalized, 0, 5);
+    }
+
+    /**
+     * Gemini answers with `due_offset_days`; suggestions already cleaned by `suggest()` come back from the
+     * browser with `due_date` instead, so accept either.
+     *
+     * @param array<string, mixed> $row
+     */
+    private function dueOffsetDays(array $row, \DateTimeImmutable $start): int
+    {
+        if (isset($row['due_offset_days'])) {
+            return (int) $row['due_offset_days'];
+        }
+
+        $due = \DateTimeImmutable::createFromFormat('!Y-m-d', (string) ($row['due_date'] ?? ''));
+
+        return $due instanceof \DateTimeImmutable ? (int) $start->diff($due)->format('%r%a') : 0;
     }
 
     /**

@@ -2,112 +2,63 @@
 
 namespace App\Controller\Deploy;
 
+use App\Attribute\RequireAdmin;
 use App\Service\DatabaseHealthService;
-use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\Routing\Annotation\Route;
 
+/** Sync is run by `php bin/console app:sync:run` (cron); these routes only show its state and switch it on or off. */
+#[RequireAdmin]
 class SyncStatusController extends AbstractController
 {
     #[Route('/api/sync/status', name: 'api_sync_status', methods: ['GET'])]
-    public function status(
-        DatabaseHealthService $healthService, 
-        \Doctrine\Persistence\ManagerRegistry $registry,
-        \Symfony\Component\HttpKernel\KernelInterface $kernel
-    ): JsonResponse {
+    public function status(DatabaseHealthService $healthService, ManagerRegistry $registry): JsonResponse
+    {
+        // Without a remote connection there is nothing to report, so no query is made (the top bar then hides the widget).
+        if (!$healthService->isRemoteConfigured()) {
+            return $this->json(['configured' => false]);
+        }
+
         $isOnline = $healthService->pingRemote();
-        $isSchemaMatching = $isOnline ? $healthService->isSchemaMatching() : false;
-        $isActive = $healthService->isSyncActive();
-        $lastSyncTimeStr = $healthService->getLastSyncTime();
+        $pending = $this->pendingCount($registry, 'default') + ($isOnline ? $this->pendingCount($registry, 'remote') : 0);
 
-        // Get pending changes count directly from raw DBAL to avoid issues if entity isn't fully set up yet
-        $pendingCountLocal = 0;
-        $pendingCountRemote = 0;
-        try {
-            $conn = $registry->getConnection('default');
-            $pendingCountLocal = (int) $conn->fetchOne('SELECT COUNT(id) FROM sync_log');
-        } catch (\Throwable $e) {
-            // Table might not exist yet or connection failed
-            $pendingCountLocal = 0;
-        }
-
-        if ($isOnline) {
-            try {
-                $remoteConn = $registry->getConnection('remote');
-                $pendingCountRemote = (int) $remoteConn->fetchOne('SELECT COUNT(id) FROM sync_log');
-            } catch (\Throwable $e) {
-                $pendingCountRemote = 0;
-            }
-        }
-        
-        $totalPendingCount = $pendingCountLocal + $pendingCountRemote;
-
-        // Auto-Sync Trigger: Immediate if DB changes exist, otherwise fallback 15-minute sync
-        if ($isActive && $isOnline && $isSchemaMatching) {
-            $shouldRun = false;
-            
-            if ($totalPendingCount > 0) {
-                $shouldRun = true;
-            } elseif (!$lastSyncTimeStr) {
-                $shouldRun = true;
-            } else {
-                try {
-                    $lastSyncTime = new \DateTime($lastSyncTimeStr);
-                    $now = new \DateTime();
-                    // 15 minutes = 900 seconds
-                    if (($now->getTimestamp() - $lastSyncTime->getTimestamp()) >= 900) {
-                        $shouldRun = true;
-                    }
-                } catch (\Throwable $e) {
-                    $shouldRun = true;
-                }
-            }
-
-            if ($shouldRun) {
-                // Update time immediately to prevent concurrent AJAX requests from running it twice
-                $healthService->setLastSyncTime((new \DateTime())->format('Y-m-d H:i:s'));
-                
-                try {
-                    $application = new \Symfony\Bundle\FrameworkBundle\Console\Application($kernel);
-                    $application->setAutoExit(false);
-                    
-                    $input = new \Symfony\Component\Console\Input\ArrayInput([
-                        'command' => 'app:sync:run',
-                    ]);
-                    
-                    $output = new \Symfony\Component\Console\Output\NullOutput();
-                    $application->run($input, $output);
-                    
-                    // Re-calculate pending count after sync
-                    $pendingCountLocal = (int) $registry->getConnection('default')->fetchOne('SELECT COUNT(id) FROM sync_log');
-                    $pendingCountRemote = (int) $registry->getConnection('remote')->fetchOne('SELECT COUNT(id) FROM sync_log');
-                    $totalPendingCount = $pendingCountLocal + $pendingCountRemote;
-                } catch (\Throwable $e) {
-                    // Silently fail for the AJAX request so the UI doesn't crash
-                }
-            }
-        }
-
-        // Re-fetch last sync time in case it was updated during the run
         return $this->json([
+            'configured' => true,
             'is_remote_online' => $isOnline,
-            'schema_mismatch' => !$isSchemaMatching,
-            'pending_changes_count' => $totalPendingCount,
+            'schema_mismatch' => $isOnline && !$healthService->isSchemaMatching(),
+            'pending_changes_count' => $pending,
             'last_sync_time' => $healthService->getLastSyncTime(),
-            'is_sync_active' => $isActive
+            'is_sync_active' => $healthService->isSyncActive(),
         ]);
     }
-    
+
     #[Route('/api/sync/toggle', name: 'api_sync_toggle', methods: ['POST'])]
     public function toggle(Request $request, DatabaseHealthService $healthService): JsonResponse
     {
+        if (!$this->isCsrfTokenValid('sync_toggle', (string) $request->headers->get('X-CSRF-Token'))) {
+            throw new AccessDeniedHttpException('Invalid CSRF token.');
+        }
+        if (!$healthService->isRemoteConfigured()) {
+            return $this->json(['success' => false, 'error' => 'No remote database is configured.'], 409);
+        }
+
         $data = json_decode($request->getContent(), true);
-        $isActive = (bool) ($data['active'] ?? false);
-        
+        $isActive = is_array($data) && ($data['active'] ?? false) === true;
         $healthService->setSyncActive($isActive);
-        
+
         return $this->json(['success' => true, 'is_active' => $isActive]);
+    }
+
+    private function pendingCount(ManagerRegistry $registry, string $connection): int
+    {
+        try {
+            return (int) $registry->getConnection($connection)->fetchOne('SELECT COUNT(id) FROM sync_log');
+        } catch (\Throwable) {
+            return 0; // table missing or database unreachable
+        }
     }
 }

@@ -152,7 +152,7 @@ class BudgetDashboardService
         }
 
         $totalCost = $this->transactionRepository->getTotalCostForProjectBudget($projectBudgetId);
-        $projectBudget->setActualSpend((string) $totalCost);
+        $projectBudget->setActualSpend(number_format((float) $totalCost, 2, '.', ''));
         
         // 3. Recalculate ProjectBudget status
         $projectBudget->calculateStatus();
@@ -187,7 +187,7 @@ class BudgetDashboardService
         }
 
         $totalCost = $this->transactionRepository->getTotalCostForProjectBudget($projectBudgetId);
-        $projectBudget->setActualSpend((string) $totalCost);
+        $projectBudget->setActualSpend(number_format((float) $totalCost, 2, '.', ''));
         
         // 3. Recalculate ProjectBudget status
         $projectBudget->calculateStatus();
@@ -206,26 +206,30 @@ class BudgetDashboardService
      * Handles the cascading updates after multiple transactions are deleted.
      */
     /**
-     * @param array<int, string> $ids
+     * @param array<int, int|string> $ids ids from the request: anything that is not a positive integer is dropped
+     * @return int how many transactions of this budget were deleted
      */
-    public function handleBulkDeleteCascade(ProjectBudget $projectBudget, array $ids, ?BudgetProfile $profile): void
+    public function handleBulkDeleteCascade(ProjectBudget $projectBudget, array $ids, ?BudgetProfile $profile): int
     {
+        $ids = array_values(array_unique(array_map('intval', array_filter($ids, static fn ($id): bool => ctype_digit(trim((string) $id)) && (int) $id > 0))));
+
         if ($profile && $profile->getStartDate() && $profile->getEndDate()) {
             $totals = $this->projectBudgetRepository->getTotalsForFiscalYear($profile->getStartDate(), $profile->getEndDate());
             $this->trendCacheService->savePreUpdateState($profile, $totals['allocated'], $totals['expenses']);
         }
 
-        // 1. Execute bulk delete via DQL
-        $this->transactionRepository->bulkDeleteDql($ids);
-        
-        // 2. Recalculate ProjectBudget actualSpend (now lower)
         $projectBudgetId = $projectBudget->getId();
         if ($projectBudgetId === null) {
-            return;
+            return 0;
         }
 
+        // 1. Execute bulk delete via DQL (only this budget's own transactions)
+        $deleted = $this->transactionRepository->bulkDeleteDql($ids, $projectBudgetId);
+
+        // 2. Recalculate ProjectBudget actualSpend (now lower)
+
         $totalCost = $this->transactionRepository->getTotalCostForProjectBudget($projectBudgetId);
-        $projectBudget->setActualSpend((string) $totalCost);
+        $projectBudget->setActualSpend(number_format((float) $totalCost, 2, '.', ''));
         
         // 3. Recalculate ProjectBudget status (potentially improved)
         $projectBudget->calculateStatus();
@@ -238,6 +242,8 @@ class BudgetDashboardService
             $totals = $this->projectBudgetRepository->getTotalsForFiscalYear($profile->getStartDate(), $profile->getEndDate());
             $this->budgetProfileRepository->updateTotalExpenseDql($profile, $totals['expenses']);
         }
+
+        return $deleted;
     }
 
     /**
@@ -274,14 +280,24 @@ class BudgetDashboardService
     public function handleFullFiscalYearDeletionCascade(BudgetProfile $profile): void
     {
         if ($profile->getStartDate() && $profile->getEndDate()) {
-            // 1. Delete all Transactions belonging to projects in this FY scope
-            $this->transactionRepository->deleteByFiscalYearScopeDql($profile->getStartDate(), $profile->getEndDate());
+            $others = array_filter(
+                $this->budgetProfileRepository->findAll(),
+                static fn (BudgetProfile $other): bool => $other->getId() !== $profile->getId() && $other->getStartDate() && $other->getEndDate()
+            );
 
-            // 2. Delete all ProjectBudgets in this FY scope
-            $this->projectBudgetRepository->deleteByFiscalYearScopeDql($profile->getStartDate(), $profile->getEndDate());
+            // A budget whose due date also falls in another fiscal year stays: that year still owns it.
+            foreach ($this->projectBudgetRepository->findByFiscalYearScope($profile->getStartDate(), $profile->getEndDate()) as $budget) {
+                $due = $budget->getDueDate();
+                foreach ($others as $other) {
+                    if ($due >= $other->getStartDate() && $due <= $other->getEndDate()) {
+                        continue 2;
+                    }
+                }
+                $this->transactionRepository->deleteByProjectBudgetDql((int) $budget->getId());
+                $this->projectBudgetRepository->deleteProjectBudgetDql((int) $budget->getId());
+            }
         }
 
-        // 3. Finally delete the Profile itself
         $profileId = $profile->getId();
         if ($profileId !== null) {
             $this->budgetProfileRepository->deleteProfileDql($profileId);

@@ -2,12 +2,15 @@
 
 namespace App\Controller\ResourcesManagement;
 
+use App\Attribute\RequireAdmin;
 use App\Entity\ResourcesManagement\ResourceAssignment;
 use App\Entity\ResourcesManagement\Resource;
 use App\Entity\UserHandling\Utilisateur;
 use App\Service\Pdf\RequestPdfService;
+use App\Service\ResourcesManagement\ResourceStockService;
 use App\Repository\ResourcesManagement\ResourceAssignmentRepository;
 use App\Repository\ResourcesManagement\ResourceRepository;
+use App\Repository\Projects\ProjectAssignmentRepository;
 use App\Repository\Projects\ProjectRepository;
 use App\Service\AuthService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -15,9 +18,6 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
-use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
-use Symfony\Component\Mailer\MailerInterface;
-use Symfony\Component\Mime\Email;
 
 #[Route('/client/resources')]
 class ClientResourceController extends AbstractController
@@ -68,6 +68,7 @@ class ClientResourceController extends AbstractController
 public function requestResource(
     ResourceRepository $resourceRepository,
     ProjectRepository $projectRepository,
+    ProjectAssignmentRepository $projectAssignmentRepository,
     ResourceAssignmentRepository $assignmentRepository,
     EntityManagerInterface $em
 ): Response {
@@ -89,44 +90,15 @@ public function requestResource(
         throw $this->createNotFoundException("User with ID $userId not found.");
     }
 
-    // Get user projects
-    $projects = $projectRepository->findBy(['assigned_to' => $user->getId()]);
+    // Projects the user belongs to: the same rule submitRequest enforces.
+    $projects = array_values($projectRepository->findIndexedByIds(
+        $this->requestableProjectIds((int) $user->getId(), $projectRepository, $projectAssignmentRepository)
+    ));
 
-    // ==========================
-    // FRAUD / RISK DETECTION (FIXED)
-    // ==========================
-
-    $allRequests = $assignmentRepository->findBy([
-        'utilisateur' => $user
-    ]);
-
-    // total quantity requested
-    $totalQty = array_sum(
-        array_map(fn($r) => $r->getQuantity(), $allRequests)
-    );
-
-    // accepted requests count
-    $acceptedCount = array_reduce($allRequests, function ($carry, $r) {
-        return $carry + ($r->getStatus() === 'ACCEPTED' ? 1 : 0);
-    }, 0);
-
-    // safer score base
-    $baseScore = ($totalQty * 0.5) + (count($allRequests) * 2);
-
-    // avoid division by zero / abuse of score=0
-    $userScore = max(1, (int) $user->getScore());
-
-    // final risk score
-    $riskScore = $baseScore / $userScore;
-
+    $riskScore = $this->riskScore($assignmentRepository, $user);
     $recentRequestCount = $this->getPendingSpamRequestCount($assignmentRepository, $user);
-    $isBlocked = (bool) $user->isBlocked();
-
-    if (!$isBlocked && ($riskScore > 50 || $recentRequestCount >= self::SPAM_REQUEST_LIMIT)) {
-        $user->setIsBlocked(true);
-        $isBlocked = true;
-        $em->flush();
-    }
+    // Worked out on every visit: nothing is stored on the user, so the block ends when the pending requests are handled.
+    $isBlocked = $riskScore > 50 || ($recentRequestCount + 1) >= self::SPAM_REQUEST_LIMIT; // same rule as submitRequest
 
     // ==========================
     // RETURN VIEW
@@ -147,13 +119,26 @@ public function submitRequest(
     EntityManagerInterface $em,
     ResourceRepository $resourceRepository,
     ProjectRepository $projectRepository,
+    ProjectAssignmentRepository $projectAssignmentRepository,
     ResourceAssignmentRepository $assignmentRepository,
-    RequestPdfService $pdfService
+    RequestPdfService $pdfService,
+    ResourceStockService $stock
 ): Response {
 
-    $resourceId = $request->request->get('resource_id');
-    $projectId = $request->request->get('project_id');
-    $quantity = (int)$request->request->get('quantity');
+    // 🔐 USER
+    $userId = $this->authService->getCurrentUserId();
+    if ($userId === null) {
+        throw $this->createAccessDeniedException('You must be logged in.');
+    }
+
+    if (!$this->isCsrfTokenValid('submit_resource_request', (string) $request->request->get('_token'))) {
+        $this->addFlash('error', 'Invalid CSRF token. Please reload the page and try again.');
+        return $this->redirectToRoute('request_resource');
+    }
+
+    $resourceId = $request->request->getInt('resource_id');
+    $projectId = $request->request->getInt('project_id');
+    $quantity = $request->request->getInt('quantity');
 
     $resource = $resourceRepository->find($resourceId);
     $project = $projectRepository->find($projectId);
@@ -163,10 +148,16 @@ public function submitRequest(
         return $this->redirectToRoute('request_resource');
     }
 
-    // 🔐 USER
-    $userId = $this->authService->getCurrentUserId();
-    if ($userId === null) {
-        throw $this->createAccessDeniedException('You must be logged in.');
+    // The request is charged to a project, so the user must belong to it.
+    if (!in_array((int) $project->getId(), $this->requestableProjectIds((int) $userId, $projectRepository, $projectAssignmentRepository), true)) {
+        $this->addFlash('error', 'You can only request resources for your own projects.');
+        return $this->redirectToRoute('request_resource');
+    }
+
+    // The return date is the project end date, so a project without one cannot be used.
+    if ($project->getEndDate() === null) {
+        $this->addFlash('error', 'This project has no end date, so a return date cannot be set. Ask a manager to set one.');
+        return $this->redirectToRoute('request_resource');
     }
 
     $user = $em->getRepository(Utilisateur::class)->find($userId);
@@ -177,20 +168,13 @@ public function submitRequest(
     // 🎯 SCORE LOGIC
     $score = $user->getScore();
 
-    if ($user->isBlocked()) {
+    if ($this->riskScore($assignmentRepository, $user) > 50) {
         $this->addFlash('error', 'Your account is blocked from requesting resources.');
         return $this->redirectToRoute('request_resource');
     }
 
-    $recentRequestCount = $this->getPendingSpamRequestCount($assignmentRepository, $user);
-    if (($recentRequestCount + 1) >= self::SPAM_REQUEST_LIMIT) {
-        $user->setIsBlocked(true);
-        $em->flush();
-
-        $this->addFlash(
-            'error',
-            'Too many pending resource requests. Your account has been blocked.'
-        );
+    if (($this->getPendingSpamRequestCount($assignmentRepository, $user) + 1) >= self::SPAM_REQUEST_LIMIT) {
+        $this->addFlash('error', 'Too many pending resource requests. Wait for a decision on them first.');
 
         return $this->redirectToRoute('request_resource');
     }
@@ -213,7 +197,7 @@ public function submitRequest(
 
     // 🧾 CREATE ASSIGNMENT
     $assignment = new ResourceAssignment();
-    $assignment->setResourceId((int) $resourceId);
+    $assignment->setResourceId($resourceId);
     $assignment->setProjectCode((string)$project->getId());
     $assignment->setQuantity($quantity);
     $assignment->setAssignmentDate(new \DateTime());
@@ -229,12 +213,17 @@ public function submitRequest(
     $assignment->setPenaltyDaysApplied(0);
     $assignment->setBonusApplied(false);
 
-    $em->persist($assignment);
-
-    // update stock
-    
-
-    $em->flush();
+    // Auto accepted requests take their stock now; the row is locked so two requests cannot both take the last units.
+    $em->wrapInTransaction(function () use ($em, $assignment, $resource, $stock): void {
+        $stock->lock($resource);
+        if ($stock->holdsStock($assignment) && $assignment->getQuantity() > $resource->getAvailableQuantity()) {
+            $assignment->setStatus('PENDING');
+        }
+        $em->persist($assignment);
+        $em->flush();
+        $stock->recalculate($resource);
+        $em->flush();
+    });
 
     // 📄 PDF
     $pdfData = [
@@ -256,6 +245,7 @@ public function submitRequest(
 }
     // Manage pending requests
     #[Route('/admin/requests', name: 'manage_requests')]
+    #[RequireAdmin]
     public function manageRequests(
         ResourceAssignmentRepository $assignmentRepository,
         ResourceRepository $resourceRepository
@@ -276,14 +266,21 @@ public function submitRequest(
         ]);
     }
 
-    #[Route('/admin/request/{id}/accept', name: 'accept_request')]
+    #[Route('/admin/request/{id}/accept', name: 'accept_request', methods: ['POST'])]
+    #[RequireAdmin]
 public function accept(
     int $id,
+    Request $request,
     ResourceAssignmentRepository $repo,
     ResourceRepository $resourceRepository,
     EntityManagerInterface $em,
-    MailerInterface $mailer
+    ResourceStockService $stock
 ): Response {
+
+    if (!$this->isCsrfTokenValid('request_decision', (string) $request->request->get('_token'))) {
+        $this->addFlash('error', 'Invalid CSRF token.');
+        return $this->redirectToRoute('manage_requests');
+    }
 
     $assignment = $repo->find($id);
 
@@ -294,14 +291,6 @@ public function accept(
 
     $client = $assignment->getUtilisateur();
 
-    // =========================
-    // UPDATE STATUS
-    // =========================
-    $assignment->setStatus('ACCEPTED');
-
-    // =========================
-    // STOCK UPDATE (ONLY HERE)
-    // =========================
     $resource = $resourceRepository->find($assignment->getResourceId());
 
     if (!$resource) {
@@ -309,49 +298,54 @@ public function accept(
         return $this->redirectToRoute('manage_requests');
     }
 
-    if ($resource->getAvailableQuantity() < $assignment->getQuantity()) {
+    // Accepting takes stock, so it runs once, under a lock, and only for a request that is still pending.
+    $outcome = $em->wrapInTransaction(function () use ($em, $assignment, $resource, $stock): string {
+        $stock->lock($resource);
+        $em->refresh($assignment);
+
+        if ($assignment->getStatus() !== 'PENDING') {
+            return 'processed';
+        }
+        if ($resource->getAvailableQuantity() < $assignment->getQuantity()) {
+            return 'stock';
+        }
+
+        $assignment->setStatus('ACCEPTED');
+        $em->flush();
+        $stock->recalculate($resource);
+        $em->flush();
+
+        return 'accepted';
+    });
+
+    if ($outcome === 'processed') {
+        $this->addFlash('info', 'This request was already processed.');
+        return $this->redirectToRoute('manage_requests');
+    }
+    if ($outcome === 'stock') {
         $this->addFlash('error', 'Not enough stock available.');
         return $this->redirectToRoute('manage_requests');
     }
 
-    $resource->setAvailableQuantity(
-        $resource->getAvailableQuantity() - $assignment->getQuantity()
-    );
-
-    // =========================
-    // SAVE
-    // =========================
-    $em->flush();
-
-    // =========================
-    // EMAIL NOTIFICATION
-    // =========================
-    $fromAddress = $this->readEnvSetting(['MAILER_FROM'], 'simawiyass124@gmail.com');
-
-    $email = (new Email())
-        ->from($fromAddress)
-        ->to((string) $client->getEmail())
-        ->subject('Resource Request Accepted - NEXUM')
-        ->text($this->buildRequestEmailText($assignment, $client, 'accepted'))
-        ->html($this->buildRequestEmailHtml($assignment, $client, 'accepted'));
-
-    try {
-        $mailer->send($email);
-        $this->addFlash('success', 'Request accepted and client notified.');
-    } catch (TransportExceptionInterface $e) {
-        $this->addFlash('error', 'Email notification failed: ' . $e->getMessage());
-    }
+    $this->addFlash('success', 'Request accepted.');
 
     return $this->redirectToRoute('manage_requests');
 }
-    #[Route('/admin/request/{id}/decline', name: 'decline_request')]
+    #[Route('/admin/request/{id}/decline', name: 'decline_request', methods: ['POST'])]
+    #[RequireAdmin]
     public function decline(
         int $id,
+        Request $request,
         ResourceAssignmentRepository $repo,
         EntityManagerInterface $em,
         ResourceRepository $resourceRepository,
-        MailerInterface $mailer
+            ResourceStockService $stock
     ): Response {
+        if (!$this->isCsrfTokenValid('request_decision', (string) $request->request->get('_token'))) {
+            $this->addFlash('error', 'Invalid CSRF token.');
+            return $this->redirectToRoute('manage_requests');
+        }
+
         $assignment = $repo->find($id);
         if (!$assignment || !$assignment->getUtilisateur()) {
             $this->addFlash('error', 'Request not found or client missing.');
@@ -359,30 +353,20 @@ public function accept(
         }
 
         $resource = $resourceRepository->find($assignment->getResourceId());
-        if ($resource) {
-            $resource->setAvailableQuantity(
-                $resource->getAvailableQuantity() + $assignment->getQuantity()
-            );
-        }
 
-        $assignment->setStatus('DECLINED');
-        $em->flush();
+        $em->wrapInTransaction(function () use ($em, $assignment, $resource, $stock): void {
+            if ($resource) {
+                $stock->lock($resource);
+            }
+            $assignment->setStatus('DECLINED');
+            $em->flush();
+            if ($resource) {
+                $stock->recalculate($resource);
+                $em->flush();
+            }
+        });
 
-        $client = $assignment->getUtilisateur();
-        $fromAddress = $this->readEnvSetting(['MAILER_FROM'], 'simawiyass124@gmail.com');
-        $email = (new Email())
-            ->from($fromAddress)
-            ->to((string) $client->getEmail())
-            ->subject('Resource Request Update - NEXUM')
-            ->text($this->buildRequestEmailText($assignment, $client, 'declined'))
-            ->html($this->buildRequestEmailHtml($assignment, $client, 'declined'));
-
-        try {
-            $mailer->send($email);
-            $this->addFlash('success', 'Client notified by email.');
-        } catch (TransportExceptionInterface $e) {
-            $this->addFlash('error', 'Email notification failed: '.$e->getMessage());
-        }
+        $this->addFlash('success', 'Request declined.');
 
         return $this->redirectToRoute('manage_requests');
     }
@@ -390,18 +374,32 @@ public function accept(
     #[Route('/assignment/{id}/delete', name: 'delete_assignment', methods: ['POST'])]
     public function delete(
         int $id,
+        Request $request,
         ResourceAssignmentRepository $repo,
         EntityManagerInterface $em,
-        ResourceRepository $resourceRepository
+        ResourceRepository $resourceRepository,
+        ResourceStockService $stock
     ): Response {
         $assignment = $repo->find($id);
         if ($assignment) {
-            $resource = $resourceRepository->find($assignment->getResourceId());
-            if ($resource && $assignment->getStatus() !== 'DECLINED') {
-                $resource->setAvailableQuantity($resource->getAvailableQuantity() + $assignment->getQuantity());
+            $this->denyUnlessOwnerOrAdmin($assignment);
+            if (!$this->isCsrfTokenValid('delete'.$id, (string) $request->request->get('_token'))) {
+                $this->addFlash('error', 'Invalid CSRF token.');
+                return $this->redirectToRoute('client_resources_view');
             }
-            $em->remove($assignment);
-            $em->flush();
+
+            $resource = $resourceRepository->find($assignment->getResourceId());
+            $em->wrapInTransaction(function () use ($em, $assignment, $resource, $stock): void {
+                if ($resource) {
+                    $stock->lock($resource);
+                }
+                $em->remove($assignment);
+                $em->flush();
+                if ($resource) {
+                    $stock->recalculate($resource);
+                    $em->flush();
+                }
+            });
         }
         return $this->redirectToRoute('client_resources_view');
     }
@@ -413,13 +411,15 @@ public function edit(
     Request $request,
     ResourceAssignmentRepository $repo,
     EntityManagerInterface $em,
-    ResourceRepository $resourceRepository
+    ResourceRepository $resourceRepository,
+    ResourceStockService $stock
 ): Response
 {
     $assignment = $repo->find($id);
     if (!$assignment) {
         throw $this->createNotFoundException("Assignment with ID $id not found.");
     }
+    $this->denyUnlessOwnerOrAdmin($assignment);
 
     // CSRF check
     $submittedToken = $request->request->get('_token');
@@ -438,182 +438,90 @@ public function edit(
         return $this->redirectToRoute('client_resources_view');
     }
 
-    // Compute available quantity including the old assigned quantity
-    $availableQuantity = $resource->getAvailableQuantity() + $assignment->getQuantity();
-    if ($newQuantity < 1 || $newQuantity > $availableQuantity) {
-        $this->addFlash('error', 'Quantity must be between 1 and '.$availableQuantity);
+    // Only requests the user can still change (the page shows the form for these two states).
+    if (!in_array($assignment->getStatus(), ['PENDING', 'DECLINED'], true)) {
+        $this->addFlash('error', 'Only pending or declined requests can be edited.');
         return $this->redirectToRoute('client_resources_view');
     }
 
-    // Update resource available quantity
-    $resource->setAvailableQuantity($availableQuantity - $newQuantity);
+    $returnDate = null;
+    if (is_string($newReturnDate) && $newReturnDate !== '') {
+        $returnDate = \DateTime::createFromFormat('!Y-m-d', $newReturnDate) ?: null;
+        if ($returnDate === null) {
+            $this->addFlash('error', 'Invalid return date.');
+            return $this->redirectToRoute('client_resources_view');
+        }
+    }
 
-    // Update assignment
-    $assignment->setQuantity($newQuantity);
-    $assignment->setReturnDate(is_string($newReturnDate) && $newReturnDate !== '' ? new \DateTime($newReturnDate) : null);
-    $assignment->setStatus('PENDING'); // reset status to PENDING
-    // totalCost remains unchanged
+    $error = $em->wrapInTransaction(function () use ($em, $assignment, $resource, $stock, $newQuantity, $returnDate): ?string {
+        $stock->lock($resource);
+        $available = (int) $resource->getAvailableQuantity();
+        if ($newQuantity < 1 || $newQuantity > $available) {
+            return 'Quantity must be between 1 and '.$available;
+        }
 
-    $em->flush();
+        $assignment->setQuantity($newQuantity);
+        $assignment->setReturnDate($returnDate);
+        $assignment->setStatus('PENDING'); // goes back to the admin for approval
+        $em->flush();
+        $stock->recalculate($resource);
+        $em->flush();
+
+        return null;
+    });
+
+    if ($error !== null) {
+        $this->addFlash('error', $error);
+        return $this->redirectToRoute('client_resources_view');
+    }
 
     $this->addFlash('success', 'Assignment updated successfully.');
 
     return $this->redirectToRoute('client_resources_view');
 }
 
+    /**
+     * Projects a user may request resources for: the ones they created, are assigned to, or are a member of.
+     *
+     * @return int[]
+     */
+    private function requestableProjectIds(
+        int $userId,
+        ProjectRepository $projectRepository,
+        ProjectAssignmentRepository $projectAssignmentRepository
+    ): array {
+        return array_values(array_unique(array_merge(
+            $projectRepository->getProjectIdsForUser($userId),
+            $projectAssignmentRepository->getProjectIdsByUserId($userId),
+        )));
+    }
+
+    /** An assignment may only be changed by the user it belongs to, or by an administrator. */
+    private function denyUnlessOwnerOrAdmin(ResourceAssignment $assignment): void
+    {
+        $userId = $this->authService->getCurrentUserId();
+        if ($userId === null) {
+            throw $this->createAccessDeniedException('You must be logged in.');
+        }
+
+        if ($assignment->getUtilisateur()?->getId() !== $userId && !$this->authService->isAdmin()) {
+            throw $this->createAccessDeniedException('This assignment belongs to another user.');
+        }
+    }
+
+    /** Requested quantity and request count, divided by the user's score (a score of 0 counts as 1). */
+    private function riskScore(ResourceAssignmentRepository $assignmentRepository, Utilisateur $user): float
+    {
+        $requests = $assignmentRepository->findBy(['utilisateur' => $user]);
+        $totalQty = array_sum(array_map(static fn ($r) => $r->getQuantity(), $requests));
+
+        return (($totalQty * 0.5) + (count($requests) * 2)) / max(1, (int) $user->getScore());
+    }
+
     private function getPendingSpamRequestCount(
         ResourceAssignmentRepository $assignmentRepository,
         Utilisateur $user
     ): int {
         return $assignmentRepository->countPendingRequestsByUser($user);
-    }
-
-    /**
-     * @param array<int, string> $keys
-     */
-    private function readEnvSetting(array $keys, string $fallback = ''): string
-    {
-        foreach ($keys as $key) {
-            $value = $_ENV[$key] ?? $_SERVER[$key] ?? getenv($key);
-            if ($value === false) {
-                continue;
-            }
-
-            $trimmed = trim((string) $value);
-            if ($trimmed !== '') {
-                return $trimmed;
-            }
-        }
-
-        return trim($fallback);
-    }
-
-    private function buildRequestEmailText(
-        ResourceAssignment $assignment,
-        Utilisateur $client,
-        string $state
-    ): string {
-        $statusLabel = strtoupper($state);
-        $intro = $state === 'accepted'
-            ? 'Your resource request has been approved.'
-            : 'Your resource request has been declined.';
-
-        return implode("\n", [
-            "NEXUM Resource Management",
-            "",
-            "Hello {$client->getPrenom()} {$client->getNom()},",
-            $intro,
-            "",
-            "Request details:",
-            "Resource ID: {$assignment->getResourceId()}",
-            "Quantity: {$assignment->getQuantity()}",
-            "Status: {$statusLabel}",
-            "Request date: {$assignment->getAssignmentDate()?->format('Y-m-d H:i')}",
-            "Return date: {$assignment->getReturnDate()?->format('Y-m-d')}",
-            "",
-            "This is an automated message from NEXUM.",
-        ]);
-    }
-
-    private function buildRequestEmailHtml(
-        ResourceAssignment $assignment,
-        Utilisateur $client,
-        string $state
-    ): string {
-        $isAccepted = $state === 'accepted';
-        $accent = $isAccepted ? '#12805c' : '#b33a3a';
-        $softAccent = $isAccepted ? '#e9f8f2' : '#fff1f1';
-        $eyebrow = $isAccepted ? 'Request approved' : 'Request declined';
-        $headline = $isAccepted
-            ? 'Your resource request has been approved'
-            : 'Your resource request could not be approved';
-        $summary = $isAccepted
-            ? 'Your request is now confirmed and ready for use in the resource management workflow.'
-            : 'This request was not approved at this time. You can review the request details below and submit another one if needed.';
-        $statusLabel = $isAccepted ? 'ACCEPTED' : 'DECLINED';
-        $nextStep = $isAccepted
-            ? 'You can now proceed with your assigned resource and coordinate with your team if any follow-up is needed.'
-            : 'If this resource is still required, you can submit a new request later or contact the admin team for clarification.';
-        $fullName = htmlspecialchars(trim($client->getPrenom() . ' ' . $client->getNom()), ENT_QUOTES, 'UTF-8');
-        $resourceId = htmlspecialchars((string) $assignment->getResourceId(), ENT_QUOTES, 'UTF-8');
-        $quantity = htmlspecialchars((string) $assignment->getQuantity(), ENT_QUOTES, 'UTF-8');
-        $assignmentDate = htmlspecialchars((string) $assignment->getAssignmentDate()?->format('d M Y, H:i'), ENT_QUOTES, 'UTF-8');
-        $returnDate = htmlspecialchars((string) ($assignment->getReturnDate()?->format('d M Y') ?? 'Not specified'), ENT_QUOTES, 'UTF-8');
-
-        return <<<HTML
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEXUM Resource Update</title>
-</head>
-<body style="margin:0;padding:0;background-color:#eef3f8;font-family:Segoe UI,Arial,sans-serif;color:#1f2937;">
-    <div style="padding:32px 16px;">
-        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:680px;margin:0 auto;background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 18px 45px rgba(15,23,42,0.12);">
-            <tr>
-                <td style="background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%);padding:32px 36px;color:#ffffff;">
-                    <div style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;opacity:0.78;margin-bottom:10px;">NEXUM Resource Management</div>
-                    <div style="font-size:30px;font-weight:700;line-height:1.2;margin-bottom:8px;">{$headline}</div>
-                    <div style="font-size:15px;line-height:1.7;max-width:520px;color:#dbe7f5;">{$summary}</div>
-                </td>
-            </tr>
-            <tr>
-                <td style="padding:32px 36px 12px 36px;">
-                    <div style="display:inline-block;background:{$softAccent};color:{$accent};padding:8px 14px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">{$eyebrow}</div>
-                    <p style="margin:22px 0 10px 0;font-size:16px;line-height:1.7;">Hello {$fullName},</p>
-                    <p style="margin:0 0 22px 0;font-size:16px;line-height:1.7;color:#475569;">{$nextStep}</p>
-                </td>
-            </tr>
-            <tr>
-                <td style="padding:0 36px 24px 36px;">
-                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border:1px solid #dbe5f0;border-radius:16px;overflow:hidden;background:#fbfdff;">
-                        <tr>
-                            <td colspan="2" style="padding:18px 22px;background:#f6f9fc;font-size:15px;font-weight:700;color:#0f172a;border-bottom:1px solid #dbe5f0;">Request details</td>
-                        </tr>
-                        <tr>
-                            <td style="padding:14px 22px;font-size:14px;color:#64748b;border-bottom:1px solid #e7eef6;">Resource ID</td>
-                            <td style="padding:14px 22px;font-size:14px;font-weight:600;color:#0f172a;border-bottom:1px solid #e7eef6;">{$resourceId}</td>
-                        </tr>
-                        <tr>
-                            <td style="padding:14px 22px;font-size:14px;color:#64748b;border-bottom:1px solid #e7eef6;">Quantity</td>
-                            <td style="padding:14px 22px;font-size:14px;font-weight:600;color:#0f172a;border-bottom:1px solid #e7eef6;">{$quantity}</td>
-                        </tr>
-                        <tr>
-                            <td style="padding:14px 22px;font-size:14px;color:#64748b;border-bottom:1px solid #e7eef6;">Status</td>
-                            <td style="padding:14px 22px;border-bottom:1px solid #e7eef6;">
-                                <span style="display:inline-block;background:{$softAccent};color:{$accent};padding:6px 12px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:0.05em;">{$statusLabel}</span>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td style="padding:14px 22px;font-size:14px;color:#64748b;border-bottom:1px solid #e7eef6;">Request date</td>
-                            <td style="padding:14px 22px;font-size:14px;font-weight:600;color:#0f172a;border-bottom:1px solid #e7eef6;">{$assignmentDate}</td>
-                        </tr>
-                        <tr>
-                            <td style="padding:14px 22px;font-size:14px;color:#64748b;">Return date</td>
-                            <td style="padding:14px 22px;font-size:14px;font-weight:600;color:#0f172a;">{$returnDate}</td>
-                        </tr>
-                    </table>
-                </td>
-            </tr>
-            <tr>
-                <td style="padding:0 36px 30px 36px;">
-                    <div style="background:#f8fafc;border-left:4px solid {$accent};padding:18px 18px 18px 20px;border-radius:12px;font-size:14px;line-height:1.7;color:#475569;">
-                        This is an automated notification from NEXUM. If you need support or more context about this request, please contact the resource management team.
-                    </div>
-                </td>
-            </tr>
-            <tr>
-                <td style="padding:20px 36px 30px 36px;background:#f8fafc;border-top:1px solid #e2e8f0;font-size:12px;line-height:1.8;color:#64748b;text-align:center;">
-                    <div style="font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#334155;">NEXUM</div>
-                    <div>Professional resource operations and request tracking</div>
-                    <div style="margin-top:6px;">This email was generated automatically. Please do not reply directly to this message.</div>
-                </td>
-            </tr>
-        </table>
-    </div>
-</body>
-</html>
-HTML;
     }
 }

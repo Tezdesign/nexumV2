@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Attribute\RequireLogin;
 use App\Entity\Projects\Project;
 use App\Entity\Tasks\Task;
 use App\Repository\Projects\ProjectAssignmentRepository;
@@ -17,6 +18,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Routing\Attribute\Route;
 
 #[Route('/rapport', name: 'app_rapport_')]
+#[RequireLogin]
 final class RapportController extends AbstractController
 {
     #[Route('/{projetId}', name: 'index', methods: ['GET'])]

@@ -20,6 +20,7 @@ class ConversationSidebarProvider
         private readonly ConversationRepository $conversationRepository,
         private readonly MessageRepository $messageRepository,
         private readonly UtilisateurRepository $utilisateurRepository,
+        private readonly UserAvatarUrl $avatarUrl,
     ) {
     }
 
@@ -31,7 +32,9 @@ class ConversationSidebarProvider
         $currentUser = $this->utilisateurRepository->find($requestedUserId);
         $participantConversationIds = $this->participantRepository->findConversationIdsForUser($requestedUserId);
         $dmConversationIds = $this->conversationRepository->findDmConversationIdsForUser($requestedUserId);
-        $conversationIds = array_values(array_unique(array_merge($participantConversationIds, $dmConversationIds)));
+        // A direct message the user removed from their list stays hidden even though its dm_key still names them.
+        $hiddenConversationIds = $this->participantRepository->findLeftConversationIdsForUser($requestedUserId);
+        $conversationIds = array_values(array_diff(array_unique(array_merge($participantConversationIds, $dmConversationIds)), $hiddenConversationIds));
 
         return [
             'currentUser' => $this->formatCurrentUser($currentUser),
@@ -67,7 +70,7 @@ class ConversationSidebarProvider
             'id' => (int) ($user->getId() ?? 0),
             'name' => $name !== '' ? $name : 'Unnamed User',
             'role' => $user->getRole() ?? 'Member',
-            'avatarSrc' => $this->toDataUri($user->getImagelink(), 'image/jpeg'),
+            'avatarSrc' => $this->avatarUrl->for($user),
         ];
     }
 
@@ -167,7 +170,7 @@ class ConversationSidebarProvider
         return [
             'id' => $conversation->getId(),
             'name' => $name,
-            'avatarSrc' => $otherUser !== null ? $this->toDataUri($otherUser->getImagelink(), 'image/jpeg') : null,
+            'avatarSrc' => $this->avatarUrl->for($otherUser),
             'isDm' => true,
             'isAdmin' => false,
             'createdAtLabel' => $this->formatConversationCreatedAt($conversation->getCreatedAt()),

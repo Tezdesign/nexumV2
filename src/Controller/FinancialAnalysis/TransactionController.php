@@ -2,6 +2,8 @@
 
 namespace App\Controller\FinancialAnalysis;
 
+use App\Attribute\RequireAdmin;
+use App\Attribute\RequireLogin;
 use App\Entity\FinancialAnalysis\Transaction;
 use App\Form\FinancialAnalysis\TransactionType;
 use App\Repository\FinancialAnalysis\TransactionRepository;
@@ -12,6 +14,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 #[Route('/financial/analysis/transaction')]
+#[RequireLogin]
 final class TransactionController extends AbstractController
 {
     #[Route(name: 'app_financial_analysis_transaction_index', methods: ['GET'])]
@@ -83,6 +86,7 @@ final class TransactionController extends AbstractController
     }
 
     #[Route('/{id}', name: 'app_financial_analysis_transaction_delete', methods: ['POST'])]
+    #[RequireAdmin]
     public function delete(Request $request, Transaction $transaction, EntityManagerInterface $entityManager): Response
     {
         if ($this->isCsrfTokenValid('delete'.$transaction->getId(), $request->getPayload()->getString('_token'))) {

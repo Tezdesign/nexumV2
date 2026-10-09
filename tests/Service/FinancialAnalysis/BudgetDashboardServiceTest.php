@@ -160,11 +160,13 @@ class BudgetDashboardServiceTest extends TestCase
         $budget->expects($this->once())->method('setActualSpend')->with('300.00');
         $budget->expects($this->once())->method('calculateStatus');
 
-        $ids = ['10', '11'];
+        $ids = ['10', '11', 'abc', '-4', '0', '10', '1; DROP'];
 
+        // Only clean, distinct, positive ids reach the query, scoped to this budget.
         $this->transactionRepo->expects($this->once())
             ->method('bulkDeleteDql')
-            ->with($ids);
+            ->with([10, 11], 3)
+            ->willReturn(2);
 
         $this->transactionRepo->expects($this->once())
             ->method('getTotalCostForProjectBudget')
@@ -176,6 +178,6 @@ class BudgetDashboardServiceTest extends TestCase
             ->with($budget);
 
         // No profile passed
-        $this->service->handleBulkDeleteCascade($budget, $ids, null);
+        $this->assertSame(2, $this->service->handleBulkDeleteCascade($budget, $ids, null));
     }
 }

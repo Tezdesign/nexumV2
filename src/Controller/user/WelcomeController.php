@@ -6,12 +6,13 @@ use App\Controller\Trait\ValidationFlashTrait;
 use App\Entity\Dto\Auth\LoginInput;
 use App\Entity\Dto\Auth\RegistrationInput;
 use App\Entity\UserHandling\Utilisateur;
+use App\Service\AdminAlertMailer;
 use App\Service\AuthService;
 use App\Service\Captcha\CaptchaImageService;
-use App\Service\CompreFaceService;
+use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
@@ -20,13 +21,15 @@ class WelcomeController extends AbstractController
 {
     use ValidationFlashTrait;
 
+    private const MAX_PROFILE_IMAGE_BYTES = 2 * 1024 * 1024;
     private const LOGIN_CAPTCHA_CODE_KEY = 'login_captcha_code';
 
     public function __construct(
         private readonly AuthService $authService,
         private readonly ValidatorInterface $validator,
         private readonly CaptchaImageService $captchaImageService,
-        private readonly CompreFaceService $compreFaceService,
+        private readonly LoggerInterface $logger,
+        private readonly AdminAlertMailer $adminAlertMailer,
     ) {
     }
 
@@ -34,7 +37,7 @@ class WelcomeController extends AbstractController
     public function welcome(): Response
     {
         if ($this->authService->isLoggedIn()) {
-            return $this->redirectToRoute($this->authService->isAdmin() ? 'admin_home' : 'dashboard');
+            return $this->redirectToHome();
         }
 
         return $this->render('auth/welcome.html.twig');
@@ -44,7 +47,7 @@ class WelcomeController extends AbstractController
     public function login(Request $request): Response
     {
         if ($this->authService->isLoggedIn()) {
-            return $this->redirectToRoute($this->authService->isAdmin() ? 'admin_home' : 'dashboard');
+            return $this->redirectToHome();
         }
 
         if ($request->isMethod('POST')) {
@@ -65,14 +68,9 @@ class WelcomeController extends AbstractController
             $utilisateur = $this->authService->login($input->email, $input->password);
 
             if ($utilisateur) {
-                // Ensure session is saved first
-                $session = $request->getSession();
-                $session->save();
-                
-                // Add flash message after session is saved
                 $this->addFlash('success', 'Connexion réussie !');
 
-                return $this->redirectToRoute($this->authService->isAdmin() ? 'admin_home' : 'dashboard');
+                return $this->redirectToHome();
             }
 
             $this->addFlash('error', 'Email ou mot de passe incorrect.');
@@ -121,64 +119,86 @@ class WelcomeController extends AbstractController
     public function signin(Request $request): Response
     {
         if ($this->authService->isLoggedIn()) {
-            return $this->redirectToRoute($this->authService->isAdmin() ? 'admin_home' : 'dashboard');
+            return $this->redirectToHome();
         }
 
-        if ($request->isMethod('POST')) {
-            try {
-                $input = RegistrationInput::fromRequest($request);
-                if ($this->flashValidationErrors($this->validator->validate($input))) {
-                    return $this->render('auth/signin.html.twig');
-                }
+        if (!$request->isMethod('POST')) {
+            return $this->renderSignin();
+        }
 
-                $utilisateur = new Utilisateur();
-                $utilisateur->setPrenom($input->prenom);
-                $utilisateur->setNom($input->nom);
-                $utilisateur->setEmail($input->email);
-                $utilisateur->setTelephone($input->telephone !== '' ? $input->telephone : null);
-                $utilisateur->setRole($input->role);
-                $utilisateur->setDepartement($input->departement !== '' ? $input->departement : null);
-                $utilisateur->setStatut('pending');
-                $utilisateur->setScore(100);
-                $utilisateur->setPassword($input->password);
+        // A body bigger than PHP's post_max_size arrives completely empty: say so instead of listing every field as missing.
+        $postLimit = ini_parse_quantity((string) ini_get('post_max_size'));
+        if ($postLimit > 0 && (int) $request->server->get('CONTENT_LENGTH') > $postLimit) {
+            return $this->renderSignin(['imagelink' => 'This photo is too large. Choose one of 2 MB or less.']);
+        }
 
-                $imageFile = $request->files->get('imagelink');
-                if ($imageFile) {
-                    $imageData = file_get_contents($imageFile->getPathname());
-                    $utilisateur->setImagelink($imageData);
-                }
+        $input = RegistrationInput::fromRequest($request);
+        $old = [
+            'prenom' => $input->prenom, 'nom' => $input->nom, 'email' => $input->email,
+            'telephone' => $input->telephone, 'departement' => $input->departement, 'role' => $input->role,
+        ];
 
-                // Handle face registration
-                $faceData = $request->request->get('face_data');
-                if (is_string($faceData) && $faceData !== '') {
-                    // Convert base64 to image data
-                    $cleanFaceData = preg_replace('/^data:image\/[a-z]+;base64,/', '', $faceData) ?? '';
-                    $imageData = base64_decode($cleanFaceData);
-                    if ($imageData) {
-                        // Register face with CompreFace using email as subject identifier
-                        $faceId = $this->compreFaceService->registerFace($imageData, $input->email);
-                        if ($faceId) {
-                            $utilisateur->setFaceId($faceId);
-                            $this->addFlash('success', 'Face registered successfully!');
-                        } else {
-                            $this->addFlash('warning', 'Face registration failed, but account was created successfully.');
-                        }
-                    }
-                }
+        // One message per field, shown under that field (the first one is the most useful).
+        $errors = [];
+        foreach ($this->validator->validate($input) as $violation) {
+            $errors[$this->fieldName($violation->getPropertyPath())] ??= (string) $violation->getMessage();
+        }
+        $image = $this->readProfileImage($request);
+        if ($image === false) {
+            $errors['imagelink'] = 'The photo must be an image of 2 MB or less.';
+        }
+        if ($errors !== []) {
+            return $this->renderSignin($errors, $old);
+        }
 
-                if ($this->authService->register($utilisateur)) {
-                    $this->addFlash('success', 'Compte créé avec succès ! Vous pouvez maintenant vous connecter.');
+        $utilisateur = (new Utilisateur())
+            ->setPrenom($input->prenom)
+            ->setNom($input->nom)
+            ->setEmail($input->email)
+            ->setTelephone($input->telephone !== '' ? $input->telephone : null)
+            ->setRole($input->role)
+            ->setDepartement($input->departement !== '' ? $input->departement : null)
+            ->setPassword($input->password)
+            ->setImagelink($image);
 
-                    return $this->redirectToRoute('login');
-                }
+        try {
+            if ($this->authService->register($utilisateur)) {
+                $this->adminAlertMailer->notifyNewUser($utilisateur);
+                $this->addFlash('success', 'Compte créé avec succès ! Un administrateur doit activer votre compte avant votre première connexion.');
 
-                $this->addFlash('error', 'Cet email est déjà utilisé.');
-            } catch (\Exception $e) {
-                $this->addFlash('error', 'Une erreur est survenue lors de la création du compte.');
+                return $this->redirectToRoute('login');
             }
-        }
 
-        return $this->render('auth/signin.html.twig');
+            return $this->renderSignin(['email' => 'This email is already used. Sign in instead, or use another one.'], $old);
+        } catch (\Throwable $e) {
+            $this->logger->error('Sign up failed', ['exception' => $e]);
+
+            return $this->renderSignin([], $old, 'Something went wrong while creating the account. Please try again.');
+        }
+    }
+
+    /**
+     * @param array<string, string> $errors message per field name, shown under that field
+     * @param array<string, string> $old    what the visitor typed (never the passwords), put back in the form
+     */
+    private function renderSignin(array $errors = [], array $old = [], ?string $formError = null): Response
+    {
+        return $this->render('auth/signin.html.twig', [
+            'errors' => $errors,
+            'old' => $old,
+            'form_error' => $formError,
+            'roles' => Utilisateur::SELF_REGISTRATION_ROLES,
+        ], new Response('', $errors !== [] || $formError !== null ? Response::HTTP_UNPROCESSABLE_ENTITY : Response::HTTP_OK));
+    }
+
+    /** The form field a validation path belongs to (the DTO names differ from the form names in two places). */
+    private function fieldName(string $path): string
+    {
+        return match ($path) {
+            'password' => '_password',
+            'confirmPassword' => 'confirm_password',
+            default => $path,
+        };
     }
 
     #[Route('/logout', name: 'logout')]
@@ -189,112 +209,29 @@ class WelcomeController extends AbstractController
         return $this->redirectToRoute('welcome');
     }
 
-    #[Route('/clear-session', name: 'clear_session')]
-    public function clearSession(): Response
+    /**
+     * @return string|null|false the image bytes, null when no photo was sent, false when the upload is not an acceptable image
+     */
+    private function readProfileImage(Request $request): string|null|false
     {
-        session_destroy();
-        $this->addFlash('success', 'Session effacée. Veuillez vous reconnecter.');
+        $file = $request->files->get('imagelink');
+        if (!$file instanceof UploadedFile || $file->getError() === UPLOAD_ERR_NO_FILE) {
+            return null;
+        }
 
-        return $this->redirectToRoute('welcome');
+        if (!$file->isValid() || $file->getSize() > self::MAX_PROFILE_IMAGE_BYTES
+            || !str_starts_with((string) $file->getMimeType(), 'image/')) {
+            return false;
+        }
+
+        $bytes = file_get_contents($file->getPathname());
+
+        return $bytes === false ? false : $bytes;
     }
 
-    #[Route('/face-authenticate', name: 'face_authenticate', methods: ['POST'])]
-    public function faceAuthenticate(Request $request): JsonResponse
+    private function redirectToHome(): Response
     {
-        if ($this->authService->isLoggedIn()) {
-            return new JsonResponse([
-                'success' => false,
-                'message' => 'Already logged in'
-            ], Response::HTTP_BAD_REQUEST);
-        }
-
-        $data = json_decode($request->getContent(), true);
-        if (!isset($data['face_data']) || empty($data['face_data'])) {
-            return new JsonResponse([
-                'success' => false,
-                'message' => 'No face data provided'
-            ], Response::HTTP_BAD_REQUEST);
-        }
-
-        try {
-            // Convert base64 to image data
-            $imageData = base64_decode(preg_replace('/^data:image\/[a-z]+;base64,/', '', $data['face_data']));
-            if (!$imageData) {
-                return new JsonResponse([
-                    'success' => false,
-                    'message' => 'Invalid face data format'
-                ], Response::HTTP_BAD_REQUEST);
-            }
-
-            // Check if CompreFace service is available
-            try {
-                error_log('Starting face recognition process...');
-                $recognizedEmail = $this->compreFaceService->recognizeFace($imageData);
-                error_log('Face recognition result: ' . ($recognizedEmail ? $recognizedEmail : 'null'));
-            } catch (\Exception $e) {
-                error_log('CompreFace service error: ' . $e->getMessage());
-                return new JsonResponse([
-                    'success' => false,
-                    'message' => 'Face recognition service is currently unavailable. Please use email and password to login.'
-                ], Response::HTTP_SERVICE_UNAVAILABLE);
-            }
-            
-            if ($recognizedEmail) {
-                error_log('Face recognized, looking up user with email: ' . $recognizedEmail);
-                // Find user by email
-                $utilisateur = $this->authService->getUtilisateurRepository()->findByEmail($recognizedEmail);
-                error_log('User lookup result: ' . ($utilisateur ? 'found' : 'not found'));
-                
-                if ($utilisateur) {
-                    error_log('User found, checking face_id: ' . ($utilisateur->getFaceId() ? 'exists' : 'null'));
-                    if ($utilisateur->getFaceId()) {
-                        // Authenticate the user
-                        error_log('Authenticating user...');
-                        $this->authService->refreshSessionUser($utilisateur);
-                        $this->authService->authenticateSymfonyUser($utilisateur);
-                        
-                        // Ensure session is saved
-                        $session = $request->getSession();
-                        $session->save();
-                        
-                        error_log('User authenticated successfully');
-                        return new JsonResponse([
-                            'success' => true,
-                            'message' => 'Face authentication successful',
-                            'redirect_url' => $this->generateUrl($this->authService->isAdmin() ? 'admin_home' : 'dashboard')
-                        ]);
-                    } else {
-                        error_log('User found but no face_id registered');
-                        return new JsonResponse([
-                            'success' => false,
-                            'message' => 'User found but face not registered. Please register your face first.'
-                        ]);
-                    }
-                }
-            } else {
-                error_log('Face not recognized by CompreFace');
-                return new JsonResponse([
-                    'success' => false,
-                    'message' => 'Face not recognized. Please try again or use your email and password.'
-                ]);
-            }
-            
-            // This should not be reached, but add a fallback
-            error_log('Unexpected flow in face authentication');
-            return new JsonResponse([
-                'success' => false,
-                'message' => 'Unexpected error during face authentication. Please try again.'
-            ]);
-        } catch (\Exception $e) {
-            // Log the actual error for debugging
-            error_log('Face authentication error: ' . $e->getMessage());
-            error_log('Stack trace: ' . $e->getTraceAsString());
-            
-            return new JsonResponse([
-                'success' => false,
-                'message' => 'Face recognition service is currently unavailable. Please try again later.'
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
+        return $this->redirectToRoute($this->authService->isAdmin() ? 'admin_home' : 'dashboard');
     }
 
     private function ensureLoginCaptcha(Request $request): void

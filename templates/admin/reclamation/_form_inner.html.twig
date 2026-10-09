@@ -12,6 +12,7 @@
 </div>
 {% endif %}
 <form id="admin-reclamation-form" method="post" enctype="multipart/form-data" novalidate action="{{ mode == 'create' ? path('admin_reclamations_new') : path('admin_reclamations_edit', {id: reclamation.idRec}) }}">
+<input type="hidden" name="_token" value="{{ csrf_token('admin_reclamations') }}">
     {% if modal|default(false) %}
         <input type="hidden" name="_modal" value="1">
     {% endif %}

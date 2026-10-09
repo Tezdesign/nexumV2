@@ -191,6 +191,7 @@ input:focus, textarea:focus {
                           enctype="multipart/form-data"
                           novalidate
                           action="{{ path('app_quiz_edit', {'id': quiz.id}) }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('edit_quiz_' ~ quiz.id) }}">
 
                         <div class="modal-header">
                             <h5>Modifier Quiz</h5>

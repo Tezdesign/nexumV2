@@ -11,10 +11,8 @@ use App\Repository\Tasks\TaskRepository;
 use App\Repository\UserHandling\UtilisateurRepository;
 use App\Service\AuthService;
 use App\Service\Project\Calendar\CalendarEventProvider;
-use App\Service\FinancialAnalysis\CurrencyExchangeService;
 use App\Support\UserDisplayName;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 
@@ -464,24 +462,6 @@ class HomeController extends AbstractController
         return $this->redirectToRoute('app_project_index');
     }
 
-    #[Route('/apps-task-details', name: 'apps-task-details')]
-    public function taskDetails(): Response
-    {
-        return $this->render('project-management/apps-task-details.html.twig');
-    }
-
-    #[Route('/apps-training', name: 'apps-training')]
-    public function training(): Response
-    {
-        return $this->render('training/apps-training.html.twig');
-    }
-
-    #[Route('/apps-resources-management', name: 'apps-resources-management')]
-    public function resourcesManagement(): Response
-    {
-        return $this->render('resources-management/apps-resources-management.html.twig');
-    }
-
     #[Route('/apps-calendar', name: 'apps-calendar')]
     public function calendar(CalendarEventProvider $calendarEventProvider): Response
     {
@@ -500,15 +480,5 @@ class HomeController extends AbstractController
             'calendarVisibleTasks' => $summary['visibleTasks'],
             'calendarHolidayCountryCode' => $calendarEventProvider->getHolidayCountryCode(),
         ]);
-    }
-    #[Route('/test-api', name: 'test_api')]
-    public function testApi(CurrencyExchangeService $currencyService): JsonResponse
-    {
-        // Pass ID 1. If it exists, it uses that profile's currency.
-        // If it doesn't, your code safely defaults to 'TND'.
-        $rawJson = $currencyService->fetchRatesForProfile(11);
-
-        // Decode it so it displays nicely in the browser
-        return new JsonResponse(json_decode($rawJson, true));
     }
 }

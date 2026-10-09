@@ -2,6 +2,8 @@
 
 namespace App\Controller\FinancialAnalysis;
 
+use App\Attribute\RequireAdmin;
+use App\Attribute\RequireLogin;
 use App\Entity\FinancialAnalysis\ProjectBudget;
 use App\Form\FinancialAnalysis\ProjectBudgetType;
 use App\Repository\FinancialAnalysis\ProjectBudgetRepository;
@@ -12,6 +14,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 #[Route('/financial/analysis/project/budget')]
+#[RequireLogin]
 final class ProjectBudgetController extends AbstractController
 {
     #[Route(name: 'app_financial_analysis_project_budget_index', methods: ['GET'])]
@@ -83,6 +86,7 @@ final class ProjectBudgetController extends AbstractController
     }
 
     #[Route('/{id}', name: 'app_financial_analysis_project_budget_delete', methods: ['POST'])]
+    #[RequireAdmin]
     public function delete(Request $request, ProjectBudget $projectBudget, EntityManagerInterface $entityManager): Response
     {
         if ($this->isCsrfTokenValid('delete'.$projectBudget->getId(), $request->getPayload()->getString('_token'))) {

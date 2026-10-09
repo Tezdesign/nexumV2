@@ -2,6 +2,7 @@
 
 namespace App\Controller\chat;
 
+use App\Attribute\RequireLogin;
 use App\Entity\Chat\Conversation;
 use App\Entity\Chat\ConversationParticipant;
 use App\Entity\Chat\Message;
@@ -22,13 +23,18 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
+use App\Service\Chat\UserAvatarUrl;
 use InvalidArgumentException;
+use Psr\Log\LoggerInterface;
 
+#[RequireLogin]
 class ConversationController extends AbstractController
 {
     public function __construct(
         private readonly AuthService $authService,
         private readonly HttpClientInterface $httpClient,
+        private readonly LoggerInterface $logger,
+        private readonly UserAvatarUrl $avatarUrl,
     )
     {
     }
@@ -102,55 +108,46 @@ class ConversationController extends AbstractController
     }
 
     #[Route('/apps-chat/livekit/token', name: 'apps-chat-livekit-token-proxy', methods: ['GET'])]
-    public function proxyLivekitToken(Request $request): Response
+    public function proxyLivekitToken(Request $request, ConversationParticipantRepository $participantRepository): Response
     {
-        $room = trim((string) $request->query->get('room', ''));
-        $identity = trim((string) $request->query->get('identity', ''));
-        $name = trim((string) $request->query->get('name', ''));
-
-        if ($room === '' || $identity === '') {
-            return $this->json([
-                'success' => false,
-                'error' => 'Missing required parameters: room or identity.',
-            ], 400);
+        // The room must be the call room of a conversation the caller belongs to. The identity and name sent by
+        // the browser are ignored: they come from the session, so nobody can join as someone else.
+        $conversationId = $this->conversationIdFromRoom(trim((string) $request->query->get('room', '')));
+        if ($conversationId === null) {
+            return $this->json(['success' => false, 'error' => 'Invalid call room.'], 400);
         }
 
-        $tokenEndpoint = $this->readEnvSetting([
-            'CHAT_CALL_TOKEN_PROXY_TARGET',
-        ], 'http://10.102.88.72:8090/livekit/token');
-
-        try {
-            $upstream = $this->httpClient->request('GET', $tokenEndpoint, [
-                'query' => [
-                    'room' => $room,
-                    'identity' => $identity,
-                    'name' => $name,
-                ],
-            ]);
-
-            $status = $upstream->getStatusCode();
-            $data = $upstream->toArray(false);
-
-            if ($status < 200 || $status >= 300 || empty($data['token'])) {
-                return $this->json([
-                    'success' => false,
-                    'error' => 'LiveKit token server did not return a token.',
-                    'detail' => $data,
-                ], $status >= 400 ? $status : 502);
-            }
-
-            return $this->json([
-                'success' => true,
-                'token' => $data['token'],
-            ]);
-
-        } catch (\Throwable $error) {
-            return $this->json([
-                'success' => false,
-                'error' => 'Failed to generate LiveKit token.',
-                'detail' => $error->getMessage(),
-            ], 500);
+        if (!$participantRepository->isActiveParticipant($conversationId, $this->currentUserId())) {
+            return $this->json(['success' => false, 'error' => 'Access denied'], 403);
         }
+
+        return $this->fetchCallToken($conversationId);
+    }
+
+    /** A user's picture as a cacheable image, so chat JSON carries a short URL instead of the image itself. */
+    #[Route('/apps-chat/users/{userId}/avatar', name: 'apps-chat-user-avatar', requirements: ['userId' => '\d+'], methods: ['GET'])]
+    public function userAvatar(int $userId, Request $request, UtilisateurRepository $utilisateurRepository): Response
+    {
+        $bytes = $utilisateurRepository->find($userId)?->getImagelink();
+        // The type comes from the bytes, and only plain pictures are served (the profile upload does not check them).
+        $mime = $bytes !== null && $bytes !== '' ? (string) (new \finfo(FILEINFO_MIME_TYPE))->buffer($bytes) : '';
+        if (!in_array($mime, ['image/jpeg', 'image/png', 'image/gif', 'image/webp'], true)) {
+            return new Response('', Response::HTTP_NOT_FOUND);
+        }
+
+        $response = new Response($bytes, Response::HTTP_OK, [
+            'Content-Type' => $mime,
+            'X-Content-Type-Options' => 'nosniff',
+            'Content-Security-Policy' => "default-src 'none'; sandbox",
+        ]);
+        // The browser keeps it for the page but asks again (cheap 304) when the picture may have changed.
+        $response->setPrivate();
+        $response->setEtag(md5($bytes));
+        $response->headers->addCacheControlDirective('must-revalidate');
+        $response->setMaxAge(0);
+        $response->isNotModified($request);
+
+        return $response;
     }
 
     #[Route('/apps-chat/livekit/avatar/{userId}', name: 'apps-chat-livekit-avatar-proxy', methods: ['GET'])]
@@ -372,48 +369,57 @@ class ConversationController extends AbstractController
     #[Route('/apps-chat/conversations/{conversationId}/call/token', name: 'apps-chat-call-token', methods: ['GET'])]
     public function getCallToken(
         int $conversationId,
-        Request $request,
-        ConversationRepository $conversationRepository,
         ConversationParticipantRepository $participantRepository
     ): JsonResponse {
-        $room = $request->query->get('room', 'conv_' . $conversationId);
-        $currentUserId = $this->currentUserId();
+        // Verify user is participant
+        if (!$participantRepository->isActiveParticipant($conversationId, $this->currentUserId())) {
+            return $this->json(['success' => false, 'error' => 'Access denied'], 403);
+        }
+
+        return $this->fetchCallToken($conversationId);
+    }
+
+    /** Call room of a conversation. Always built from the id, never taken from the client. */
+    private function callRoom(int $conversationId): string
+    {
+        return 'conv-' . $conversationId;
+    }
+
+    private function conversationIdFromRoom(string $room): ?int
+    {
+        return preg_match('/^conv-([1-9]\d*)$/', $room, $matches) === 1 ? (int) $matches[1] : null;
+    }
+
+    /** Asks the token server for a token for the current user in the conversation's call room. */
+    private function fetchCallToken(int $conversationId): JsonResponse
+    {
+        $room = $this->callRoom($conversationId);
+        $userId = $this->currentUserId();
+        $user = $this->authService->getCurrentUser();
+        $name = trim(sprintf('%s %s', (string) ($user['prenom'] ?? ''), (string) ($user['nom'] ?? '')));
 
         try {
-            // Verify user is participant
-            if (!$participantRepository->isActiveParticipant($conversationId, $currentUserId)) {
-                return $this->json(['success' => false, 'error' => 'Access denied'], 403);
-            }
-
-            $tokenEndpoint = $this->readEnvSetting([
-                'CHAT_CALL_TOKEN_PROXY_TARGET',
-            ], 'http://10.102.88.72:8090/livekit/token');
-
-            $response = $this->httpClient->request('GET', $tokenEndpoint, [
+            $upstream = $this->httpClient->request('GET', $this->readEnvSetting(['CHAT_CALL_TOKEN_PROXY_TARGET']), [
                 'query' => [
                     'room' => $room,
-                    'identity' => 'user_' . $currentUserId,
-                    'name' => 'User ' . $currentUserId
-                ]
+                    'identity' => 'user-' . $userId,
+                    'name' => $name !== '' ? $name : 'User ' . $userId,
+                ],
             ]);
+            $data = $upstream->toArray(false);
 
-            $data = $response->toArray();
-            
-            if (!isset($data['token'])) {
-                return $this->json(['success' => false, 'error' => 'Token not found in response'], 500);
+            if ($upstream->getStatusCode() < 200 || $upstream->getStatusCode() >= 300 || empty($data['token'])) {
+                $this->logger->warning('LiveKit token server did not return a token', ['status' => $upstream->getStatusCode()]);
+
+                return $this->json(['success' => false, 'error' => 'The call server did not return a token.'], 502);
             }
 
-            return $this->json([
-                'success' => true,
-                'token' => $data['token'],
-                'room' => $room
-            ]);
+            return $this->json(['success' => true, 'token' => $data['token'], 'room' => $room]);
+        } catch (\Throwable $error) {
+            // Keep the reason in the log: the exception text contains the internal server address.
+            $this->logger->error('LiveKit token request failed', ['exception' => $error]);
 
-        } catch (\Exception $e) {
-            return $this->json([
-                'success' => false,
-                'error' => 'Failed to get call token: ' . $e->getMessage()
-            ], 500);
+            return $this->json(['success' => false, 'error' => 'The call server is not reachable.'], 502);
         }
     }
 
@@ -581,7 +587,7 @@ class ConversationController extends AbstractController
                     'nickname' => $participant->getNickname(),
                     'fullName' => $this->buildUserName($user),
                     'subtitle' => $subtitle,
-                    'avatarSrc' => $user !== null ? $this->toDataUri($user->getImagelink(), 'image/jpeg') : null,
+                    'avatarSrc' => $this->avatarUrl->for($user),
                     'isSelf' => $isSelf,
                     'canRenameNickname' => true,
                     'canKick' => $conversation->isGroupConversation() && $actorIsAdmin && !$isSelf,
@@ -646,7 +652,7 @@ class ConversationController extends AbstractController
                     'userId' => $user->getId(),
                     'name' => $this->buildUserName($user),
                     'role' => $user->getRole() ?? 'Member',
-                    'avatarSrc' => $this->toDataUri($user->getImagelink(), 'image/jpeg'),
+                    'avatarSrc' => $this->avatarUrl->for($user),
                 ];
             }, $candidates),
         ]);
@@ -807,8 +813,19 @@ class ConversationController extends AbstractController
             ], 403);
         }
 
+        // A direct message belongs to both people: removing it only hides it for the person who asked.
+        if (!$conversation->isGroupConversation()) {
+            $participantRepository->leaveDirectConversation($conversationId, $this->currentUserId());
+
+            return $this->json([
+                'success' => true,
+                'action' => 'left',
+                'conversationId' => $conversationId,
+            ]);
+        }
+
         $isAdmin = (int) ($conversation->getCreatedBy() ?? 0) === $this->currentUserId();
-        $shouldDeleteConversation = $conversation->isGroupConversation() ? $isAdmin : true;
+        $shouldDeleteConversation = $isAdmin;
 
         if (!$shouldDeleteConversation) {
             try {
@@ -1037,6 +1054,7 @@ class ConversationController extends AbstractController
     public function listDirectMessageCandidates(
         Request $request,
         ConversationRepository $conversationRepository,
+        ConversationParticipantRepository $participantRepository,
         UtilisateurRepository $utilisateurRepository,
     ): JsonResponse {
         $search = trim((string) $request->query->get('q', ''));
@@ -1061,18 +1079,20 @@ class ConversationController extends AbstractController
             ->getQuery()
             ->getResult();
 
-        // Filter out users who already have a DM with current user
-        $candidates = [];
-        foreach ($allUsers as $user) {
-            $userId = $user->getId();
-            if ($userId !== null) {
-                // Check if DM already exists between current user and this user
-                $existingDM = $conversationRepository->findExistingDM($this->currentUserId(), $userId);
-                if ($existingDM === null) {
-                    $candidates[] = $user;
-                }
+        // People who already have a DM with the current user, read once. A DM the user removed from their
+        // own list does not count: it can be started again.
+        $hiddenConversationIds = $participantRepository->findLeftConversationIdsForUser($this->currentUserId());
+        $partnerIds = [];
+        foreach ($conversationRepository->findDmPartnersForUser($this->currentUserId()) as $conversationId => $partnerId) {
+            if (!in_array($conversationId, $hiddenConversationIds, true)) {
+                $partnerIds[$partnerId] = true;
             }
         }
+
+        $candidates = array_values(array_filter(
+            $allUsers,
+            static fn (Utilisateur $user): bool => $user->getId() !== null && !isset($partnerIds[$user->getId()])
+        ));
 
         return $this->json([
             'success' => true,
@@ -1081,7 +1101,7 @@ class ConversationController extends AbstractController
                     'userId' => $user->getId(),
                     'name' => $this->buildUserName($user),
                     'role' => $user->getRole() ?? 'Member',
-                    'avatarSrc' => $this->toDataUri($user->getImagelink(), 'image/jpeg'),
+                    'avatarSrc' => $this->avatarUrl->for($user),
                 ];
             }, $candidates),
         ]);
@@ -1117,7 +1137,7 @@ class ConversationController extends AbstractController
                     'userId' => $user->getId(),
                     'name' => $this->buildUserName($user),
                     'role' => $user->getRole() ?? 'Member',
-                    'avatarSrc' => $this->toDataUri($user->getImagelink(), 'image/jpeg'),
+                    'avatarSrc' => $this->avatarUrl->for($user),
                 ];
             }, $users),
         ]);
@@ -1242,6 +1262,7 @@ class ConversationController extends AbstractController
     public function createDirectMessage(
         Request $request,
         ConversationRepository $conversationRepository,
+        ConversationParticipantRepository $participantRepository,
         UtilisateurRepository $utilisateurRepository,
         EntityManagerInterface $entityManager,
     ): JsonResponse {
@@ -1275,6 +1296,9 @@ class ConversationController extends AbstractController
         // Check if DM already exists
         $existingDM = $conversationRepository->findExistingDM($this->currentUserId(), $otherUserId);
         if ($existingDM !== null) {
+            // Starting the chat again brings back a DM this user had removed from their list.
+            $participantRepository->reactivateLeftParticipants((int) $existingDM->getId(), $this->currentUserId());
+
             return $this->json([
                 'success' => true,
                 'conversation' => [

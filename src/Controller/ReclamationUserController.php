@@ -2,23 +2,26 @@
 
 namespace App\Controller;
 
+use App\Attribute\RequireLogin;
+use App\Controller\Trait\ReclamationAttachmentTrait;
 use App\Controller\Trait\ValidationFlashTrait;
 use App\Entity\UserHandling\Reclamation;
 use App\Repository\UserHandling\ReclamationRepository;
 use App\Service\AuthService;
 use App\Service\ReclamationHistoryService;
-use App\Service\TelegramNotificationService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 #[Route('/mes-reclamations')]
+#[RequireLogin]
 class ReclamationUserController extends AbstractController
 {
+    use ReclamationAttachmentTrait;
     use ValidationFlashTrait;
 
     public function __construct(
@@ -26,27 +29,21 @@ class ReclamationUserController extends AbstractController
         private readonly ReclamationRepository $reclamationRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly ValidatorInterface $validator,
-        private readonly TelegramNotificationService $telegramNotificationService,
         private readonly ReclamationHistoryService $historyService,
     ) {
     }
 
-    private function ensureUser(): ?Response
-    {
-        if (!$this->authService->isLoggedIn()) {
-            return $this->redirectToRoute('welcome');
-        }
 
-        return null;
+    private function checkCsrf(Request $request): void
+    {
+        if (!$this->isCsrfTokenValid('user_reclamations', (string) $request->request->get('_token'))) {
+            throw new AccessDeniedHttpException('Invalid CSRF token.');
+        }
     }
 
     #[Route('', name: 'mes_reclamations_index', methods: ['GET'])]
     public function index(Request $request): Response
     {
-        if ($r = $this->ensureUser()) {
-            return $r;
-        }
-
         $userId = $this->authService->getCurrentUserId();
         if ($userId === null) {
             return $this->redirectToRoute('welcome');
@@ -73,10 +70,7 @@ class ReclamationUserController extends AbstractController
     #[Route('/nouvelle', name: 'mes_reclamations_create', methods: ['POST'])]
     public function create(Request $request): Response
     {
-        if ($r = $this->ensureUser()) {
-            return $r;
-        }
-
+        $this->checkCsrf($request);
         $userId = $this->authService->getCurrentUserId();
         if ($userId === null) {
             return $this->redirectToRoute('welcome');
@@ -108,27 +102,10 @@ class ReclamationUserController extends AbstractController
             'statut' => $rec->getStatut()
         ]);
 
-        $file = $request->files->get('fichier');
-        if ($file instanceof UploadedFile && $file->getError() === UPLOAD_ERR_OK) {
-            $path = $file->getRealPath() ?: $file->getPathname();
-            $binary = @file_get_contents($path);
-            if ($binary !== false && $binary !== '') {
-                $this->entityManager->getConnection()->executeStatement(
-                    'UPDATE reclamation SET fichier = ? WHERE idRec = ?',
-                    [$binary, $rec->getIdRec()]
-                );
-                $rec->setFichier($binary);
-            }
+        $binary = $this->uploadedAttachment($request);
+        if ($binary !== null) {
+            $this->storeAttachment($rec, $binary);
         }
-
-        $currentUser = $this->authService->getUtilisateurRepository()->find($userId);
-        $fullName = trim((string) (($currentUser?->getPrenom() ?? '') . ' ' . ($currentUser?->getNom() ?? '')));
-        if ($fullName === '') {
-            $fullName = 'User #' . $userId;
-        }
-        $email = trim((string) ($currentUser?->getEmail() ?? 'unknown'));
-        $title = trim((string) ($rec->getTitre() ?? 'No title'));
-        $this->telegramNotificationService->notifyNewReclamation($fullName, $email, $title);
 
         $this->addFlash('success', 'Your reclamation was submitted successfully.');
 
@@ -138,10 +115,6 @@ class ReclamationUserController extends AbstractController
     #[Route('/{id}/fichier', name: 'mes_reclamations_fichier', requirements: ['id' => '\d+'], methods: ['GET'])]
     public function fichier(int $id): Response
     {
-        if ($r = $this->ensureUser()) {
-            return $r;
-        }
-
         $userId = $this->authService->getCurrentUserId();
         if ($userId === null) {
             return $this->redirectToRoute('welcome');
@@ -156,12 +129,9 @@ class ReclamationUserController extends AbstractController
     }
 
     #[Route('/{id}/supprimer', name: 'mes_reclamations_delete', requirements: ['id' => '\d+'], methods: ['POST'])]
-    public function delete(int $id): Response
+    public function delete(Request $request, int $id): Response
     {
-        if ($r = $this->ensureUser()) {
-            return $r;
-        }
-
+        $this->checkCsrf($request);
         $userId = $this->authService->getCurrentUserId();
         if ($userId === null) {
             return $this->redirectToRoute('welcome');
@@ -186,36 +156,9 @@ class ReclamationUserController extends AbstractController
         return $this->redirectToRoute('mes_reclamations_index');
     }
 
-    private function attachmentResponse(Reclamation $rec): Response
-    {
-        $data = $rec->getFichier();
-        if (!\is_string($data) || $data === '') {
-            throw $this->createNotFoundException('No attachment.');
-        }
-
-        $mime = 'application/octet-stream';
-        if (\class_exists(\finfo::class)) {
-            $finfo = new \finfo(FILEINFO_MIME_TYPE);
-            $detected = $finfo->buffer($data);
-            if (\is_string($detected) && $detected !== '') {
-                $mime = $detected;
-            }
-        }
-
-        return new Response($data, Response::HTTP_OK, [
-            'Content-Type' => $mime,
-            'Content-Disposition' => 'inline; filename="reclamation-' . (int) $rec->getIdRec() . '"',
-            'Cache-Control' => 'private, max-age=0, must-revalidate',
-        ]);
-    }
-
     #[Route('/{id}/history', name: 'mes_reclamations_history', requirements: ['id' => '\d+'], methods: ['GET'])]
     public function history(int $id): Response
     {
-        if ($r = $this->ensureUser()) {
-            return $r;
-        }
-
         $userId = $this->authService->getCurrentUserId();
         if ($userId === null) {
             return $this->redirectToRoute('welcome');

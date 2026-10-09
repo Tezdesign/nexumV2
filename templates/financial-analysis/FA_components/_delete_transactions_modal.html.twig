@@ -23,6 +23,7 @@
             <div class="modal-footer">
                 <form id="bulkDeleteForm" action="{{ path('apps-financial-analysis-bulk-delete-transactions', {id: projectBudgetEntity.id}) }}" method="POST">
                     <input type="hidden" name="transaction_ids" id="bulkDeleteInput">
+                    <input type="hidden" name="_token" value="{{ csrf_token('fa_write') }}">
                     <button type="button" class="btn btn-light" data-bs-dismiss="modal">{{ 'Cancel'|trans }}</button>
                     <button type="submit" class="btn btn-danger">{{ 'Delete Transactions'|trans }}</button>
                 </form>

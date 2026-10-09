@@ -3,19 +3,20 @@
 namespace App\Service;
 
 use Psr\Log\LoggerInterface;
-use Symfony\Component\Security\Core\Security;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 class ReclamationHistoryService
 {
-    private LoggerInterface $logger;
-    private Security $security;
-    private string $logFile;
+    private string $historyDir;
 
-    public function __construct(LoggerInterface $logger, Security $security, string $projectDir)
-    {
-        $this->logger = $logger;
-        $this->security = $security;
-        $this->logFile = $projectDir . '/var/logs/reclamation_history.log';
+    public function __construct(
+        private readonly LoggerInterface $logger,
+        private readonly AuthService $authService,
+        private readonly RequestStack $requestStack,
+        string $projectDir,
+    ) {
+        // One small file per reclamation: reading a history never scans the others.
+        $this->historyDir = $projectDir . '/var/reclamation_history';
     }
 
     /**
@@ -23,71 +24,52 @@ class ReclamationHistoryService
      */
     public function logActivity(int $reclamationId, string $action, array $data = []): void
     {
-        $user = $this->security->getUser();
-        $userId = null;
-        if ($user && method_exists($user, 'getId')) {
-            $userId = $user->getId();
-        }
-        
-        $logEntry = [
+        $actor = $this->authService->getCurrentUser();
+        $entry = [
             'timestamp' => (new \DateTime())->format('Y-m-d H:i:s'),
             'reclamation_id' => $reclamationId,
             'action' => $action,
-            'user_id' => $userId,
-            'user_email' => $user ? $user->getUserIdentifier() : 'system',
+            'user_id' => $this->authService->getCurrentUserId(),
+            'user_email' => is_array($actor) ? (string) ($actor['email'] ?? 'system') : 'system',
             'data' => $data,
-            'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown'
+            'ip' => $this->requestStack->getCurrentRequest()?->getClientIp() ?? 'unknown',
         ];
 
-        // Log to Monolog
-        $this->logger->info('Reclamation activity', $logEntry);
+        $this->logger->info('Reclamation activity', $entry);
 
-        // Also write to dedicated history file
-        $this->writeToHistoryFile($logEntry);
+        if (!is_dir($this->historyDir) && !@mkdir($this->historyDir, 0775, true) && !is_dir($this->historyDir)) {
+            $this->logger->error('Reclamation history folder cannot be created', ['dir' => $this->historyDir]);
+
+            return;
+        }
+        if (@file_put_contents($this->fileFor($reclamationId), json_encode($entry) . "\n", FILE_APPEND | LOCK_EX) === false) {
+            $this->logger->error('Reclamation history entry could not be written', ['reclamation' => $reclamationId]);
+        }
     }
 
     /**
-     * @return array<int, array<string, mixed>>
+     * @return array<int, array<string, mixed>> newest first
      */
     public function getReclamationHistory(int $reclamationId): array
     {
-        if (!file_exists($this->logFile)) {
-            return [];
-        }
-
-        $history = [];
-        $lines = file($this->logFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        $lines = is_file($this->fileFor($reclamationId))
+            ? file($this->fileFor($reclamationId), FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES)
+            : false;
         if ($lines === false) {
             return [];
         }
 
-        foreach ($lines as $line) {
-            $entry = json_decode($line, true);
-            if (is_array($entry) && isset($entry['reclamation_id']) && $entry['reclamation_id'] == $reclamationId) {
-                $history[] = $entry;
-            }
-        }
+        $history = array_values(array_filter(array_map(
+            static fn (string $line): mixed => json_decode($line, true),
+            $lines
+        ), 'is_array'));
 
-        // Sort by timestamp (newest first)
-        usort($history, function($a, $b) {
-            return strtotime($b['timestamp']) - strtotime($a['timestamp']);
-        });
-
-        return $history;
+        return array_reverse($history);
     }
 
-    /**
-     * @param array<string, mixed> $logEntry
-     */
-    private function writeToHistoryFile(array $logEntry): void
+    private function fileFor(int $reclamationId): string
     {
-        $logDir = dirname($this->logFile);
-        if (!is_dir($logDir)) {
-            mkdir($logDir, 0755, true);
-        }
-
-        $jsonLine = json_encode($logEntry) . "\n";
-        file_put_contents($this->logFile, $jsonLine, FILE_APPEND | LOCK_EX);
+        return $this->historyDir . '/' . $reclamationId . '.jsonl';
     }
 
     public function getActionLabel(string $action): string

@@ -28,12 +28,13 @@ final class GeminiClient
         \DateTimeInterface $endDate,
     ): array {
         $response = $this->httpClient->request('POST', sprintf(
-            'https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s',
-            rawurlencode($this->model),
-            rawurlencode($this->apiKey)
+            'https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent',
+            rawurlencode($this->model)
         ), [
             'headers' => [
                 'Content-Type' => 'application/json',
+                // In a header, not the URL: HttpClient error messages include the URL.
+                'x-goog-api-key' => $this->apiKey,
             ],
             'json' => [
                 'systemInstruction' => [

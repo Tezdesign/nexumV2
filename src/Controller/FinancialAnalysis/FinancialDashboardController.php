@@ -2,6 +2,8 @@
 
 namespace App\Controller\FinancialAnalysis;
 
+use App\Attribute\RequireAdmin;
+use App\Attribute\RequireLogin;
 use App\Entity\FinancialAnalysis\BudgetProfile;
 use App\Entity\FinancialAnalysis\ProjectBudget;
 use App\Entity\FinancialAnalysis\Transaction;
@@ -18,11 +20,21 @@ use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\Routing\Annotation\Route;
 
 #[Route('/apps-financial-analysis')]
+#[RequireLogin]
 class FinancialDashboardController extends AbstractController
 {
+    /** One token for every raw POST of this screen (delete, bulk delete, consultant actions). */
+    private function checkCsrf(Request $request): void
+    {
+        if (!$this->isCsrfTokenValid('fa_write', (string) $request->request->get('_token'))) {
+            throw new AccessDeniedHttpException('Invalid CSRF token.');
+        }
+    }
+
     #[Route('', name: 'apps-financial-analysis-landing')]
     public function index(Request $request, EntityManagerInterface $entityManager, BudgetProfileRepository $budgetProfileRepository, \App\Service\FinancialAnalysis\BudgetTrendCacheService $trendCacheService): Response
     {
@@ -474,7 +486,8 @@ class FinancialDashboardController extends AbstractController
         ]);
     }
 
-    #[Route('/consultant/draft/{id}/{action}', name: 'apps-financial-analysis-consultant-action', methods: ['POST'])]
+    #[Route('/consultant/draft/{id}/{action}', name: 'apps-financial-analysis-consultant-action', requirements: ['id' => '\d+', 'action' => 'approve|reject|revert|to_transaction'], methods: ['POST'])]
+    #[RequireAdmin]
     public function consultantAction(
         \App\Entity\FinancialAnalysis\ExpenseDraft $draft,
         string $action,
@@ -482,26 +495,38 @@ class FinancialDashboardController extends AbstractController
         \App\Service\AuthService $authService,
         \App\Repository\FinancialAnalysis\ExpenseDraftRepository $expenseDraftRepository,
         BudgetDashboardService $dashboardService,
-        \Symfony\Component\Validator\Validator\ValidatorInterface $validator,
-        \App\Service\FinancialAnalysis\DraftNotificationService $notificationService
+        \Symfony\Component\Validator\Validator\ValidatorInterface $validator
     ): Response {
-        $reason = trim((string) $request->request->get('reason', ''));
+        $this->checkCsrf($request);
         $pb = $draft->getProjectBudgetRelated();
-        $pid = $pb ? $pb->getId() : 0;
+        if (!$pb) {
+            $this->addFlash('danger', 'Project budget not found for this draft.');
 
-        $creatorId = $draft->getCreatedBy() ? $draft->getCreatedBy()->getId() : null;
+            return $this->redirectToRoute('apps-financial-analysis-landing');
+        }
+
+        // A decision only applies to a draft in the right state (a stale page or a replayed POST must not redo it).
+        $allowedFrom = [
+            'approve' => ['PENDING', 'FLAGGED', 'PASS'],
+            'reject' => ['PENDING', 'FLAGGED', 'PASS', 'APPROVED'],
+            'revert' => ['REJECTED'],
+            'to_transaction' => ['APPROVED'],
+        ];
+        $pid = $pb->getId();
+        if (!in_array(strtoupper((string) ($draft->getStatus() ?? 'PENDING')), $allowedFrom[$action], true)) {
+            $this->addFlash('warning', 'This draft was already handled. Reload the list.');
+
+            return $this->redirectToRoute('apps-financial-analysis-budget-details', ['id' => $pid, '_fragment' => 'transactions-tab']);
+        }
+
+        $reason = trim((string) $request->request->get('reason', ''));
+
 
         if ($action === 'approve') {
             $expenseDraftRepository->approveDraft($draft);
-            if ($creatorId) {
-                $notificationService->addNotification($creatorId, 'Draft Approved', 'Your draft "' . $draft->getSubject() . '" has been approved by a consultant.', 'success');
-            }
             $this->addFlash('success', 'Draft approved successfully.');
         } elseif ($action === 'revert') {
             $expenseDraftRepository->revertDraft($draft);
-            if ($creatorId) {
-                $notificationService->addNotification($creatorId, 'Draft Reverted', 'The decision on your draft "' . $draft->getSubject() . '" has been reverted to Flagged.', 'info');
-            }
             $this->addFlash('info', 'Draft decision reverted to Flagged.');
         } elseif ($action === 'reject') {
             if (empty($reason)) {
@@ -523,17 +548,9 @@ class FinancialDashboardController extends AbstractController
             $userId = (int) ($authService->getCurrentUserId() ?? 0);
             $expenseDraftRepository->rejectDraft($draft, $reason, $userId);
 
-            if ($creatorId) {
-                $notificationService->addNotification($creatorId, 'Draft Rejected', 'Your draft "' . $draft->getSubject() . '" was rejected: ' . $reason, 'error');
-            }
 
             $this->addFlash('warning', 'Draft has been rejected.');
         } elseif ($action === 'to_transaction') {
-            if (!$pb) {
-                $this->addFlash('danger', 'Project budget not found for this draft.');
-                return $this->redirectToRoute('apps-financial-analysis-landing');
-            }
-
             $transactionDateStr = $request->request->get('transaction_date');
 
             // Fallback: convert the draft's createdAt (which might be immutable) to a mutable \DateTime
@@ -577,9 +594,6 @@ class FinancialDashboardController extends AbstractController
 
             $expenseDraftRepository->remove($draft, true);
 
-            if ($creatorId) {
-                $notificationService->addNotification($creatorId, 'Draft Converted', 'Your draft "' . $draft->getSubject() . '" has been converted to a live transaction.', 'success');
-            }
 
             $this->addFlash('success', 'Draft converted to a real transaction successfully!');
         }
@@ -634,28 +648,32 @@ class FinancialDashboardController extends AbstractController
         return $this->redirectToRoute('apps-financial-analysis-budget-details', ['id' => $projectBudget->getId(), '_fragment' => 'transactions-tab']);
     }
     #[Route('/budget/{id}/transactions/bulk-delete', name: 'apps-financial-analysis-bulk-delete-transactions', methods: ['POST'])]
+    #[RequireAdmin]
     public function bulkDeleteTransactions(
         ProjectBudget $projectBudget,
         Request $request,
         BudgetDashboardService $dashboardService
     ): Response {
+        $this->checkCsrf($request);
         $idsString = $request->request->get('transaction_ids');
         if (is_string($idsString) && $idsString !== '') {
-            $ids = explode(',', $idsString);
             $profile = $dashboardService->getFiscalProfileForBudget($projectBudget);
-            
-            $dashboardService->handleBulkDeleteCascade($projectBudget, $ids, $profile);
-            $this->addFlash('success', count($ids) . ' transactions deleted successfully!');
+
+            $deleted = $dashboardService->handleBulkDeleteCascade($projectBudget, explode(',', $idsString), $profile);
+            $this->addFlash($deleted > 0 ? 'success' : 'warning', $deleted . ' transactions deleted.');
         }
 
         return $this->redirectToRoute('apps-financial-analysis-budget-details', ['id' => $projectBudget->getId(), '_fragment' => 'transactions-tab']);
     }
 
     #[Route('/budget/{id}/delete', name: 'apps-financial-analysis-delete-project-budget', methods: ['POST'])]
+    #[RequireAdmin]
     public function deleteProjectBudget(
         ProjectBudget $projectBudget,
+        Request $request,
         BudgetDashboardService $dashboardService
     ): Response {
+        $this->checkCsrf($request);
         $profile = $dashboardService->getFiscalProfileForBudget($projectBudget);
         $dashboardService->handleProjectBudgetDeletionCascade($projectBudget, $profile);
         
@@ -669,10 +687,19 @@ class FinancialDashboardController extends AbstractController
     }
 
     #[Route('/profile/{id}/delete', name: 'apps-financial-analysis-delete-profile', methods: ['POST'])]
+    #[RequireAdmin]
     public function deleteBudgetProfile(
         BudgetProfile $budgetProfile,
+        Request $request,
         BudgetDashboardService $dashboardService
     ): Response {
+        $this->checkCsrf($request);
+        if (trim((string) $request->request->get('confirm_year', '')) !== (string) $budgetProfile->getFiscalYear()) {
+            $this->addFlash('danger', 'Fiscal year not deleted: type the fiscal year to confirm.');
+
+            return $this->redirectToRoute('apps-financial-analysis-profile', ['id' => $budgetProfile->getId()]);
+        }
+
         $dashboardService->handleFullFiscalYearDeletionCascade($budgetProfile);
         $this->addFlash('success', 'Fiscal Year Profile and all associated project budgets deleted successfully!');
         return $this->redirectToRoute('apps-financial-analysis-landing');

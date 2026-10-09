@@ -13,7 +13,17 @@ class CertificateService
         $this->projectDir = rtrim($projectDir, DIRECTORY_SEPARATOR);
     }
 
-    public function generate($user, $formation, string $certificateId, ?string $qrPublicPath = null): string
+    /**
+     * Where a user's certificate for a formation lives: outside `public/`, one file per user and formation
+     * (a new certificate replaces the old one), so it is only reachable through the download route.
+     */
+    public function pathFor(\App\Entity\UserHandling\Utilisateur $user, \App\Entity\Formation $formation): string
+    {
+        return sprintf('%s/var/certificates/cert_%d_%d.pdf', $this->projectDir, (int) $user->getId(), (int) $formation->getId());
+    }
+
+    /** @param string|null $qrAbsolutePath PNG file to print on the certificate */
+    public function generate($user, $formation, string $certificateId, ?string $qrAbsolutePath = null): string
     {
         error_log('[CertificateService] ===== generate entered =====');
 
@@ -31,7 +41,6 @@ class CertificateService
         error_log('[CertificateService] User: ' . $userName);
         error_log('[CertificateService] Formation: ' . $formationTitle);
         error_log('[CertificateService] Certificate ID: ' . $certificateId);
-        error_log('[CertificateService] QR public path: ' . ($qrPublicPath ?? 'null'));
 
         $dompdf = new Dompdf();
         $dompdf->set_option('isRemoteEnabled', true);
@@ -45,10 +54,7 @@ class CertificateService
 
         $qrBase64 = '';
 
-        if ($qrPublicPath) {
-            $qrAbsolutePath = $this->projectDir . '/public/' . ltrim($qrPublicPath, '/');
-            error_log('[CertificateService] Looking for QR file at: ' . $qrAbsolutePath);
-
+        if ($qrAbsolutePath) {
             if (is_file($qrAbsolutePath) && is_readable($qrAbsolutePath)) {
                 $binary = file_get_contents($qrAbsolutePath);
 
@@ -182,8 +188,8 @@ class CertificateService
         $dompdf->render();
         error_log('[CertificateService] PDF rendered successfully');
 
-        $dir = $this->projectDir . '/public/uploads/certificates';
-        error_log('[CertificateService] Certificate directory: ' . $dir);
+        $fullPath = $this->pathFor($user, $formation);
+        $dir = dirname($fullPath);
 
         if (!is_dir($dir) && !mkdir($dir, 0775, true) && !is_dir($dir)) {
             throw new \RuntimeException('Impossible de créer le dossier des certificats: ' . $dir);
@@ -192,16 +198,6 @@ class CertificateService
         if (!is_writable($dir)) {
             throw new \RuntimeException('Le dossier des certificats n’est pas accessible en écriture: ' . $dir);
         }
-
-        $fileName = sprintf(
-            'cert_%s_%s_%s.pdf',
-            (string) $user->getId(),
-            (string) $formation->getId(),
-            uniqid('', true)
-        );
-
-        $fullPath = $dir . DIRECTORY_SEPARATOR . $fileName;
-        error_log('[CertificateService] Certificate file path: ' . $fullPath);
 
         $pdfContent = $dompdf->output();
         error_log('[CertificateService] PDF content size: ' . strlen($pdfContent) . ' bytes');

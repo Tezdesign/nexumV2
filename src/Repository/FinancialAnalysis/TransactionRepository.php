@@ -90,12 +90,24 @@ class TransactionRepository extends ServiceEntityRepository
     /**
      * @param array<int, int|string> $ids
      */
-    public function bulkDeleteDql(array $ids): void
+    /**
+     * Deletes the given transactions, but only those that belong to the given budget.
+     *
+     * @param array<int, int> $ids
+     * @return int how many rows were deleted
+     */
+    public function bulkDeleteDql(array $ids, int $projectBudgetId): int
     {
-        $this->createQueryBuilder('t')
+        if ($ids === []) {
+            return 0;
+        }
+
+        return (int) $this->createQueryBuilder('t')
             ->delete()
             ->where('t.id IN (:ids)')
+            ->andWhere('t.projectBudget = :budget')
             ->setParameter('ids', $ids)
+            ->setParameter('budget', $projectBudgetId)
             ->getQuery()
             ->execute();
     }

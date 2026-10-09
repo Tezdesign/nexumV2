@@ -167,6 +167,7 @@
 
         <div class="col-xl-8 nexum-reveal nexum-reveal-delay-2">
             <form method="post" action="{{ path('user_account') }}" enctype="multipart/form-data" novalidate id="accountForm">
+                <input type="hidden" name="_token" value="{{ csrf_token('profile') }}">
                 <div class="card account-form-card border-0 mb-4 nexum-card nexum-reveal nexum-reveal-delay-2">
                     <div class="card-header bg-transparent border-bottom border-dashed py-3">
                         <div class="d-flex align-items-center gap-3">
@@ -185,14 +186,14 @@
                                 <label for="prenom" class="form-label fw-medium">First name <span class="text-danger">*</span></label>
                                 <div class="input-group">
                                     <span class="input-group-text bg-light border-end-0 text-muted"><i class="ri-user-line"></i></span>
-                                    <input type="text" class="form-control border-start-0 ps-0" id="prenom" name="prenom" value="{{ utilisateur.prenom }}" required maxlength="255" placeholder="Jane">
+                                    <input type="text" class="form-control border-start-0 ps-0" id="prenom" name="prenom" value="{{ utilisateur.prenom }}" required maxlength="50" placeholder="Jane">
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <label for="nom" class="form-label fw-medium">Last name <span class="text-danger">*</span></label>
                                 <div class="input-group">
                                     <span class="input-group-text bg-light border-end-0 text-muted"><i class="ri-user-line"></i></span>
-                                    <input type="text" class="form-control border-start-0 ps-0" id="nom" name="nom" value="{{ utilisateur.nom }}" required maxlength="255" placeholder="Doe">
+                                    <input type="text" class="form-control border-start-0 ps-0" id="nom" name="nom" value="{{ utilisateur.nom }}" required maxlength="50" placeholder="Doe">
                                 </div>
                             </div>
                         </div>
@@ -200,7 +201,7 @@
                             <label for="email" class="form-label fw-medium">Work email <span class="text-danger">*</span></label>
                             <div class="input-group">
                                 <span class="input-group-text bg-light border-end-0 text-muted"><i class="ri-mail-line"></i></span>
-                                <input type="email" class="form-control border-start-0 ps-0" id="email" name="email" value="{{ utilisateur.email }}" required maxlength="255" placeholder="you@company.com">
+                                <input type="email" class="form-control border-start-0 ps-0" id="email" name="email" value="{{ utilisateur.email }}" required maxlength="150" placeholder="you@company.com">
                             </div>
                         </div>
                         <div class="row g-3">
@@ -208,14 +209,14 @@
                                 <label for="telephone" class="form-label fw-medium">Phone</label>
                                 <div class="input-group">
                                     <span class="input-group-text bg-light border-end-0 text-muted"><i class="ri-smartphone-line"></i></span>
-                                    <input type="text" class="form-control border-start-0 ps-0" id="telephone" name="telephone" value="{{ utilisateur.telephone ?? '' }}" maxlength="64" placeholder="+216 …">
+                                    <input type="text" class="form-control border-start-0 ps-0" id="telephone" name="telephone" value="{{ utilisateur.telephone ?? '' }}" maxlength="20" placeholder="+216 …">
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <label for="departement" class="form-label fw-medium">Department</label>
                                 <div class="input-group">
                                     <span class="input-group-text bg-light border-end-0 text-muted"><i class="ri-team-line"></i></span>
-                                    <input type="text" class="form-control border-start-0 ps-0" id="departement" name="departement" value="{{ utilisateur.departement ?? '' }}" maxlength="255" placeholder="Engineering, HR, …">
+                                    <input type="text" class="form-control border-start-0 ps-0" id="departement" name="departement" value="{{ utilisateur.departement ?? '' }}" maxlength="100" placeholder="Engineering, HR, …">
                                 </div>
                             </div>
                         </div>
@@ -254,6 +255,13 @@
                     </div>
                     <div class="card-body p-4">
                         <div class="row g-3">
+                            <div class="col-12">
+                                <label for="current_password" class="form-label fw-medium">Current password</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="ri-lock-line"></i></span>
+                                    <input type="password" class="form-control border-start-0 ps-0" id="current_password" name="current_password" autocomplete="current-password" placeholder="Required only to set a new password">
+                                </div>
+                            </div>
                             <div class="col-md-6">
                                 <label for="new_password" class="form-label fw-medium">New password</label>
                                 <div class="input-group">

@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Attribute\RequireAdmin;
 use App\Entity\Formation;
 use App\Entity\Quiz;
 use App\Form\PdfQuizUploadType;
@@ -20,6 +21,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use DateTime;
 
 #[Route('/quiz')]
+#[RequireAdmin]
 final class QuizController extends AbstractController
 {
     #[Route('/ai/upload', name: 'app_quiz_ai_upload', methods: ['GET'])]
@@ -57,7 +59,8 @@ final class QuizController extends AbstractController
         }
 
         // Stockage temporaire (sans base de données)
-        $uploadDir = $this->getParameter('kernel.project_dir') . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'quiz_ai';
+        // Private folder: the PDF is only needed while the generator reads it.
+        $uploadDir = $pythonQuizGeneratorService->getUploadDir();
         try {
             if (!$filesystem->exists($uploadDir)) {
                 $filesystem->mkdir($uploadDir, 0775);
@@ -85,97 +88,15 @@ final class QuizController extends AbstractController
             $this->addFlash('error', 'Génération IA échouée: ' . $e->getMessage());
             return $this->redirectToRoute('app_quiz_ai_upload');
         } finally {
-            // On reste "temporaire": on peut garder le fichier pour debug si besoin.
-            // Si tu préfères toujours supprimer, décommente ceci:
-            // try { if ($filesystem->exists($absolutePdfPath)) { $filesystem->remove($absolutePdfPath); } } catch (\Throwable) {}
+            try {
+                $filesystem->remove($absolutePdfPath);
+            } catch (\Throwable) {
+                // A leftover temporary file is harmless, it is outside public/.
+            }
         }
 
         return $this->render('quiz/ai_result.html.twig', [
             'quiz' => $quiz,
-        ]);
-    }
-
-    #[Route('/ai/save', name: 'app_quiz_ai_save', methods: ['POST'])]
-    public function saveAiQuiz(
-        Request $request,
-        EntityManagerInterface $em
-    ): Response {
-        $quizData = json_decode($request->getContent(), true);
-        
-        if (!is_array($quizData) || !isset($quizData['questions'])) {
-            return new JsonResponse(['error' => 'Invalid quiz data'], 400);
-        }
-
-        $formationId = $request->request->get('formation_id');
-        if (!$formationId) {
-            return new JsonResponse(['error' => 'Formation ID required'], 400);
-        }
-
-        $formation = $em->find(Formation::class, $formationId);
-        if (!$formation) {
-            return new JsonResponse(['error' => 'Formation not found'], 404);
-        }
-
-        $savedCount = 0;
-        foreach ($quizData['questions'] as $questionData) {
-            $quiz = new Quiz();
-            $quiz->setFormation($formation);
-            $quiz->setQuestion($questionData['question'] ?? '');
-            $quiz->setType($questionData['type'] ?? 'mcq');
-            $quiz->setExplanation($questionData['explanation'] ?? null);
-            $quiz->setDifficulty($questionData['difficulty'] ?? null);
-            $quiz->setSource('ai');
-            $quiz->setCreatedAt(new DateTime());
-
-            switch ($questionData['type']) {
-                case 'mcq':
-                    $choices = $questionData['choices'] ?? [];
-                    $quiz->setR1($choices[0] ?? '');
-                    $quiz->setR2($choices[1] ?? '');
-                    $quiz->setR3($choices[2] ?? '');
-                    $quiz->setR4($choices[3] ?? '');
-                    
-                    // Convert answer index (0-based) to correct number (1-based)
-                    $answerIndex = $questionData['answer'] ?? 0;
-                    $quiz->setCorrect((int) $answerIndex + 1);
-                    $quiz->setAnswerText(null);
-                    break;
-
-                case 'true_false':
-                    $choices = $questionData['choices'] ?? ['Vrai', 'Faux'];
-                    $quiz->setR1($choices[0] ?? 'Vrai');
-                    $quiz->setR2($choices[1] ?? 'Faux');
-                    $quiz->setR3(null);
-                    $quiz->setR4(null);
-                    
-                    $answer = $questionData['answer'] ?? '';
-                    $quiz->setCorrect($answer === 'Vrai' ? 1 : 2);
-                    $quiz->setAnswerText(null);
-                    break;
-
-                case 'short_answer':
-                    $quiz->setR1(null);
-                    $quiz->setR2(null);
-                    $quiz->setR3(null);
-                    $quiz->setR4(null);
-                    $quiz->setCorrect(null);
-                    $quiz->setAnswerText($questionData['answer'] ?? '');
-                    break;
-
-                default:
-                    continue 2; // Skip invalid question types
-            }
-
-            $em->persist($quiz);
-            $savedCount++;
-        }
-
-        $em->flush();
-
-        return new JsonResponse([
-            'success' => true,
-            'saved' => $savedCount,
-            'message' => "{$savedCount} questions sauvegardées avec succès"
         ]);
     }
 
@@ -284,6 +205,12 @@ final class QuizController extends AbstractController
         Request $request,
         EntityManagerInterface $em
     ): Response {
+        if (!$this->isCsrfTokenValid('edit_quiz_' . $quiz->getId(), (string) $request->request->get('_token'))) {
+            $this->addFlash('error', 'Jeton de sécurité invalide.');
+
+            return $this->redirectToRoute('app_formation_show_admin', ['id' => $quiz->getFormation()->getId()]);
+        }
+
         $data = $request->request->all('quiz');
 
         $quiz->setQuestion($data['question']);
@@ -318,11 +245,14 @@ final class QuizController extends AbstractController
     #[Route('/{id}/delete', name: 'app_quiz_delete', methods: ['POST'])]
     public function delete(
         Quiz $quiz,
+        Request $request,
         EntityManagerInterface $em
     ): Response {
         $formationId = $quiz->getFormation()->getId();
-        $em->remove($quiz);
-        $em->flush();
+        if ($this->isCsrfTokenValid('delete_quiz_' . $quiz->getId(), (string) $request->request->get('_token'))) {
+            $em->remove($quiz);
+            $em->flush();
+        }
 
         return $this->redirectToRoute('app_formation_show_admin', [
             'id' => $formationId,

@@ -2,6 +2,7 @@
 
 namespace App\Controller\Project;
 
+use App\Controller\Trait\LocalRedirectTrait;
 use App\Entity\Projects\Project;
 use App\Entity\Projects\ProjectAssignment;
 use App\Entity\Tasks\Task;
@@ -29,6 +30,8 @@ use Symfony\UX\Chartjs\Model\Chart;
 #[Route('/project')]
 final class ProjectController extends AbstractController
 {
+    use LocalRedirectTrait;
+
     #[Route(name: 'app_project_index', methods: ['GET', 'POST'])]
     public function index(
         Request $request,
@@ -88,7 +91,7 @@ final class ProjectController extends AbstractController
         ]);
         $createForm->handleRequest($request);
         $backUrl = (string) $request->request->get('back', $request->query->get('back', ''));
-        $backUrl = ($backUrl !== '' && str_starts_with($backUrl, '/')) ? $backUrl : '';
+        $backUrl = $this->localPath($backUrl);
         $aiTaskSuggestionsJson = (string) $request->request->get('ai_task_suggestions', '[]');
 
         if ($createForm->isSubmitted() && !$isManager) {
@@ -1078,12 +1081,9 @@ final class ProjectController extends AbstractController
             }
         }
 
-        $referer = $request->headers->get('referer', '');
-        $routeName = str_contains((string) $referer, '/mobile/') ? 'app_mobile_project_show' : 'app_project_show';
-
         if (!$this->isCsrfTokenValid('expense_draft', (string) ($data['_token'] ?? ''))) {
             $this->addFlash('danger', 'Invalid CSRF token.');
-            return $this->redirectToRoute($routeName, ['id' => $pid, 'tab' => 'drafts']);
+            return $this->redirectToRoute('app_project_show', ['id' => $pid, 'tab' => 'drafts']);
         }
 
         $errors = $validator->validate($draft);
@@ -1100,13 +1100,13 @@ final class ProjectController extends AbstractController
             $this->addFlash('draft_errors_' . $draft->getId(), $errorMap);
             $this->addFlash('draft_data_' . $draft->getId(), $data);
 
-            return $this->redirectToRoute($routeName, ['id' => $pid, 'tab' => 'drafts']);
+            return $this->redirectToRoute('app_project_show', ['id' => $pid, 'tab' => 'drafts']);
         }
 
         $budgetAdvService->evaluateDraft($draft);
         $this->addFlash('success', 'Draft updated successfully!');
 
-        return $this->redirectToRoute($routeName, ['id' => $pid, 'tab' => 'drafts']);
+        return $this->redirectToRoute('app_project_show', ['id' => $pid, 'tab' => 'drafts']);
     }
 
     #[Route('/draft/{id}/delete', name: 'app_project_delete_draft', methods: ['POST'])]
@@ -1132,10 +1132,7 @@ final class ProjectController extends AbstractController
             $this->addFlash('danger', 'Invalid CSRF token for deletion.');
         }
 
-        $referer = $request->headers->get('referer', '');
-        $routeName = str_contains((string) $referer, '/mobile/') ? 'app_mobile_project_show' : 'app_project_show';
-
-        return $this->redirectToRoute($routeName, ['id' => $pid, 'tab' => 'drafts']);
+        return $this->redirectToRoute('app_project_show', ['id' => $pid, 'tab' => 'drafts']);
     }
 
     /**

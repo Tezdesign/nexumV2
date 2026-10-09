@@ -3,48 +3,30 @@
 namespace App\Controller\Admin;
 
 use App\Controller\Trait\ValidationFlashTrait;
-use App\Service\AuthService;
 use App\Service\AIAuditService;
 use App\Repository\UserHandling\UtilisateurRepository;
 use App\Repository\UserHandling\ReclamationRepository;
+use App\Attribute\RequireAdmin;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 
 #[Route('/admin/audit')]
+#[RequireAdmin]
 class AuditController extends AbstractController
 {
     use ValidationFlashTrait;
 
     public function __construct(
-        private readonly AuthService $authService,
         private readonly AIAuditService $aiAuditService,
         private readonly UtilisateurRepository $utilisateurRepository,
         private readonly ReclamationRepository $reclamationRepository,
     ) {
     }
 
-    private function ensureAdmin(): ?Response
-    {
-        if (!$this->authService->isLoggedIn()) {
-            return $this->redirectToRoute('welcome');
-        }
-        if (!$this->authService->isAdmin()) {
-            $this->addFlash('error', 'You do not have access to the administration area.');
-
-            return $this->redirectToRoute('dashboard');
-        }
-
-        return null;
-    }
-
     #[Route('', name: 'admin_audit_dashboard', methods: ['GET'])]
     public function dashboard(): Response
     {
-        if ($r = $this->ensureAdmin()) {
-            return $r;
-        }
-
         // Real statistics from database
         $allUsers = $this->utilisateurRepository->findAll();
         $totalUsers = count($allUsers);
@@ -114,10 +96,6 @@ class AuditController extends AbstractController
     #[Route('/users', name: 'admin_audit_users', methods: ['GET'])]
     public function userAudit(): Response
     {
-        if ($r = $this->ensureAdmin()) {
-            return $r;
-        }
-
         // Real user data for audit
         $allUsers = $this->utilisateurRepository->findAll();
         $totalUsers = count($allUsers);
@@ -154,10 +132,6 @@ class AuditController extends AbstractController
     #[Route('/reclamations', name: 'admin_audit_reclamations', methods: ['GET'])]
     public function reclamationAudit(): Response
     {
-        if ($r = $this->ensureAdmin()) {
-            return $r;
-        }
-
         // Real reclamation data for audit
         $allReclamations = $this->reclamationRepository->findAll();
         $totalReclamations = count($allReclamations);
@@ -186,30 +160,6 @@ class AuditController extends AbstractController
 
         return $this->render('admin/audit/reclamation_audit.html.twig', [
             'reclamationData' => $reclamationData,
-            'aiInsights' => $aiInsights
-        ]);
-    }
-
-    #[Route('/anomalies', name: 'admin_audit_anomalies', methods: ['GET'])]
-    public function anomalySearch(): Response
-    {
-        if ($r = $this->ensureAdmin()) {
-            return $r;
-        }
-
-        // Sample system data for anomaly detection
-        $systemData = [
-            'user_activity' => 'Normal patterns with slight increase in logins',
-            'performance' => 'Response times within acceptable ranges',
-            'error_rates' => 'Error rate at 0.8%, slightly above baseline',
-            'login_patterns' => 'Multiple login attempts detected from unusual locations'
-        ];
-
-        // Generate AI insights for anomaly detection
-        $aiInsights = $this->aiAuditService->detectAnomalies($systemData);
-
-        return $this->render('admin/audit/anomaly_search.html.twig', [
-            'systemData' => $systemData,
             'aiInsights' => $aiInsights
         ]);
     }

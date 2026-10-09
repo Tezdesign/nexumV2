@@ -26,6 +26,12 @@
         </div>
     </div>
 
+    {% if forecastFailed|default(false) %}
+        <div class="alert alert-warning mb-3" role="alert">
+            The server forecast is unavailable (Python or scikit-learn could not run). The estimate below is computed in the browser from the same history.
+        </div>
+    {% endif %}
+
     <div class="row mb-4 g-3">
         <div class="col-md-4">
             <div class="card p-3 shadow-sm h-100">

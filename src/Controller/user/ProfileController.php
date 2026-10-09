@@ -2,18 +2,21 @@
 
 namespace App\Controller\user;
 
+use App\Controller\Trait\ProfilePhotoTrait;
 use App\Entity\UserHandling\Utilisateur;
 use App\Repository\UserHandling\UtilisateurRepository;
 use App\Service\AuthService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\Routing\Annotation\Route;
 
 class ProfileController extends AbstractController
 {
+    use ProfilePhotoTrait;
+
     public function __construct(
         private readonly AuthService $authService,
         private readonly UtilisateurRepository $utilisateurRepository,
@@ -26,6 +29,10 @@ class ProfileController extends AbstractController
     {
         if (!$this->authService->isLoggedIn()) {
             return $this->redirectToRoute('welcome');
+        }
+
+        if ($request->isMethod('POST') && !$this->isCsrfTokenValid('profile', (string) $request->request->get('_token'))) {
+            throw new AccessDeniedHttpException('Invalid CSRF token.');
         }
 
         $userId = $this->authService->getCurrentUserId();
@@ -43,30 +50,23 @@ class ProfileController extends AbstractController
             $prenom = trim((string) $request->request->get('prenom', ''));
             $telephone = trim((string) $request->request->get('telephone', ''));
             $departement = trim((string) $request->request->get('departement', ''));
+            $currentPassword = (string) $request->request->get('current_password', '');
             $newPassword = (string) $request->request->get('new_password', '');
             $confirmPassword = (string) $request->request->get('confirm_password', '');
 
-            $newProfileImageBinary = null;
-            $profileFile = $request->files->get('imagelink');
-            if ($profileFile instanceof UploadedFile) {
-                if ($profileFile->getError() === UPLOAD_ERR_OK) {
-                    $path = $profileFile->getRealPath() ?: $profileFile->getPathname();
-                    $newProfileImageBinary = @file_get_contents($path);
-                    if ($newProfileImageBinary === false || $newProfileImageBinary === '') {
-                        $newProfileImageBinary = null;
-                        $this->addFlash('warning', 'The profile photo could not be read. Please try another image.');
-                    }
-                } elseif ($profileFile->getError() !== UPLOAD_ERR_NO_FILE) {
-                    $this->addFlash('warning', 'Photo upload failed: '.$profileFile->getErrorMessage());
-                }
-            }
+            $newProfileImageBinary = $this->uploadedPhoto($request->files->get('imagelink'));
 
             if ($nom === '' || $prenom === '' || $email === '') {
                 $this->addFlash('error', 'First name, last name, and email are required.');
+            } elseif (mb_strlen($nom) > 50 || mb_strlen($prenom) > 50 || mb_strlen($email) > 150 || mb_strlen($telephone) > 20 || mb_strlen($departement) > 100) {
+                $this->addFlash('error', 'A field is too long (names 50, email 150, phone 20, department 100 characters).');
             } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 $this->addFlash('error', 'Please enter a valid email address.');
             } elseif ($utilisateur->getId() !== null && $this->utilisateurRepository->existsOtherUserWithEmail($email, $utilisateur->getId())) {
                 $this->addFlash('error', 'This email address is already used by another account.');
+            } elseif ($newPassword !== '' && !hash_equals((string) $utilisateur->getPassword(), $currentPassword)) {
+                // The password column is plain text (shared with the Java app), so the current one is compared as is.
+                $this->addFlash('error', 'The current password is not correct.');
             } elseif ($newPassword !== '' && $newPassword !== $confirmPassword) {
                 $this->addFlash('error', 'The new password and confirmation do not match.');
             } elseif ($newPassword !== '' && strlen($newPassword) < 6) {
@@ -126,19 +126,17 @@ class ProfileController extends AbstractController
             return $this->redirect('/images/users/avatar-1.jpg');
         }
 
-        $binary = $blob;
-        if ($binary === '') {
+        $mime = $blob === '' ? '' : (string) (new \finfo(FILEINFO_MIME_TYPE))->buffer($blob);
+        if (!in_array($mime, self::PHOTO_TYPES, true)) {
             return $this->redirect('/images/users/avatar-1.jpg');
         }
 
-        $finfo = new \finfo(FILEINFO_MIME_TYPE);
-        $mime = $finfo->buffer($binary) ?: 'image/jpeg';
-
-        return new Response($binary, Response::HTTP_OK, [
+        return new Response($blob, Response::HTTP_OK, [
             'Content-Type' => $mime,
-            // Same URL for every user — browsers cache aggressively; pair with ?v=avatar_v in Twig.
+            'X-Content-Type-Options' => 'nosniff',
+            'Content-Security-Policy' => "default-src 'none'; sandbox",
+            // Same URL for every user: pair with ?v=avatar_v in Twig.
             'Cache-Control' => 'private, no-cache, must-revalidate, max-age=0',
-            'Pragma' => 'no-cache',
         ]);
     }
 }

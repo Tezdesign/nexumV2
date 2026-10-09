@@ -2,6 +2,9 @@
 
 namespace App\Controller\chat;
 
+use App\Attribute\RequireLogin;
+use App\Service\Chat\PublicUrlFetcher;
+use App\Service\Chat\UserAvatarUrl;
 use App\Entity\Chat\Conversation;
 use App\Entity\Chat\Message;
 use App\Entity\Chat\MessageAttachment;
@@ -23,10 +26,15 @@ use Symfony\Component\HttpFoundation\HeaderUtils;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 
+#[RequireLogin]
 class MessageAttachmentController extends AbstractController
 {
+	private const MAX_GIF_BYTES = 15728640;
+	private const GIF_MIME_TYPES = ['image/gif', 'image/png', 'image/jpeg', 'image/webp'];
+
 	public function __construct(
 		private readonly AuthService $authService,
+		private readonly UserAvatarUrl $avatarUrl,
 	) {
 	}
 
@@ -68,126 +76,110 @@ class MessageAttachmentController extends AbstractController
 			], 400);
 		}
 
-		$sender = $utilisateurRepository->find($this->currentUserId());
-		$messagesPayload = [];
-		$attachments = [];
-		try {
-			foreach ($files as $file) {
-				$safeFileName = $this->normalizeAttachmentFileName($file->getClientOriginalName());
+		// Step 1: check every file. Nothing is saved until all of them are acceptable, so one bad file
+		// can neither leave a message without a file nor keep the files that came before it.
+		$prepared = [];
+		foreach ($files as $file) {
+			$safeFileName = $this->normalizeAttachmentFileName($file->getClientOriginalName());
 
-				if (!$file->isValid()) {
-					return $this->json([
-						'success' => false,
-						'error' => $this->formatUploadFailureMessage($file, MessageAttachment::MAX_FILE_SIZE_BYTES),
-					], 422);
-				}
-
-				$uploadedSize = $file->getSize();
-				if ($uploadedSize !== false && $uploadedSize > MessageAttachment::MAX_FILE_SIZE_BYTES) {
-					return $this->json([
-						'success' => false,
-						'error' => 'File is too big. Maximum size is 30 MB.',
-					], 422);
-				}
-
-				$mimeType = 'application/octet-stream';
-				try {
-					$detectedMimeType = $file->getMimeType() ?: $mimeType;
-					$mimeType = $this->normalizeAttachmentMimeType($detectedMimeType, $safeFileName);
-				} catch (\Throwable) {
-					// Keep default MIME when finfo cannot inspect the temporary file.
-					$mimeType = $this->normalizeAttachmentMimeType($mimeType, $safeFileName);
-				}
-
-				$path = $file->getRealPath() ?: $file->getPathname();
-				$fileStream = @fopen($path, 'rb');
-				if ($fileStream === false) {
-					return $this->json([
-						'success' => false,
-						'error' => 'Could not read uploaded file.',
-					], 422);
-				}
-
-				$fileSize = $uploadedSize !== false ? $uploadedSize : 0;
-				if ($fileSize <= 0) {
-					$stats = @fstat($fileStream);
-					$fileSize = is_array($stats) ? (int) $stats['size'] : 0;
-				}
-
-				$message = new Message();
-				$now = new \DateTime();
-				try {
-					$message->setConversationId($conversationId)
-						->setSenderId($this->currentUserId())
-						->setBody($safeFileName)
-						->setKind('ATTACHMENT')
-						->setCreatedAt($now);
-				} catch (InvalidArgumentException $exception) {
-					return $this->json([
-						'success' => false,
-						'error' => $exception->getMessage(),
-					], 422);
-				}
-
-				$entityManager->persist($message);
-				$entityManager->flush();
-
-				$attachment = new MessageAttachment();
-				try {
-					$attachment->setMessageId((int) $message->getId())
-						->setFileName($safeFileName)
-						->setMimeType($mimeType)
-						->setSizeBytes($fileSize)
-						->setData($fileStream)
-						->setCreatedAt($now);
-				} catch (InvalidArgumentException $exception) {
-					@fclose($fileStream);
-					return $this->json([
-						'success' => false,
-						'error' => $exception->getMessage(),
-					], 422);
-				}
-
-				$entityManager->persist($attachment);
-				$entityManager->flush();
-
-				$conversation->setLastMessageId($message->getId());
-				$conversation->setLastMessageAt($message->getCreatedAt());
-				$entityManager->flush();
-
-				$messagesPayload[] = [
-					'id' => $message->getId(),
-					'body' => $message->getBody() ?? '',
-					'kind' => 'ATTACHMENT',
-					'senderId' => $this->currentUserId(),
-					'senderName' => $sender !== null
-						? trim(sprintf('%s %s', (string) $sender->getPrenom(), (string) $sender->getNom()))
-						: 'Unknown User',
-					'senderAvatarSrc' => $sender !== null ? $this->toDataUri($sender->getImagelink(), 'image/jpeg') : null,
-					'isOwn' => true,
-					'createdAt' => $message->getCreatedAt()?->format(DATE_ATOM),
-					'timeLabel' => $this->formatMessageTimeLabel($message->getCreatedAt()),
-				];
-
-				$attachments[] = [
-					'id' => $attachment->getId(),
-					'messageId' => $message->getId(),
-					'fileName' => $attachment->getFileName(),
-					'mimeType' => $attachment->getMimeType(),
-					'sizeBytes' => $attachment->getSizeBytes(),
-					'url' => $this->generateUrl('apps-chat-attachment-show', ['attachmentId' => $attachment->getId()]),
-				];
+			if (!$file->isValid()) {
+				return $this->json([
+					'success' => false,
+					'error' => $this->formatUploadFailureMessage($file, MessageAttachment::MAX_FILE_SIZE_BYTES),
+				], 422);
 			}
+
+			$path = $file->getRealPath() ?: $file->getPathname();
+			$fileSize = $file->getSize();
+			if ($fileSize === false || !is_readable($path)) {
+				return $this->json([
+					'success' => false,
+					'error' => 'Could not read uploaded file.',
+				], 422);
+			}
+			if ($fileSize <= 0) {
+				return $this->json([
+					'success' => false,
+					'error' => sprintf('"%s" is empty.', $safeFileName),
+				], 422);
+			}
+			if ($fileSize > MessageAttachment::MAX_FILE_SIZE_BYTES) {
+				return $this->json([
+					'success' => false,
+					'error' => 'File is too big. Maximum size is 30 MB.',
+				], 422);
+			}
+
+			$mimeType = 'application/octet-stream';
+			try {
+				$mimeType = $this->normalizeAttachmentMimeType($file->getMimeType() ?: $mimeType, $safeFileName);
+			} catch (\Throwable) {
+				// Keep default MIME when finfo cannot inspect the temporary file.
+				$mimeType = $this->normalizeAttachmentMimeType($mimeType, $safeFileName);
+			}
+
+			$prepared[] = ['name' => $safeFileName, 'mime' => $mimeType, 'size' => $fileSize, 'path' => $path];
+		}
+
+		// Step 2: save everything in one transaction.
+		$sender = $utilisateurRepository->find($this->currentUserId());
+		$streams = [];
+		try {
+			$saved = $entityManager->wrapInTransaction(function () use ($entityManager, $conversation, $prepared, &$streams): array {
+				$saved = [];
+				foreach ($prepared as $item) {
+					$stream = fopen($item['path'], 'rb');
+					if ($stream === false) {
+						throw new \RuntimeException('Could not read uploaded file.');
+					}
+					$streams[] = $stream;
+					$saved[] = $this->saveAttachmentMessage($entityManager, $conversation, $item['name'], $item['name'], $item['mime'], $item['size'], $stream);
+				}
+
+				return $saved;
+			});
 		} catch (\Throwable $exception) {
 			$errorMessage = trim($exception->getMessage());
-			if ($errorMessage === '') {
-				$errorMessage = 'Unexpected attachment upload error.';
-			}
 
 			return $this->json([
 				'success' => false,
-				'error' => $errorMessage,
+				'error' => $errorMessage !== '' ? $errorMessage : 'Unexpected attachment upload error.',
 			], 500);
+		} finally {
+			foreach ($streams as $stream) {
+				@fclose($stream);
+			}
+		}
+
+		if (!$conversation->isGroupConversation()) {
+			$participantRepository->reactivateLeftParticipants($conversationId);
+		}
+
+		$messagesPayload = [];
+		$attachments = [];
+		foreach ($saved as [$message, $attachment]) {
+			$messagesPayload[] = [
+				'id' => $message->getId(),
+				'body' => $message->getBody() ?? '',
+				'kind' => 'ATTACHMENT',
+				'senderId' => $this->currentUserId(),
+				'senderName' => $sender !== null
+					? trim(sprintf('%s %s', (string) $sender->getPrenom(), (string) $sender->getNom()))
+					: 'Unknown User',
+				'senderAvatarSrc' => $this->avatarUrl->for($sender),
+				'isOwn' => true,
+				'createdAt' => $message->getCreatedAt()?->format(DATE_ATOM),
+				'timeLabel' => $this->formatMessageTimeLabel($message->getCreatedAt()),
+			];
+
+			$attachments[] = [
+				'id' => $attachment->getId(),
+				'messageId' => $message->getId(),
+				'fileName' => $attachment->getFileName(),
+				'mimeType' => $attachment->getMimeType(),
+				'sizeBytes' => $attachment->getSizeBytes(),
+				'url' => $this->generateUrl('apps-chat-attachment-show', ['attachmentId' => $attachment->getId()]),
+			];
 		}
 
 		return $this->json([
@@ -200,6 +192,7 @@ class MessageAttachmentController extends AbstractController
 	#[Route('/apps-chat/gifs', name: 'apps-chat-gifs', methods: ['POST'])]
 	public function storeGif(
 		Request $request,
+		PublicUrlFetcher $fetcher,
 		UtilisateurRepository $utilisateurRepository,
 		ConversationParticipantRepository $participantRepository,
 		EntityManagerInterface $entityManager,
@@ -244,7 +237,7 @@ class MessageAttachmentController extends AbstractController
 		}
 
 		try {
-			[$gifBinary, $mimeType, $fileName, $fileSize] = $this->downloadRemoteGif($gifUrl);
+			[$gifBinary, $mimeType, $fileName, $fileSize] = $this->downloadRemoteGif($gifUrl, $fetcher);
 		} catch (
 			\Throwable $exception
 		) {
@@ -260,33 +253,9 @@ class MessageAttachmentController extends AbstractController
 		}
 
 		$sender = $utilisateurRepository->find($this->currentUserId());
-		$now = new \DateTime();
 
 		try {
-			$message = new Message();
-			$message->setConversationId($conversationId)
-				->setSenderId($this->currentUserId())
-				->setBody('GIF')
-				->setKind('ATTACHMENT')
-				->setCreatedAt($now);
-
-			$entityManager->persist($message);
-			$entityManager->flush();
-
-			$attachment = new MessageAttachment();
-			$attachment->setMessageId((int) $message->getId())
-				->setFileName($fileName)
-				->setMimeType($mimeType)
-				->setSizeBytes($fileSize)
-				->setData($gifBinary)
-				->setCreatedAt($now);
-
-			$entityManager->persist($attachment);
-			$entityManager->flush();
-
-			$conversation->setLastMessageId($message->getId());
-			$conversation->setLastMessageAt($message->getCreatedAt());
-			$entityManager->flush();
+			[$message, $attachment] = $this->saveAttachmentMessage($entityManager, $conversation, 'GIF', $fileName, $mimeType, $fileSize, $gifBinary);
 		} catch (\Throwable $exception) {
 			$errorMessage = trim($exception->getMessage());
 			if ($errorMessage === '') {
@@ -299,6 +268,10 @@ class MessageAttachmentController extends AbstractController
 			], 500);
 		}
 
+		if (!$conversation->isGroupConversation()) {
+			$participantRepository->reactivateLeftParticipants($conversationId);
+		}
+
 		return $this->json([
 			'success' => true,
 			'message' => [
@@ -309,7 +282,7 @@ class MessageAttachmentController extends AbstractController
 				'senderName' => $sender !== null
 					? trim(sprintf('%s %s', (string) $sender->getPrenom(), (string) $sender->getNom()))
 					: 'Unknown User',
-				'senderAvatarSrc' => $sender !== null ? $this->toDataUri($sender->getImagelink(), 'image/jpeg') : null,
+				'senderAvatarSrc' => $this->avatarUrl->for($sender),
 				'isOwn' => true,
 				'createdAt' => $message->getCreatedAt()?->format(DATE_ATOM),
 				'timeLabel' => $this->formatMessageTimeLabel($message->getCreatedAt()),
@@ -323,6 +296,52 @@ class MessageAttachmentController extends AbstractController
 				'url' => $this->generateUrl('apps-chat-attachment-show', ['attachmentId' => $attachment->getId()]),
 			]],
 		]);
+	}
+
+	/**
+	 * Saves an ATTACHMENT message together with its file, in one transaction: if the file is rejected the
+	 * message is rolled back too, so the conversation never shows a message with nothing to open.
+	 *
+	 * @param resource|string $data
+	 *
+	 * @return array{0: Message, 1: MessageAttachment}
+	 */
+	private function saveAttachmentMessage(
+		EntityManagerInterface $entityManager,
+		Conversation $conversation,
+		string $body,
+		string $fileName,
+		string $mimeType,
+		int $sizeBytes,
+		mixed $data,
+	): array {
+		return $entityManager->wrapInTransaction(function () use ($entityManager, $conversation, $body, $fileName, $mimeType, $sizeBytes, $data): array {
+			$now = new \DateTime();
+
+			$message = (new Message())
+				->setConversationId((int) $conversation->getId())
+				->setSenderId($this->currentUserId())
+				->setBody($body)
+				->setKind('ATTACHMENT')
+				->setCreatedAt($now);
+			$entityManager->persist($message);
+			$entityManager->flush();
+
+			$attachment = (new MessageAttachment())
+				->setMessageId((int) $message->getId())
+				->setFileName($fileName)
+				->setMimeType($mimeType)
+				->setSizeBytes($sizeBytes)
+				->setData($data)
+				->setCreatedAt($now);
+			$entityManager->persist($attachment);
+
+			$conversation->setLastMessageId($message->getId());
+			$conversation->setLastMessageAt($now);
+			$entityManager->flush();
+
+			return [$message, $attachment];
+		});
 	}
 
 	private function formatMessageTimeLabel(?DateTimeInterface $createdAt): string
@@ -364,111 +383,54 @@ class MessageAttachmentController extends AbstractController
 		return (int) ($this->authService->getCurrentUserId() ?? 0);
 	}
 
+	/** Only checks the shape of the URL. Private and internal hosts are refused by PublicUrlFetcher when it connects. */
 	private function isAllowedGifSourceUrl(string $gifUrl): bool
 	{
-		$scheme = strtolower((string) parse_url($gifUrl, PHP_URL_SCHEME));
-		$host = strtolower((string) parse_url($gifUrl, PHP_URL_HOST));
-		if ($scheme === '' || $host === '') {
-			return false;
-		}
+		$parts = parse_url($gifUrl);
 
-		if (!in_array($scheme, ['http', 'https'], true)) {
-			return false;
-		}
-
-		if (
-			$host === 'localhost'
-			|| $host === '127.0.0.1'
-			|| $host === '::1'
-			|| str_starts_with($host, '10.')
-			|| str_starts_with($host, '192.168.')
-			|| str_starts_with($host, '169.254.')
-		) {
-			return false;
-		}
-
-		if (preg_match('/^172\.(1[6-9]|2\d|3[0-1])\./', $host) === 1) {
-			return false;
-		}
-
-		if (str_ends_with($host, '.local') || str_ends_with($host, '.internal')) {
-			return false;
-		}
-
-		return true;
+		return is_array($parts)
+			&& in_array(strtolower((string) ($parts['scheme'] ?? '')), ['http', 'https'], true)
+			&& ($parts['host'] ?? '') !== ''
+			&& !isset($parts['user'], $parts['pass']);
 	}
 
 	/**
 	 * @return array{0:string,1:string,2:string,3:int}
 	 */
-	private function downloadRemoteGif(string $gifUrl): array
+	private function downloadRemoteGif(string $gifUrl, PublicUrlFetcher $fetcher): array
 	{
-		$context = stream_context_create([
-			'http' => [
-				'method' => 'GET',
-				'timeout' => 12,
-				'follow_location' => 1,
-				'ignore_errors' => true,
-				'header' => "User-Agent: NexumChat/1.0\r\nAccept: image/gif,image/*;q=0.9,*/*;q=0.8\r\n",
-			],
-			'https' => [
-				'method' => 'GET',
-				'timeout' => 12,
-				'follow_location' => 1,
-				'ignore_errors' => true,
-				'verify_peer' => true,
-				'verify_peer_name' => true,
-				'header' => "User-Agent: NexumChat/1.0\r\nAccept: image/gif,image/*;q=0.9,*/*;q=0.8\r\n",
-			],
-		]);
-
-		$binary = @file_get_contents($gifUrl, false, $context);
-		if ($binary === false || $binary === '') {
+		try {
+			$result = $fetcher->fetch($gifUrl, [
+				'User-Agent' => 'NexumChat/1.0',
+				'Accept' => 'image/gif,image/*;q=0.9,*/*;q=0.8',
+			], self::MAX_GIF_BYTES, 12.0);
+		} catch (\Throwable) {
 			throw new InvalidArgumentException('Could not download GIF.');
 		}
 
-		$mimeType = $this->extractResponseMimeType($http_response_header) ?: 'image/gif';
-		if (!str_starts_with($mimeType, 'image/')) {
-			$mimeType = 'image/gif';
+		if ($result['status'] < 200 || $result['status'] >= 300 || $result['body'] === '') {
+			throw new InvalidArgumentException('Could not download GIF.');
+		}
+		if ($result['truncated']) {
+			throw new InvalidArgumentException('GIF is too big. Maximum size is 15 MB.');
 		}
 
-		$fileName = $this->buildGifAttachmentFileName($gifUrl);
-		$fileSize = strlen($binary);
+		// The type comes from the file itself, not from the server's header: only plain pictures are kept.
+		$mimeType = (string) (new \finfo(FILEINFO_MIME_TYPE))->buffer($result['body']);
+		if (!in_array($mimeType, self::GIF_MIME_TYPES, true)) {
+			throw new InvalidArgumentException('Unsupported GIF format.');
+		}
 
-		return [$binary, $mimeType, $fileName, $fileSize];
+		return [$result['body'], $mimeType, $this->buildGifAttachmentFileName($gifUrl, $mimeType), strlen($result['body'])];
 	}
 
-	private function buildGifAttachmentFileName(string $gifUrl): string
+	private function buildGifAttachmentFileName(string $gifUrl, string $mimeType): string
 	{
-		$path = (string) parse_url($gifUrl, PHP_URL_PATH);
-		$baseName = basename($path);
-		if ($baseName !== '' && str_contains($baseName, '.')) {
-			return $baseName;
-		}
+		$extension = ['image/gif' => 'gif', 'image/png' => 'png', 'image/jpeg' => 'jpg', 'image/webp' => 'webp'][$mimeType] ?? 'gif';
+		$baseName = pathinfo((string) parse_url($gifUrl, PHP_URL_PATH), PATHINFO_FILENAME);
+		$baseName = preg_replace('/[^A-Za-z0-9._-]+/', '-', $baseName) ?? '';
 
-		return sprintf('gif-%s.gif', bin2hex(random_bytes(6)));
-	}
-
-	/**
-	 * @param array<int,string> $headers
-	 */
-	private function extractResponseMimeType(array $headers): ?string
-	{
-		foreach ($headers as $header) {
-			if (stripos($header, 'Content-Type:') !== 0) {
-				continue;
-			}
-
-			$mimeType = trim(substr($header, strlen('Content-Type:')));
-			if ($mimeType === '') {
-				return null;
-			}
-
-			$mimeParts = explode(';', $mimeType, 2);
-			return trim($mimeParts[0]);
-		}
-
-		return null;
+		return ($baseName !== '' ? mb_substr($baseName, 0, 80) : 'gif-' . bin2hex(random_bytes(6))) . '.' . $extension;
 	}
 
 	private function formatUploadFailureMessage(UploadedFile $file, ?int $appLimitBytes = null): string
@@ -564,15 +526,6 @@ class MessageAttachmentController extends AbstractController
 		return $files;
 	}
 
-	private function toDataUri(mixed $blobValue, string $mime): ?string
-	{
-		if ($blobValue === null || $blobValue === '') {
-			return null;
-		}
-
-		return sprintf('data:%s;base64,%s', $mime, base64_encode((string) $blobValue));
-	}
-
 	#[Route('/apps-chat/messages/{messageId}/attachments', name: 'apps-chat-message-attachments', methods: ['GET'])]
 	public function listByMessage(
 		int $messageId,
@@ -662,6 +615,9 @@ class MessageAttachmentController extends AbstractController
 			$fileName
 		));
 		$response->headers->set('Cache-Control', 'private, max-age=0, must-revalidate');
+		// Defence in depth: never let the browser guess a type, and run nothing from an attachment.
+		$response->headers->set('X-Content-Type-Options', 'nosniff');
+		$response->headers->set('Content-Security-Policy', "sandbox; default-src 'none'; img-src 'self' data:; media-src 'self'; style-src 'unsafe-inline'");
 		$response->headers->set('Content-Length', (string) $lengthToSend);
 
 		if ($statusCode === 206) {
@@ -671,9 +627,15 @@ class MessageAttachmentController extends AbstractController
 		return $response;
 	}
 
+	/**
+	 * Types the browser may show inline. SVG is deliberately not one of them: it can carry script, and the
+	 * file would run on the app's own address. Everything else is offered as a download.
+	 */
 	private function isInlineMediaMimeType(string $mimeType): bool
 	{
-		return str_starts_with($mimeType, 'image/') || str_starts_with($mimeType, 'video/') || str_starts_with($mimeType, 'audio/');
+		return in_array($mimeType, ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/bmp', 'image/avif'], true)
+			|| str_starts_with($mimeType, 'video/')
+			|| str_starts_with($mimeType, 'audio/');
 	}
 
 	/**

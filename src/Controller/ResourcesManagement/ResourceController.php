@@ -2,18 +2,23 @@
 
 namespace App\Controller\ResourcesManagement;
 
+use App\Attribute\RequireAdmin;
 use App\Repository\ResourcesManagement\ResourceAssignmentRepository;
+use App\Service\ResourcesManagement\ResourceForecastService;
+use App\Service\ResourcesManagement\ResourceStockService;
 use App\Entity\ResourcesManagement\Resource;
 use App\Form\ResourcesManagement\ResourceType;
 use App\Repository\ResourcesManagement\ResourceRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 
 
 #[Route('/admin/resources')]
+#[RequireAdmin]
 final class ResourceController extends AbstractController
 {
     /**
@@ -44,20 +49,9 @@ final class ResourceController extends AbstractController
             $resource->setStatus('AVAILABLE');
             $resource->setAvailableQuantity($resource->getTotalQuantity() ?? 0);
 
-            // Handle image upload
-            $imageFile = $form->get('image_path')->getData();
-            if ($imageFile) {
-                $ext = $imageFile->guessExtension() ?? '';
-                $newFilename = uniqid() . ($ext !== '' ? '.' . $ext : '');
-                $projectDir = $this->getParameter('kernel.project_dir');
-                if (!is_string($projectDir)) {
-                    throw new \RuntimeException('Invalid project directory parameter.');
-                }
-                $imageFile->move($projectDir . '/public/uploads', $newFilename);
-                $resource->setImagePath('uploads/' . $newFilename);
-            }
-
             if ($form->isValid()) {
+                // Only a valid form stores the file, so a rejected one leaves nothing in public/uploads.
+                $this->storeImage($form->get('image_path')->getData(), $resource);
                 $entityManager->persist($resource);
                 $entityManager->flush();
 
@@ -86,28 +80,24 @@ final class ResourceController extends AbstractController
      * Edit an existing resource
      */
     #[Route('/{resource_id}/edit', name: 'app_resources_management_resource_edit', methods: ['GET', 'POST'])]
-    public function edit(Request $request, Resource $resource, EntityManagerInterface $entityManager): Response
+    public function edit(Request $request, Resource $resource, EntityManagerInterface $entityManager, ResourceStockService $stock): Response
     {
         $form = $this->createForm(ResourceType::class, $resource);
         $form->handleRequest($request);
 
         if ($form->isSubmitted()) {
-            // Handle image upload
-            $imageFile = $form->get('image_path')->getData();
-            if ($imageFile) {
-                $ext = $imageFile->guessExtension() ?? '';
-                $newFilename = uniqid() . ($ext !== '' ? '.' . $ext : '');
-                $projectDir = $this->getParameter('kernel.project_dir');
-                if (!is_string($projectDir)) {
-                    throw new \RuntimeException('Invalid project directory parameter.');
-                }
-                $imageFile->move($projectDir . '/public/uploads', $newFilename);
-                $resource->setImagePath('uploads/' . $newFilename);
+            $held = $stock->heldQuantity($resource);
+            if ((int) $resource->getTotalQuantity() < $held) {
+                $form->get('total_quantity')->addError(new \Symfony\Component\Form\FormError(
+                    sprintf('Total quantity cannot be lower than the %d unit(s) currently lent out.', $held)
+                ));
             }
 
             if ($form->isValid()) {
-                // Update available quantity based on total_quantity
-                $resource->setAvailableQuantity((int) ($resource->getTotalQuantity() ?? $resource->getAvailableQuantity()));
+                $this->storeImage($form->get('image_path')->getData(), $resource);
+
+                // Available stock = total minus what is lent out, not the new total.
+                $stock->recalculate($resource);
 
                 $entityManager->flush();
 
@@ -179,7 +169,9 @@ public function activeReturns(
 public function markReturned(
     int $id,
     ResourceAssignmentRepository $repo,
-    EntityManagerInterface $em
+    ResourceRepository $resourceRepository,
+    EntityManagerInterface $em,
+    ResourceStockService $stock
 ): Response {
 
     $assignment = $repo->find($id);
@@ -219,10 +211,19 @@ public function markReturned(
         }
     }
 
-    // ✅ mark returned
-    $assignment->setReturned(true);
-
-    $em->flush();
+    // ✅ mark returned and put the units back in stock
+    $resource = $resourceRepository->find($assignment->getResourceId());
+    $em->wrapInTransaction(function () use ($em, $assignment, $resource, $stock): void {
+        if ($resource) {
+            $stock->lock($resource);
+        }
+        $assignment->setReturned(true);
+        $em->flush();
+        if ($resource) {
+            $stock->recalculate($resource);
+            $em->flush();
+        }
+    });
 
     $this->addFlash('success', 'Resource marked as returned and score updated.');
 
@@ -236,7 +237,7 @@ public function calendar(ResourceAssignmentRepository $repo): Response
     $events = [];
     $dayData = [];
 
-    $today = new \DateTime();
+    $today = new \DateTimeImmutable('today');
 
     foreach ($assignments as $a) {
 
@@ -264,19 +265,14 @@ public function calendar(ResourceAssignmentRepository $repo): Response
         // =========================
         // 📌 RETURN DAY DATA
         // =========================
-        $isOverdue = $end < $today;
-        $isToday = $end->format('Y-m-d') === $today->format('Y-m-d');
-
-        if ($isOverdue) {
-            $status = 'OVERDUE';
-            $color = '#dc3545';
-        } elseif ($isToday) {
-            $status = 'DUE TODAY';
-            $color = '#fd7e14';
-        } else {
-            $status = 'ACTIVE';
-            $color = '#28a745';
-        }
+        $status = $this->returnStatus($a, $today);
+        $isOverdue = $status === 'OVERDUE';
+        $color = match ($status) {
+            'OVERDUE' => '#dc3545',
+            'DUE TODAY' => '#fd7e14',
+            'RETURNED' => '#6c757d',
+            default => '#28a745',
+        };
 
         $dayData[$end->format('Y-m-d')][] = [
             'assignmentId' => $id,
@@ -331,19 +327,19 @@ public function calendarEvents(ResourceAssignmentRepository $repo): Response
         $start = $a->getAssignmentDate()?->format('Y-m-d');
         $end = $a->getReturnDate()?->format('Y-m-d');
 
-        $today = new \DateTime();
+        $today = new \DateTimeImmutable('today');
 
         // 🎯 COLOR LOGIC
-        $color = '#28a745'; // green default
-
+        $status = $this->returnStatus($a, $today);
         $returnDateObj = $a->getReturnDate();
-        if ($returnDateObj instanceof \DateTimeInterface && $returnDateObj < $today) {
-            $color = '#dc3545'; // red (late)
-        } elseif ($returnDateObj instanceof \DateTimeInterface && (
-                  $returnDateObj->format('Y-m-d') === $today->format('Y-m-d') ||
-                  $returnDateObj->diff($today)->days == 1)) {
-            $color = '#fd7e14'; // orange (today or next day)
-        }
+        $dueTomorrow = $status === 'ACTIVE' && $returnDateObj instanceof \DateTimeInterface
+            && $returnDateObj->format('Y-m-d') === $today->modify('+1 day')->format('Y-m-d');
+        $color = match (true) {
+            $status === 'OVERDUE' => '#dc3545', // red (late)
+            $status === 'DUE TODAY', $dueTomorrow => '#fd7e14', // orange (today or next day)
+            $status === 'RETURNED' => '#6c757d', // grey
+            default => '#28a745', // green
+        };
 
         $events[] = [
             'title' => 'Resource #' . $a->getResourceId(),
@@ -360,25 +356,20 @@ public function calendarEvents(ResourceAssignmentRepository $repo): Response
     return $this->json($events);
 }
 #[Route('/predict', name: 'resource_predict', methods: ['GET'])]
-public function predict(
-    ResourceAssignmentRepository $repo,
-    ResourceRepository $resourceRepository
-): Response
+public function predict(ResourceForecastService $forecast): Response
 {
-    return new Response((string) $this->runForecast(
-        $this->buildPredictionDataset($repo, $resourceRepository)
-    ), 200, [
+    $prediction = $forecast->forecast($forecast->dataset());
+
+    return new Response($prediction === null ? 'Forecast unavailable.' : (string) $prediction, $prediction === null ? 503 : 200, [
         'Content-Type' => 'text/plain'
     ]);
 }
 #[Route('/prediction', name: 'resource_prediction_page')]
 public function predictionPage(
-    ResourceAssignmentRepository $repo,
-    ResourceRepository $resourceRepository
+    ResourceRepository $resourceRepository,
+    ResourceForecastService $forecast
 ): Response
 {
-    $resourceEntities = $resourceRepository->findAll();
-    $assignments = $repo->findAll();
     $resources = array_map(
         static fn (Resource $resource): array => [
             'id' => $resource->getResourceId(),
@@ -387,160 +378,59 @@ public function predictionPage(
             'total' => $resource->getTotalQuantity(),
             'available' => $resource->getAvailableQuantity(),
         ],
-        $resourceEntities
+        $resourceRepository->findAll()
     );
 
-    $data = [];
-foreach ($assignments as $a) {
-
-    if (!$a->getAssignmentDate()) continue;
-
-    $resource = $resourceRepository->find($a->getResourceId());
-
-    if (!$resource) continue;
-
-    $data[] = [
-        'resource_id' => $resource->getResourceId(),
-        'resource_name' => $resource->getResourceName(),
-        'type' => $resource->getResourceType(),
-        'quantity' => $a->getQuantity(),
-        'date' => $a->getAssignmentDate()->format('Y-m-d')
-    ];
-}
-
-    $projectDir = $this->getParameter('kernel.project_dir');
-    if (!is_string($projectDir)) {
-        throw new \RuntimeException('Invalid project directory parameter.');
-    }
-    $script = $projectDir . '/python/forecast.py';
-
-    $json = json_encode($data);
-
-    // 🔥 FIX: use stdin instead of shell arguments
-    $descriptorspec = [
-        0 => ["pipe", "r"], // stdin
-        1 => ["pipe", "w"], // stdout
-        2 => ["pipe", "w"]  // stderr
-    ];
-
-    $process = proc_open("python \"$script\"", $descriptorspec, $pipes);
-
-    $output = "0";
-
-    if (is_resource($process)) {
-        fwrite($pipes[0], $json ?: '[]');
-        fclose($pipes[0]);
-
-        $output = stream_get_contents($pipes[1]);
-        fclose($pipes[1]);
-
-        $error = stream_get_contents($pipes[2]);
-        fclose($pipes[2]);
-
-        proc_close($process);
-
-        // optional debug (uncomment if needed)
-        // if (!empty($error)) { dump($error); }
-    }
-
-    $prediction = is_numeric(trim($output)) ? round((float) trim($output), 2) : 0.0;
+    $data = $forecast->dataset();
+    $prediction = $forecast->forecast($data);
 
     return $this->render('resources-management/prediction.html.twig', [
-        'prediction' => $prediction,
+        'prediction' => $prediction ?? 0.0,
+        'forecastFailed' => $prediction === null,
         'data' => $data,
         'resources' => $resources,
     ]);
 }
 
-/**
- * @return array<int, array<string, mixed>>
- */
-private function buildPredictionDataset(
-    ResourceAssignmentRepository $repo,
-    ResourceRepository $resourceRepository
-): array
+private function storeImage(mixed $imageFile, Resource $resource): void
 {
-    /** @var array<int, \App\Entity\ResourcesManagement\Resource> $resourceMap */
-    $resourceMap = [];
-
-    foreach ($resourceRepository->findAll() as $resource) {
-        /** @var \App\Entity\ResourcesManagement\Resource $resource */
-        $resourceMap[$resource->getResourceId()] = $resource;
-    }
-
-    $data = [];
-
-    foreach ($repo->findAll() as $assignment) {
-        if (!$assignment->getAssignmentDate()) {
-            continue;
-        }
-
-        /** @var \App\Entity\ResourcesManagement\Resource|null $resource */
-        $resource = $resourceMap[$assignment->getResourceId()] ?? null;
-
-        if (!$resource) {
-            continue;
-        }
-
-        $data[] = [
-            'resource_id' => $resource->getResourceId(),
-            'resource_name' => $resource->getResourceName(),
-            'type' => $resource->getResourceType(),
-            'quantity' => $assignment->getQuantity(),
-            'date' => $assignment->getAssignmentDate()->format('Y-m-d')
-        ];
-    }
-
-    return $data;
-}
-
-/**
- * @param array<int, array<string, mixed>> $data
- */
-private function runForecast(array $data): float
-{
-    if ($data === []) {
-        return 0.0;
-    }
-
-    $json = json_encode($data);
-
-    if ($json === false) {
-        return 0.0;
+    if (!$imageFile instanceof UploadedFile) {
+        return;
     }
 
     $projectDir = $this->getParameter('kernel.project_dir');
     if (!is_string($projectDir)) {
-        return 0.0;
-    }
-    $script = $projectDir . '/python/forecast.py';
-    $descriptorspec = [
-        0 => ['pipe', 'r'],
-        1 => ['pipe', 'w'],
-        2 => ['pipe', 'w']
-    ];
-    $process = proc_open("python \"$script\"", $descriptorspec, $pipes);
-
-    if (!is_resource($process)) {
-        return 0.0;
+        throw new \RuntimeException('Invalid project directory parameter.');
     }
 
-    fwrite($pipes[0], $json);
-    fclose($pipes[0]);
+    // The form already limited the type to jpeg, png, gif or webp, so the guessed extension is one of those.
+    $newFilename = bin2hex(random_bytes(8)) . '.' . ($imageFile->guessExtension() ?? 'img');
+    $imageFile->move($projectDir . '/public/uploads', $newFilename);
+    $resource->setImagePath('uploads/' . $newFilename);
+}
 
-    $output = trim(stream_get_contents($pipes[1]));
-    fclose($pipes[1]);
+/**
+ * RETURNED, OVERDUE, DUE TODAY or ACTIVE. Dates are compared by day: a return date is a date without a
+ * time, so comparing it to the current time would call an item overdue from midnight on its due day.
+ */
+private function returnStatus(\App\Entity\ResourcesManagement\ResourceAssignment $assignment, \DateTimeImmutable $today): string
+{
+    $returnDate = $assignment->getReturnDate();
 
-    $error = trim(stream_get_contents($pipes[2]));
-    fclose($pipes[2]);
-
-    proc_close($process);
-
-    if ($error !== '' || !is_numeric($output)) {
-        return 0.0;
+    if ($assignment->isReturned()) {
+        return 'RETURNED';
+    }
+    if (!$returnDate instanceof \DateTimeInterface) {
+        return 'ACTIVE';
     }
 
-    return round((float) $output, 2);
+    $due = $returnDate->format('Y-m-d');
+
+    return match (true) {
+        $due < $today->format('Y-m-d') => 'OVERDUE',
+        $due === $today->format('Y-m-d') => 'DUE TODAY',
+        default => 'ACTIVE',
+    };
 }
 
 }

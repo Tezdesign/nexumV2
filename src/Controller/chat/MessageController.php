@@ -2,6 +2,9 @@
 
 namespace App\Controller\chat;
 
+use App\Attribute\RequireLogin;
+use App\Service\Chat\PublicUrlFetcher;
+use App\Service\Chat\UserAvatarUrl;
 use App\Entity\Chat\Conversation;
 use App\Entity\Chat\ConversationParticipant;
 use App\Entity\Chat\Message;
@@ -22,6 +25,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Symfony\Component\Routing\Annotation\Route;
 
+#[RequireLogin]
 class MessageController extends AbstractController
 {
 	private const LINK_PREVIEW_USER_AGENT = 'Mozilla/5.0 (compatible; NexumChatLinkPreview/1.0; +https://nexum.local)';
@@ -29,10 +33,12 @@ class MessageController extends AbstractController
 	private const LM_MODEL = 'dolphin3.0-llama3.1-8b';
 	private const AI_SUMMARY_UNREAD_THRESHOLD = 10;
 	private const AI_SUMMARY_TIMEOUT = 30;
+	private const LINK_PREVIEW_MAX_BYTES = 524288;
 
 	public function __construct(
 		private readonly HttpClientInterface $httpClient,
 		private readonly AuthService $authService,
+		private readonly UserAvatarUrl $avatarUrl,
 	) {
 	}
 
@@ -104,7 +110,7 @@ class MessageController extends AbstractController
 				'kind' => strtoupper((string) $message->getKind()),
 				'senderId' => $senderId,
 				'senderName' => $this->buildUserName($sender),
-				'senderAvatarSrc' => $sender !== null ? $this->toDataUri($sender->getImagelink(), 'image/jpeg') : null,
+				'senderAvatarSrc' => $this->avatarUrl->for($sender),
 				'isOwn' => $senderId === $this->currentUserId(),
 				'createdAt' => $createdAt?->format(DATE_ATOM),
 				'editedAt' => $editedAt?->format(DATE_ATOM),
@@ -353,6 +359,11 @@ class MessageController extends AbstractController
 		$conversation->setLastMessageAt($message->getCreatedAt());
 		$entityManager->flush();
 
+		// A new message brings a direct message back for anyone who had removed it from their list.
+		if (!$conversation->isGroupConversation()) {
+			$participantRepository->reactivateLeftParticipants($conversationId);
+		}
+
 		$sender = $utilisateurRepository->find($this->currentUserId());
 
 		return $this->json([
@@ -363,7 +374,7 @@ class MessageController extends AbstractController
 				'kind' => 'TEXT',
 				'senderId' => $this->currentUserId(),
 				'senderName' => $this->buildUserName($sender),
-				'senderAvatarSrc' => $sender !== null ? $this->toDataUri($sender->getImagelink(), 'image/jpeg') : null,
+				'senderAvatarSrc' => $this->avatarUrl->for($sender),
 				'isOwn' => true,
 				'createdAt' => $message->getCreatedAt()?->format(DATE_ATOM),
 				'editedAt' => null,
@@ -498,7 +509,7 @@ class MessageController extends AbstractController
 	}
 
 	#[Route('/apps-chat/link-preview', name: 'apps-chat-link-preview', methods: ['GET'])]
-	public function linkPreview(Request $request): JsonResponse
+	public function linkPreview(Request $request, PublicUrlFetcher $fetcher): JsonResponse
 	{
 		$url = trim((string) $request->query->get('url', ''));
 		if ($url === '' || filter_var($url, FILTER_VALIDATE_URL) === false) {
@@ -534,33 +545,26 @@ class MessageController extends AbstractController
 		];
 
 		try {
-			$response = $this->httpClient->request('GET', $url, [
-				'timeout' => 6.0,
-				'max_redirects' => 5,
-				'headers' => [
-					'User-Agent' => self::LINK_PREVIEW_USER_AGENT,
-					'Accept' => 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.8',
-				],
-			]);
+			// Private hosts, redirects to them and oversized pages are refused inside the fetcher.
+			$result = $fetcher->fetch($url, [
+				'User-Agent' => self::LINK_PREVIEW_USER_AGENT,
+				'Accept' => 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.8',
+			], self::LINK_PREVIEW_MAX_BYTES, 6.0);
 
-			$finalUrl = $response->getInfo('url') ?: $url;
-			$headers = $response->getHeaders(false);
-			$contentType = strtolower((string) ($headers['content-type'][0] ?? ''));
-
-			$preview['url'] = is_string($finalUrl) ? $finalUrl : $url;
+			$preview['url'] = $result['url'];
 			$preview['displayUrl'] = $this->shortenUrlLabel($preview['url']);
 			$finalHost = strtolower((string) (parse_url($preview['url'], PHP_URL_HOST) ?? $host));
 			$preview['host'] = $finalHost;
 			$preview['siteName'] = $finalHost !== '' ? $finalHost : $host;
 
-			if (!str_contains($contentType, 'text/html')) {
+			if (!str_contains($result['contentType'], 'text/html')) {
 				return $this->json([
 					'success' => false,
 					'preview' => $preview,
 				]);
 			}
 
-			$html = $response->getContent(false);
+			$html = $result['body'];
 			if (trim($html) === '') {
 				return $this->json([
 					'success' => false,
@@ -664,7 +668,7 @@ class MessageController extends AbstractController
 				'userId' => $userId,
 				'lastReadMessageId' => $lastReadMessageId,
 				'userName' => $userName,
-				'userAvatarSrc' => $user !== null ? $this->toDataUri($user->getImagelink(), 'image/jpeg') : null,
+				'userAvatarSrc' => $this->avatarUrl->for($user),
 				'userInitial' => strtoupper(substr(trim($userName), 0, 1)) ?: '?',
 			];
 		}
@@ -680,15 +684,6 @@ class MessageController extends AbstractController
 
 		$name = trim(sprintf('%s %s', (string) $user->getPrenom(), (string) $user->getNom()));
 		return $name !== '' ? $name : 'Unknown User';
-	}
-
-	private function toDataUri(mixed $blobValue, string $mime): ?string
-	{
-		if ($blobValue === null || $blobValue === '') {
-			return null;
-		}
-
-		return sprintf('data:%s;base64,%s', $mime, base64_encode($blobValue));
 	}
 
 	private function formatMessageTimeLabel(?DateTimeInterface $createdAt): string

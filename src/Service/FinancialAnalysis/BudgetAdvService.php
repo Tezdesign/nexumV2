@@ -11,7 +11,6 @@ class BudgetAdvService{
     public function __construct(
         private TransactionRepository $transactionRepository,
         private ExpenseDraftRepository $expenseDraftRepository,
-        private DraftNotificationService $notificationService,
         private DraftPolicyService $draftPolicyService){
 
 
@@ -228,10 +227,6 @@ class BudgetAdvService{
                 ]
             ];
 
-            $creatorId = $draft->getCreatedBy() ? $draft->getCreatedBy()->getId() : null;
-            if ($creatorId) {
-                $this->notificationService->addNotification($creatorId, 'Draft Auto-Rejected', 'Your draft "' . $draft->getSubject() . '" was automatically rejected: ' . $reason, 'error');
-            }
 
             $draft->setStatus('REJECTED');
             $draft->setEvalData($evalPayload);
@@ -278,10 +273,6 @@ class BudgetAdvService{
                 'rejected_by' => 'System (Auto)',
             ];
             
-            $creatorId = $draft->getCreatedBy() ? $draft->getCreatedBy()->getId() : null;
-            if ($creatorId) {
-                $this->notificationService->addNotification($creatorId, 'Draft Auto-Rejected', 'Your draft "' . $draft->getSubject() . '" was automatically rejected: ' . $reason, 'error');
-            }
         }
 
         $draft->setStatus($finalStatus);

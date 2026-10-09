@@ -14,7 +14,8 @@ class QrService
 
     public function __construct(string $projectDir)
     {
-        $this->publicDir = rtrim($projectDir, DIRECTORY_SEPARATOR) . '/public/uploads/quiz_ai';
+        // Private folder: a QR code only lives long enough to be printed into a certificate.
+        $this->publicDir = rtrim($projectDir, DIRECTORY_SEPARATOR) . '/var/qr';
     }
 
     /**
@@ -51,17 +52,17 @@ class QrService
         error_log('[QrService] Data length: ' . strlen($data));
 
         try {
-            $builder = new Builder(
-                writer: new PngWriter(),
-                writerOptions: [],
-                validateResult: false,
-                data: $data,
-                encoding: new Encoding('UTF-8'),
-                errorCorrectionLevel: ErrorCorrectionLevel::High,
-                size: 300,
-                margin: 10,
-                roundBlockSizeMode: RoundBlockSizeMode::Margin
-            );
+            // endroid/qr-code 5.x: fluent builder (the named-argument constructor belongs to 6.x and made every call fail).
+            $builder = Builder::create()
+                ->writer(new PngWriter())
+                ->writerOptions([])
+                ->validateResult(false)
+                ->data($data)
+                ->encoding(new Encoding('UTF-8'))
+                ->errorCorrectionLevel(ErrorCorrectionLevel::High)
+                ->size(300)
+                ->margin(10)
+                ->roundBlockSizeMode(RoundBlockSizeMode::Margin);
 
             $result = $builder->build();
             $result->saveToFile($filePath);
@@ -89,14 +90,4 @@ class QrService
             return null;
         }
     }
-
-    /**
-     * Retourne l'URL publique d'un fichier QR à partir de son chemin absolu.
-     */
-    public function getPublicUrl(string $filePath): string
-    {
-        $filename = basename($filePath);
-        return '/uploads/quiz_ai/' . $filename;
-    }
 }
-

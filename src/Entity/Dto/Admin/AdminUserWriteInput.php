@@ -2,6 +2,7 @@
 
 namespace App\Entity\Dto\Admin;
 
+use App\Entity\UserHandling\Utilisateur;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Validator\Constraints as Assert;
 use Symfony\Component\Validator\Context\ExecutionContextInterface;
@@ -30,7 +31,7 @@ final class AdminUserWriteInput
     public string $departement = '';
 
     #[Assert\NotBlank(message: 'Role is required.')]
-    #[Assert\Choice(choices: ['employee', 'manager', 'admin', 'hr', 'finance'], message: 'Invalid role.')]
+    #[Assert\Choice(choices: Utilisateur::ASSIGNABLE_ROLES, message: 'Invalid role.')]
     public string $role = '';
 
     #[Assert\NotBlank(message: 'Status is required.')]

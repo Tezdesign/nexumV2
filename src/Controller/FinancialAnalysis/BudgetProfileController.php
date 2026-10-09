@@ -2,6 +2,8 @@
 
 namespace App\Controller\FinancialAnalysis;
 
+use App\Attribute\RequireAdmin;
+use App\Attribute\RequireLogin;
 use App\Entity\FinancialAnalysis\BudgetProfile;
 use App\Form\FinancialAnalysis\BudgetProfileType;
 use App\Repository\FinancialAnalysis\BudgetProfileRepository;
@@ -12,6 +14,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 #[Route('/financial/analysis/budget/profile')]
+#[RequireLogin]
 final class BudgetProfileController extends AbstractController
 {
     #[Route(name: 'app_financial_analysis_budget_profile_index', methods: ['GET'])]
@@ -83,6 +86,7 @@ final class BudgetProfileController extends AbstractController
     }
 
     #[Route('/{id}', name: 'app_financial_analysis_budget_profile_delete', methods: ['POST'])]
+    #[RequireAdmin]
     public function delete(Request $request, BudgetProfile $budgetProfile, EntityManagerInterface $entityManager): Response
     {
         if ($this->isCsrfTokenValid('delete'.$budgetProfile->getId(), $request->getPayload()->getString('_token'))) {

@@ -3,10 +3,10 @@
 namespace App\Controller\tasks;
 
 use App\Controller\Project\ProjectProgressEngine;
+use App\Controller\Trait\LocalRedirectTrait;
 use App\Entity\Tasks\Task;
 use App\Form\Tasks\TaskManagerUpdateType;
 use App\Form\Tasks\TaskQuickCreateType;
-use App\Form\Tasks\TaskType;
 use App\Form\Tasks\TaskUpdateType;
 use App\Repository\Projects\ProjectAssignmentRepository;
 use App\Repository\Projects\ProjectRepository;
@@ -27,6 +27,8 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/task')]
 final class TaskController extends AbstractController
 {
+    use LocalRedirectTrait;
+
     #[Route(name: 'app_task_index', methods: ['GET', 'POST'])]
     public function index(
         Request $request,
@@ -67,7 +69,7 @@ final class TaskController extends AbstractController
         $openCreate = (string) $request->query->get('create', '') === '1';
         $prefillProject = $prefillProjectId > 0 ? $projectRepository->find($prefillProjectId) : null;
         $backUrl = (string) $request->request->get('back', $request->query->get('back', ''));
-        $backUrl = ($backUrl !== '' && str_starts_with($backUrl, '/')) ? $backUrl : '';
+        $backUrl = $this->localPath($backUrl);
         $forceSelfAssign = $isManager && (string) $request->query->get('dashboard_self', '') === '1';
 
         $createTaskMemberIds = [];
@@ -191,7 +193,7 @@ final class TaskController extends AbstractController
                 $entityManager->flush();
 
                 $back = (string) $request->request->get('back', '');
-                if ($back !== '' && str_starts_with($back, '/')) {
+                if ($this->localPath($back) !== '') {
                     if ($request->isXmlHttpRequest()) {
                         return $this->json(['location' => $back]);
                     }
@@ -233,10 +235,13 @@ final class TaskController extends AbstractController
         AuthService $authService
     ): JsonResponse
     {
-        $currentUserId = (int) ($authService->getCurrentUserId() ?? 0);
         $pid = (int) $request->query->get('project', 0);
         if ($pid <= 0) {
             return $this->json(['users' => []]);
+        }
+
+        if (!$this->canViewProject($pid, $authService, $projectRepository, $projectAssignmentRepository)) {
+            return $this->json(['users' => []], Response::HTTP_FORBIDDEN);
         }
 
         $project = $projectRepository->find($pid);
@@ -387,46 +392,6 @@ final class TaskController extends AbstractController
         ]);
     }
 
-    #[Route('/new', name: 'app_task_new', methods: ['GET', 'POST'])]
-    public function new(Request $request, TaskRepository $taskRepository, UtilisateurRepository $utilisateurRepository, AuthService $authService, ProjectActivityLogger $activityLogger, EntityManagerInterface $entityManager): Response
-    {
-        $task = new Task();
-        // Keep the legacy CRUD route around; UI uses the modal on /task.
-        $form = $this->createForm(TaskType::class, $task);
-        $form->handleRequest($request);
-
-        if ($form->isSubmitted() && $form->isValid()) {
-            $assignedUserId = (int) ($task->getAssignedTo() ?? 0);
-            if ($assignedUserId > 0) {
-                $this->applyWorkloadGuard($form, $taskRepository, $task, $assignedUserId);
-            }
-        }
-
-        if ($form->isSubmitted() && $form->isValid()) {
-            $currentUserId = (int) ($authService->getCurrentUserId() ?? 0);
-            $currentUser = $currentUserId > 0 ? $utilisateurRepository->find($currentUserId) : null;
-            $entityManager->persist($task);
-            $entityManager->flush();
-
-            if ($task->getProjectId() !== null) {
-                $activityLogger->record(
-                    (int) $task->getProjectId(),
-                    UserDisplayName::format($currentUser, (int) ($currentUser?->getId() ?? 0)),
-                    'task_created',
-                    sprintf('created task "%s".', (string) $task->getTitle())
-                );
-                $entityManager->flush();
-            }
-
-            return $this->redirectToRoute('app_task_index', [], Response::HTTP_SEE_OTHER);
-        }
-
-        return $this->render('task/new.html.twig', [
-            'task' => $task,
-            'form' => $form,
-        ]);
-    }
-
     #[Route('/{id}', name: 'app_task_show', methods: ['GET'])]
     public function show(Task $task): Response
     {
@@ -439,10 +404,20 @@ final class TaskController extends AbstractController
     }
 
     #[Route('/{id}/show-modal', name: 'app_task_show_modal', methods: ['GET'])]
-    public function showModal(Task $task, UtilisateurRepository $utilisateurRepository, AuthService $authService): Response
-    {
+    public function showModal(
+        Task $task,
+        UtilisateurRepository $utilisateurRepository,
+        ProjectRepository $projectRepository,
+        ProjectAssignmentRepository $projectAssignmentRepository,
+        AuthService $authService
+    ): Response {
         $currentUserId = (int) ($authService->getCurrentUserId() ?? 0);
         $isManager = $authService->isManager();
+        $isOwnTask = $currentUserId > 0
+            && ((int) ($task->getCreatedBy() ?? 0) === $currentUserId || (int) ($task->getAssignedTo() ?? 0) === $currentUserId);
+        if (!$isOwnTask && !$this->canViewProject((int) ($task->getProjectId() ?? 0), $authService, $projectRepository, $projectAssignmentRepository)) {
+            throw $this->createAccessDeniedException();
+        }
         $canEditTask = (int) ($task->getCreatedBy() ?? 0) === $currentUserId;
         $assignedUserId = (int) ($task->getAssignedTo() ?? 0);
         $assignedUser = $assignedUserId > 0 ? $utilisateurRepository->find($assignedUserId) : null;
@@ -513,7 +488,7 @@ final class TaskController extends AbstractController
 
         // Prefer returning the user to where they clicked from (internal paths only).
         $back = (string) $request->request->get('back', '');
-        if ($back !== '' && str_starts_with($back, '/')) {
+        if ($this->localPath($back) !== '') {
             return $this->redirect($back);
         }
 
@@ -554,7 +529,7 @@ final class TaskController extends AbstractController
         }
 
         $back = (string) $request->query->get('back', '');
-        $back = ($back !== '' && str_starts_with($back, '/')) ? $back : '';
+        $back = $this->localPath($back);
 
         $memberIds = [];
         foreach ($implicitManagerIds as $managerId => $_) {
@@ -766,6 +741,27 @@ final class TaskController extends AbstractController
         ]);
     }
 
+    /** Managers see every project; other users only the ones they created, are assigned to, or are members of. */
+    private function canViewProject(
+        int $projectId,
+        AuthService $authService,
+        ProjectRepository $projectRepository,
+        ProjectAssignmentRepository $projectAssignmentRepository
+    ): bool {
+        $userId = (int) ($authService->getCurrentUserId() ?? 0);
+        if ($userId <= 0) {
+            return false;
+        }
+        if ($authService->isManager()) {
+            return true;
+        }
+
+        return $projectId > 0 && in_array($projectId, array_merge(
+            $projectRepository->getProjectIdsForUser($userId),
+            $projectAssignmentRepository->getProjectIdsByUserId($userId),
+        ), true);
+    }
+
     private function applyWorkloadGuard(FormInterface $form, TaskRepository $taskRepository, Task $pendingTask, int $assignedUserId, ?int $excludeTaskId = null): void
     {
         if ($assignedUserId <= 0) {
@@ -950,7 +946,7 @@ final class TaskController extends AbstractController
 
         if (!$canDelete) {
             $back = (string) $request->request->get('back', '');
-            if ($back !== '' && str_starts_with($back, '/')) {
+            if ($this->localPath($back) !== '') {
                 return $this->redirect($back, Response::HTTP_SEE_OTHER);
             }
 
@@ -973,7 +969,7 @@ final class TaskController extends AbstractController
         }
 
         $back = (string) $request->request->get('back', '');
-        if ($back !== '' && str_starts_with($back, '/')) {
+        if ($this->localPath($back) !== '') {
             return $this->redirect($back, Response::HTTP_SEE_OTHER);
         }
 

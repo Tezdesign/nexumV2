@@ -27,6 +27,7 @@
             </div>
             <div class="modal-footer">
                 <form action="{{ path('apps-financial-analysis-delete-project-budget', {id: projectBudgetEntity.id}) }}" method="POST">
+                    <input type="hidden" name="_token" value="{{ csrf_token('fa_write') }}">
                     <button type="button" class="btn btn-light" data-bs-dismiss="modal">{{ 'Cancel'|trans }}</button>
                     <button type="submit" class="btn btn-danger">{{ 'Delete Everything'|trans }}</button>
                 </form>

@@ -31,10 +31,7 @@ class AIAuditService
             $aiResponse = $this->callAI($prompt);
             return $this->parseAIResponse($aiResponse);
         } catch (\Exception $e) {
-            return [
-                'error' => 'AI service unavailable',
-                'insights' => $this->getFallbackUserInsights($userData)
-            ];
+            return ['error' => 'AI service unavailable, showing the raw counts only.'] + $this->getFallbackUserInsights($userData);
         }
     }
 
@@ -53,32 +50,7 @@ class AIAuditService
             $aiResponse = $this->callAI($prompt);
             return $this->parseAIResponse($aiResponse);
         } catch (\Exception $e) {
-            return [
-                'error' => 'AI service unavailable',
-                'insights' => $this->getFallbackReclamationInsights($reclamationData)
-            ];
-        }
-    }
-
-    /**
-     * Detect anomalies using AI
-     */
-    /**
-     * @param array<string,mixed> $systemData
-     * @return array<string,mixed>
-     */
-    public function detectAnomalies(array $systemData): array
-    {
-        $prompt = $this->buildAnomalyDetectionPrompt($systemData);
-        
-        try {
-            $aiResponse = $this->callAI($prompt);
-            return $this->parseAnomalies($aiResponse);
-        } catch (\Exception $e) {
-            return [
-                'error' => 'AI service unavailable',
-                'anomalies' => $this->getFallbackAnomalies($systemData)
-            ];
+            return ['error' => 'AI service unavailable, showing the raw counts only.'] + $this->getFallbackReclamationInsights($reclamationData);
         }
     }
 
@@ -97,10 +69,7 @@ class AIAuditService
             $aiResponse = $this->callAI($prompt);
             return $this->parseSummary($aiResponse);
         } catch (\Exception $e) {
-            return [
-                'error' => 'AI service unavailable',
-                'summary' => $this->getFallbackSummary($stats)
-            ];
+            return ['error' => 'AI service unavailable, showing the raw counts only.'] + $this->getFallbackSummary($stats);
         }
     }
 
@@ -187,27 +156,6 @@ Format as JSON: {\"patterns\": [\"specific data patterns\"], \"response_assessme
     }
 
     /**
-     * @param array<string,mixed> $systemData
-     */
-    private function buildAnomalyDetectionPrompt(array $systemData): string
-    {
-        return "As an AI security auditor, analyze the following system metrics for anomalies:
-        
-User Activity: {$systemData['user_activity']}
-System Performance: {$systemData['performance']}
-Error Rates: {$systemData['error_rates']}
-Login Patterns: {$systemData['login_patterns']}
-
-Please identify:
-1. Unusual patterns
-2. Security concerns
-3. Performance issues
-4. Recommended actions
-
-Format your response as JSON with keys: anomalies, security_concerns, performance_issues, recommendations";
-    }
-
-    /**
      * @param array<string,mixed> $stats
      */
     private function buildSummaryPrompt(array $stats): string
@@ -269,21 +217,6 @@ Format as JSON: {\"health_assessment\": \"specific assessment\", \"metrics_summa
      * @param string $response
      * @return array<string,mixed>
      */
-    private function parseAnomalies(string $response): array
-    {
-        $parsed = $this->parseAIResponse($response);
-        return [
-            'anomalies' => $parsed['anomalies'] ?? [],
-            'security_concerns' => $parsed['security_concerns'] ?? [],
-            'performance_issues' => $parsed['performance_issues'] ?? [],
-            'recommendations' => $parsed['recommendations'] ?? []
-        ];
-    }
-
-    /**
-     * @param string $response
-     * @return array<string,mixed>
-     */
     private function parseSummary(string $response): array
     {
         $parsed = $this->parseAIResponse($response);
@@ -320,9 +253,6 @@ Format as JSON: {\"health_assessment\": \"specific assessment\", \"metrics_summa
                 'Total users: ' . $userData['total_users'],
                 'Active users: ' . $userData['active_users']
             ],
-            'concerns' => [],
-            'recommendations' => ['Monitor user activity regularly'],
-            'risk_level' => 'low'
         ];
     }
 
@@ -333,24 +263,12 @@ Format as JSON: {\"health_assessment\": \"specific assessment\", \"metrics_summa
     private function getFallbackReclamationInsights(array $reclamationData): array
     {
         return [
-            'patterns' => ['Standard reclamation flow'],
-            'response_assessment' => 'Normal response times',
-            'efficiency' => 'Standard resolution rate',
-            'recommendations' => ['Continue monitoring']
-        ];
-    }
-
-    /**
-     * @param array<string,mixed> $systemData
-     * @return array<string,mixed>
-     */
-    private function getFallbackAnomalies(array $systemData): array
-    {
-        return [
-            'anomalies' => [],
-            'security_concerns' => [],
-            'performance_issues' => [],
-            'recommendations' => ['Regular system monitoring recommended']
+            'patterns' => [
+                'Total reclamations: ' . $reclamationData['total_reclamations'],
+                'Pending: ' . $reclamationData['pending_reclamations'],
+                'Resolved: ' . $reclamationData['resolved_reclamations'],
+                'Closed: ' . $reclamationData['closed_reclamations'],
+            ],
         ];
     }
 
@@ -360,11 +278,15 @@ Format as JSON: {\"health_assessment\": \"specific assessment\", \"metrics_summa
      */
     private function getFallbackSummary(array $stats): array
     {
+        $users = is_array($stats['users'] ?? null) ? $stats['users'] : [];
+        $reclamations = is_array($stats['reclamations'] ?? null) ? $stats['reclamations'] : [];
+
         return [
-            'health_assessment' => 'System operating normally',
-            'metrics_summary' => ['All metrics within normal ranges'],
-            'trend_analysis' => ['Stable performance observed'],
-            'action_items' => ['Continue regular monitoring']
+            'health_assessment' => 'AI analysis unavailable',
+            'metrics_summary' => [
+                'Users: ' . ($users['total_users'] ?? 0) . ' (' . ($users['active_users'] ?? 0) . ' active)',
+                'Reclamations: ' . ($reclamations['total_reclamations'] ?? 0) . ' (' . ($reclamations['pending_reclamations'] ?? 0) . ' pending)',
+            ],
         ];
     }
 }

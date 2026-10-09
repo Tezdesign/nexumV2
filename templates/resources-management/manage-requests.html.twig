@@ -57,15 +57,15 @@
 
                         <td>
                             {% if row.assignment.status == 'PENDING' %}
-                                <a href="{{ path('accept_request', {'id': row.assignment.assignmentId}) }}"
-                                   class="btn btn-success btn-sm">
-                                    Accept
-                                </a>
+                                <form method="post" action="{{ path('accept_request', {'id': row.assignment.assignmentId}) }}" class="d-inline">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('request_decision') }}">
+                                    <button type="submit" class="btn btn-success btn-sm">Accept</button>
+                                </form>
 
-                                <a href="{{ path('decline_request', {'id': row.assignment.assignmentId}) }}"
-                                   class="btn btn-danger btn-sm">
-                                    Decline
-                                </a>
+                                <form method="post" action="{{ path('decline_request', {'id': row.assignment.assignmentId}) }}" class="d-inline">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('request_decision') }}">
+                                    <button type="submit" class="btn btn-danger btn-sm">Decline</button>
+                                </form>
                             {% else %}
                                 <span class="text-muted">No action</span>
                             {% endif %}

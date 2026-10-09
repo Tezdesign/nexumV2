@@ -12,6 +12,7 @@
 </div>
 {% endif %}
 <form id="admin-user-form" method="post" enctype="multipart/form-data" novalidate data-nexum-user-mode="{{ mode }}" action="{{ mode == 'create' ? path('admin_users_new') : path('admin_users_edit', {id: user.id}) }}">
+<input type="hidden" name="_token" value="{{ csrf_token('admin_users') }}">
     {% if modal|default(false) %}
         <input type="hidden" name="_modal" value="1">
     {% endif %}

@@ -2,9 +2,8 @@
 
 namespace App\Service;
 
-use Symfony\Component\Process\Exception\ProcessFailedException;
 use Symfony\Component\Process\Process;
-use Symfony\Component\HttpKernel\KernelInterface;
+use Symfony\Component\Process\ExecutableFinder;
 
 /**
  * Génère un quiz depuis un PDF via un script Python local (sans API externe).
@@ -19,40 +18,61 @@ final class PythonQuizGeneratorService
 {
     private string $projectDir;
 
-    public function __construct(KernelInterface $kernel)
-    {
-        $this->projectDir = $kernel->getProjectDir();
+    /**
+     * @param string|null $pythonBin  QUIZ_PYTHON_BIN: interpreter to run (a path, or a name found on the PATH)
+     * @param string|null $scriptPath QUIZ_GENERATOR_SCRIPT: the generate_quiz.py script
+     *
+     * Without them the service looks for the folder the feature was first written in (`pfe_ferdawes_linedata_fst`,
+     * a virtualenv that is not part of the repository), then for `python/generate_quiz.py`.
+     */
+    public function __construct(
+        string $projectDir,
+        private readonly ?string $pythonBin = null,
+        private readonly ?string $scriptPath = null,
+    ) {
+        $this->projectDir = rtrim($projectDir, DIRECTORY_SEPARATOR);
     }
 
     public function getPythonExecutablePath(): string
     {
-        return $this->projectDir
-            . DIRECTORY_SEPARATOR . 'pfe_ferdawes_linedata_fst'
-            . DIRECTORY_SEPARATOR . 'venv'
-            . DIRECTORY_SEPARATOR . 'Scripts'
-            . DIRECTORY_SEPARATOR . 'python.exe';
+        if ($this->pythonBin !== null && trim($this->pythonBin) !== '') {
+            return trim($this->pythonBin);
+        }
+
+        $venv = $this->projectDir . '/pfe_ferdawes_linedata_fst/venv';
+        foreach (['/Scripts/python.exe', '/bin/python'] as $candidate) { // Windows, then Linux and macOS
+            if (is_file($venv . $candidate)) {
+                return $venv . $candidate;
+            }
+        }
+
+        return 'python';
     }
 
     public function getScriptPath(): string
     {
-        return $this->projectDir
-            . DIRECTORY_SEPARATOR . 'pfe_ferdawes_linedata_fst'
-            . DIRECTORY_SEPARATOR . 'generate_quiz.py';
+        if ($this->scriptPath !== null && trim($this->scriptPath) !== '') {
+            return trim($this->scriptPath);
+        }
+
+        foreach (['/pfe_ferdawes_linedata_fst/generate_quiz.py', '/python/generate_quiz.py'] as $candidate) {
+            if (is_file($this->projectDir . $candidate)) {
+                return $this->projectDir . $candidate;
+            }
+        }
+
+        return $this->projectDir . '/python/generate_quiz.py';
     }
 
     public function getTmpDir(): string
     {
-        return $this->projectDir
-            . DIRECTORY_SEPARATOR . 'var'
-            . DIRECTORY_SEPARATOR . 'tmp';
+        return $this->projectDir . '/var/tmp';
     }
 
+    /** Where an uploaded PDF waits for the generator. Private, and emptied by the caller. */
     public function getUploadDir(): string
     {
-        return $this->projectDir
-            . DIRECTORY_SEPARATOR . 'public'
-            . DIRECTORY_SEPARATOR . 'uploads'
-            . DIRECTORY_SEPARATOR . 'quiz_ai';
+        return $this->projectDir . '/var/quiz_ai';
     }
 
     /**
@@ -70,17 +90,13 @@ final class PythonQuizGeneratorService
             throw new \RuntimeException('PDF introuvable: ' . $absolutePdfPath);
         }
 
-        $python = $this->getPythonExecutablePath();
+        $python = $this->resolvePython();
         $script = $this->getScriptPath();
         $tmpDir = $this->getTmpDir();
         $uploadDir = $this->getUploadDir();
 
-        if (!is_file($python)) {
-            throw new \RuntimeException('Exécutable Python introuvable: ' . $python);
-        }
-
         if (!is_file($script)) {
-            throw new \RuntimeException('Script Python introuvable: ' . $script);
+            throw new \RuntimeException('Le générateur de quiz n’est pas configuré: script introuvable. Définissez QUIZ_GENERATOR_SCRIPT (et QUIZ_PYTHON_BIN si besoin) dans .env.local.');
         }
 
         $this->ensureDirectoryExists($tmpDir);
@@ -147,7 +163,8 @@ final class PythonQuizGeneratorService
             }
 
             $hint = $stderr !== '' ? $this->compactText($stderr) : $this->compactText($stdout);
-            throw new ProcessFailedException($process, null, null, $hint !== '' ? $hint : null);
+            // Not ProcessFailedException: its message carries the full command line (server paths) and goes to the user's screen.
+            throw new \RuntimeException($hint !== '' ? $hint : 'Le générateur de quiz a échoué (code ' . $process->getExitCode() . ').');
         }
 
         // Process succeeded but no valid JSON found
@@ -158,6 +175,26 @@ final class PythonQuizGeneratorService
             'Impossible de lire le JSON retourné par Python.'
             . ($excerpt !== '' ? (' Extrait: ' . $excerpt) : '')
         );
+    }
+
+    /** A configured path must exist; a bare name such as `python` is looked up on the PATH. */
+    private function resolvePython(): string
+    {
+        $python = $this->getPythonExecutablePath();
+        if (str_contains($python, '/') || str_contains($python, '\\')) {
+            if (!is_file($python)) {
+                throw new \RuntimeException('Python introuvable: vérifiez QUIZ_PYTHON_BIN dans .env.local.');
+            }
+
+            return $python;
+        }
+
+        $found = (new ExecutableFinder())->find($python);
+        if ($found === null) {
+            throw new \RuntimeException('Python introuvable sur ce serveur. Installez-le ou définissez QUIZ_PYTHON_BIN dans .env.local.');
+        }
+
+        return $found;
     }
 
     private function ensureDirectoryExists(string $path): void

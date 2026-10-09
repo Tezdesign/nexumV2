@@ -156,6 +156,7 @@
                                                         <i class="ri-history-line"></i>
                                                     </a>
                                                     <form method="post" action="{{ path('mes_reclamations_delete', {id: r.idRec}) }}" class="d-inline" onsubmit="return confirm('Supprimer cette réclamation ?');">
+<input type="hidden" name="_token" value="{{ csrf_token('user_reclamations') }}">
                                                         <button type="submit" class="btn btn-sm btn-soft-danger"><i class="ri-delete-bin-line"></i>
                                                         </button>
                                                     </form>
@@ -192,6 +193,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
             </div>
             <form id="user-reclamation-form" method="post" action="{{ path('mes_reclamations_create') }}" enctype="multipart/form-data" novalidate>
+<input type="hidden" name="_token" value="{{ csrf_token('user_reclamations') }}">
                 <div class="modal-body">
                     <div class="js-validation-summary alert alert-danger py-2 small d-none mb-3" role="alert"></div>
                     <div class="row g-3">

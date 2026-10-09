@@ -57,6 +57,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <form method="POST" id="form-reject-draft">
+                    <input type="hidden" name="_token" value="{{ csrf_token('fa_write') }}">
                     <div class="modal-body p-4">
                         <p class="text-muted fs-14 mb-3">{{ 'Please confirm rejection and generate the reason for the project manager based on the evaluation data.'|trans }}</p>
                         <label class="form-label">{{ 'Rejection Reason (Generated from Evaluation)'|trans }}</label>
@@ -82,6 +83,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <form method="POST" id="form-to-transaction-draft">
+                    <input type="hidden" name="_token" value="{{ csrf_token('fa_write') }}">
                     <div class="modal-body p-4">
                         <p class="text-muted fs-14 mb-3">{{ 'Please select the date for this new transaction.'|trans }}</p>
                         <label class="form-label">{{ 'Transaction Date'|trans }}</label>
