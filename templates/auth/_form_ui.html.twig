@@ -1,0 +1,10 @@
+{% macro open(name, label, errors, required = true) %}
+    <div class="field{{ errors[name] is defined ? ' has-error' : '' }}" data-field="{{ name }}">
+        <label for="f-{{ name }}">{{ label }}{% if required %} <span class="req" aria-hidden="true">*</span>{% else %} <span class="opt">optional</span>{% endif %}</label>
+{% endmacro %}
+
+{% macro close(name, errors, hint = null) %}
+        <p class="field-error" id="err-{{ name }}" role="alert">{{ errors[name]|default('') }}</p>
+        {% if hint %}<p class="field-hint">{{ hint }}</p>{% endif %}
+    </div>
+{% endmacro %}

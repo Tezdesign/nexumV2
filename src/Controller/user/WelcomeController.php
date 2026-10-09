@@ -2,7 +2,6 @@
 
 namespace App\Controller\user;
 
-use App\Controller\Trait\ValidationFlashTrait;
 use App\Entity\Dto\Auth\LoginInput;
 use App\Entity\Dto\Auth\RegistrationInput;
 use App\Entity\UserHandling\Utilisateur;
@@ -19,8 +18,6 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 class WelcomeController extends AbstractController
 {
-    use ValidationFlashTrait;
-
     private const MAX_PROFILE_IMAGE_BYTES = 2 * 1024 * 1024;
     private const LOGIN_CAPTCHA_CODE_KEY = 'login_captcha_code';
 
@@ -50,36 +47,56 @@ class WelcomeController extends AbstractController
             return $this->redirectToHome();
         }
 
-        if ($request->isMethod('POST')) {
-            $input = LoginInput::fromRequest($request);
-            if ($this->flashValidationErrors($this->validator->validate($input))) {
-                $this->ensureLoginCaptcha($request);
+        if (!$request->isMethod('POST')) {
+            $this->ensureLoginCaptcha($request);
 
-                return $this->render('auth/login.html.twig');
-            }
-
-            if (!$this->isLoginCaptchaValid($request)) {
-                $this->addFlash('error', 'Invalid CAPTCHA.');
-                $this->regenerateLoginCaptcha($request);
-
-                return $this->render('auth/login.html.twig');
-            }
-
-            $utilisateur = $this->authService->login($input->email, $input->password);
-
-            if ($utilisateur) {
-                $this->addFlash('success', 'Connexion réussie !');
-
-                return $this->redirectToHome();
-            }
-
-            $this->addFlash('error', 'Email ou mot de passe incorrect.');
-            $this->regenerateLoginCaptcha($request);
+            return $this->renderLogin();
         }
 
-        $this->ensureLoginCaptcha($request);
+        $input = LoginInput::fromRequest($request);
+        $old = ['_username' => $input->email];
 
-        return $this->render('auth/login.html.twig');
+        // One message per field, shown under that field.
+        $errors = [];
+        foreach ($this->validator->validate($input) as $violation) {
+            $field = $violation->getPropertyPath() === 'email' ? '_username' : '_password';
+            $errors[$field] ??= (string) $violation->getMessage();
+        }
+        if ($errors !== []) {
+            $this->ensureLoginCaptcha($request);
+
+            return $this->renderLogin($errors, $old);
+        }
+
+        if (!$this->isLoginCaptchaValid($request)) {
+            $this->regenerateLoginCaptcha($request);
+
+            return $this->renderLogin(['_captcha' => 'The characters do not match. Try the new image.'], $old);
+        }
+
+        if ($this->authService->login($input->email, $input->password)) {
+            $this->addFlash('success', 'Connexion réussie !');
+
+            return $this->redirectToHome();
+        }
+
+        // One message for a wrong email, a wrong password and an account not yet activated, so it reveals nothing.
+        $this->regenerateLoginCaptcha($request);
+
+        return $this->renderLogin([], $old, 'Incorrect email or password, or your account is not activated yet.');
+    }
+
+    /**
+     * @param array<string, string> $errors message per field name, shown under that field
+     * @param array<string, string> $old    what the visitor typed (never the password)
+     */
+    private function renderLogin(array $errors = [], array $old = [], ?string $formError = null): Response
+    {
+        return $this->render('auth/login.html.twig', [
+            'errors' => $errors,
+            'old' => $old,
+            'form_error' => $formError,
+        ], new Response('', $errors !== [] || $formError !== null ? Response::HTTP_UNPROCESSABLE_ENTITY : Response::HTTP_OK));
     }
 
     #[Route('/login/captcha', name: 'login_captcha', methods: ['GET'])]

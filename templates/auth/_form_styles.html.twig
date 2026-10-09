@@ -1,0 +1,96 @@
+<style>
+    :root {
+        --primary-purple: #7c3aed;
+        --primary-dark: #6d28d9;
+        --text-main: #111827;
+        --text-muted: #6b7280;
+        --input-bg: #f9fafb;
+        --border-color: #e5e7eb;
+        --danger: #dc2626;
+        --danger-bg: #fef2f2;
+    }
+
+    /* The page scrolls as one piece: the card simply grows with its content. */
+    .nx-wrap { display: flex; justify-content: center; padding: 24px 0 40px; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    .nx-wrap * { font-family: inherit; }
+
+    .nx-card {
+        display: flex;
+        width: 1000px;
+        max-width: 100%;
+        background: #fff;
+        border-radius: 24px;
+        overflow: hidden;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.12);
+    }
+
+    .nx-form { flex: 1 1 0; padding: 40px 48px 36px; min-width: 0; }
+
+    .nx-art {
+        flex: 0 0 38%;
+        background: #1e1b4b url('{{ asset('images/users/purple.jpg') }}') center / cover;
+        position: relative;
+    }
+    .nx-art::after {
+        content: ''; position: absolute; inset: 0;
+        background: radial-gradient(circle at center, rgba(124, 58, 237, .2) 0%, transparent 70%);
+    }
+
+    .nx-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
+    .brand { font-size: 24px; font-weight: 800; letter-spacing: -.02em; color: var(--primary-purple); }
+    .back-link { color: var(--text-muted); font-size: 14px; text-decoration: none; font-weight: 500; }
+    .back-link:hover { color: var(--primary-purple); }
+
+    h1.title { margin: 0 0 6px; font-size: 26px; font-weight: 700; color: var(--text-main); }
+    .subtitle { margin: 0 0 24px; color: var(--text-muted); font-size: 14px; line-height: 1.5; }
+
+    /* One fixed place for form level messages; it never moves the fields below by more than its own height. */
+    .banner { border-radius: 10px; padding: 11px 14px; font-size: 14px; margin-bottom: 20px; }
+    .banner-error { background: var(--danger-bg); color: #991b1b; border: 1px solid #fecaca; }
+    .banner-success { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+    .banner-info { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+
+
+    .field { margin-bottom: 8px; }
+    .field label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; color: var(--text-main); }
+    .req { color: var(--danger); }
+    .opt { margin-left: 4px; font-weight: 400; color: var(--text-muted); font-size: 12px; }
+
+    .field input[type="text"], .field input[type="email"], .field input[type="tel"], .field input[type="password"], .field select {
+        width: 100%; height: 44px; padding: 0 12px; box-sizing: border-box;
+        background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 10px;
+        font-size: 14px; color: var(--text-main); outline: none; transition: border-color .15s, box-shadow .15s;
+    }
+    .field input:focus, .field select:focus { border-color: var(--primary-purple); box-shadow: 0 0 0 3px rgba(124, 58, 237, .15); background: #fff; }
+    .field.has-error input, .field.has-error select { border-color: var(--danger); background: var(--danger-bg); }
+    .field.has-error input:focus, .field.has-error select:focus { box-shadow: 0 0 0 3px rgba(220, 38, 38, .15); }
+
+    /* The error line is always in the layout (same height with or without a message), so showing one never shifts the form. */
+    .field-error { min-height: 18px; margin: 4px 0 0; font-size: 12.5px; line-height: 18px; color: var(--danger); }
+    .field-hint { margin: -2px 0 6px; font-size: 12px; color: var(--text-muted); }
+    .field.has-error .field-hint { display: none; }
+
+    .pw-wrap { position: relative; }
+    .pw-wrap input { padding-right: 64px !important; }
+    .pw-toggle {
+        position: absolute; right: 6px; top: 6px; height: 32px; padding: 0 10px; border: 0; border-radius: 8px;
+        background: transparent; color: var(--primary-purple); font-size: 12px; font-weight: 600; cursor: pointer;
+    }
+    .pw-toggle:hover { background: rgba(124, 58, 237, .08); }
+
+
+    .btn-submit {
+        width: 100%; height: 48px; margin-top: 8px; border: 0; border-radius: 12px;
+        background: var(--primary-purple); color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; transition: background .15s;
+    }
+    .btn-submit:hover { background: var(--primary-dark); }
+    .btn-submit:disabled { opacity: .7; cursor: wait; }
+
+    .footer-text { margin: 22px 0 0; text-align: center; font-size: 13px; color: var(--text-muted); }
+    .footer-text a { color: var(--primary-purple); font-weight: 700; text-decoration: none; }
+
+    @media (max-width: 860px) {
+        .nx-art { display: none; }
+        .nx-form { padding: 28px 22px 28px; }
+    }
+</style>

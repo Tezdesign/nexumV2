@@ -1,408 +1,152 @@
 {% extends 'layouts/auth.html.twig' %}
 
-{% set title = 'Login - Nexum' %}
+{% set title = 'Sign In - Nexum' %}
+
+{% set errors = errors|default({}) %}
+{% set old = old|default({}) %}
+
+{% import 'auth/_form_ui.html.twig' as ui %}
 
 {% block css %}
+{{ include('auth/_form_styles.html.twig') }}
 <style>
-    :root {
-        --primary-purple: #7c3aed;
-        --text-main: #111827;
-        --text-muted: #6b7280;
-        --bg-gray: #f3f4f6;
-        --input-bg: #f9fafb;
-        --border-color: #e5e7eb;
+    .captcha-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .captcha-img { display: block; height: 56px; width: auto; max-width: calc(100% - 52px); border: 1px solid var(--border-color); border-radius: 10px; background: var(--input-bg); }
+    .btn-reload {
+        flex: 0 0 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center;
+        border: 1px solid var(--border-color); border-radius: 10px; background: #fff; color: var(--text-main); cursor: pointer;
     }
-
-    body {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        background-color: var(--bg-gray);
-        min-height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow-y: scroll;
-    }
-
-    .auth-card {
-        background: white;
-        width: 900px;
-        max-width: 95%;
-        height: 550px;
-        border-radius: 24px;
-        display: flex;
-        overflow: hidden;
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
-    }
-
-    /* Left Section: Form */
-    .form-section {
-        flex: 1;
-        padding: 50px 60px;
-        display: flex;
-        flex-direction: column;
-        overflow-y: auto;
-        max-height: 550px;
-    }
-
-    .back-link {
-        text-decoration: none;
-        color: var(--text-muted);
-        font-size: 14px;
-        margin-bottom: 30px;
-        display: flex;
-        align-items: center;
-        gap: 5px;
-    }
-
-    .title {
-        color: var(--text-main);
-        font-size: 28px;
-        font-weight: 700;
-        margin-bottom: 8px;
-    }
-
-    .subtitle {
-        color: var(--text-muted);
-        font-size: 14px;
-        margin-bottom: 35px;
-    }
-
-    .form-group {
-        margin-bottom: 20px;
-        position: relative;
-    }
-
-    .label-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 8px;
-    }
-
-    label {
-        font-size: 13px;
-        font-weight: 500;
-        color: var(--text-main);
-    }
-
-
-    .input-wrapper {
-        position: relative;
-    }
-
-    .input-icon {
-        position: absolute;
-        left: 12px;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 18px;
-        height: 18px;
-        color: #9ca3af;
-    }
-
-    .eye-icon {
-        position: absolute;
-        right: 12px;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 18px;
-        height: 18px;
-        color: #9ca3af;
-        cursor: pointer;
-    }
-
-    input {
-        width: 100%;
-        padding: 12px 12px 12px 40px;
-        background-color: var(--input-bg);
-        border: 1px solid var(--border-color);
-        border-radius: 10px;
-        font-size: 14px;
-        outline: none;
-        transition: border-color 0.2s;
-    }
-
-    input:focus {
-        border-color: var(--primary-purple);
-    }
-
-    .btn-signin {
-        width: 100%;
-        padding: 14px;
-        background-color: var(--primary-purple);
-        color: white;
-        border: none;
-        border-radius: 12px;
-        font-size: 15px;
-        font-weight: 600;
-        cursor: pointer;
-        margin-top: 10px;
-        transition: opacity 0.2s;
-    }
-
-    .btn-signin:hover {
-        opacity: 0.9;
-    }
-
-    .footer-text {
-        text-align: center;
-        margin-top: 25px;
-        font-size: 13px;
-        color: var(--text-muted);
-    }
-
-    .get-started {
-        color: var(--primary-purple);
-        text-decoration: none;
-        font-weight: 700;
-    }
-
-    /* Right Section: Image */
-    .image-section {
-        flex: 1;
-        background-color: #1e1b4b; /* Dark Navy Fallback */
-        background-image: url('{{ asset('images/users/purple.jpg') }}');
-        background-size: cover;
-        background-position: center;
-        position: relative;
-    }
-
-    /* Overlay to mimic purple glow in screenshot */
-    .image-section::after {
-        content: '';
-        position: absolute;
-        top: 0; left: 0; right: 0; bottom: 0;
-        background: radial-gradient(circle at center, rgba(124, 58, 237, 0.2) 0%, transparent 70%);
-    }
-
-    @media (max-width: 768px) {
-        .auth-card {
-            flex-direction: column;
-            height: auto;
-            width: 400px;
-        }
-        .image-section {
-            display: none;
-        }
-    }
-
-    /* Alert styles */
-    .alert {
-        position: relative;
-        padding: 12px 16px;
-        margin-bottom: 20px;
-        border: 1px solid transparent;
-        border-radius: 8px;
-        font-size: 14px;
-        line-height: 1.5;
-    }
-
-    .alert-success {
-        color: #0f5132;
-        background-color: #d1e7dd;
-        border-color: #badbcc;
-    }
-
-    .alert-danger {
-        color: #842029;
-        background-color: #f8d7da;
-        border-color: #f5c2c7;
-    }
-
-    .alert-info {
-        color: #055160;
-        background-color: #cff4fc;
-        border-color: #b6effb;
-    }
-
-    .alert-warning {
-        color: #664d03;
-        background-color: #fff3cd;
-        border-color: #ffecb5;
-    }
-
-    .btn-close {
-        position: absolute;
-        top: 8px;
-        right: 12px;
-        padding: 0;
-        font-size: 16px;
-        font-weight: bold;
-        line-height: 1;
-        color: #000;
-        text-shadow: 0 1px 0 #fff;
-        opacity: 0.5;
-        background: none;
-        border: none;
-        cursor: pointer;
-        transition: opacity 0.3s ease;
-    }
-
-    .btn-close:hover {
-        opacity: 1;
-    }
-
-    .captcha-row {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        flex-wrap: wrap;
-        margin-bottom: 8px;
-    }
-
-    .captcha-img {
-        display: block;
-        border: 1px solid var(--border-color);
-        border-radius: 10px;
-        background: var(--input-bg);
-        vertical-align: middle;
-    }
-
-    .btn-captcha-reload {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 42px;
-        height: 42px;
-        padding: 0;
-        border: 1px solid var(--border-color);
-        border-radius: 10px;
-        background: var(--input-bg);
-        color: var(--text-main);
-        cursor: pointer;
-        transition: border-color 0.2s, background 0.2s;
-    }
-
-    .btn-captcha-reload:hover {
-        border-color: var(--primary-purple);
-        background: #faf5ff;
-    }
-
-    /* Custom scrollbar for form section */
-    .form-section::-webkit-scrollbar {
-        width: 8px;
-    }
-
-    .form-section::-webkit-scrollbar-track {
-        background: rgba(124, 58, 237, 0.1);
-        border-radius: 10px;
-    }
-
-    .form-section::-webkit-scrollbar-thumb {
-        background: linear-gradient(180deg, var(--primary-purple) 0%, #6d28d9 100%);
-        border-radius: 10px;
-        border: 2px solid rgba(124, 58, 237, 0.2);
-        transition: all 0.3s ease;
-    }
-
-    .form-section::-webkit-scrollbar-thumb:hover {
-        background: linear-gradient(180deg, #8b5cf6 0%, var(--primary-purple) 100%);
-        border-color: rgba(124, 58, 237, 0.4);
-        transform: scaleY(1.1);
-    }
-
-    /* Firefox scrollbar */
-    .form-section::-moz-scrollbar-thumb {
-        background: var(--primary-purple);
-        border-radius: 10px;
-        border: 2px solid rgba(124, 58, 237, 0.2);
-    }
-
-    .form-section::-moz-scrollbar-track {
-        background: rgba(124, 58, 237, 0.1);
-        border-radius: 10px;
-    }
+    .btn-reload:hover { border-color: var(--primary-purple); color: var(--primary-purple); }
+    .subtle { margin: 14px 0 0; text-align: center; font-size: 12.5px; color: var(--text-muted); }
 </style>
 {% endblock %}
 
+{# No template tagline or broken logo above the card: the card carries the brand. #}
+{% block auth_header %}{% endblock %}
+
 {% block content %}
-<div class="auth-card">
-    <div class="form-section">
-        <a href="{{ path('welcome') }}" class="back-link">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
-            Back
-        </a>
+<div class="nx-wrap">
+    <div class="nx-card">
+        <div class="nx-form">
+            <div class="nx-top">
+                <span class="brand">Nexum</span>
+                <a href="{{ path('welcome') }}" class="back-link">&larr; Back</a>
+            </div>
 
-        <h1 class="title">Welcome Back</h1>
-        <p class="subtitle">Enter your credentials to access your workspace.</p>
+            <h1 class="title">Welcome back</h1>
+            <p class="subtitle">Sign in to open your workspace.</p>
 
-        {% for type, messages in app.session.flashbag.all() %}
-            {% for message in messages %}
-                <div class="alert alert-{{ type == 'error' ? 'danger' : type }} alert-dismissible fade show" style="margin-bottom: 20px; padding: 12px 16px; border-radius: 8px; font-size: 14px;">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close" style="float: right; font-size: 16px; background: none; border: none; cursor: pointer;">×</button>
-                </div>
+            {% for type, messages in app.session.flashbag.all() %}
+                {% for message in messages %}
+                    <div class="banner banner-{{ type == 'error' or type == 'danger' ? 'error' : (type == 'success' ? 'success' : 'info') }}" role="alert">{{ message }}</div>
+                {% endfor %}
             {% endfor %}
-        {% endfor %}
+            {% if form_error|default(null) %}
+                <div class="banner banner-error" role="alert">{{ form_error }}</div>
+            {% endif %}
 
-        <form action="{{ path('login') }}" method="post" id="nexum-login-form">
-            <div class="form-group">
-                <label>Email Address</label>
-                <div class="input-wrapper">
-                    <svg class="input-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                    <input type="text" name="_username" placeholder="name@company.com" autocomplete="username">
-                </div>
-            </div>
+            <form action="{{ path('login') }}" method="post" id="login-form" novalidate>
+                {{ ui.open('_username', 'Email address', errors) }}
+                    <input type="email" name="_username" id="f-_username" value="{{ old._username|default('') }}" autocomplete="username" maxlength="150" placeholder="name@company.com" autofocus>
+                {{ ui.close('_username', errors) }}
 
-            <div class="form-group">
-                <div class="label-row">
-                    <label>Password</label>
-                </div>
-                <div class="input-wrapper">
-                    <svg class="input-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-                    <input type="password" name="_password" placeholder="••••••••" autocomplete="current-password">
-                    <svg class="eye-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
-                </div>
-            </div>
+                {{ ui.open('_password', 'Password', errors) }}
+                    <div class="pw-wrap">
+                        <input type="password" name="_password" id="f-_password" autocomplete="current-password" placeholder="Your password">
+                        <button type="button" class="pw-toggle" data-toggle-password>Show</button>
+                    </div>
+                {{ ui.close('_password', errors) }}
 
-            <div class="form-group">
-                <label>Captcha</label>
-                <div class="captcha-row">
-                    <img id="login-captcha-img" class="captcha-img" src="{{ path('login_captcha') }}" width="200" height="56" alt="Captcha code">
-                    <button type="button" class="btn-captcha-reload" id="login-captcha-reload" title="Reload captcha" aria-label="Reload captcha">
-                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                    </button>
-                </div>
-                <div class="input-wrapper">
-                    <svg class="input-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m-7 4h8m-9 4h10M5 5h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z"></path></svg>
-                    <input type="text" name="_captcha" id="login-captcha-input" placeholder="Type the characters above" maxlength="12" autocomplete="off" autocapitalize="characters" spellcheck="false">
-                </div>
-            </div>
+                {{ ui.open('_captcha', 'Security code', errors) }}
+                    <div class="captcha-row">
+                        <img id="captcha-img" class="captcha-img" src="{{ path('login_captcha') }}" alt="Security code">
+                        <button type="button" class="btn-reload" id="captcha-reload" title="New image" aria-label="Get a new security image">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        </button>
+                    </div>
+                    <input type="text" name="_captcha" id="f-_captcha" maxlength="12" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Type the characters above">
+                {{ ui.close('_captcha', errors) }}
 
-            <button type="submit" class="btn-signin">Sign In</button>
-        </form>
+                <button type="submit" class="btn-submit" id="submit-btn">Sign in</button>
+            </form>
 
-        <p class="footer-text">
-            Don't have an account? <a href="{{ path('signin') }}" class="get-started">Get Started</a>
-        </p>
+            <p class="footer-text">New here? <a href="{{ path('signin') }}">Create an account</a></p>
+            <p class="subtle">New accounts are activated by an administrator. Forgot your password? Ask an administrator to reset it.</p>
+        </div>
+
+        <div class="nx-art" aria-hidden="true"></div>
     </div>
-
-    <div class="image-section"></div>
 </div>
 {% endblock %}
 
 {% block script %}
-<script src="{{ asset('js/nexum-validation.js') }}"></script>
 <script>
 (function () {
-    var form = document.getElementById('nexum-login-form');
-    if (!form || !window.NexumValidate) return;
-    form.addEventListener('submit', function (e) {
-        if (NexumValidate.loginForm(form).length) e.preventDefault();
-    });
-    var img = document.getElementById('login-captcha-img');
-    var btn = document.getElementById('login-captcha-reload');
-    var input = document.getElementById('login-captcha-input');
-    var baseUrl = "{{ path('login_captcha')|e('js') }}";
-    if (btn && img) {
-        btn.addEventListener('click', function () {
-            img.src = baseUrl + '?renew=1&t=' + Date.now();
-            if (input) input.value = '';
-        });
+    var form = document.getElementById('login-form');
+    var submitBtn = document.getElementById('submit-btn');
+    var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    function el(name) { return form.elements[name]; }
+
+    // Same rules as the server (LoginInput and the captcha), so the browser answers instantly.
+    var rules = {
+        _username: function () { var v = el('_username').value.trim(); return !v ? 'Email is required.' : (!EMAIL_RE.test(v) ? 'Please enter a valid email address.' : ''); },
+        _password: function () { return !el('_password').value ? 'Password is required.' : ''; },
+        _captcha: function () {
+            var v = el('_captcha').value.trim();
+            return !v ? 'Type the characters from the image.' : (!/^[A-Za-z0-9 ]+$/.test(v) ? 'Use only letters and numbers.' : '');
+        }
+    };
+
+    function setError(name, message) {
+        var box = form.querySelector('[data-field="' + name + '"]');
+        box.classList.toggle('has-error', !!message);
+        box.querySelector('.field-error').textContent = message || '';
+        el(name).setAttribute('aria-invalid', message ? 'true' : 'false');
+        el(name).setAttribute('aria-describedby', 'err-' + name);
     }
+
+    Object.keys(rules).forEach(function (name) {
+        var input = el(name);
+        input.addEventListener('blur', function () { if (input.value !== '') setError(name, rules[name]()); });
+        input.addEventListener('input', function () {
+            if (form.querySelector('[data-field="' + name + '"]').classList.contains('has-error')) setError(name, rules[name]());
+        });
+    });
+
+    form.addEventListener('submit', function (e) {
+        var firstBad = null;
+        Object.keys(rules).forEach(function (name) {
+            var message = rules[name]();
+            setError(name, message);
+            if (message && !firstBad) firstBad = el(name);
+        });
+        if (firstBad) { e.preventDefault(); firstBad.focus(); return; }
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Signing in...';
+    });
+
+    var img = document.getElementById('captcha-img');
+    document.getElementById('captcha-reload').addEventListener('click', function () {
+        img.src = "{{ path('login_captcha')|e('js') }}?renew=1&t=" + Date.now();
+        el('_captcha').value = '';
+        setError('_captcha', '');
+        el('_captcha').focus();
+    });
+
+    document.querySelectorAll('[data-toggle-password]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var input = btn.parentElement.querySelector('input');
+            var show = input.type === 'password';
+            input.type = show ? 'text' : 'password';
+            btn.textContent = show ? 'Hide' : 'Show';
+        });
+    });
+
+    // After a server refusal, put the cursor where the problem is (a wrong captcha, or the password after a wrong login).
+    var bad = form.querySelector('.field.has-error input');
+    if (bad) { bad.focus(); }
+    else if (document.querySelector('.banner-error')) { el('_password').focus(); }
 })();
 </script>
 {% endblock %}
